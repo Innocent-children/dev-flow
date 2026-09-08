@@ -93,6 +93,15 @@ If the user chooses direct development, leave Dev Flow with zero Dev Flow calls,
 receipts, fetches, branches, or worktrees. If the user chooses Dev Flow, re-read the request, HEAD,
 and status; any anchor change invalidates the assessment and requires a new assessment and choice.
 
+## Host command discovery
+
+Use `dev-flow-codex host-launch --help` to discover operations and
+`dev-flow-codex host-launch <operation> --help` to read the complete input Schema, field sources,
+output fields and next step. These queries read no stdin, resolve no installation paths, and write
+no Git, receipt or Core data. Use this installed contract before constructing helper arguments;
+source inspection is not part of ordinary Task creation. `host-launch inspect` returns the complete
+`assessment_anchor`; preserve its exact request string and all repository entries for `prepare`.
+
 ## Provisioning confirmation
 
 After a still-current Dev Flow choice, show for each repository its stable key, remote name, base
@@ -128,7 +137,11 @@ After confirmation:
 6. All repositories must be isolated, writable, and verified before one Core Task is opened. If the
    Host cannot isolate every root, reject the entire Dev Flow request; do not keep shared additional
    repositories or shrink Scope. Build the open call from one receipt-backed repository-scope
-   descriptor so every entry belongs to the same confirmed launch and request.
+   descriptor so every entry belongs to the same confirmed launch and request. Call
+   `host-launch scope` with `launch_id`, every confirmed `repository_keys` entry and
+   `primary_repository_key`; forward its complete result as the repository fields of `dev_flow_open_task`.
+   Reuse the first `prepare` result's `receipt.launch_id` for additional repositories. A new launch ID
+   per independent development item remains appropriate for a parallel batch.
 
 Only a `provisioned` receipt can supply the exact Host-facing workspace origin:
 
@@ -299,13 +312,14 @@ Use this exact `new_task` JSON shape, changing only values derived from the admi
 <!-- new-task-example:end -->
 
 After a successful open, give at most one concise status containing the Task identity, revision,
-current node, task branch, and worktree path, then begin the current node. A new-task
+current node, task branch, and worktree path. Handle any returned `recovery_assessment` before
+beginning the current node, including on a fresh-session resume. A new-task
 `ACTIVE_TASK_CONFLICT`, `WORKTREE_PROVISIONING_REQUIRED`, ownership error, or other domain error is a
 safe stop. It never starts relocation or another Host task.
 
 ## Governed action loop
 
-The inseparable Action fields are exactly `task_id`, `revision`, `action_id`, `action_kind`,
+The inseparable Action fields are exactly `task_id`, `revision`, `action_id`, `action_kind`, `submission_tool`,
 `process_id`, `process_definition_digest`, `current_node`, `node_purpose`,
 `entry_conditions`, `completion_conditions`, `allowed_effects`, `required_evidence`,
 `method_profile`, `method_steps`, `available_transitions`, `payload_contract`, `guidance`,
@@ -314,10 +328,15 @@ The inseparable Action fields are exactly `task_id`, `revision`, `action_id`, `a
 
 For an active task, perform each iteration in this order:
 
-1. Obtain one complete fresh Action from the open result or `dev_flow_get_next_action`, and bind it as
-   `fresh_action` from `result.task.current_action` or `result.action` respectively. These reads first
-   observe every task worktree; handle a workspace blocker before doing repository work.
-2. Treat its task ID, revision, action ID, action kind, process ID, process version,
+1. Read [the tool-result and recovery reference](references/tool-results.md) when interpreting a
+   result. First process any `recovery_assessment.next_advice`, including on an explicit resume;
+   pending recovery takes precedence over the returned Action. Otherwise obtain a complete fresh
+   Action from the open result or `dev_flow_get_next_action`, and bind it as `fresh_action` from
+   `result.task.current_action` or `result.action` respectively. A successful submission returns the
+   Task directly, so its next Action is `result.current_action`. Handle a workspace blocker or
+   terminal outcome before repository work. Ordinary `get_task` is a saved-state read, not a fresh
+   workspace guard.
+2. Treat its task ID, revision, action ID, action kind, submission tool, process ID,
    process-definition digest, current node, node purpose, entry conditions, completion conditions,
    allowed effects, required evidence, method profile, method steps, available transitions, payload
    schema/contract, guidance, repository-binding digest, issuance identity/history/content digests,
@@ -468,8 +487,9 @@ These commands require the existing Task database and the packaged Core. They cr
 blocker, operation, Git change or workflow cursor. Report unavailable commands honestly and stop
 submission; do not replace collection with a hand-written file list.
 
-Use the same `fresh_action` already bound from `result.task.current_action` or `result.action`; do
-not construct another Action view.
+Use the same `fresh_action` obtained through the tool-result reference: `result.task.current_action`
+for open/read, `result.action` for next-action lookup, or `result.current_action` after a committed
+submission. Process any recovery assessment before binding it.
 
 Read [the node payload construction reference](references/node-payloads.md) from the packaged path
 `references/node-payloads.md` before every ordinary submission. The reference explains the exact
@@ -541,11 +561,18 @@ the verdict.
 
 ## Recovery-before-retry contract
 
-A mutation result is uncertain when it is missing, cancelled, malformed, truncated, or
+These rules cover ordinary Action submissions, blocker resolution and Action recovery. Creation,
+cancellation, abandonment and relocation preparation use the separate readback rules in
+[the tool-result reference](references/tool-results.md).
+
+An Action submission result is uncertain when it is missing, cancelled, malformed, truncated, or
 transport-failed instead of returning one complete structured result. Do not immediately repeat
 the submission tool and do not infer the result from repository state or worktree contents.
 
-Retain only the `task_id` and `action_id` used for the call. Core retains the complete normalized
+For a response lost in this session, retain the `task_id` and `action_id` used for the call.
+For a fresh-session resume, take the Task ID from the complete Core result and the saved Action ID
+from `recovery_assessment.operation.action_id`. Do not substitute `current_action_id`, which may
+already refer to a different Action. Core retains the complete normalized
 Action identity and payload before the Task transition. Call `dev_flow_get_task` with ordinary
 `host` and `task_id`; do not construct `operation_probe` and do not reconstruct any payload.
 Require one complete `recovery_assessment`. Stop if it is absent, truncated, malformed, or refers to
@@ -558,13 +585,16 @@ Do not implement or branch on the five-class decision table. Obey only Core's co
   and Action, then call `dev_flow_recover_action` with exactly `host`, the retained `task_id`, and the
   retained `action_id`; Core reuses the saved result, so do not rebuild it;
 - `submit_recovery_apply`: call `dev_flow_recover_action` with those same three fields immediately;
-- `read_next_action`: read the authoritative next action and continue only from that result;
+- `read_next_action`: use the complete guarded Action already returned by open/next-action lookup;
+  if the advice came from saved-state `get_task`, obtain one guarded `get_next_action` result. A
+  repeated completed assessment does not require another lookup; continue from the returned Action;
 - `resolve_blocker`: call `dev_flow_resolve_blocker` with the current blocked Action's `task_id` and
   `action_id` after the required repository condition has been restored;
 - `stop_for_repository_drift`: report the retained workspace/history condition and stop.
 
 Never infer that an unlisted action is safe. A recovery read itself cannot create a blocker or adopt
-work. If the original `task_id` or `action_id` is missing, stop; do not rebuild it from partial output.
+work. If neither the original submission nor a complete Core recovery assessment provides the
+Task and saved Action identities, stop; do not rebuild them from partial output.
 
 Do not branch, decide, or interpret any recovery classification and do not guess from repository
 state. Core owns classification, effect proof, blocker eligibility, and mutation directives.

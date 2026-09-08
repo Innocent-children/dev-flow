@@ -162,7 +162,7 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `dev-flow-codex mcp` | **内部 Host 命令。** 由 Plugin 的 MCP 配置调用；它设置数据目录和 Codex admission instructions，然后启动 packaged Core 的 `mcp --stdio`。正常用户不应手工启动它。 |
 | `dev-flow-codex hook pre-tool-use` | **内部 Host 命令。** Codex packaged hook 通过 `PATH` 中 package-owned launcher 调用它；该命令读取一个 Hook 事件，提取 `apply_patch` 目标并执行写前检查。正常用户不应手工启动它。 |
 | `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** `hook pre-tool-use` 的实现调用它；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |
-| `dev-flow-codex host-launch <operation>` | **内部 Host 命令。** 从 stdin 接收一个 closed JSON 对象，并输出一个 JSON 对象。`operation` 只允许 `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`；它执行或记录当前用户已经确认的 assessment、provisioning、relaunch、handoff 与 cleanup 步骤，不是通用 Git CLI。 |
+| `dev-flow-codex host-launch <operation>` | **内部 Host 命令。** 从 stdin 接收一个 closed JSON 对象，并输出一个 JSON 对象。`operation` 只允许 `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|scope|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`；它执行或记录当前用户已经确认的 assessment、provisioning、relaunch、handoff 与 cleanup 步骤，不是通用 Git CLI。 |
 
 `dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。
 
@@ -335,7 +335,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | `dev_flow_recover_action` | mutation | 使用 Core 在独立 Action 操作记录中保存的规范化提交恢复不确定 Action；不接收原始 payload。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
 | `dev_flow_prepare_task_relocation` | mutation | 保存 relocation ID、源 workspace/content/surface 和 resume node；Host handoff 期间保留原 claims。 |
-| `dev_flow_abandon_task` | destructive mutation | 原 worktree 确实不可用时，用精确 host/task/revision 和非空 reason 进入 `CANCELLED` 并释放 claims；不访问 Git。 |
+| `dev_flow_abandon_task` | destructive mutation | 原 worktree 确实不可用时，用精确 host/task/revision 和非空 reason 进入 `CANCELLED` 并释放 claims；先尝试观察仓库，以确认原 worktree 不可用。 |
 
 八个普通节点提交工具都只接收 `host`、`task_id`、`action_id`、`transition_id`、`summary`、
 `reason`、`artifacts`、`method_results` 和只含语义事实的节点专属 `node_result`；其中没有
@@ -465,3 +465,41 @@ Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态�
 ## 文件收集与准备命令
 
 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare` 分别转发到包内 Core 的 `dev-flow artifacts collect` 和 `dev-flow artifacts prepare`。两个命令从 stdin 读取最多 1 MiB 的单个 UTF-8 JSON 对象，通过 stdout 返回 `{ok:true,result:...}` 或 `{ok:false,error:...}`，成功退出码为 0，失败为 1。collect 输入为 `{host,task_id,action_id}`；prepare 输入为 `{host,collection}`。前者输出完整文件信息，后者检查逐项分类、观察是否变化并生成 artifact 数组。只读取已有 Task 和 Git，不创建存储或推进流程。完整字段及使用步骤见[文件收集与提交](ARTIFACTS.md)。
+
+## Codex Host 操作帮助
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch --help
+dev-flow-codex host-launch prepare --help
+dev-flow-codex host-launch scope --help
+```
+
+所有帮助查询均在读取 stdin、解析安装路径或执行 Core/Git 操作前返回。单个操作帮助是 JSON，包含 `input_schema`、`output_fields` 和 `next_step`；字段说明交代值来自用户确认、前一步结果还是 Host 查询。帮助查询不创建配置、工作区或记录。
+
+`inspect` 返回完整 `assessment_anchor`。`prepare` 接收原样保留的 request、anchor、确认参数和 `handoff_file`；桌面工作区显式传 `worktree_path: null`。首个结果的 `receipt.launch_id` 用于同一 Task 的其余仓库。依次完成受管派发和 `bootstrap`，或 CLI provisioning 后，调用只读汇总命令：
+
+```text
+dev-flow-codex host-launch scope
+stdin: {"launch_id":"<saved launch ID>","repository_keys":["api","web"],"primary_repository_key":"api"}
+```
+
+`repository_keys` 必须列出全部已确认仓库。命令拒绝缺失、尚未准备完成、重复或属于不同请求的记录，输出 `repository_path`、`workspace_origin`，多仓库时还包含 `primary_repository_key` 和 `additional_repositories`。将完整输出作为 `dev_flow_open_task` 的仓库字段，再添加 `host` 与已确认需求对应的 `new_task`。
+
+## MCP 结果读取
+
+每个工具提供输入和结果 Schema。成功结果的 `ok=true`，数据在 `result`；失败结果通过 `error` 和 `recovery` 描述原因及允许的处理方式。`structuredContent` 与文本内容中的 JSON 相同，读取完整结果一次即可。
+
+| 工具 | Task / Action 位置 |
+| --- | --- |
+| `dev_flow_open_task`、`dev_flow_get_task` | `result.task`；先处理同层的 `result.recovery_assessment` |
+| `dev_flow_get_next_action` | `result.action`；先处理 `result.recovery_assessment`、`result.blocker`、`result.outcome` |
+| 八个 `dev_flow_submit_*`、`dev_flow_resolve_blocker`、`dev_flow_recover_action` | `result` 本身是 Task，下一步是 `result.current_action` |
+| `dev_flow_cancel_task`、`dev_flow_abandon_task` | `result` 本身是终态 Task |
+| `dev_flow_prepare_task_relocation` | `result.task` 与 `result.relocation_id` |
+
+新会话恢复时，已有 `recovery_assessment` 优先于源 Action；使用 `operation.action_id` 恢复保存的提交。创建响应不确定时在原工作树调用省略 `new_task` 的 `open_task` 回读，并核对来源、范围和需求。取消使用预先保留的 `request_id` 对照 `task.last_operation.operation_id`、kind 和 outcome；放弃及迁移准备对照原 Task、预期 revision、操作类型和保存结果。无法确认时停止，保留原资源；生命周期操作不套用普通 Action 恢复规则。
+
+`read_next_action` 可以直接使用 open/next-action 已返回的完整 Action；来自只读快照 `get_task` 时查询一次新 Action。已经完成的恢复评估持续存在时不重复查询。
+
+Task Plan 的 `expected_paths` 支持精确路径及目录后缀 `/**`，不支持一般 glob；`src` 不代表目录下的全部文件。多仓库使用 `key::relative-path`。`acceptance_indexes` 从 0 开始，对应当前 Requirements 的 `acceptance_criteria` 数组；`dependencies` 引用同一计划中的 work-item ID。

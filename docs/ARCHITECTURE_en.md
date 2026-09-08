@@ -409,3 +409,9 @@ The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the cu
 ## Artifact preparation
 
 Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
+
+## Host interface descriptions and recovery entry points
+
+The Codex package owns command discovery in `lib/host-launch-contract.mjs`. `host-launch <operation> --help` returns input Schemas, field sources, output fields and next steps before reading stdin, resolving installation paths or executing an operation. `host-launch scope` reads the confirmed repository records and reuses coordinator validation to assemble Core repository arguments. The Host coordinator continues to own Git operations.
+
+Core MCP `inputSchema` describes submissions; `outputSchema` describes the public result envelope and paths needed to continue, while Core domain validation owns retained record contents. `structuredContent` and text content carry the same JSON result. Hosts handle `recovery_assessment.next_advice` before the current Action and obtain the saved submission identity from `recovery_assessment.operation.action_id` on a fresh-session resume. Lifecycle operations read back Tasks, creation origins or relocation records through their own identities instead of using ordinary Action recovery.

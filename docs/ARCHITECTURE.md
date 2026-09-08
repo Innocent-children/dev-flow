@@ -371,3 +371,9 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 ## 文件提交准备
 
 Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`，复用 Core 对当前 Action 的完整 Git 观察。Codex 只补充文件用途和说明，准备命令检查清单与当前观察一致后生成 artifact 数组。流程文件漏报返回具体路径和仅修改 artifact 字段的一次纠正指示；实际仓库异常继续按原有恢复规则处理。详见[文件收集与提交](ARTIFACTS.md)。
+
+## Host 接口描述与恢复入口
+
+Codex 的命令说明由 Host 包的 `lib/host-launch-contract.mjs` 提供；`host-launch <operation> --help` 在读取 stdin、解析安装路径或执行操作前返回输入 Schema、字段来源、输出字段和下一步。`host-launch scope` 只读取已确认的仓库记录，复用协调器的完整性检查后生成 Core 仓库参数。Git 操作继续由 Host 协调器负责。
+
+Core MCP 的 `inputSchema` 描述提交参数，`outputSchema` 描述公开结果外层和继续执行所需的字段路径，保存记录的内容由 Core 领域校验负责。`structuredContent` 与文本内容携带同一 JSON 结果。Host 先处理 `recovery_assessment.next_advice`，再读取当前 Action；新会话从 `recovery_assessment.operation.action_id` 获取保存的提交身份。生命周期操作回读 Task、创建来源或迁移记录，不借用普通 Action 恢复入口。

@@ -149,3 +149,14 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
 
 `dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。
+
+## 命令帮助与任务恢复
+
+Codex 的命令帮助提供工作区操作参数、返回字段和下一步。全部仓库准备完成后，Host 汇总保存的工作区范围。MCP 结果 Schema 说明 Task 和 Action 的读取位置；恢复会话先处理未完成提交，再继续执行。
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch prepare --help
+```
+
+参数和恢复规则见[命令参考](docs/COMMANDS.md)。

@@ -28,7 +28,8 @@ The immutable task profile is exactly one of `plain`, `spec-kit`, or `openspec`.
 external method capability. The other profiles map only capabilities actually visible in the
 current Host; listing a capability here does not prove that it is installed.
 
-Present each Core-returned step with this closed shape:
+Build each Core-returned step internally with this closed shape. Present only a concise current-node
+status during normal work; show a step when it requires a user decision or explains unavailable tooling:
 
 <!-- rendered-operation-example:start -->
 ```json
@@ -110,7 +111,7 @@ For each step returned by Core:
 1. Check only the Host's actual capability surface.
 2. When the preferred capability is visible and appropriate, render its exact ID and expected result.
 3. When visibility is absent or cannot be confirmed, report `unavailable` or `unknown` honestly.
-4. Always show the catalog's plain-equivalent work.
+4. Use the catalog's plain-equivalent work; explain it to the user when tooling is unavailable or a decision is needed.
 5. Do not automatically install a tool, silently run another tool, or treat invocation as completion.
 6. Record completion only after the semantic work actually completes.
 

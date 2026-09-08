@@ -162,6 +162,7 @@ lib/provisioning-receipt.mjs
 lib/task-admission.mjs
 lib/task-handoff.mjs
 lib/task-launch.mjs
+lib/host-launch-contract.mjs
 lib/worktree-lifecycle.mjs
 plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
@@ -171,6 +172,7 @@ plugin/skills/dev-flow/SKILL.md
 plugin/skills/dev-flow/agents/openai.yaml
 plugin/skills/dev-flow/references/method-profiles.md
 plugin/skills/dev-flow/references/node-payloads.md
+plugin/skills/dev-flow/references/tool-results.md
 plugin/skills/dev-flow/references/task-handoff.md'
 
 printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
@@ -229,6 +231,7 @@ const expected = [
   "lib/task-admission.mjs",
   "lib/task-handoff.mjs",
   "lib/task-launch.mjs",
+  "lib/host-launch-contract.mjs",
   "lib/worktree-lifecycle.mjs",
   "package.json",
   "plugin/.codex-plugin/plugin.json",
@@ -239,6 +242,7 @@ const expected = [
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
+  "plugin/skills/dev-flow/references/tool-results.md",
   "plugin/skills/dev-flow/references/task-handoff.md",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",

@@ -160,3 +160,14 @@ Unter Windows werden vorhandene AppData-Verzeichnisse auf ihre tatsächlichen Pf
 Die aktuelle Windows-Entwicklungsversion enthält beide Adapter-Pakete und die Desktop-Anwendung. Nach der Installation des Starters verwenden Sie `dev-flow install --host all --yes` und `dev-flow pet start`. Reparatur und Neuinstallation nutzen denselben Einstieg, prüfen die Paket-Hashes, aktualisieren die Anwendung und behalten Task-Daten, Einstellungen und Gestalten bei.
 
 `dev-flow-codex host-launch <operation>` liest ein UTF-8-JSON-Objekt von höchstens 1 MiB aus dem stdin-Stream und unterstützt aufgeteilte Eingaben sowie Mehrbytezeichen über Blockgrenzen hinweg. Lesefehler, ungültiges UTF-8, doppelte Mitglieder, ungültiges JSON, Arrays und null werden vor der Ausführung der Operation abgewiesen. Fehler gehen an stderr, erfolgreiche JSON-Ergebnisse an stdout.
+
+## Befehlshilfe und Wiederaufnahme von Aufgaben
+
+Die Befehlshilfe von Codex beschreibt Parameter für Arbeitsbaumoperationen, Rückgabefelder und den nächsten Schritt. Sobald alle Repositories vorbereitet sind, stellt der Host den gespeicherten Arbeitsbaumumfang zusammen. MCP-Ergebnis-Schemas zeigen, wo Task und Action gelesen werden; wiederaufgenommene Sitzungen bearbeiten zunächst ausstehende Übermittlungen.
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch prepare --help
+```
+
+Parameter und Regeln zur Wiederaufnahme stehen in der [Befehlsreferenz](docs/COMMANDS_en.md).

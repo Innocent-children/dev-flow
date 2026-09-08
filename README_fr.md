@@ -163,3 +163,14 @@ Sous Windows, les répertoires AppData existants sont résolus vers leurs chemin
 La distribution de développement Windows contient les deux paquets Adapter et l’application de bureau. Après l’installation du lanceur, utilisez `dev-flow install --host all --yes` et `dev-flow pet start`. La réparation et la réinstallation passent par la même entrée, vérifient les empreintes, actualisent l’application et conservent les données Task, préférences et apparences.
 
 `dev-flow-codex host-launch <operation>` lit un objet JSON UTF-8 de 1 MiB au maximum depuis le flux stdin, y compris les entrées fragmentées et les caractères multioctets répartis entre fragments. Les erreurs de lecture, UTF-8 invalide, membres dupliqués, JSON invalide, tableaux et null sont rejetés avant toute opération. Les erreurs sont écrites sur stderr et les résultats JSON réussis sur stdout.
+
+## Aide des commandes et reprise des tâches
+
+L’aide de Codex décrit les paramètres des opérations sur les arbres de travail, les champs de réponse et l’étape suivante. Une fois tous les dépôts préparés, le Host rassemble le périmètre enregistré des arbres de travail. Les Schemas de résultat MCP indiquent où lire Task et Action ; les sessions reprises traitent les soumissions en attente avant de continuer.
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch prepare --help
+```
+
+Les paramètres et les règles de reprise figurent dans la [référence des commandes](docs/COMMANDS_en.md).

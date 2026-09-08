@@ -14,10 +14,44 @@ import {
   stopPackagedWebUI,
 } from "../bin/dev-flow-codex.mjs";
 import { CODEX_MCP_INSTRUCTIONS } from "../lib/lifecycle.mjs";
+import { HOST_LAUNCH_OPERATIONS } from "../lib/host-launch-contract.mjs";
 import { resolveProductPaths } from "../lib/paths.mjs";
 
 const execFile = promisify(execFileCallback);
 const launcherPath = fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url));
+
+test("help describes every Host operation without reading stdin or resolving runtime paths", async () => {
+  for (const args of [["--help"], ["host-launch", "--help"], ...HOST_LAUNCH_OPERATIONS.map((operation) => ["host-launch", operation, "--help"])]) {
+    const stdout = captureStream();
+    const stderr = captureStream();
+    const result = await runCLI(args, {
+      stdout, stderr,
+      resolvePaths: () => assert.fail("help must not resolve installation paths"),
+      readInput: () => assert.fail("help must not consume stdin"),
+      runGit: () => assert.fail("help must not execute Git"),
+      spawnImpl: () => assert.fail("help must not launch Core"),
+    });
+    assert.equal(result.code, 0);
+    assert.equal(stderr.text, "");
+    if (args.length === 3) {
+      const contract = JSON.parse(stdout.text);
+      assert.equal(contract.operation, args[1]);
+      assert.equal(contract.input_schema.additionalProperties, false);
+      assert.ok(contract.input_schema.required.length > 0);
+      assert.ok(Object.keys(contract.output_fields).length > 0);
+      assert.ok(contract.next_step.length > 0);
+      if (args[1] === "prepare") {
+        assert.ok(contract.input_schema.required.includes("handoff_file"));
+        assert.ok(contract.input_schema.required.includes("assessment_anchor"));
+        assert.ok(contract.input_schema.required.includes("worktree_path"));
+        assert.ok(!contract.input_schema.required.includes("launch_id"));
+        assert.match(contract.input_schema.properties.worktree_path.description, /null.*managed_worktree/);
+      }
+    } else {
+      assert.match(stdout.text, /host-launch <operation> --help/);
+    }
+  }
+});
 
 test("artifact commands forward exact argv and stdin without creating storage", async (t) => {
   const paths = await makePaths(t, { usesDefaultDataDirectory: false });

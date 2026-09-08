@@ -45,6 +45,7 @@ type ToolAnnotations struct{ ReadOnly, Destructive, Idempotent, OpenWorld bool }
 type ToolDefinition struct {
 	Name, Description string
 	InputSchema       json.RawMessage
+	OutputSchema      json.RawMessage
 	Annotations       ToolAnnotations
 }
 
@@ -529,7 +530,7 @@ func buildCatalog() []ToolDefinition {
 	open["$defs"] = defs
 	tools := []ToolDefinition{
 		makeTool(ToolServerInfo, "Read the current Core server identity.", empty, true, true, false),
-		makeTool(ToolOpenTask, "Open or resume one graph task.", open, false, false, false),
+		makeTool(ToolOpenTask, "Open a Task only after the Host has provisioned and verified every dedicated worktree. New Tasks require new_task and receipt-backed workspace_origin for every repository. Resume uses the original worktree path and omits creation fields. Codex discovers Host preparation with dev-flow-codex host-launch --help. After an uncertain creation, resume that exact worktree without new_task; never provision a replacement.", open, false, false, false),
 		makeTool(ToolGetTask, "Read one graph task and any Core-retained recovery assessment.", read, true, true, false),
 		makeTool(ToolGetNextAction, "Observe the Task worktree, persist any required guard, and return the current graph action.", read, false, true, false),
 	}
@@ -547,8 +548,8 @@ func buildCatalog() []ToolDefinition {
 		makeTool(ToolPrepareTaskRelocation, "Prepare one same-machine Task relocation and retain its exact source workspace state.", lifecycle, false, true, false),
 		makeTool(ToolResolveBlocker, "Resolve the current blocker after Core verifies the required repository condition. File-scope blockers also require choice and reason.", resolveBlocker, false, true, false),
 		makeTool(ToolRecoverAction, "Recover the Core-retained Action submission without resending its payload.", actionReference, false, true, false),
-		makeTool(ToolCancelTask, "Cancel one graph task.", cancel, false, false, true),
-		makeTool(ToolAbandonTask, "Explicitly abandon a Task whose retained worktree instance is unavailable.", abandon, false, false, true),
+		makeTool(ToolCancelTask, "Cancel one active Task after user authorization. Generate and retain one request_id for this cancellation, using the current revision and reason. After response loss, get_task and compare last_operation.operation_id/kind and outcome; this is not Action recovery.", cancel, false, false, true),
+		makeTool(ToolAbandonTask, "Explicitly abandon a Task whose retained worktree instance is unavailable. Core attempts a repository observation to establish unavailability. After response loss, read the same Task and its outcome; this is not Action recovery.", abandon, false, false, true),
 	)
 	return tools
 }
@@ -559,6 +560,9 @@ func additionalRepositoryPathSchema(repositoryKey map[string]any) map[string]any
 
 func actionSubmissionDescription(kind domain.ActionKind) string {
 	description := "Submit the result of the current " + string(kind) + " Action. Core fills the complete Action identity, artifact roles, method step identities and payload envelope."
+	if kind == domain.ActionCompleteTasks {
+		description += " expected_paths supports exact repository-relative paths or a directory followed by /**, not general globs. Multi-repository paths use key::relative-path. acceptance_indexes are zero-based indexes into current requirements.acceptance_criteria."
+	}
 	if kind == domain.ActionCompleteTest {
 		description += " The Task Plan owns the initial verification budget. A justified verification_budget_increased transition stays in TEST. Automated command_count is 1 to 20; user, static and host_observed use command_count 0 and full_suite false. Every full-suite check records its current reason."
 	}
@@ -605,7 +609,11 @@ func makeTool(name, description string, schema map[string]any, read, idempotent,
 	if err != nil {
 		panic(err)
 	}
-	return ToolDefinition{name, description, raw, ToolAnnotations{ReadOnly: read, Idempotent: idempotent, Destructive: destructive}}
+	output, err := json.Marshal(toolOutputSchema(name))
+	if err != nil {
+		panic(err)
+	}
+	return ToolDefinition{Name: name, Description: description + outputDescription(name), InputSchema: raw, OutputSchema: output, Annotations: ToolAnnotations{ReadOnly: read, Idempotent: idempotent, Destructive: destructive}}
 }
 func ToolCatalog() []ToolDefinition { return append([]ToolDefinition(nil), catalog...) }
 func ToolNames() []string {

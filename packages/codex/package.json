@@ -35,6 +35,7 @@
     "lib/command.mjs",
     "lib/install-experience.mjs",
     "lib/json.mjs",
+    "lib/host-launch-contract.mjs",
     "lib/lifecycle.mjs",
     "lib/paths.mjs",
     "lib/platform.mjs",
@@ -56,6 +57,7 @@
     "plugin/skills/dev-flow/agents/openai.yaml",
     "plugin/skills/dev-flow/references/method-profiles.md",
     "plugin/skills/dev-flow/references/node-payloads.md",
+    "plugin/skills/dev-flow/references/tool-results.md",
     "plugin/skills/dev-flow/references/task-handoff.md",
     "runtime/darwin-arm64/dev-flow",
     "runtime/win32-x64/dev-flow.exe"

@@ -202,3 +202,5 @@ The public `dev-flow` manages Adapter installation and maintenance. Its menu sho
 ## Artifact preparation
 
 Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
+
+Codex can query parameter Schemas, field sources and next steps through `dev-flow-codex --help` and operation help, and assemble repository arguments from the same set of provisioned workspace records. MCP provides result Schemas and structured responses. Resumed sessions handle Core-retained pending submissions before performing the current node; creation, cancellation, abandonment and relocation preparation use their own readback identities.

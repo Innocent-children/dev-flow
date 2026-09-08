@@ -157,3 +157,14 @@ Windows では、パッケージ化されたデスクトップホストのディ
 現在の Windows 開発パッケージには、両 Adapter とデスクトップアプリが含まれます。ランチャーをインストールした後、`dev-flow install --host all --yes` と `dev-flow pet start` を使用します。修復と再インストールも同じ入口で行い、同梱パッケージのハッシュを確認してアプリを更新し、Task データ、設定、外観を保持します。
 
 `dev-flow-codex host-launch <operation>` は stdin ストリームから最大 1 MiB の UTF-8 JSON オブジェクトを読み取り、分割入力とチャンクをまたぐマルチバイト文字に対応します。読み取り失敗、不正な UTF-8、重複メンバー、不正な JSON、配列、null は操作の実行前に拒否されます。エラーは stderr、成功時の JSON 結果は stdout に出力されます。
+
+## コマンドヘルプとタスクの再開
+
+Codex のコマンドヘルプでは、作業ツリー操作の引数、戻り値のフィールド、次の手順を確認できます。すべてのリポジトリの準備が完了すると、Host が保存済みの作業ツリー情報をまとめます。MCP の結果 Schema は Task と Action の参照位置を示し、セッション再開時には未完了の送信を先に処理します。
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch prepare --help
+```
+
+引数と復旧手順は[コマンドリファレンス](docs/COMMANDS_en.md)を参照してください。

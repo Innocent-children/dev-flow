@@ -157,3 +157,14 @@ Windows에서는 패키지형 데스크톱 호스트가 제공하는 디렉터�
 현재 Windows 개발 패키지에는 두 Adapter 패키지와 데스크톱 앱이 포함됩니다. 실행기 패키지를 설치한 뒤 `dev-flow install --host all --yes`와 `dev-flow pet start`를 사용합니다. 복구와 재설치도 같은 진입점에서 수행하며, 내장 패키지 해시를 검증하고 앱을 갱신하면서 Task 데이터, 설정, 외형을 보존합니다.
 
 `dev-flow-codex host-launch <operation>`은 stdin 스트림에서 최대 1 MiB의 UTF-8 JSON 객체를 읽으며, 청크 입력과 청크 경계에 걸친 멀티바이트 문자를 지원합니다. 읽기 실패, 잘못된 UTF-8, 중복 멤버, 잘못된 JSON, 배열 및 null은 작업 실행 전에 거부됩니다. 오류는 stderr로, 성공한 JSON 결과는 stdout으로 출력됩니다.
+
+## 명령어 도움말과 작업 재개
+
+Codex 명령어 도움말에서 작업 트리 작업의 매개변수, 반환 필드, 다음 단계를 확인할 수 있습니다. 모든 저장소 준비가 끝나면 Host가 저장된 작업 트리 범위를 취합합니다. MCP 결과 Schema는 Task와 Action을 읽을 위치를 설명하며, 세션을 재개할 때는 미완료 제출을 먼저 처리합니다.
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch prepare --help
+```
+
+매개변수와 복구 규칙은 [명령어 참조](docs/COMMANDS_en.md)를 확인하세요.

@@ -31,7 +31,7 @@ export const CODEX_MCP_INSTRUCTIONS = [
   "Every new user development request, including `$dev-flow-codex:dev-flow` and a parallel batch, receives a read-only suitability assessment and explicit user choice before any Dev Flow Core call, receipt, fetch, branch, worktree, or child dispatch; only explicit Task resume or a receipt-backed confirmed bootstrap bypasses duplicate assessment.",
   "Bind assessment to the request, canonical repository roots, HEADs, and status digests; an anchor change requires reassessment.",
   "A direct choice creates no Dev Flow state. A Dev Flow choice requires separate explicit confirmation of every repository key, remote, base branch, and new target branch.",
-  "After confirmation, use the packaged host-launch receipt helpers, exact fetch, and frozen remote/base commit; source checkout staged, tracked-dirty, and untracked content is not copied.",
+  "After confirmation, use the packaged host-launch receipt helpers, exact fetch, and frozen remote/base commit; read dev-flow-codex host-launch <operation> --help for input Schemas and use host-launch scope to assemble all provisioned repositories. Source checkout changes are not copied.",
   "Managed Codex task creation starts exactly once from the existing refs/remotes/<remote>/<base> ref with target.environment.type=worktree and no onMissing fallback; queued, clientThreadId, timeout, or uncertain results are read from the receipt and Host state without redispatch.",
   "The child verifies the fetched HEAD and clean managed worktree, creates the confirmed target branch, and only then performs dev_flow_server_info followed by dev_flow_open_task with receipt-backed workspace_origin.",
   "ACTIVE_TASK_CONFLICT is a safe stop and never authorizes relocation or replacement dispatch.",
@@ -39,7 +39,7 @@ export const CODEX_MCP_INSTRUCTIONS = [
   "Relocation requires dev_flow_prepare_task_relocation followed by one coordinator-owned Host Handoff and exact blocker resolution; an uncertain Handoff is inspected and never repeated.",
   "Relocation resolution uses relocation_id plus relocation_destinations entries; workspace-history resolution uses history_resolution with accept_current_history and a reason.",
   "DONE and CANCELLED release claims without deleting a worktree or branch; managed cleanup stays Host-owned and worktree/branch deletion require separate user authorization.",
-  "Use only user-declared repositories, never scan or change Codex sandbox permissions, and reject the whole request when every repository cannot be isolated and authorized.",
+  "Discover candidate repositories from the user request and applicable AGENTS.md project-index instructions, then confirm every repository before provisioning; keep the resulting Task Scope fixed and preserve Codex permissions.",
   "The packaged PreToolUse hook checks apply_patch targets against the current Task Plan; every Git-visible change in the dedicated worktree belongs to the Task.",
 ].join(" ");
 

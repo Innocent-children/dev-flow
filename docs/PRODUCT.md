@@ -181,3 +181,5 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 ## 文件提交准备
 
 Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`，复用 Core 对当前 Action 的完整 Git 观察。Codex 只补充文件用途和说明，准备命令检查清单与当前观察一致后生成 artifact 数组。流程文件漏报返回具体路径和仅修改 artifact 字段的一次纠正指示；实际仓库异常继续按原有恢复规则处理。详见[文件收集与提交](ARTIFACTS.md)。
+
+Codex 可通过 `dev-flow-codex --help` 和工作区操作帮助查询参数 Schema、字段来源及下一步，并从同一批已准备的工作区记录生成完整仓库参数。MCP 提供结果 Schema 和结构化返回；恢复会话先处理 Core 保存的未完成提交，再执行当前节点。创建、取消、放弃和迁移准备分别按自身标识回读结果。

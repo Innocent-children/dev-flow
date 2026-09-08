@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
+import { runCLI } from "../bin/dev-flow-codex.mjs";
 
 import { handoffFixture, writeHandoffFixture } from "./fixtures/task-handoff.mjs";
 import { readTaskHandoff, taskHandoffPaths } from "../lib/task-handoff.mjs";
@@ -18,16 +19,62 @@ import {
   cleanupCliTaskWorktree,
   cleanupTaskBranch,
   prepareTaskLaunch,
+  readOpenTaskRepositoryScope,
   provisionCliTask,
   recordManagedTaskDispatch,
   recordTaskHandoff,
   recordTaskHandoffStatus,
   validateWorkspaceOrigin,
 } from "../lib/task-launch.mjs";
-import { provisioningReceiptPath, readProvisioningReceipt } from "../lib/provisioning-receipt.mjs";
+import { createProvisioningReceipt, provisioningReceiptPath, readProvisioningReceipt, updateProvisioningReceipt, writeProvisioningReceiptAtomic } from "../lib/provisioning-receipt.mjs";
 import { terminalCleanupDecision } from "../lib/worktree-lifecycle.mjs";
 
 const execFile = promisify(execFileCallback);
+
+test("scope reads one confirmed launch and refuses missing, pending or mixed-request records", async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-scope-")));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const options = { productSupportRoot: root };
+  const input = { launch_id: "launch-scope-test", repository_keys: ["web", "api"], primary_repository_key: "api" };
+  const records = [];
+  for (const key of input.repository_keys) {
+    let receipt = createProvisioningReceipt({
+      launchId: input.launch_id, repositoryKey: key, requestDigest: "a".repeat(64), handoffDigest: "b".repeat(64),
+      sourceRepositoryIdentity: "c".repeat(64), remoteName: "origin", baseBranch: "main", targetBranch: `codex/${key}`,
+      worktreePath: join(root, key), surface: "cli_worktree",
+    });
+    receipt = updateProvisioningReceipt(receipt, { phase: "fetching", values: {} });
+    receipt = updateProvisioningReceipt(receipt, { phase: "fetched", values: { fetched_commit: "d".repeat(40) } });
+    receipt = updateProvisioningReceipt(receipt, { phase: "provisioning", values: {} });
+    receipt = updateProvisioningReceipt(receipt, { phase: "provisioned", values: {} });
+    await writeProvisioningReceiptAtomic(provisioningReceiptPath(root, input.launch_id, key), receipt, options);
+    records.push(receipt);
+  }
+  const scope = await readOpenTaskRepositoryScope(input, options);
+  assert.equal(scope.repository_path, join(root, "api"));
+  assert.equal(scope.primary_repository_key, "api");
+  assert.deepEqual(scope.additional_repositories.map((entry) => entry.key), ["web"]);
+  let output = "";
+  const command = await runCLI(["host-launch", "scope"], {
+    resolvePaths: () => ({ ...options, enforcePrivateModes: true }),
+    readInput: () => JSON.stringify(input),
+    stdout: { write: (text) => { output += text; } },
+    stderr: { write: (text) => assert.fail(text) },
+    runGit: () => assert.fail("scope must not execute Git"),
+  });
+  assert.equal(command.code, 0);
+  assert.deepEqual(JSON.parse(output), scope);
+  assert.deepEqual(await readProvisioningReceipt(provisioningReceiptPath(root, input.launch_id, "web"), options), records[0]);
+  await assert.rejects(readOpenTaskRepositoryScope({ ...input, repository_keys: ["api", "missing"] }, options), /missing/);
+  await assert.rejects(readOpenTaskRepositoryScope({ ...input, repository_keys: ["api", "api"] }, options), /unique/);
+  const webPath = provisioningReceiptPath(root, input.launch_id, "web");
+  await writeProvisioningReceiptAtomic(webPath, { ...records[0], request_digest: "e".repeat(64) }, options);
+  await assert.rejects(readOpenTaskRepositoryScope(input, options), /one confirmed launch and request/);
+  await writeProvisioningReceiptAtomic(webPath, { ...records[0], operation_status: { ...records[0].operation_status, phase: "provisioning" } }, options);
+  await assert.rejects(readOpenTaskRepositoryScope(input, options), /every repository must be provisioned/);
+  await writeFile(webPath, JSON.stringify({ ...records[0], repository_key: "other" }));
+  await assert.rejects(readOpenTaskRepositoryScope(input, options), /does not match the requested/);
+});
 
 test("available Codex CLI natively parses the relaunch -C and --add-dir options without starting a session", async (t) => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-parser-")));

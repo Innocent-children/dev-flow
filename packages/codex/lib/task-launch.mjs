@@ -339,6 +339,25 @@ export function provisioningReceiptID(launchId, repositoryKey) {
   return `codex-${createHash("sha256").update(`${launchId}\0${repositoryKey}`).digest("hex")}`;
 }
 
+export async function readOpenTaskRepositoryScope(input, options = {}) {
+  assertExactKeys(input, ["launch_id", "repository_keys", "primary_repository_key"], "open Task scope input");
+  if (!Array.isArray(input.repository_keys) || input.repository_keys.length === 0 || input.repository_keys.length > 8 ||
+      new Set(input.repository_keys).size !== input.repository_keys.length || !input.repository_keys.includes(input.primary_repository_key)) {
+    throw new Error("scope requires one to eight unique repository keys including the primary");
+  }
+  const receipts = [];
+  for (const key of input.repository_keys) {
+    const path = provisioningReceiptPath(options.productSupportRoot, input.launch_id, key);
+    const receipt = await readProvisioningReceipt(path, { productSupportRoot: options.productSupportRoot });
+    if (receipt === null) throw new Error(`provisioning receipt is missing for repository ${key}`);
+    if (receipt.launch_id !== input.launch_id || receipt.repository_key !== key) {
+      throw new Error("provisioning receipt does not match the requested launch/repository");
+    }
+    receipts.push(receipt);
+  }
+  return buildOpenTaskRepositoryScope(receipts, { primaryRepositoryKey: input.primary_repository_key });
+}
+
 export function buildOpenTaskRepositoryScope(receipts, { primaryRepositoryKey = "primary" } = {}) {
   if (!Array.isArray(receipts) || receipts.length === 0 || receipts.length > 8) {
     throw new Error("open Task scope requires one to eight provisioning receipts");

@@ -168,7 +168,7 @@ reports both the host package and bundled Core identities.
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to establish the data directory and Codex admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |
 | `dev-flow-codex hook pre-tool-use` | **Managed host command.** The packaged Codex hook invokes it through the package-owned launcher on `PATH`; it reads one hook event, extracts `apply_patch` targets, and performs the prewrite check. Normal users should not start it manually. |
 | `dev-flow-codex host-check pre-file-write` | **Managed host command.** The `hook pre-tool-use` implementation invokes it so the launcher resolves the package-local Core and forwards stdin/stdout with the exact `host-check pre-file-write` arguments. Normal users should not start it manually. |
-| `dev-flow-codex host-launch <operation>` | **Managed Host command.** Reads one closed JSON object from stdin and writes one JSON object. `operation` is exactly `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`; it performs or records current-user-confirmed assessment, provisioning, relaunch, handoff, and cleanup steps and is not a generic Git CLI. |
+| `dev-flow-codex host-launch <operation>` | **Managed Host command.** Reads one closed JSON object from stdin and writes one JSON object. `operation` is exactly `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|scope|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`; it performs or records current-user-confirmed assessment, provisioning, relaunch, handoff, and cleanup steps and is not a generic Git CLI. |
 
 `dev-flow-codex host-launch <operation>` reads a UTF-8 JSON object of at most 1 MiB from the stdin stream, including chunked input and multibyte characters split across chunks. Read failures, invalid UTF-8, duplicate members, invalid JSON, arrays, and null are rejected before the operation runs; errors go to stderr and successful JSON results go to stdout.
 
@@ -351,7 +351,7 @@ terminal shell commands.
 | `dev_flow_recover_action` | Mutation | Recover an uncertain Action from the normalized submission retained in an independent Action operation record; accepts no original payload. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
 | `dev_flow_prepare_task_relocation` | Mutation | Retain relocation ID, source workspace/content/surface and resume node while source claims remain active during Host handoff. |
-| `dev_flow_abandon_task` | Destructive mutation | When the original worktree is unavailable, use exact host/task/revision and a non-empty reason to enter `CANCELLED` and release claims without Git access. |
+| `dev_flow_abandon_task` | Destructive mutation | When the original worktree is unavailable, use exact host/task/revision and a non-empty reason to enter `CANCELLED` and release claims after attempting repository observation to establish worktree unavailability. |
 
 Each ordinary node submission tool accepts only `host`, `task_id`, `action_id`, `transition_id`,
 `summary`, `reason`, `artifacts`, `method_results`, and that node's semantic `node_result`, which has no
@@ -498,3 +498,41 @@ The current Windows development distribution includes both Adapter packages and 
 ## Artifact collection and preparation commands
 
 `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare` forward to the packaged Core commands `dev-flow artifacts collect` and `dev-flow artifacts prepare`. Each reads one UTF-8 JSON object up to 1 MiB from stdin and writes `{ok:true,result:...}` or `{ok:false,error:...}` to stdout, exiting with 0 on success or 1 on failure. Collect accepts `{host,task_id,action_id}`; prepare accepts `{host,collection}`. Collect returns complete file facts; prepare checks classification and observation freshness and generates artifact arrays. Both read the existing Task and Git without creating storage or advancing the process. See [artifact collection and submission](ARTIFACTS_en.md) for all fields and steps.
+
+## Codex Host operation help
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch --help
+dev-flow-codex host-launch prepare --help
+dev-flow-codex host-launch scope --help
+```
+
+All help queries return before reading stdin, resolving installation paths or executing Core/Git operations. Operation help is JSON containing `input_schema`, `output_fields` and `next_step`; field descriptions identify values supplied by user confirmation, a previous result or a Host query. Help creates no configuration, workspace or receipt.
+
+`inspect` returns the complete `assessment_anchor`. `prepare` accepts the unchanged request and anchor, confirmed workspace parameters and `handoff_file`; managed worktrees explicitly pass `worktree_path: null`. Reuse the first result's `receipt.launch_id` for every additional repository in the same Task. After managed dispatch and `bootstrap`, or CLI provisioning, run the read-only scope assembler:
+
+```text
+dev-flow-codex host-launch scope
+stdin: {"launch_id":"<saved launch ID>","repository_keys":["api","web"],"primary_repository_key":"api"}
+```
+
+`repository_keys` must include all confirmed repositories. The command rejects missing, unprovisioned, duplicate or request-mismatched records. It returns `repository_path` and `workspace_origin`, plus `primary_repository_key` and `additional_repositories` for multiple repositories. Forward the complete result as the repository fields of `dev_flow_open_task`, adding `host` and `new_task` derived from the confirmed request.
+
+## Reading MCP results
+
+Each tool exposes input and result Schemas. Successful envelopes have `ok=true` and data in `result`; failures use `error` and `recovery` to describe the cause and permitted handling. `structuredContent` and text content contain the same JSON; read one complete result.
+
+| Tools | Task / Action location |
+| --- | --- |
+| `dev_flow_open_task`, `dev_flow_get_task` | `result.task`; handle sibling `result.recovery_assessment` first |
+| `dev_flow_get_next_action` | `result.action`; handle `result.recovery_assessment`, `result.blocker` and `result.outcome` first |
+| Eight `dev_flow_submit_*` tools, `dev_flow_resolve_blocker`, `dev_flow_recover_action` | `result` is the Task itself; its next Action is `result.current_action` |
+| `dev_flow_cancel_task`, `dev_flow_abandon_task` | `result` is the terminal Task itself |
+| `dev_flow_prepare_task_relocation` | `result.task` and `result.relocation_id` |
+
+On fresh-session resume, a retained `recovery_assessment` takes precedence over the source Action; recover the saved submission using `operation.action_id`. After uncertain creation, read the original worktree with `open_task` omitting `new_task`, checking origin, scope and intent. Cancellation compares the retained `request_id` to `task.last_operation.operation_id`, kind and outcome. Abandonment and relocation preparation check the original Task, expected revision, operation kind and saved result. Stop and retain resources when readback is inconclusive; lifecycle operations do not use ordinary Action recovery.
+
+`read_next_action` consumes a guarded Action already returned by open/next-action lookup; an advice from saved-state `get_task` requires one guarded lookup. A retained completed assessment does not cause repeated queries.
+
+Task Plan `expected_paths` supports exact paths and a directory suffix `/**`, not general globs; `src` does not cover every file below that directory. Multi-repository paths use `key::relative-path`. `acceptance_indexes` starts at 0 in the current Requirements `acceptance_criteria` array; `dependencies` refers to work-item IDs in the same plan.

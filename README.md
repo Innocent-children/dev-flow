@@ -158,3 +158,14 @@ On Windows, existing AppData directories are resolved to their actual paths, inc
 The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
 
 `dev-flow-codex host-launch <operation>` reads a UTF-8 JSON object of at most 1 MiB from the stdin stream, including chunked input and multibyte characters split across chunks. Read failures, invalid UTF-8, duplicate members, invalid JSON, arrays, and null are rejected before the operation runs; errors go to stderr and successful JSON results go to stdout.
+
+## Command help and task recovery
+
+Codex exposes workspace operation parameters, result fields and next steps through command help. After every repository is prepared, the Host assembles its recorded workspace scope. MCP result Schemas describe where to read Tasks and Actions; resumed sessions handle pending submissions before continuing.
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch prepare --help
+```
+
+See the [command reference](docs/COMMANDS_en.md) for parameter and recovery rules.

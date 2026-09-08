@@ -38,15 +38,17 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 		newID = options.NewRequestID
 	}
 	preferences := userconfig.Preferences{}
+	instructions := ""
 	if options != nil {
 		preferences = options.HostPreferences
+		instructions = options.Instructions
 	}
 	s := &Server{application: service, version: version, newRequestID: newID, hostPreferences: preferences}
-	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "dev-flow", Title: "Dev Flow Core", Description: "Local STDIO Dev Flow Core", Version: version}, &sdk.ServerOptions{})
+	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "dev-flow", Title: "Dev Flow Core", Description: "Local STDIO Dev Flow Core", Version: version}, &sdk.ServerOptions{Instructions: instructions})
 	for _, d := range catalog {
 		d := d
 		destructive, openWorld := d.Annotations.Destructive, d.Annotations.OpenWorld
-		s.sdk.AddTool(&sdk.Tool{Name: d.Name, Description: d.Description, InputSchema: json.RawMessage(d.InputSchema), Annotations: &sdk.ToolAnnotations{ReadOnlyHint: d.Annotations.ReadOnly, IdempotentHint: d.Annotations.Idempotent, DestructiveHint: &destructive, OpenWorldHint: &openWorld}}, func(ctx context.Context, r *sdk.CallToolRequest) (*sdk.CallToolResult, error) {
+		s.sdk.AddTool(&sdk.Tool{Name: d.Name, Description: d.Description, InputSchema: json.RawMessage(d.InputSchema), OutputSchema: json.RawMessage(d.OutputSchema), Annotations: &sdk.ToolAnnotations{ReadOnlyHint: d.Annotations.ReadOnly, IdempotentHint: d.Annotations.Idempotent, DestructiveHint: &destructive, OpenWorldHint: &openWorld}}, func(ctx context.Context, r *sdk.CallToolRequest) (*sdk.CallToolResult, error) {
 			raw := json.RawMessage(`{}`)
 			if r != nil && r.Params != nil {
 				raw = r.Params.Arguments
@@ -54,10 +56,10 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 			id, err := s.newRequestID()
 			if err != nil || !id.IsValid() {
 				encoded := fixedFallback()
-				return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(encoded.JSON)}}, IsError: true}, nil
+				return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(encoded.JSON)}}, StructuredContent: json.RawMessage(encoded.JSON), IsError: true}, nil
 			}
 			encoded := s.dispatch(ctx, d.Name, id, raw)
-			return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(encoded.JSON)}}, IsError: encoded.IsError}, nil
+			return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(encoded.JSON)}}, StructuredContent: json.RawMessage(encoded.JSON), IsError: encoded.IsError}, nil
 		})
 	}
 	return s, nil

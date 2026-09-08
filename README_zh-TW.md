@@ -151,3 +151,14 @@ Windows 會將既有 AppData 目錄解析為實際路徑，包括封裝桌面宿
 目前 Windows 開發套件同時包含兩個 Adapter 套件與桌面應用程式。安裝統一入口套件後，使用 `dev-flow install --host all --yes` 與 `dev-flow pet start`。修復、重新安裝均透過同一入口執行，核對內建套件摘要、更新桌面應用程式，並保留 Task 資料、設定和形象。
 
 `dev-flow-codex host-launch <operation>` 從 stdin 串流讀取最多 1 MiB 的 UTF-8 JSON 物件，支援分塊輸入及跨塊中文字元。讀取失敗、無效 UTF-8、重複成員、無效 JSON、陣列或 null 均在執行操作前拒絕；錯誤寫入 stderr，成功結果以 JSON 寫入 stdout。
+
+## 命令說明與任務恢復
+
+Codex 的命令說明提供工作區操作參數、回傳欄位及下一步。所有儲存庫準備完成後，Host 彙整已儲存的工作區範圍。MCP 結果 Schema 說明 Task 與 Action 的讀取位置；恢復工作階段時先處理未完成的提交，再繼續執行。
+
+```bash
+dev-flow-codex --help
+dev-flow-codex host-launch prepare --help
+```
+
+參數及恢復規則請見[命令參考](docs/COMMANDS.md)。
