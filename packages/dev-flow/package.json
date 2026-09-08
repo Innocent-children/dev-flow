@@ -53,7 +53,9 @@
     "lib/presentation.mjs",
     "lib/runtime.mjs",
     "lib/platform/windows/pet.mjs",
-    "lib/platform/windows/pet-installer.mjs"
+    "lib/platform/windows/pet-installer.mjs",
+    "lib/terminal.mjs",
+    "lib/diagnostics.mjs"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",

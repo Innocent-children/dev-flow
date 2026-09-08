@@ -168,3 +168,7 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 ## 当前 DSH 接口
 
 当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
+
+## 生命周期入口
+
+公共 `dev-flow` 管理 Adapter 安装与维护，菜单先显示状态，确认前展示版本与资源路径。安装、修复和重装默认保留已安装版本，升级默认选择 `latest`；已满足的安装、修复、升级和移除无需重复变更，重装每次执行。诊断显示失败项目和处理命令，错误保留具体原因及已完成步骤，安装结果提示 hook 信任和 Profile 重启。JSON 模式不询问。终端交互、版本选择和安装记录由 launcher 负责，Core 继续独立拥有 Task 状态。命令参数与重复执行规则见[命令参考](COMMANDS.md#生命周期命令行为)。

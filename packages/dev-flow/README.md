@@ -51,17 +51,36 @@ user-profile/LocalAppData ACLs on Windows when it is absent. The defaults are
 `$HOME/.dev-flow/data` and `%LOCALAPPDATA%\dev-flow\data`, respectively. Explicit
 `DEV_FLOW_DATA_DIR` values must already name canonical non-link directories; all other WebUI commands remain zero-write.
 
-The rich first-install result shows the Dev Flow mark, verified Host states, conversation selectors, WebUI commands,
-and lifecycle commands. `zh*` locales use Simplified Chinese; every other locale uses English. Plain and JSON modes
-remain automation-safe.
-While install, upgrade, repair, or reinstall is running, rich and plain text output shows each Host action and each
-completed package, registration, artifact, and readiness step. JSON mode remains a single result object with no
-progress lines.
+The terminal menu shows installation state and supports back, exit, input retry and opening Control Center. A compact rich display uses color only in a suitable terminal; plain and JSON modes remain automation-safe. Plans show versions and resource paths before confirmation. Progress names the current Host action and package or registration step. JSON never prompts and returns a copyable confirmation command when required. `dev-flow repair --help` lists options and examples.
+
 Codex uninstall first runs the installed Adapter's idempotent `remove`, which validates the runtime receipt and stops the matching WebUI before deregistration. If that stop fails, the global package is retained for a safe retry.
 
 Recoverable factory reset uses the user's macOS Trash or `%LOCALAPPDATA%\create-dev-flow\trash` on
 Windows. The Windows quarantine is not the system Recycle Bin; permanent removal still requires its
 separate confirmation token.
+
+## Lifecycle command behavior
+
+The menu reads installation state before offering Adapter installation, maintenance, Control Center and pet entries. It supports input retry, back and exit, and returns to the menu after an operation. Without a terminal, bare `dev-flow` prints help. `dev-flow <lifecycle-command> --help` explains options and examples.
+
+| Command | Target version and repeated execution |
+| --- | --- |
+| `install` | Keeps installed versions by default; missing installations use `latest`. A ready matching version needs no changes. |
+| `upgrade` | Selects `latest` by default; a ready matching version needs no changes. |
+| `repair` | Repairs the current version by default, restoring damaged files and same-version owned registration. Healthy state needs no changes. |
+| `reinstall` | Reinstalls the current version by default on every invocation, preserving configuration and Task data. |
+| `uninstall` | Already-removed Adapters need no further action; configuration and Task data are preserved. |
+| `factory-reset` | Repeating completed cleanup is a no-op; actual cleanup targets still require confirmation of the current plan. |
+
+Explicit `--version` selects a target. Every version-replacement command requires `--confirm-downgrade` for a downgrade; ordinary `--yes` is insufficient. Local development distributions always use their verified bundled versions and artifacts, replacing their contents during maintenance.
+
+Before execution, the plan shows actions, current/target versions, resource paths and data handling. JSON never prompts: required confirmation returns `confirmation` and a copyable `next_step`. Explicit data-directory approval is checked before removing any Adapter. Cleanup directories bind canonical paths, filesystem identity and permissions, allowing managed shutdown to remove runtime records; individual file targets also bind size and modification time. Installation, upgrade, repair and reinstall maintain Adapters; update the public launcher itself with `npm install -g @imotong/dev-flow@latest`.
+
+`status` retains absent targets and reports Host availability, Adapter/Core versions and issues. `doctor` adds installation and configuration checks and exits nonzero on failure. With all Hosts selected, an absent optional Adapter is informational when another Adapter is healthy. Codex self-check failures retain npm installation metadata for repair; DeepSeek checks Profile contribution, the managed receipt and the actual Core. An existing unmanaged DeepSeek contribution requires explicit `--adopt`.
+
+Failures include `error.code/message/detail`, `operation_id`, `failed_action`, `completed_actions` and a recovery command. Text output preserves the same causes and completed steps. Repeating a command observes current installation state instead of replaying an old operation. Recovery commands pin the attempted version where applicable; reset generates a plan for the current state again. Successful installation retains hook review/trust and Profile restart instructions.
+
+Lifecycle exit codes: `0` success or no changes, `1` check/execution failure, `2` invalid arguments, `3` confirmation required or declined, `4` unmet plan/cleanup authorization, `5` partial execution or failed final verification. Exiting the menu returns `0`. Invalid WebUI arguments return `2`; launcher failures under `--json` also return JSON.
 
 ## Desktop pet (macOS arm64 and Windows x64)
 

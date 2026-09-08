@@ -42,19 +42,19 @@ test("JSON rendering is exactly one parseable object", () => {
 
 test("rich successful install renders one brand screen and contextual next steps", () => {
   const result = {
-    operation: "install", status: "ready", changed: true, next_step: null,
+    operation: "install", status: "ready", changed: true, next_step: null, restart_requirements: ["Restart DeepSeek Profile web"],
     targets: [
       { host: "codex", profile: null, package_version: "0.8.0", state: "ready" },
       { host: "deepseek", profile: "web", package_version: "0.8.0", state: "restart_required" },
     ],
   };
   const text = renderResult(result, { mode: "rich", language: "zh-CN" });
-  assert.match(text, /██████╗/u);
-  assert.match(text, /Dev Flow 安装完成/u);
+  assert.match(text, /\u001b\[1;36m/u);
+  assert.match(text, /安装: 就绪/u);
   assert.match(text, /\$dev-flow-codex:dev-flow <task description>/u);
   assert.match(text, /\/dev-flow <task description>/u);
   assert.match(text, /dev-flow webui start/u);
-  assert.match(text, /dev-flow status/u);
+  assert.match(text, /Adapter 0.8.0/u);
   assert.doesNotMatch(renderResult(result, { mode: "plain", language: "en" }), /██████╗/u);
   assert.equal(renderResult(result, { mode: "json", language: "zh-CN" }), `${JSON.stringify(result)}\n`);
 });
@@ -133,14 +133,14 @@ test("the home menu offers the desktop pet only on the runtime that ships it", a
 
 test("Chinese locale renders the complete interactive menu and plan in Chinese", async () => {
   const output = captureOutput();
-  const input = scriptedInput(["4\n", "8\n", "3\n", "web\n"]);
+  const input = scriptedInput(["4\n", "8\n"]);
   const request = await promptForRequest({ input, output, language: "zh-CN" });
   assert.equal(request.operation, "factory-reset");
   assert.equal(request.host, "all");
   assert.match(output.text, /Dev Flow 生命周期管理器/u);
   assert.match(output.text, /4\. 管理现有安装/u);
   assert.match(output.text, /8\. 恢复出厂设置/u);
-  assert.match(output.text, /3\. 全部/u);
+  assert.equal(request.allKnownProfiles, true);
   assert.doesNotMatch(output.text, /Manage existing installation|Choose:|Operation:/u);
 
   const plan = renderPlan({
@@ -195,3 +195,25 @@ function scriptedInput(lines, { isTTY = false } = {}) {
   setTimeout(() => writeNext(0), 0);
   return input;
 }
+
+test("menus retry invalid input, accept buffered lines and allow back and exit", async () => {
+  const output = captureOutput();
+  const result = await promptForRequest({ input: Readable.from(['x\n4\n0\n0\n']), output, language: 'zh-CN' });
+  assert.equal(result.cancelled, true);
+  assert.match(output.text, /请输入列表中的数字/u);
+  assert.match(output.text, /0\. 返回/u);
+});
+
+test("subcommand help and version defaults are explicit", () => {
+  for (const operation of ['install', 'repair', 'upgrade', 'reinstall', 'factory-reset', 'doctor']) {
+    assert.equal(parseArguments([operation, '--help']).help, operation);
+  }
+  assert.equal(parseArguments(['repair', '--host', 'codex']).targetVersion, null);
+  assert.equal(parseArguments(['repair', '--host', 'codex', '--version', '1.0.0', '--confirm-downgrade', 'DOWNGRADE-X']).downgradeToken, 'DOWNGRADE-X');
+});
+
+test("JSON confirmation never prompts even on a TTY", async () => {
+  const output = captureOutput();
+  assert.equal(await confirmPlan({ confirmationClass: 'mutation' }, { outputMode: 'json' }, { input: { isTTY: true }, output }), false);
+  assert.equal(output.text, '');
+});

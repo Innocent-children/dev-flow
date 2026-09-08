@@ -24,3 +24,7 @@ function execFileWithClosedInput(executable, arguments_, options) {
     child.stdin?.end();
   });
 }
+
+export function formatCommand(arguments_, platform = process.platform) {
+  return arguments_.map(argument => commands(platform).quoteArgument(String(argument))).join(" ");
+}

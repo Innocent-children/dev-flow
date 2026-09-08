@@ -54,6 +54,8 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
+ライフサイクルメニューには Adapter のインストール状態が表示され、戻る・終了・入力エラーの再試行と Control Center の起動ができます。確認前にバージョンの変更とリソースのパスを表示します。`install`、`repair`、`reinstall` は既定でインストール済みのバージョンを維持し、`upgrade` は `latest` を選択します。正常な環境での再インストール要求や修復、対象バージョンへの更新済み状態、削除済み状態では変更しません。`reinstall` はパッケージを再度置き換えます。`doctor` は失敗したチェックと対処コマンドを表示します。引数は `dev-flow repair --help` を参照してください。JSON モードでは質問しません。これらは Adapter を管理するコマンドで、共通ランチャーの更新には `npm install -g @imotong/dev-flow@latest` を使用します。
+
 対話形式の設定で Codex、DeepSeek、または両方を選択します。最初の作業を始める前に、
 インストーラーが案内する仕上げの操作も行ってください。
 

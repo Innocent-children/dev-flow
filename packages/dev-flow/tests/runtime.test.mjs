@@ -79,16 +79,16 @@ test("public launcher forwards only the WebUI command surface to the selected Co
     stderr,
     resolveCoreRuntime: async () => { resolved = true; throw new Error("unexpected"); },
   });
-  assert.equal(invalid.code, 1);
+  assert.equal(invalid.code, 2);
   assert.equal(resolved, false);
-  assert.match(stderr.text, /invalid arguments/u);
+  assert.match(stderr.text, /invalid WebUI arguments/u);
 });
 
 test("non-start WebUI commands never initialize the default data directory", async () => {
   let selectionOptions;
   const result = await runDevFlow(["webui", "status", "--json"], {
     resolveCoreRuntime: async (options) => { selectionOptions = options; throw new Error("data directory is unavailable"); },
-    stderr: capture(),
+    stderr: capture(), stdout: capture(),
   });
   assert.equal(result.code, 1);
   assert.equal(selectionOptions.initializeDefaultData, false);
@@ -148,3 +148,15 @@ function capture() {
   let text = "";
   return { write(value) { text += value; }, get text() { return text; } };
 }
+
+test("invalid WebUI options and unavailable runtime produce one JSON error", async () => {
+  for (const args of [['webui', 'start', '--json', '--plain'], ['webui', 'stop', '--no-open', '--json'], ['webui', 'status', '--json']]) {
+    const stdout = capture(); const stderr = capture();
+    let selected = false;
+    const result = await runDevFlow(args, { stdout, stderr, resolveCoreRuntime: async () => { selected = true; throw new Error('Core executable missing'); } });
+    assert.equal(result.code, args[1] === 'status' ? 1 : 2);
+    assert.equal(selected, args[1] === 'status');
+    assert.equal(JSON.parse(stdout.text).status, 'failed');
+    assert.equal(stderr.text, '');
+  }
+});

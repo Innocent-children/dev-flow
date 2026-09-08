@@ -48,7 +48,8 @@ test("uninstall and factory reset retain an installed Codex package after regist
 
 test("factory reset reports one exact no-op impact when Adapters and data are absent", () => {
   const plan = createLifecyclePlan({ ...request("factory-reset", "all"), allKnownProfiles: true }, observed());
-  assert.deepEqual(plan.actions.map((action) => action.actionId), ["manager.cleanup"]);
+  assert.deepEqual(plan.actions, []);
+  assert.equal(plan.confirmationClass, "none");
   assert.deepEqual(plan.impacts, ["No installed Adapter or active Dev Flow data was found"]);
 });
 
@@ -99,3 +100,12 @@ function observed({ codexState = "absent", codexVersion = null, codexPackageInst
     },
   };
 }
+
+test("every version replacement requires a separate downgrade confirmation", () => {
+  for (const operation of ['install', 'upgrade', 'repair', 'reinstall']) {
+    const plan = createLifecyclePlan(request(operation, 'codex'), observed({ codexState: 'ready', codexVersion: '2.0.0' }), {
+      targetVersions: { 'codex:default': '1.0.0' },
+    });
+    assert.equal(plan.confirmationClass, 'downgrade', operation);
+  }
+});

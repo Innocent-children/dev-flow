@@ -5,28 +5,20 @@ import { access, lstat, readFile, realpath, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
+import { renderHelp } from "./cli.mjs";
+import { resolveLanguage } from "./presentation.mjs";
 import { ensureDefaultDataDirectory, listProfileReceipts, resolveManagerPaths } from "./ownership.mjs";
 
 const execFile = promisify(execFileCallback);
 const packageVersion = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
-const help = `Dev Flow
-
-Usage:
-  dev-flow
-  dev-flow status|doctor|install|upgrade|repair|reinstall|uninstall|factory-reset [options]
-  dev-flow webui start [--no-open] [--plain|--json]
-  dev-flow webui open|status|stop [--plain|--json]
-  dev-flow pet start|stop
-  dev-flow version
-`;
 
 export async function runDevFlow(arguments_, dependencies = {}) {
   const stdout = dependencies.stdout ?? process.stdout;
   const stderr = dependencies.stderr ?? process.stderr;
   const environment = dependencies.environment ?? process.env;
   if (["help", "--help", "-h"].includes(arguments_[0])) {
-    stdout.write(help);
+    stdout.write(renderHelp(null, resolveLanguage(environment)));
     return { code: 0, signal: null };
   }
   try {
@@ -65,8 +57,9 @@ export async function runDevFlow(arguments_, dependencies = {}) {
       signalSource: dependencies.signalSource ?? process,
     });
   } catch (error) {
-    stderr.write(`dev-flow: ${error.message}\n`);
-    return { code: 1, signal: null };
+    if (arguments_.includes("--json")) stdout.write(`${JSON.stringify({ status: "failed", error: { code: error.code ?? "RUNTIME_UNAVAILABLE", message: error.message }, next_step: "dev-flow doctor --host all" })}\n`);
+    else stderr.write(`dev-flow: ${error.message}\ndev-flow doctor --host all\n`);
+    return { code: error.exitCode ?? 1, signal: null };
   }
 }
 
@@ -195,7 +188,7 @@ async function preflightCandidate(candidate, exec, environment, requireExecutabl
     `${candidate.source} Core runtime`,
     requireExecutableMode,
   );
-  const result = await exec(runtimePath, ["version"], { cwd: packageRoot, encoding: "utf8", maxBuffer: 64 * 1024, env: environment });
+  const result = await exec(runtimePath, ["version"], { cwd: packageRoot, encoding: "utf8", maxBuffer: 64 * 1024, timeout: 15_000, env: environment });
   const match = /^dev-flow (\S+)\n?$/u.exec(result.stdout);
   if (!match || !semverPattern.test(match[1]) || candidate.expectedCoreVersion && match[1] !== candidate.expectedCoreVersion) {
     throw new Error(`${candidate.source} Core identity differs from its receipt`);
@@ -204,8 +197,13 @@ async function preflightCandidate(candidate, exec, environment, requireExecutabl
 }
 
 function assertWebUIArguments(arguments_) {
-  if (!Array.isArray(arguments_) || arguments_[0] !== "webui" || !["start", "open", "status", "stop"].includes(arguments_[1]) || arguments_.some((value) => typeof value !== "string" || value.includes("\0"))) {
-    throw new Error("invalid arguments; run dev-flow help");
+  const allowed = arguments_[1] === "start" ? ["--no-open", "--plain", "--json"] : ["--plain", "--json"];
+  const options = arguments_.slice(2);
+  if (!["start", "open", "status", "stop"].includes(arguments_[1]) || options.some(option => !allowed.includes(option)) ||
+      new Set(options).size !== options.length || options.includes("--plain") && options.includes("--json")) {
+    const error = new Error("invalid WebUI arguments; run dev-flow help");
+    error.exitCode = 2;
+    throw error;
   }
 }
 
@@ -266,4 +264,10 @@ function compareSemver(left, right) {
   const b = right.split(".").map(Number);
   for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
   return 0;
+}
+
+export async function inspectDeepSeekRuntime(paths, profile, packageVersion, environment, exec = execFile) {
+  const packageRoot = join(deepseekHome(environment, paths), "profiles", profile, "node_modules", "dev-flow-deepseek");
+  return preflightCandidate({ source: `deepseek/${profile}`, packageName: "dev-flow-deepseek", packageVersion,
+    expectedCoreVersion: null, packageRoot, runtimePath: adapterCoreRuntimePath(packageRoot, paths) }, exec, environment, paths.requireExecutableMode);
 }

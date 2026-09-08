@@ -185,3 +185,35 @@ function driver(host, profile, states, events) {
 function request({ reinstallAfterReset }) {
   return { operation: "factory-reset", host: "all", profiles: ["web"], targetVersion: "latest", allKnownProfiles: true, adopt: false, reinstallAfterReset, permanent: false, yes: true, confirmationToken: "test", permanentToken: null, downgradeToken: null, confirmedExplicitData: [], outputMode: "json" };
 }
+
+test("reset without explicit data approval leaves both Adapters installed", async t => {
+  const fixture = await resetFixture(t, { explicit: true });
+  await assert.rejects(runLifecycle(request({ reinstallAfterReset: false }), { ...fixture.dependencies, confirmPlan: async () => true }), /confirm-explicit-data/u);
+  assert.deepEqual(fixture.events, []);
+  assert.equal(fixture.states.codex, 'ready');
+  assert.equal(fixture.states.deepseek, 'ready');
+});
+
+test("repeating a completed reset is a zero-write no-op", async t => {
+  const fixture = await resetFixture(t);
+  await runLifecycle(request({ reinstallAfterReset: false }), { ...fixture.dependencies, confirmPlan: async () => true });
+  fixture.events.length = 0;
+  const result = await runLifecycle(request({ reinstallAfterReset: false }), fixture.dependencies);
+  assert.equal(result.code, 0);
+  assert.equal(result.result.changed, false);
+  assert.equal(result.plan.confirmationClass, 'none');
+  assert.deepEqual(fixture.events, []);
+});
+
+test("reset permits owned runtime records to disappear while stopping services", async t => {
+  const fixture = await resetFixture(t);
+  const runtime = join(fixture.paths.petDirectory, "runtime.json");
+  await writeFile(runtime, '{}\n');
+  const result = await runLifecycle(request({ reinstallAfterReset: false }), {
+    ...fixture.dependencies, confirmPlan: async () => true,
+    stopPetForCore: async () => { const { unlink } = await import('node:fs/promises'); await unlink(runtime); },
+  });
+  assert.equal(result.code, 0);
+  assert.equal(result.result.data.pet, "absent");
+  assert.equal(await readFile(join(result.result.data.trash_root, 'pet', 'preferences.json'), 'utf8'), 'pet-preferences\n');
+});

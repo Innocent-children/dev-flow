@@ -17,7 +17,7 @@ test("one install request makes Codex and DeepSeek ready and repeated install is
   });
   assert.equal(first.result.status, "ready");
   assert.equal(first.result.changed, true);
-  assert.deepEqual(progress.map((event) => `${event.type}:${event.action.actionId}`), [
+  assert.deepEqual(progress.filter(event => event.action).map((event) => `${event.type}:${event.action.actionId}`), [
     "action_start:codex.default.install",
     "action_complete:codex.default.install",
     "action_start:deepseek.web.install",

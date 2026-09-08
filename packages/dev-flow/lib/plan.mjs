@@ -24,7 +24,7 @@ export function createLifecyclePlan(request, observed, {
     for (const target of targets) {
       if (requiresUninstall(target)) actions.push(actionFor(target, "uninstall", null));
     }
-    actions.push({ actionId: "manager.cleanup", owner: "manager", operation: "cleanup", host: "manager", profile: null, targetVersion: null });
+    if (request.reinstallAfterReset || actions.length || Object.values(observed.resources).some(resource => resource?.exists)) actions.push({ actionId: "manager.cleanup", owner: "manager", operation: "cleanup", host: "manager", profile: null, targetVersion: null });
     if (request.reinstallAfterReset) {
       actions.push({ actionId: "manager.initialize_fresh_state", owner: "manager", operation: "initialize", host: "manager", profile: null, targetVersion: null });
       for (const target of targets) actions.push(actionFor(target, "install", targetVersions[targetKey(target)]));
@@ -33,7 +33,7 @@ export function createLifecyclePlan(request, observed, {
     for (const target of targets) {
       const targetVersion = targetVersions[targetKey(target)];
       if (!targetVersion) throw new Error(`target version is missing for ${targetKey(target)}`);
-      if (request.operation === "upgrade" && target.packageVersion && compareVersions(target.packageVersion, targetVersion) > 0) downgrade = true;
+      if (target.packageVersion && compareVersions(target.packageVersion, targetVersion) > 0) downgrade = true;
       const alreadyReady = target.state === "ready" && target.packageVersion === targetVersion;
       if (replaceLocalPackages || request.operation === "reinstall" || request.adopt || !alreadyReady) actions.push(actionFor(target, request.operation, targetVersion));
     }
@@ -60,7 +60,7 @@ export function createLifecyclePlan(request, observed, {
     actions,
   });
   const resolvedPlanId = planId ?? `plan-${stablePlanIdentity.slice(0, 20)}`;
-  const confirmationClass = request.operation === "factory-reset"
+  const confirmationClass = actions.length === 0 ? "none" : request.operation === "factory-reset"
     ? request.permanent ? "permanent_reset" : "reset"
     : downgrade ? "downgrade"
       : actions.length > 0 ? "mutation" : "none";
@@ -75,7 +75,8 @@ export function createLifecyclePlan(request, observed, {
     targets: targets.map((target) => ({ host: target.host, profile: target.profile, state: target.state, packageInstalled: target.packageInstalled === true, packageVersion: target.packageVersion })),
     actions,
     impacts: impactsFor(request, targets, observed, actions, recoverableCleanupDescription),
-    restartRequirements: targets.filter((target) => target.host === "deepseek" && actions.length > 0).map((target) => `Restart DeepSeek Profile ${target.profile}`),
+    restartRequirements: actions.filter(action => action.owner === "deepseek" && action.operation !== "uninstall").map(action => `Restart DeepSeek Profile ${action.profile}`),
+    resources: Object.values(observed.resources).filter(resource => resource?.exists).map(({ label, path }) => ({ label, path })),
     confirmationClass,
     observedDigest,
   };
@@ -94,7 +95,7 @@ function selectTargets(request, observed) {
   if (request.host === "codex" || request.host === "all") targets.push(observed.codex);
   if (request.host === "deepseek" || request.host === "all") {
     const requestedProfiles = request.allKnownProfiles
-      ? [...new Set([...(observed.knownDeepSeekProfiles ?? []), ...request.profiles])]
+      ? [...new Set([...(observed.knownDeepSeekProfiles ?? []), ...request.profiles, ...observed.deepseek.map(target => target.profile)])]
       : request.profiles;
     for (const profile of requestedProfiles) {
       const target = observed.deepseek.find((entry) => entry.profile === profile);

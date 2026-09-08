@@ -55,6 +55,8 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
+The lifecycle menu shows installed Adapter states, supports back/exit and invalid-input retry, and opens Control Center. Plans show versions and resource paths before confirmation. `install`, `repair`, and `reinstall` keep installed versions by default; `upgrade` selects `latest`. Healthy repeated installation/repair, up-to-date upgrade, and already-completed removal require no changes; reinstall deliberately replaces the package again. `doctor` reports failed checks and recovery commands. Use `dev-flow repair --help` for options; JSON never prompts. These commands maintain Adapters; update the public launcher with `npm install -g @imotong/dev-flow@latest`.
+
 Choose Codex, DeepSeek, or both in the interactive setup. Before starting the first task, complete the
 Host-specific step printed by the installer:
 

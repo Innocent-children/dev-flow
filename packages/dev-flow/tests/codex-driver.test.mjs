@@ -117,11 +117,66 @@ test("Codex uninstall keeps the package when remove fails", async () => {
   }), (error) => {
     assert.equal(error.message, "WebUI did not stop");
     assert.deepEqual(error.completedSteps, []);
-    assert.match(error.nextStep, /resume uninstall/u);
+    assert.equal(error.nextStep, "dev-flow repair --host codex --yes");
     return true;
   });
 
   assert.deepEqual(calls, [
     ["dev-flow-codex", ["remove", "--json"]],
   ]);
+});
+
+test("broken Core self-check preserves npm version and remains repairable", async () => {
+  let repaired = false;
+  const calls = [];
+  const driver = createCodexDriver({ run: async (command, args) => {
+    calls.push([command, ...args]);
+    if (command === 'codex') return { stdout: 'codex-cli 1.0.0' };
+    if (args[0] === 'list') return { stdout: JSON.stringify({ dependencies: { 'dev-flow-codex': { version: '1.2.3' } } }) };
+    if (args[0] === 'status') {
+      if (!repaired) throw Object.assign(new Error('Adapter check failed'), { code: 1, stderr: 'Core executable missing' });
+      return { stdout: JSON.stringify({ status: 'ready', package_version: '1.2.3', core_version: '1.0.0', registration: { receipt: true } }) };
+    }
+    if (args[0] === 'setup') repaired = true;
+    return { stdout: '{}' };
+  } });
+  const observed = await driver.observe();
+  assert.equal(observed.state, 'partial');
+  assert.equal(observed.packageVersion, '1.2.3');
+  assert.equal(observed.issues[0].detail, 'Core executable missing');
+  await driver.execute('repair', { targetVersion: observed.packageVersion, observed });
+  assert.equal((await driver.observe()).state, 'ready');
+  assert.equal(calls.some(call => call.includes('dev-flow-codex@1.2.3')), true);
+});
+
+test("same-version repair restores package files then rebuilds the owned registration", async () => {
+  const calls = [];
+  const driver = createCodexDriver({ run: async (_command, args) => {
+    calls.push(args[0]);
+    return { stdout: args[0] === 'status' ? JSON.stringify({ status: 'ready', package_version: '1.2.3' }) : '{}' };
+  } });
+  await driver.execute('repair', { targetVersion: '1.2.3', observed: { hostAvailable: true, packageVersion: '1.2.3', state: 'partial', receipt: true } });
+  assert.deepEqual(calls, ['install', 'remove', 'setup', 'status']);
+});
+
+test("an authorized downgrade removes the old owned registration before replacement", async () => {
+  const calls = [];
+  const driver = createCodexDriver({ run: async (_command, args) => {
+    calls.push(args[0]);
+    return { stdout: args[0] === 'status' ? JSON.stringify({ status: 'ready', package_version: '1.0.0' }) : '{}' };
+  } });
+  await driver.execute('upgrade', { targetVersion: '1.0.0', observed: { hostAvailable: true, packageVersion: '2.0.0', state: 'ready', receipt: true } });
+  assert.deepEqual(calls, ['remove', 'install', 'setup', 'status']);
+});
+
+test("npm empty global list with exit 1 is an absent Adapter, not a failed check", async () => {
+  const driver = createCodexDriver({ run: async (command) => {
+    if (command === "codex") return { stdout: "codex-cli 1.0.0" };
+    if (command === "dev-flow-codex") throw Object.assign(new Error("not installed"), { code: "ENOENT" });
+    throw Object.assign(new Error("npm list failed"), { code: 1, stdout: '{"name":"lib"}\n' });
+  } });
+  const state = await driver.observe();
+  assert.equal(state.state, "absent");
+  assert.equal(state.packageInstalled, false);
+  assert.equal(state.issues.some(issue => issue.code === "package_check_failed"), false);
 });

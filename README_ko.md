@@ -54,6 +54,8 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
+수명 주기 메뉴는 Adapter 설치 상태를 표시하며 뒤로 가기, 종료, 잘못된 입력 재시도와 Control Center 열기를 지원합니다. 확인 전에 버전 변경과 리소스 경로를 표시합니다. `install`, `repair`, `reinstall`은 기본적으로 설치된 버전을 유지하며 `upgrade`는 `latest`를 선택합니다. 정상 설치에 대한 반복 설치/복구, 이미 대상 버전인 업데이트, 완료된 제거는 변경 없이 끝납니다. `reinstall`은 패키지를 다시 교체합니다. `doctor`는 실패한 검사와 해결 명령을 표시합니다. 옵션은 `dev-flow repair --help`를 참고하세요. JSON 모드에서는 질문하지 않습니다. 이 명령들은 Adapter를 관리하며 공통 실행기는 `npm install -g @imotong/dev-flow@latest`로 업데이트합니다.
+
 대화형 설정에서 Codex, DeepSeek 또는 둘 다 선택합니다. 첫 작업을 시작하기 전에 설치 프로그램이
 안내하는 마무리 단계도 완료하세요.
 

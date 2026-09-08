@@ -55,7 +55,7 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 | `dev-flow status\|doctor --host codex\|deepseek\|all` | 只读检查或诊断。 |
 | `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | 执行普通维护并保留配置与 Task 数据。 |
 | `dev-flow install\|repair --host deepseek\|all --adopt ...` | 接管已经存在且身份可验证的 DeepSeek Profile contribution；其他操作和纯 Codex 目标不接受 `--adopt`。 |
-| `dev-flow upgrade ... --confirm-downgrade <token>` | 当目标版本低于已安装版本时，使用当前计划给出的 token 明确确认降级。 |
+| `dev-flow install\|upgrade\|repair\|reinstall ... --confirm-downgrade <token>` | 当目标版本低于已安装版本时，使用当前计划给出的 token 明确确认降级。 |
 | `dev-flow uninstall --host ... [--all-known-profiles] --yes` | 移除选定 Adapter并保留配置与 Task 数据；Codex 会先安全停止对应 WebUI，失败时不移除注册或 package。 |
 | `dev-flow factory-reset --host all --all-known-profiles` | 生成绑定当前状态的 reset plan/token；`--yes` 不授权清理。 |
 | `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | 将已确认数据移动到 Trash，可随后全新重装。 |
@@ -63,6 +63,29 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 | `dev-flow factory-reset ... --permanent --confirm-reset <token> --confirm-permanent <token>` | 永久删除计划中的精确目标；需要 reset token 和独立的永久删除 token。 |
 | `dev-flow webui start\|open\|status\|stop` | 从任一已安装 Adapter 选择并校验 Core，管理共享本机 Control Center；`start` 可创建缺失的默认数据目录：macOS 使用 `0700`，Windows 继承用户 profile/LocalAppData ACL。其余命令不创建目录。 |
 | `--json` / `--plain` | 分别选择单一 JSON 对象或无 ANSI 的纯文本结果。 |
+
+### 生命周期命令行为
+
+菜单读取安装状态后提供 Adapter 安装、维护、Control Center 和宠物入口；支持输入重试、返回和退出，完成操作后回到菜单。无终端交互环境时，裸 `dev-flow` 显示帮助。`dev-flow <生命周期命令> --help` 显示参数与示例。
+
+| 命令 | 目标版本与重复执行 |
+| --- | --- |
+| `install` | 默认保留已有版本，缺失项使用 `latest`；已就绪且版本相同则无需变更。 |
+| `upgrade` | 默认选择 `latest`；已是目标版本且就绪则无需变更。 |
+| `repair` | 默认修复当前版本；恢复损坏文件与同版本受管注册，健康状态无需变更。 |
+| `reinstall` | 默认重新安装当前版本，每次都执行替换，保留配置与 Task 数据。 |
+| `uninstall` | 已移除的 Adapter 无需再次操作，保留配置与 Task 数据。 |
+| `factory-reset` | 完成清理后再次执行为空操作；有实际清理目标时仍须确认当前计划。 |
+
+显式 `--version` 选择目标版本；所有版本替换命令的降级均须 `--confirm-downgrade`，普通 `--yes` 不代替降级确认。本地开发分发包始终使用包内校验过的版本和制品，维护时替换包内内容。
+
+执行前展示操作、当前/目标版本、资源路径和数据处理方式。JSON 模式从不询问；需要确认时返回 `confirmation` 与可复制的 `next_step`。显式数据目录在任何 Adapter 移除前完成确认。清理目录按 canonical 路径、文件系统身份和权限绑定，允许关闭受管服务时移除运行记录；单文件清理还核对大小和修改时间。安装、升级、修复和重装仅维护 Adapter；公共入口本身通过 `npm install -g @imotong/dev-flow@latest` 更新。
+
+`status` 保留未安装目标，返回 Host 可用性、Adapter/Core 版本及问题；`doctor` 另外列出安装与配置检查，检查失败返回非零退出码。选择全部 Host 时，已有健康 Adapter 的情况下，未安装的可选 Adapter 仅列为未安装，不算故障。Codex 自检失败时仍读取 npm 安装信息以支持修复；DeepSeek 同时检查 Profile contribution、受管记录与实际 Core。未受管的现有 DeepSeek contribution 必须通过 `--adopt` 明确接管。
+
+失败结果包含 `error.code/message/detail`、`operation_id`、`failed_action`、`completed_actions` 和处理命令；文本模式展示同样的原因与完成步骤。再次执行会重新观察当前安装，不回放旧操作。处理命令在适用时固定本次目标版本；reset 再次生成当前状态的计划。安装成功结果保留 hook 审核/信任及 Profile 重启提示。
+
+生命周期退出码：`0` 成功或无需变更，`1` 检查/执行失败，`2` 参数错误，`3` 等待确认或取消确认，`4` 计划或清理授权不满足，`5` 部分执行或最终检查失败。菜单主动退出返回 `0`。WebUI 参数错误返回 `2`，launcher 在 `--json` 模式下的错误也返回 JSON。
 
 设置 `DEV_FLOW_DATA_DIR` 时，公共 launcher 只接受已存在、canonical、非符号链接的绝对目录，任何命令都
 不会自动创建显式目录。

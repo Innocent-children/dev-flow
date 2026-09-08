@@ -59,7 +59,7 @@ artifact, and readiness step; `--json` omits these progress lines.
 | `dev-flow status\|doctor --host codex\|deepseek\|all` | Inspect or diagnose without mutation. |
 | `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
 | `dev-flow install\|repair --host deepseek\|all --adopt ...` | Adopt an existing identity-verified DeepSeek Profile contribution; other operations and Codex-only targets reject `--adopt`. |
-| `dev-flow upgrade ... --confirm-downgrade <token>` | Explicitly confirm a downgrade with the token from the current plan when the target is older than the installed version. |
+| `dev-flow install\|upgrade\|repair\|reinstall ... --confirm-downgrade <token>` | Explicitly confirm a downgrade with the token from the current plan when the target is older than the installed version. |
 | `dev-flow uninstall --host ... [--all-known-profiles] --yes` | Remove selected Adapters while preserving configuration and Task data; Codex first stops the matching WebUI safely and retains registration and package state if that stop fails. |
 | `dev-flow factory-reset --host all --all-known-profiles` | Produce a current-state-bound reset plan/token; `--yes` has no cleanup authority. |
 | `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | Move confirmed data to Trash and optionally perform a clean reinstall. |
@@ -67,6 +67,29 @@ artifact, and readiness step; `--json` omits these progress lines.
 | `dev-flow factory-reset ... --permanent --confirm-reset <token> --confirm-permanent <token>` | Permanently remove the plan's exact targets; both the reset token and a separate permanent-removal token are required. |
 | `dev-flow webui start\|open\|status\|stop` | Select and verify Core from either installed Adapter, then manage the shared local Control Center; `start` may create a missing default data directory with mode `0700` on macOS or inherited user-profile/LocalAppData ACLs on Windows. The other commands create nothing. |
 | `--json` / `--plain` | Select one JSON object or ANSI-free plain output. |
+
+### Lifecycle command behavior
+
+The menu reads installation state before offering Adapter installation, maintenance, Control Center and pet entries. It supports input retry, back and exit, and returns to the menu after an operation. Without a terminal, bare `dev-flow` prints help. `dev-flow <lifecycle-command> --help` explains options and examples.
+
+| Command | Target version and repeated execution |
+| --- | --- |
+| `install` | Keeps installed versions by default; missing installations use `latest`. A ready matching version needs no changes. |
+| `upgrade` | Selects `latest` by default; a ready matching version needs no changes. |
+| `repair` | Repairs the current version by default, restoring damaged files and same-version owned registration. Healthy state needs no changes. |
+| `reinstall` | Reinstalls the current version by default on every invocation, preserving configuration and Task data. |
+| `uninstall` | Already-removed Adapters need no further action; configuration and Task data are preserved. |
+| `factory-reset` | Repeating completed cleanup is a no-op; actual cleanup targets still require confirmation of the current plan. |
+
+Explicit `--version` selects a target. Every version-replacement command requires `--confirm-downgrade` for a downgrade; ordinary `--yes` is insufficient. Local development distributions always use their verified bundled versions and artifacts, replacing their contents during maintenance.
+
+Before execution, the plan shows actions, current/target versions, resource paths and data handling. JSON never prompts: required confirmation returns `confirmation` and a copyable `next_step`. Explicit data-directory approval is checked before removing any Adapter. Cleanup directories bind canonical paths, filesystem identity and permissions, allowing managed shutdown to remove runtime records; individual file targets also bind size and modification time. Installation, upgrade, repair and reinstall maintain Adapters; update the public launcher itself with `npm install -g @imotong/dev-flow@latest`.
+
+`status` retains absent targets and reports Host availability, Adapter/Core versions and issues. `doctor` adds installation and configuration checks and exits nonzero on failure. With all Hosts selected, an absent optional Adapter is informational when another Adapter is healthy. Codex self-check failures retain npm installation metadata for repair; DeepSeek checks Profile contribution, the managed receipt and the actual Core. An existing unmanaged DeepSeek contribution requires explicit `--adopt`.
+
+Failures include `error.code/message/detail`, `operation_id`, `failed_action`, `completed_actions` and a recovery command. Text output preserves the same causes and completed steps. Repeating a command observes current installation state instead of replaying an old operation. Recovery commands pin the attempted version where applicable; reset generates a plan for the current state again. Successful installation retains hook review/trust and Profile restart instructions.
+
+Lifecycle exit codes: `0` success or no changes, `1` check/execution failure, `2` invalid arguments, `3` confirmation required or declined, `4` unmet plan/cleanup authorization, `5` partial execution or failed final verification. Exiting the menu returns `0`. Invalid WebUI arguments return `2`; launcher failures under `--json` also return JSON.
 
 When `DEV_FLOW_DATA_DIR` is set, the public launcher accepts only an existing canonical, non-symbolic-link absolute
 directory. No command creates an explicit directory.

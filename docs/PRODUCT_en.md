@@ -189,3 +189,7 @@ The current Windows development distribution includes both Adapter packages and 
 ## Current DSH interface
 
 The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
+
+## Lifecycle entry
+
+The public `dev-flow` manages Adapter installation and maintenance. Its menu shows state first; plans show versions and resource paths before confirmation. Installation, repair and reinstall keep installed versions by default; upgrade selects `latest`. Satisfied installation, repair, upgrade and removal require no repeated changes, while reinstall executes every time. Diagnostics identify failed checks and recovery commands, errors retain causes and completed steps, and installation results retain hook trust and Profile restart instructions. JSON never prompts. The launcher owns terminal interaction, version selection and installation records; Core independently owns Task state. See the [Command Reference](COMMANDS_en.md#lifecycle-command-behavior) for options and repeat behavior.

@@ -38,3 +38,25 @@ function driver(host, profile, states) {
 function request() {
   return { operation: "uninstall", host: "all", profiles: ["web"], targetVersion: "latest", allKnownProfiles: true, adopt: false, reinstallAfterReset: false, permanent: false, yes: true, confirmationToken: null, permanentToken: null, downgradeToken: null, confirmedExplicitData: [], outputMode: "json" };
 }
+
+test("repeated uninstall completes without invoking a Host mutation", async t => {
+  const root = await mkdtemp(join(tmpdir(), 'dev-flow-repeat-uninstall-'));
+  t.after(async () => { const { rm } = await import('node:fs/promises'); await rm(root, { recursive: true, force: true }); });
+  const home = join(root, 'home');
+  await mkdir(home);
+  let installed = true;
+  let mutations = 0;
+  const codexDriver = {
+    observe: async () => ({ host: 'codex', profile: null, hostAvailable: true, state: installed ? 'ready' : 'absent', packageInstalled: installed, packageVersion: installed ? '1.0.0' : null }),
+    execute: async () => { mutations++; installed = false; return { changed: true, completedSteps: ['codex.uninstall_package'] }; },
+  };
+  const deps = { homeDirectory: home, environment: {}, platform: 'darwin', arch: 'arm64', codexDriver,
+    deepseekDriver: {}, confirmPlan: async () => true };
+  const selected = { ...request(), host: 'codex', profiles: [], allKnownProfiles: false };
+  assert.equal((await runLifecycle(selected, deps)).result.changed, true);
+  const repeated = await runLifecycle(selected, deps);
+  assert.equal(repeated.code, 0);
+  assert.equal(repeated.result.changed, false);
+  assert.equal(repeated.result.next_step, null);
+  assert.equal(mutations, 1);
+});

@@ -107,3 +107,7 @@ function environmentValue(environment, name) {
   }
   return undefined;
 }
+
+export function quoteArgument(value) {
+  return /^[A-Za-z0-9_./:@=-]+$/u.test(value) ? value : "'" + value.replaceAll("'", "''") + "'";
+}

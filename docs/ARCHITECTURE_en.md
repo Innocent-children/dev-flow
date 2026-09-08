@@ -368,3 +368,7 @@ The current Windows development distribution includes both Adapter packages and 
 ## Current DSH interface
 
 The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
+
+## Lifecycle CLI responsibilities
+
+`packages/dev-flow/lib/cli.mjs` parses arguments and organizes menus; `terminal.mjs` retains input across one interactive session, and `presentation.mjs` renders plans, progress and results. `plan.mjs` creates maintenance actions and confirmation requirements. `lifecycle.mjs` observes state, resolves target versions, presents the plan and obtains confirmation before executing and recording results. `diagnostics.mjs` collects installation and user-configuration checks. Host drivers inspect Codex/npm or DeepSeek Profile/Core and execute confirmed Adapter operations. Platform modules own processes, paths, permissions, cleanup and argument quoting for copyable commands. Retries observe actual installation state; installation records do not determine Core Task state.

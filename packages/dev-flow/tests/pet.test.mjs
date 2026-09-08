@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Readable } from "node:stream";
 import { EventEmitter } from "node:events";
 import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -551,22 +552,23 @@ test("shutdown reports the native exit code with its first diagnostic line", asy
   assert.deepEqual(timedOut.children[0].killed, ["SIGTERM"]);
 });
 
-test("an interactive pet selection reuses the pet launcher and its exit code", async () => {
+test("an interactive pet selection reuses the pet launcher and returns to the menu", async () => {
   const stdout = output();
   const stderr = output();
   const delegated = [];
   const result = await runMain([], {
-    input: { isTTY: true },
+    input: Readable.from([]),
     output: stdout,
     errorOutput: stderr,
     environment: {},
+    resolveManagerPaths: async () => { throw new Error("installation unavailable"); },
     isTTY: true,
     platform: "darwin",
     arch: "arm64",
     promptForRequest: async (options) => {
       assert.equal(options.platform, "darwin");
       assert.equal(options.arch, "arm64");
-      return { pet: "start" };
+      return delegated.length ? { cancelled: true } : { pet: "start" };
     },
     runPet: async (args, options) => {
       delegated.push({ args, options });

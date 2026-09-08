@@ -122,7 +122,9 @@ export async function inspectResource(path, label) {
     label,
     path: canonical,
     exists: true,
-    identity: `${info.dev}:${info.ino}:${info.mode}:${info.size}:${info.mtimeMs}`,
+    // Directory identity survives managed service files being removed during shutdown.
+    // Individual file targets also bind their size and modification time.
+    identity: info.isDirectory() ? `${info.dev}:${info.ino}:${info.mode}` : `${info.dev}:${info.ino}:${info.mode}:${info.size}:${info.mtimeMs}`,
     kind: info.isDirectory() ? "directory" : info.isFile() ? "file" : "unsupported",
   });
 }
@@ -228,7 +230,7 @@ export async function moveTargetsToTrash(paths, targets, { now = () => new Date(
 }
 
 export async function permanentlyRemoveTargets(targets, { allowedPaths }) {
-  const allowed = new Set(allowedPaths.map(resolve));
+  const allowed = new Set(allowedPaths.map(path => resolve(path)));
   const removed = [];
   for (const target of targets) {
     if (!target.exists) continue;
@@ -272,6 +274,8 @@ export class CleanupPartialError extends Error {
     this.exitCode = 5;
     this.trashRoot = trashRoot;
     this.moved = moved;
+    this.completedSteps = moved.map(entry => `manager.trash.${entry.label}`);
+    this.changed = moved.length > 0;
   }
 }
 

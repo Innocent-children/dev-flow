@@ -89,3 +89,17 @@ test("default data creation rejects a macOS application-data symlink before writ
     await rm(root, { recursive: true, force: true });
   });
 });
+
+test("permanent cleanup removes the exact confirmed file and directory targets", async t => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-permanent-cleanup-")));
+  t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
+  const config = join(root, "config.json");
+  const data = join(root, "data");
+  await writeFile(config, '{}\n'); await mkdir(data); await writeFile(join(data, 'test.txt'), 'disposable\n');
+  const targets = [await inspectResource(config, 'configuration'), await inspectResource(data, 'default-data')];
+  const { permanentlyRemoveTargets } = await import('../lib/ownership.mjs');
+  const removed = await permanentlyRemoveTargets(targets, { allowedPaths: targets.map(target => target.path) });
+  assert.equal(removed.length, 2);
+  await assert.rejects(stat(config), { code: 'ENOENT' });
+  await assert.rejects(stat(data), { code: 'ENOENT' });
+});

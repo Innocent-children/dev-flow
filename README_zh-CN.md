@@ -50,6 +50,8 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
+生命周期菜单显示 Adapter 安装状态，支持返回、退出、输入错误重试和打开 Control Center。确认前展示版本变化与资源路径。`install`、`repair`、`reinstall` 默认保留已安装版本，`upgrade` 选择 `latest`。健康安装的重复安装/修复、已是目标版本的升级和已完成的移除无需变更；重装会再次替换安装包。`doctor` 展示失败检查与处理命令。参数见 `dev-flow repair --help`；JSON 模式不询问。这些命令维护 Adapter，公共入口使用 `npm install -g @imotong/dev-flow@latest` 更新。
+
 在交互界面中选择 Codex、DeepSeek 或两者。首次启动任务前，还要完成安装器提示的对应操作：
 
 - **Codex：** 打开 `/hooks`，检查并信任 Dev Flow 随包提供的 hook。信任前，受支持的

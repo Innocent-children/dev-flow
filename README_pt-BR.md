@@ -57,6 +57,8 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
+O menu de ciclo de vida mostra o estado dos Adapters e permite voltar, sair, corrigir entradas e abrir o Control Center. As versões e os caminhos afetados aparecem antes da confirmação. `install`, `repair` e `reinstall` preservam por padrão a versão instalada; `upgrade` seleciona `latest`. Repetir uma instalação ou reparo saudável, uma atualização já aplicada ou uma remoção concluída não gera alterações; `reinstall` substitui o pacote novamente. `doctor` mostra as verificações que falharam e os comandos para resolvê-las. Consulte `dev-flow repair --help`; o modo JSON não faz perguntas. Esses comandos gerenciam os Adapters; atualize o inicializador público com `npm install -g @imotong/dev-flow@latest`.
+
 Escolha Codex, DeepSeek ou ambos na configuração interativa. Antes de iniciar a primeira tarefa,
 conclua também a última etapa indicada pelo instalador:
 

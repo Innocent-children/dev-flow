@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
 import { execPortableCommand } from "../command.mjs";
+import { inspectDeepSeekRuntime } from "../runtime.mjs";
 import { listProfileReceipts, removeProfileReceipt, writeProfileReceipt } from "../ownership.mjs";
 
 export function createDeepSeekDriver({
@@ -13,6 +14,7 @@ export function createDeepSeekDriver({
   dshExecutable = "dsh",
   now = () => new Date(),
   localPackage = null,
+  inspectRuntime = inspectDeepSeekRuntime,
 } = {}) {
   return Object.freeze({
     async knownProfiles() {
@@ -20,20 +22,30 @@ export function createDeepSeekDriver({
     },
 
     async observe(profile) {
-      const host = await optionalText(run, dshExecutable, ["--version"], { environment });
-      if (!host.available) return Object.freeze({ host: "deepseek", profile, hostAvailable: false, hostVersion: null, state: "absent", packageVersion: null, receipt: null });
-      const dump = await optionalText(run, dshExecutable, ["--profile", profile, "--dump-config"], { environment });
-      const contribution = dump.available && /(^|\n)\s*-?\s*id:\s*dev-flow-deepseek\s*($|\n)/u.test(dump.stdout);
-      const receipt = (await listProfileReceipts(paths)).find((entry) => entry.profile === profile) ?? null;
-      return Object.freeze({
-        host: "deepseek",
-        profile,
-        hostAvailable: true,
-        hostVersion: firstVersion(host.stdout),
-        state: contribution ? "ready" : receipt ? "partial" : "absent",
-        packageVersion: receipt?.installed_version ?? null,
-        receipt,
-      });
+      const receipt = (await listProfileReceipts(paths)).find(entry => entry.profile === profile) ?? null;
+      const issues = [];
+      let host = { available: false };
+      let contribution = false;
+      let coreVersion = null;
+      try {
+        host = await optionalText(run, dshExecutable, ["--version"], { environment, timeout: 15_000 });
+        if (host.available) {
+          const dump = await run(dshExecutable, ["--profile", profile, "--dump-config"], { environment, timeout: 15_000 });
+          contribution = /(^|\n)\s*-?\s*id:\s*dev-flow-deepseek\s*($|\n)/u.test(dump.stdout);
+        }
+      } catch (error) { issues.push({ code: "profile_check_failed", message: error.message, detail: error.stderr ?? "", command: `dsh --profile ${profile} --dump-config` }); }
+      if (!host.available) issues.push({ code: "host_missing", message: "DeepSeek Harness is not installed or is not on PATH.", command: "dsh --version" });
+      if (receipt && contribution) {
+        try { coreVersion = (await inspectRuntime(paths, profile, receipt.installed_version, environment)).version; }
+        catch (error) { issues.push({ code: "core_check_failed", message: error.message, command: `dev-flow repair --host deepseek --profile ${profile} --yes` }); }
+      }
+      if (contribution && !receipt) issues.push({ code: "unmanaged_profile", message: "This Profile has an Adapter without a lifecycle receipt. Adopt it explicitly.", command: `dev-flow repair --host deepseek --profile ${profile} --adopt --yes` });
+      if (receipt && !contribution && host.available) issues.push({ code: "registration_incomplete", message: "DeepSeek Adapter contribution is missing.", command: `dev-flow repair --host deepseek --profile ${profile} --yes` });
+      if (!receipt && !contribution && host.available && !issues.length) issues.push({ code: "adapter_missing", message: "Dev Flow DeepSeek Adapter is not installed.", command: `dev-flow install --host deepseek --profile ${profile} --yes` });
+      return Object.freeze({ host: "deepseek", profile, hostAvailable: host.available,
+        hostVersion: host.available ? firstVersion(host.stdout) : null,
+        state: receipt || contribution ? issues.length ? "partial" : "ready" : issues.some(issue => issue.code === "profile_check_failed") ? "unknown" : "absent",
+        packageVersion: receipt?.installed_version ?? null, coreVersion, receipt, contribution, issues });
     },
 
     async resolveTargetVersion(target) {
@@ -44,15 +56,17 @@ export function createDeepSeekDriver({
       return stableVersion(version, "DeepSeek target version");
     },
 
-    async execute(operation, { profile, targetVersion, observed, adopt = false, onProgress = () => {} }) {
-      if (!observed.hostAvailable) throw nextStepError("DeepSeek Harness is unavailable", "Install or update DSH, then rerun the same command.");
+    async execute(operation, { profile, targetVersion, observed, adopt = false, onProgress = () => {}, onStepStart = () => {} }) {
+      if (operation === "uninstall" && observed.state === "absent" && !observed.receipt) return { changed: false, completedSteps: [] };
+      if (!observed.hostAvailable) throw nextStepError("DeepSeek Harness is unavailable", "dsh --version");
       if (operation === "uninstall") {
-        if (observed.state === "absent") {
+        if (observed.state === "absent" || observed.contribution === false && !observed.issues?.some(issue => issue.code === "profile_check_failed")) {
           await removeProfileReceipt(paths, profile);
-          return { changed: false, completedSteps: [] };
+          return { changed: Boolean(observed.receipt), completedSteps: observed.receipt ? [`deepseek.${profile}.remove_receipt`] : [] };
         }
         const completedSteps = [];
         try {
+          onStepStart(`deepseek.${profile}.remove`);
           await run(dshExecutable, ["plugin", "--profile", profile, "remove", "dev-flow-deepseek"], { environment });
           completedSteps.push(`deepseek.${profile}.remove`);
           onProgress(`deepseek.${profile}.remove`);
@@ -62,7 +76,7 @@ export function createDeepSeekDriver({
           onProgress(`deepseek.${profile}.remove_receipt`);
           return { changed: true, completedSteps };
         } catch (error) {
-          throw partialError(error, completedSteps, `repair DeepSeek Profile ${profile}, then resume uninstall`);
+          throw partialError(error, completedSteps, `dev-flow repair --host deepseek --profile ${profile} --yes`);
         }
       }
 
@@ -70,9 +84,12 @@ export function createDeepSeekDriver({
         return { changed: false, completedSteps: [] };
       }
 
+      if (observed.contribution && !observed.receipt && !adopt) throw nextStepError(
+        "DeepSeek Profile requires explicit adoption", `dev-flow repair --host deepseek --profile ${profile} --adopt --yes`);
       const temporaryRoot = localPackage ? null : await mkdtemp(join(tmpdir(), "create-dev-flow-deepseek-"));
       const completedSteps = [];
       try {
+        onStepStart(`deepseek.${profile}.verify_artifact`);
         let artifact;
         if (localPackage) {
           artifact = await realpath(localPackage.path);
@@ -87,11 +104,13 @@ export function createDeepSeekDriver({
         completedSteps.push(`deepseek.${profile}.verify_artifact`);
         onProgress(`deepseek.${profile}.verify_artifact`);
         if (observed.state !== "absent") {
+          onStepStart(`deepseek.${profile}.remove`);
           await run(dshExecutable, ["plugin", "--profile", profile, "remove", "dev-flow-deepseek"], { environment });
           completedSteps.push(`deepseek.${profile}.remove`);
           onProgress(`deepseek.${profile}.remove`);
           await assertContribution(run, dshExecutable, profile, environment, false);
         }
+        onStepStart(`deepseek.${profile}.add`);
         await run(dshExecutable, ["plugin", "--profile", profile, "add", artifact], { environment });
         completedSteps.push(`deepseek.${profile}.add`);
         onProgress(`deepseek.${profile}.add`);
@@ -108,9 +127,12 @@ export function createDeepSeekDriver({
         });
         completedSteps.push(`deepseek.${profile}.write_receipt`);
         onProgress(`deepseek.${profile}.write_receipt`);
-        return { changed: true, completedSteps, temporaryRoots: temporaryRoot ? [temporaryRoot] : [] };
+        await inspectRuntime(paths, profile, targetVersion, environment);
+        completedSteps.push(`deepseek.${profile}.verify_ready`);
+        onProgress(`deepseek.${profile}.verify_ready`);
+        return { changed: true, completedSteps, nextSteps: [`Restart DeepSeek Profile ${profile}`], temporaryRoots: temporaryRoot ? [temporaryRoot] : [] };
       } catch (error) {
-        throw partialError(error, completedSteps, `rerun repair for DeepSeek Profile ${profile}`);
+        throw partialError(error, completedSteps, `dev-flow repair --host deepseek --profile ${profile} --version ${targetVersion} --yes`);
       } finally {
         if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
       }
@@ -129,8 +151,8 @@ async function runChild(executable, arguments_, { environment = process.env, cwd
     return await execPortableCommand(executable, arguments_, { cwd, env: environment, encoding: "utf8", maxBuffer: 1024 * 1024, timeout, windowsHide: true, shell: false });
   } catch (error) {
     const wrapped = new Error(`${executable} ${arguments_.join(" ")} failed`, { cause: error });
-    wrapped.code = error?.code;
-    wrapped.stderr = String(error?.stderr ?? "").slice(0, 2048);
+    wrapped.code = error?.killed ? "COMMAND_TIMEOUT" : error?.code;
+    wrapped.stderr = String(error?.stderr || error?.message || "").slice(0, 2048);
     throw wrapped;
   }
 }
@@ -163,6 +185,7 @@ function firstVersion(text) {
 
 function partialError(error, completedSteps, nextStep) {
   error.completedSteps = [...completedSteps];
+  error.changed = completedSteps.some(step => !step.endsWith("verify_artifact"));
   error.nextStep = nextStep;
   return error;
 }

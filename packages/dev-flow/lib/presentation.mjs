@@ -5,9 +5,9 @@ const chinese = {
   operationPrompt: "选择操作：",
   hostPrompt: "选择 Host：",
   profilePrompt: "DeepSeek Profile [web]：",
-  installCodex: "安装 Codex",
-  installDeepSeek: "安装 DeepSeek",
-  installAll: "同时安装 Codex 和 DeepSeek",
+  installCodex: "安装 Codex Adapter",
+  installDeepSeek: "安装 DeepSeek Adapter",
+  installAll: "安装两个 Adapter",
   plan: "执行计划",
   next: "下一步",
   changed: "已变更",
@@ -17,9 +17,12 @@ const chinese = {
     actionComplete: "完成",
     steps: {
       "codex.install_package": "安装 Codex Adapter 全局 package",
+      "codex.remove_registration": "移除 Codex 注册",
+      "codex.uninstall_package": "卸载 Codex Adapter package",
       "codex.setup_registration": "配置 Codex marketplace、Plugin 和 MCP 注册",
       "codex.verify_ready": "回读并确认 Codex Adapter 已就绪",
       "deepseek.verify_artifact": "下载并校验 DeepSeek Adapter 制品",
+      "deepseek.verify_ready": "确认 DeepSeek Core 可用",
       "deepseek.remove": "移除 DeepSeek Profile 中的旧 Adapter",
       "deepseek.add": "把 DeepSeek Adapter 加入目标 Profile",
       "deepseek.write_receipt": "写入并保存 DeepSeek Profile 安装记录",
@@ -74,9 +77,9 @@ const english = {
   operationPrompt: "Operation: ",
   hostPrompt: "Host: ",
   profilePrompt: "DeepSeek Profile [web]: ",
-  installCodex: "Install Codex",
-  installDeepSeek: "Install DeepSeek",
-  installAll: "Install Codex + DeepSeek",
+  installCodex: "Install Codex Adapter",
+  installDeepSeek: "Install DeepSeek Adapter",
+  installAll: "Install both Adapters",
   plan: "Plan",
   next: "Next step",
   changed: "Changed",
@@ -86,9 +89,12 @@ const english = {
     actionComplete: "Completed",
     steps: {
       "codex.install_package": "Install the global Codex Adapter package",
+      "codex.remove_registration": "Remove Codex registration",
+      "codex.uninstall_package": "Uninstall the Codex Adapter package",
       "codex.setup_registration": "Configure the Codex marketplace, Plugin, and MCP registration",
       "codex.verify_ready": "Read back and verify that the Codex Adapter is ready",
       "deepseek.verify_artifact": "Download and verify the DeepSeek Adapter artifact",
+      "deepseek.verify_ready": "Verify the DeepSeek Core runtime",
       "deepseek.remove": "Remove the previous Adapter from the DeepSeek Profile",
       "deepseek.add": "Add the DeepSeek Adapter to the target Profile",
       "deepseek.write_receipt": "Write and save the DeepSeek Profile installation receipt",
@@ -135,17 +141,41 @@ export function messagesForLanguage(language) {
 export function renderResult(result, { mode = "plain", language = resolveLanguage() } = {}) {
   if (mode === "json") return `${JSON.stringify(result)}\n`;
   const messages = messagesForLanguage(language);
-  if (["install", "reinstall"].includes(result.operation) && result.changed && result.status === "ready") {
-    return renderInstallSuccess(result, { mode, language, messages });
-  }
-  const mark = result.status === "ready" || result.status === "absent" ? "✓" : "!";
-  const lines = [
-    mode === "rich" ? `◆ ${messages.title}` : messages.title,
-    `${mark} ${messages.operations[result.operation] ?? result.operation}: ${messages.statuses[result.status] ?? result.status}`,
-    `${result.changed ? messages.changed : messages.unchanged}`,
-  ];
+  const zh = language === "zh-CN";
+  const good = ["ready", "absent", "restart_required"].includes(result.status);
+  const heading = `${good ? "✓" : "!"} ${messages.operations[result.operation] ?? result.operation}: ${messages.statuses[result.status] ?? result.status}`;
+  const lines = ["", mode === "rich" ? `\u001b[1;${good ? "36" : "33"}m${heading}\u001b[0m` : heading,
+    "─".repeat(36), result.changed ? messages.changed : messages.unchanged];
   for (const target of result.targets ?? []) {
-    lines.push(`- ${messages.hosts[target.host] ?? target.host}${target.profile ? `/${target.profile}` : ""}: ${messages.statuses[target.state] ?? target.state}`);
+    lines.push(`  ${messages.hosts[target.host] ?? target.host}${target.profile ? `/${target.profile}` : ""} · ${messages.statuses[target.state] ?? target.state}`);
+    if (target.package_version) lines.push(`    Adapter ${target.package_version}${target.core_version ? ` · Core ${target.core_version}` : ""}`);
+    if (target.host_available === false) lines.push(`    ! ${zh ? "未找到可用的 Host，请先安装 Host 并确认 PATH。" : "Host unavailable; install the Host and check PATH."}`);
+    for (const issue of target.issues ?? []) {
+      lines.push(`    ! ${issue.message}`);
+      if (issue.detail) lines.push(`      ${issue.detail}`);
+      if (issue.command) lines.push(`      ${issue.command}`);
+    }
+  }
+  for (const check of result.checks ?? []) lines.push(`  ${check.status === "passed" ? "✓" : check.status === "not_installed" ? "–" : "!"} ${check.name}: ${check.message}`);
+  if (result.error) {
+    lines.push(`${zh ? "原因" : "Reason"}: ${result.error.message}`);
+    if (result.error.detail) lines.push(result.error.detail);
+  }
+  if (result.operation_id) lines.push(`${zh ? "操作记录" : "Operation"}: ${result.operation_id}`);
+  if (result.failed_action) lines.push(`${zh ? "失败步骤" : "Failed step"}: ${result.failed_action}`);
+  if (result.error && result.completed_actions?.length) lines.push(`${zh ? "已完成" : "Completed"}: ${result.completed_actions.join(", ")}`);
+  if (result.data?.trash_root) lines.push(`${zh ? "数据保存位置" : "Recovered data"}: ${result.data.trash_root}`);
+  const steps = [...new Set([...(result.next_steps ?? []), ...(result.restart_requirements ?? [])])];
+  for (const step of steps) {
+    const restart = /^Restart DeepSeek Profile (.+)$/u.exec(step);
+    const text = zh && restart ? `停止并重新启动 DeepSeek Profile ${restart[1]}，再使用 /dev-flow。`
+      : zh && step.startsWith("Open Codex /hooks") ? "在 Codex /hooks 中审核并信任 Dev Flow hook，再开启新对话。" : step;
+    lines.push(`${messages.next}: ${text}`);
+  }
+  if (result.changed && good && ["install", "reinstall", "repair", "upgrade"].includes(result.operation)) {
+    if (result.targets?.some(t => t.host === "codex" && t.state === "ready")) lines.push("  $dev-flow-codex:dev-flow <task description>");
+    if (result.targets?.some(t => t.host === "deepseek" && ["ready", "restart_required"].includes(t.state))) lines.push("  /dev-flow <task description>");
+    lines.push("  dev-flow webui start");
   }
   if (result.next_step) lines.push(`${messages.next}: ${result.next_step}`);
   return `${lines.join("\n")}\n`;
@@ -162,6 +192,12 @@ export function renderPlan(plan, { mode = "plain", language = resolveLanguage() 
   if (mode === "json") return "";
   const messages = messagesForLanguage(language);
   const lines = [`${messages.plan} ${messages.operations[plan.operation] ?? plan.operation} (${plan.planId})`];
+  for (const action of plan.actions ?? []) {
+    const target = plan.targets?.find(target => target.host === action.host && target.profile === action.profile);
+    lines.push(`  ${actionLabel(action, messages)}${action.targetVersion ? ` · ${target?.packageVersion ?? "—"} → ${action.targetVersion}` : ""}`);
+  }
+  for (const resource of plan.resources ?? []) lines.push(`  ${resource.label}: ${resource.path}`);
+  if (plan.actions?.length === 0) lines.push(language === "zh-CN" ? "  当前状态已满足要求，无需变更。" : "  Already satisfied; no changes needed.");
   for (const impact of plan.impacts) lines.push(`- ${translateImpact(impact, language, messages)}`);
   return `${lines.join("\n")}\n`;
 }
@@ -175,6 +211,8 @@ export function renderProgress(event, { language = resolveLanguage() } = {}) {
   if (event.type === "step_complete") {
     return `  ✓ ${stepLabel(event.stepId, messages)}\n`;
   }
+  if (event.type === "phase") return `… ${event.message}\n`;
+  if (event.type === "step_start") return `  … ${stepLabel(event.stepId, messages)}\n`;
   throw new Error(`unsupported progress event ${event.type}`);
 }
 
@@ -199,6 +237,7 @@ function translateImpact(impact, language, messages) {
     "Clear desktop pet records, preferences, and imported appearances": "清理桌面宠物记录、偏好与导入形象",
     "Clear the explicitly confirmed Task data directory": "清理已明确确认的 Task 数据目录",
     "Permanently remove confirmed data": "永久删除已确认的数据",
+    "Move confirmed data to the Dev Flow recovery directory": "将已确认的数据移入 Dev Flow 恢复目录",
     "Move confirmed data to macOS Trash": "将已确认的数据移入 macOS 废纸篓",
     "Create fresh state and reinstall selected Adapters": "创建全新状态并重新安装所选 Adapter",
     "No installed Adapter or active Dev Flow data was found": "未发现已安装的 Adapter 或有效 Dev Flow 数据",
@@ -209,41 +248,4 @@ function translateImpact(impact, language, messages) {
   if (!target) return impact;
   const [, operation, host, profile] = target;
   return `${messages.operations[operation]} ${messages.hosts[host]}${profile ? ` Profile ${profile}` : " Adapter"}`;
-}
-
-function renderInstallSuccess(result, { mode, language, messages }) {
-  const chinese = language === "zh-CN";
-  const lines = [];
-  if (mode === "rich") {
-    lines.push(
-      "██████╗ ███████╗██╗   ██╗    ███████╗██╗      ██████╗ ██╗    ██╗",
-      "██╔══██╗██╔════╝██║   ██║    ██╔════╝██║     ██╔═══██╗██║    ██║",
-      "██║  ██║█████╗  ██║   ██║    █████╗  ██║     ██║   ██║██║ █╗ ██║",
-      "██║  ██║██╔══╝  ╚██╗ ██╔╝    ██╔══╝  ██║     ██║   ██║██║███╗██║",
-      "██████╔╝███████╗ ╚████╔╝     ██║     ███████╗╚██████╔╝╚███╔███╔╝",
-      "",
-    );
-  }
-  lines.push(chinese ? "✓ Dev Flow 安装完成" : "✓ Dev Flow installation complete");
-  for (const target of result.targets ?? []) {
-    if (target.state !== "ready" && target.state !== "restart_required") continue;
-    const host = messages.hosts[target.host] ?? target.host;
-    const profile = target.profile ? ` Profile ${target.profile}` : "";
-    const version = target.package_version ? ` ${target.package_version}` : "";
-    const state = messages.statuses[target.state] ?? target.state;
-    lines.push(`✓ ${host}${profile}${version} · ${state}`);
-  }
-  const codex = result.targets?.some((target) => target.host === "codex" && ["ready", "restart_required"].includes(target.state));
-  const deepseek = result.targets?.some((target) => target.host === "deepseek" && ["ready", "restart_required"].includes(target.state));
-  lines.push("", chinese ? "接下来" : "Next steps");
-  if (codex) {
-    lines.push(chinese ? "1. 在 Codex 对话中输入" : "1. Enter in a Codex conversation", "   $dev-flow-codex:dev-flow <task description>");
-  }
-  if (deepseek) {
-    const index = codex ? 2 : 1;
-    lines.push(chinese ? `${index}. 在 DeepSeek 对话中输入` : `${index}. Enter in a DeepSeek conversation`, "   /dev-flow <task description>");
-  }
-  lines.push("", chinese ? "Control Center" : "Control Center", "  dev-flow webui start", "  dev-flow webui open", "  dev-flow webui status", "  dev-flow webui stop");
-  lines.push("", chinese ? "安装管理" : "Installation management", "  dev-flow status", "  dev-flow doctor", "  dev-flow upgrade");
-  return `${lines.join("\n")}\n`;
 }

@@ -29,7 +29,7 @@ test("DeepSeek driver hides artifact lifecycle and records only verified explici
     }
     return { stdout: "", stderr: "" };
   };
-  const driver = createDeepSeekDriver({ paths, run, now: () => new Date("2026-08-25T00:00:00Z") });
+  const driver = createDeepSeekDriver({ inspectRuntime: async () => ({ version: "0.6.0" }), paths, run, now: () => new Date("2026-08-25T00:00:00Z") });
   const before = await driver.observe("web");
   const progress = [];
   const result = await driver.execute("install", {
@@ -39,7 +39,7 @@ test("DeepSeek driver hides artifact lifecycle and records only verified explici
   assert.deepEqual(await driver.knownProfiles(), ["web"]);
   assert.equal(calls.some(([executable, args]) => executable === "dsh" && args[0] === "plugin" && args.includes("add")), true);
   assert.equal(calls.some(([, args]) => args.some((value) => value === "PROFILE=web")), false);
-  assert.deepEqual(progress, ["deepseek.web.verify_artifact", "deepseek.web.add", "deepseek.web.write_receipt"]);
+  assert.deepEqual(progress, ["deepseek.web.verify_artifact", "deepseek.web.add", "deepseek.web.write_receipt", "deepseek.web.verify_ready"]);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 
@@ -59,7 +59,7 @@ test("DeepSeek stale contribution is removed only after target artifact verifica
     if (arguments_.includes("remove")) present = false;
     return { stdout: "dsh 0.1.0-rc.8\n", stderr: "" };
   };
-  const driver = createDeepSeekDriver({ paths, run });
+  const driver = createDeepSeekDriver({ inspectRuntime: async () => ({ version: "0.6.0" }), paths, run });
   await assert.rejects(driver.execute("upgrade", {
     profile: "web", targetVersion: "0.8.0",
     observed: { hostAvailable: true, hostVersion: "0.1.0-rc.8", state: "ready", packageVersion: "0.7.0", receipt: null },
@@ -76,7 +76,7 @@ test("DeepSeek local package bypasses npm pack and adds the exact tarball", asyn
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
   const calls = [];
   let present = false;
-  const driver = createDeepSeekDriver({
+  const driver = createDeepSeekDriver({ inspectRuntime: async () => ({ version: "0.6.0" }),
     paths,
     localPackage: { path: artifact, version: "0.8.2" },
     run: async (executable, arguments_) => {
@@ -92,4 +92,28 @@ test("DeepSeek local package bypasses npm pack and adds the exact tarball", asyn
   assert.equal(calls.some(([executable]) => executable === "npm"), false);
   assert.equal(calls.some(([executable, arguments_]) => executable === "dsh" && arguments_.at(-1)?.endsWith("dev-flow-deepseek-local.tgz")), true);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
+});
+
+test("failed Core verification retains ownership so the next repair needs no adoption", async t => {
+  const root = await mkdtemp(join(tmpdir(), 'dev-flow-deepseek-repair-'));
+  t.after(async () => { const { rm } = await import('node:fs/promises'); await rm(root, { recursive: true, force: true }); });
+  const home = join(root, 'home'); await mkdir(home);
+  const artifact = join(root, 'adapter.tgz'); await writeFile(artifact, 'fixture');
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: 'darwin', arch: 'arm64' });
+  let present = false; let healthy = false;
+  const driver = createDeepSeekDriver({ paths, localPackage: { path: artifact, version: '1.0.0' },
+    inspectRuntime: async () => { if (!healthy) throw new Error('Core executable missing'); return { version: '1.0.0' }; },
+    run: async (_command, args) => {
+      if (args.includes('add')) present = true;
+      if (args.includes('remove')) present = false;
+      return { stdout: args.includes('--dump-config') ? present ? '- id: dev-flow-deepseek\n' : '' : 'dsh 1.0.0' };
+    },
+  });
+  await assert.rejects(driver.execute('install', { profile: 'web', targetVersion: '1.0.0', observed: await driver.observe('web') }), /Core executable missing/u);
+  const partial = await driver.observe('web');
+  assert.equal(partial.state, 'partial');
+  assert.equal(partial.receipt.installed_version, '1.0.0');
+  healthy = true;
+  await driver.execute('repair', { profile: 'web', targetVersion: '1.0.0', observed: partial });
+  assert.equal((await driver.observe('web')).state, 'ready');
 });
