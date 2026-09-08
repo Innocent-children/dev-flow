@@ -400,7 +400,24 @@ async function runHostLaunchCommand(operation, input, paths, dependencies) {
   throw new Error(`unsupported host-launch operation ${operation}`);
 }
 
-async function readClosedStandardInput(readInput = () => readFile(0, "utf8")) {
+async function readStandardInput() {
+  const chunks = [];
+  let byteLength = 0;
+  for await (const chunk of process.stdin) {
+    byteLength += chunk.length;
+    if (byteLength > 1024 * 1024) {
+      throw new Error("host-launch input must be UTF-8 JSON no larger than 1 MiB");
+    }
+    chunks.push(chunk);
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(Buffer.concat(chunks, byteLength));
+  } catch (error) {
+    throw new Error("host-launch input must be UTF-8 JSON", { cause: error });
+  }
+}
+
+async function readClosedStandardInput(readInput = readStandardInput) {
   const raw = await readInput();
   if (typeof raw !== "string" || Buffer.byteLength(raw) > 1024 * 1024) {
     throw new Error("host-launch input must be UTF-8 JSON no larger than 1 MiB");

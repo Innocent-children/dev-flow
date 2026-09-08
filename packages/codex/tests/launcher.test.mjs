@@ -161,6 +161,25 @@ test("host-launch accepts only closed JSON on the fixed internal operation surfa
   assert.match(duplicateError.text, /duplicate field lifecycle/u);
 });
 
+test("host-launch input read failures stop before Git and receipt writes", async (t) => {
+  const paths = await makePaths(t);
+  await mkdir(paths.productSupportRoot);
+  const before = await readdir(paths.productSupportRoot, { recursive: true });
+  const stdout = captureStream();
+  const stderr = captureStream();
+  const result = await runCLI(["host-launch", "prepare"], {
+    resolvePaths: async () => paths,
+    stdout,
+    stderr,
+    readInput: async () => { throw new Error("stdin read failed"); },
+    runGit: async () => { assert.fail("Git must not run after an input read failure"); },
+  });
+  assert.deepEqual(result, { code: 1, signal: null });
+  assert.equal(stdout.text, "");
+  assert.equal(stderr.text, "dev-flow-codex: stdin read failed\n");
+  assert.deepEqual(await readdir(paths.productSupportRoot, { recursive: true }), before);
+});
+
 test("hook dispatches the package-owned PreToolUse implementation without resolving product paths", async () => {
   let resolved = false;
   let invoked = false;

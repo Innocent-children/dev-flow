@@ -152,3 +152,5 @@ Unter Windows beendet eine Größenänderung die aktuelle Leerlaufaktivität und
 Unter Windows werden vorhandene AppData-Verzeichnisse auf ihre tatsächlichen Pfade aufgelöst, einschließlich Verzeichnisaliasen paketierter Desktop-Hosts; symbolische Links werden weiterhin abgelehnt.
 
 Die aktuelle Windows-Entwicklungsversion enthält beide Adapter-Pakete und die Desktop-Anwendung. Nach der Installation des Starters verwenden Sie `dev-flow install --host all --yes` und `dev-flow pet start`. Reparatur und Neuinstallation nutzen denselben Einstieg, prüfen die Paket-Hashes, aktualisieren die Anwendung und behalten Task-Daten, Einstellungen und Gestalten bei.
+
+`dev-flow-codex host-launch <operation>` liest ein UTF-8-JSON-Objekt von höchstens 1 MiB aus dem stdin-Stream und unterstützt aufgeteilte Eingaben sowie Mehrbytezeichen über Blockgrenzen hinweg. Lesefehler, ungültiges UTF-8, doppelte Mitglieder, ungültiges JSON, Arrays und null werden vor der Ausführung der Operation abgewiesen. Fehler gehen an stderr, erfolgreiche JSON-Ergebnisse an stdout.

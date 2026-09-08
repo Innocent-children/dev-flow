@@ -155,3 +155,5 @@ Sous Windows, le redimensionnement termine l’activité de repos en cours et re
 Sous Windows, les répertoires AppData existants sont résolus vers leurs chemins réels, y compris les alias des hôtes de bureau empaquetés ; les liens symboliques restent refusés.
 
 La distribution de développement Windows contient les deux paquets Adapter et l’application de bureau. Après l’installation du lanceur, utilisez `dev-flow install --host all --yes` et `dev-flow pet start`. La réparation et la réinstallation passent par la même entrée, vérifient les empreintes, actualisent l’application et conservent les données Task, préférences et apparences.
+
+`dev-flow-codex host-launch <operation>` lit un objet JSON UTF-8 de 1 MiB au maximum depuis le flux stdin, y compris les entrées fragmentées et les caractères multioctets répartis entre fragments. Les erreurs de lecture, UTF-8 invalide, membres dupliqués, JSON invalide, tableaux et null sont rejetés avant toute opération. Les erreurs sont écrites sur stderr et les résultats JSON réussis sur stdout.

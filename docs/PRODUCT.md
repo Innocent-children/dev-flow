@@ -173,3 +173,5 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 ## 生命周期入口
 
 公共 `dev-flow` 管理 Adapter 安装与维护，菜单先显示状态，确认前展示版本与资源路径。安装、修复和重装默认保留已安装版本，升级默认选择 `latest`；已满足的安装、修复、升级和移除无需重复变更，重装每次执行。诊断显示失败项目和处理命令，错误保留具体原因及已完成步骤，安装结果提示 hook 信任和 Profile 重启。JSON 模式不询问。终端交互、版本选择和安装记录由 launcher 负责，Core 继续独立拥有 Task 状态。命令参数与重复执行规则见[命令参考](COMMANDS.md#生命周期命令行为)。
+
+`dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。

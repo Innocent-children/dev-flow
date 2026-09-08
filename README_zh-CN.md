@@ -141,3 +141,5 @@ Windows 调整大小时会结束当前待机活动，并恢复正常调度。
 Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿主提供的目录别名；仍拒绝符号链接。
 
 当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
+
+`dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。

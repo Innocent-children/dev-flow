@@ -164,6 +164,9 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** `hook pre-tool-use` 的实现调用它；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |
 | `dev-flow-codex host-launch <operation>` | **内部 Host 命令。** 从 stdin 接收一个 closed JSON 对象，并输出一个 JSON 对象。`operation` 只允许 `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`；它执行或记录当前用户已经确认的 assessment、provisioning、relaunch、handoff 与 cleanup 步骤，不是通用 Git CLI。 |
 
+`dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。
+
+
 `dev-flow-codex` 不支持其他子命令，也不提供隐式 `help`、`update` 或 `uninstall` 子命令。Host 原生更新到
 当前 `latest` 时重新运行全局安装和 `setup`：
 

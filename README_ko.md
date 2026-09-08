@@ -149,3 +149,5 @@ Windows에서 크기를 변경하면 현재 대기 동작을 종료하고 정상
 Windows에서는 패키지형 데스크톱 호스트가 제공하는 디렉터리 별칭을 포함하여 기존 AppData 디렉터리의 실제 경로를 확인합니다. 심볼릭 링크는 계속 거부합니다.
 
 현재 Windows 개발 패키지에는 두 Adapter 패키지와 데스크톱 앱이 포함됩니다. 실행기 패키지를 설치한 뒤 `dev-flow install --host all --yes`와 `dev-flow pet start`를 사용합니다. 복구와 재설치도 같은 진입점에서 수행하며, 내장 패키지 해시를 검증하고 앱을 갱신하면서 Task 데이터, 설정, 외형을 보존합니다.
+
+`dev-flow-codex host-launch <operation>`은 stdin 스트림에서 최대 1 MiB의 UTF-8 JSON 객체를 읽으며, 청크 입력과 청크 경계에 걸친 멀티바이트 문자를 지원합니다. 읽기 실패, 잘못된 UTF-8, 중복 멤버, 잘못된 JSON, 배열 및 null은 작업 실행 전에 거부됩니다. 오류는 stderr로, 성공한 JSON 결과는 stdout으로 출력됩니다.

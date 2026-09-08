@@ -143,3 +143,5 @@ Windows 調整大小時會結束目前的待機活動，並恢復正常排程。
 Windows 會將既有 AppData 目錄解析為實際路徑，包括封裝桌面宿主提供的目錄別名；仍拒絕符號連結。
 
 目前 Windows 開發套件同時包含兩個 Adapter 套件與桌面應用程式。安裝統一入口套件後，使用 `dev-flow install --host all --yes` 與 `dev-flow pet start`。修復、重新安裝均透過同一入口執行，核對內建套件摘要、更新桌面應用程式，並保留 Task 資料、設定和形象。
+
+`dev-flow-codex host-launch <operation>` 從 stdin 串流讀取最多 1 MiB 的 UTF-8 JSON 物件，支援分塊輸入及跨塊中文字元。讀取失敗、無效 UTF-8、重複成員、無效 JSON、陣列或 null 均在執行操作前拒絕；錯誤寫入 stderr，成功結果以 JSON 寫入 stdout。

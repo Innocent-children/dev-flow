@@ -150,3 +150,5 @@ On Windows, resizing ends the current idle activity and resumes normal schedulin
 On Windows, existing AppData directories are resolved to their actual paths, including directory aliases exposed by packaged desktop hosts; symbolic links remain rejected.
 
 The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
+
+`dev-flow-codex host-launch <operation>` reads a UTF-8 JSON object of at most 1 MiB from the stdin stream, including chunked input and multibyte characters split across chunks. Read failures, invalid UTF-8, duplicate members, invalid JSON, arrays, and null are rejected before the operation runs; errors go to stderr and successful JSON results go to stdout.

@@ -170,6 +170,9 @@ reports both the host package and bundled Core identities.
 | `dev-flow-codex host-check pre-file-write` | **Managed host command.** The `hook pre-tool-use` implementation invokes it so the launcher resolves the package-local Core and forwards stdin/stdout with the exact `host-check pre-file-write` arguments. Normal users should not start it manually. |
 | `dev-flow-codex host-launch <operation>` | **Managed Host command.** Reads one closed JSON object from stdin and writes one JSON object. `operation` is exactly `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`; it performs or records current-user-confirmed assessment, provisioning, relaunch, handoff, and cleanup steps and is not a generic Git CLI. |
 
+`dev-flow-codex host-launch <operation>` reads a UTF-8 JSON object of at most 1 MiB from the stdin stream, including chunked input and multibyte characters split across chunks. Read failures, invalid UTF-8, duplicate members, invalid JSON, arrays, and null are rejected before the operation runs; errors go to stderr and successful JSON results go to stdout.
+
+
 `dev-flow-codex` accepts no other subcommands and has no implicit `help`, `update`, or `uninstall`
 subcommand. Native Host recovery can update to `latest` by reinstalling globally and rerunning `setup`:
 

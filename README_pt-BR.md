@@ -154,3 +154,5 @@ No Windows, alterar o tamanho encerra a atividade ociosa atual e retoma a progra
 No Windows, diretórios AppData existentes são resolvidos para seus caminhos reais, incluindo aliases de hosts de desktop empacotados; links simbólicos continuam sendo rejeitados.
 
 A distribuição de desenvolvimento para Windows inclui os dois pacotes Adapter e o aplicativo desktop. Após instalar o inicializador, use `dev-flow install --host all --yes` e `dev-flow pet start`. O reparo e a reinstalação usam a mesma entrada, verificam os hashes, atualizam o aplicativo e preservam dados de Task, configurações e aparências.
+
+`dev-flow-codex host-launch <operation>` lê um objeto JSON UTF-8 de até 1 MiB do fluxo stdin, incluindo entradas divididas em blocos e caracteres multibyte separados entre blocos. Falhas de leitura, UTF-8 inválido, membros duplicados, JSON inválido, arrays e null são rejeitados antes da execução da operação. Os erros são enviados para stderr e os resultados JSON bem-sucedidos para stdout.
