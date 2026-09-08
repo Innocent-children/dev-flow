@@ -32,6 +32,8 @@ This stage improves the clarity and cost of using capabilities that already exis
 
 This work adds no process node or second Task state; budget increases reuse one TEST-to-TEST self-transition.
 
+Current behavior validates all planned work items and explicit acceptance links. WebUI and MCP share retained-operation recovery.
+
 ## Planned improvements: make completion decisions more accurate
 
 The following are future directions and are not implemented, or not fully implemented, today:

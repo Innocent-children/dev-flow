@@ -29,7 +29,7 @@ export function SchemaField({ name, schema, value, path, errors, onChange }: { n
   const type = primaryType(schema.type);
   if (type === "object") {
     const object = isObject(value) ? value : {};
-    return <fieldset className="schema-object" aria-invalid={invalid || undefined} aria-describedby={invalid ? errorID : undefined}><legend>{label(name)}</legend>{schema.description !== undefined && <p>{schema.description}</p>}{Object.entries(schema.properties ?? {}).map(([child, childSchema]) => <SchemaField key={child} name={child} schema={childSchema} value={object[child] ?? defaultValue(childSchema)} path={`${path}.${child}`} errors={errors} onChange={(next) => onChange({ ...object, [child]: next })} />)}<FieldErrors id={errorID} path={path} errors={errors} rejected={t("schema.rejected", { paths: "{paths}" })} /></fieldset>;
+    return <fieldset className="schema-object" aria-invalid={invalid || undefined} aria-describedby={invalid ? errorID : undefined}><legend>{label(name)}</legend>{schema.description !== undefined && <p>{schema.description}</p>}{Object.entries(schema.properties ?? {}).map(([child, childSchema]) => <SchemaField key={child} name={child} schema={childSchema} value={Object.hasOwn(object, child) ? object[child] : defaultValue(childSchema)} path={`${path}.${child}`} errors={errors} onChange={(next) => onChange({ ...object, [child]: next })} />)}<FieldErrors id={errorID} path={path} errors={errors} rejected={t("schema.rejected", { paths: "{paths}" })} /></fieldset>;
   }
   if (type === "array") {
     const items = Array.isArray(value) ? value : [];
@@ -48,7 +48,7 @@ export function SchemaField({ name, schema, value, path, errors, onChange }: { n
 export function defaultValue(schema: JSONSchema): unknown {
   const alternatives = schema.oneOf ?? schema.anyOf;
   if (alternatives !== undefined) {
-    const preferred = alternatives.find((item) => item.type !== "null") ?? alternatives[0];
+    const preferred = alternatives.find((item) => item.type === "null") ?? alternatives[0];
     return preferred === undefined ? null : defaultValue(preferred);
   }
   if (schema.const !== undefined) return schema.const;

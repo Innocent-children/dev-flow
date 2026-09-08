@@ -164,7 +164,7 @@ func TestSubmitActionHydratesDeliveryAuthorityFromCurrentTask(t *testing.T) {
 		[]string{"component"}, nil, nil, "user", "passed", nil,
 	))
 
-	request := actionSubmission(t, task, "submit-core-hydrated-delivery", "delivery_complete", deliverySubmissionResult())
+	request := actionSubmission(t, task, "submit-core-hydrated-delivery", "delivery_complete", deliverySubmissionResult(task))
 	applied, err := service.SubmitAction(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
@@ -195,7 +195,7 @@ func TestSubmitActionHydratesDeliveryAuthorityFromCurrentTask(t *testing.T) {
 func TestSubmitActionRejectsDeliveryAuthorityMembersWithoutCompatibility(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := phase5TaskAtDelivery(t, service)
-	result := deliverySubmissionResult()
+	result := deliverySubmissionResult(task)
 	result["automated_evidence_ids"] = []string{string(task.Test.EvidenceIDs[0])}
 	request := actionSubmission(t, task, "submit-core-owned-delivery-member", "delivery_complete", result)
 	stages := memory.stages
@@ -220,7 +220,7 @@ func TestSubmitActionHydratedDeliveryStillRejectsOutstandingTestWork(t *testing.
 	task = applyPhase5(t, service, task, "comprehension_passed", "", comprehensionNodeResult(
 		[]string{"component"}, nil, nil, "user", "passed", nil,
 	))
-	request := actionSubmission(t, task, "submit-delivery-with-outstanding-test", "delivery_complete", deliverySubmissionResult())
+	request := actionSubmission(t, task, "submit-delivery-with-outstanding-test", "delivery_complete", deliverySubmissionResult(task))
 	stages := memory.stages
 	if _, err := service.SubmitAction(context.Background(), request); !errors.Is(err, domain.ErrTransitionNotAllowed) {
 		t.Fatalf("error=%v", err)
@@ -233,7 +233,8 @@ func TestSubmitActionHydratedDeliveryStillRejectsOutstandingTestWork(t *testing.
 func TestSubmitActionHydratesDeliveryRemediationAuthorityAsEmpty(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := phase5TaskAtDelivery(t, service)
-	result := deliverySubmissionResult()
+	result := deliverySubmissionResult(task)
+	result["acceptance"] = []domain.OutcomeCriterion{}
 	result["problem_class"] = "test_gap"
 	result["findings"] = []string{"Current verification is insufficient"}
 	request := actionSubmission(t, task, "submit-hydrated-delivery-remediation", "delivery_needs_test", result)
@@ -334,8 +335,28 @@ func actionSubmission(t *testing.T, task domain.ProcessTask, requestID domain.ID
 	}
 }
 
-func deliverySubmissionResult() map[string]any {
+func deliverySubmissionResult(task domain.ProcessTask) map[string]any {
 	return map[string]any{
-		"problem_class": "none", "unverified_items": []string{}, "risks": []string{}, "findings": []string{},
+		"problem_class": "none", "acceptance": linkedAcceptance(task), "unverified_items": []string{}, "risks": []string{}, "findings": []string{},
 	}
+}
+
+func linkedAcceptance(task domain.ProcessTask) []domain.OutcomeCriterion {
+	result := make([]domain.OutcomeCriterion, len(task.Requirements.AcceptanceCriteria))
+	for index, criterion := range task.Requirements.AcceptanceCriteria {
+		ids := []domain.ID{}
+		for _, item := range task.TaskPlan.WorkItems {
+			for _, target := range item.AcceptanceIndexes {
+				if int(target) == index {
+					ids = append(ids, item.WorkItemID)
+				}
+			}
+		}
+		evidence := []domain.ID{}
+		if task.Test != nil && len(task.Test.EvidenceIDs) > 0 {
+			evidence = append(evidence, task.Test.EvidenceIDs[0])
+		}
+		result[index] = domain.OutcomeCriterion{Criterion: criterion, Status: domain.CriterionSatisfied, WorkItemIDs: ids, EvidenceIDs: evidence}
+	}
+	return result
 }

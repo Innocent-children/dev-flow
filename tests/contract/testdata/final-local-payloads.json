@@ -263,9 +263,9 @@
         "node_result": {
           "problem_class": "none",
           "acceptance": [
-            {"criterion": "writeProof writes the exact required UTF-8 bytes", "status": "satisfied"},
-            {"criterion": "the targeted test passes", "status": "satisfied"},
-            {"criterion": "the final implementation is understandable to the developer", "status": "satisfied"}
+            {"criterion": "writeProof writes the exact required UTF-8 bytes", "status": "satisfied", "work_item_ids": ["implement-proof-writer"], "evidence_ids": ["evidence-test-current"]},
+            {"criterion": "the targeted test passes", "status": "satisfied", "work_item_ids": ["implement-proof-writer"], "evidence_ids": ["evidence-test-current"]},
+            {"criterion": "the final implementation is understandable to the developer", "status": "satisfied", "work_item_ids": ["implement-proof-writer"], "evidence_ids": ["evidence-test-current"]}
           ],
           "automated_evidence_ids": ["evidence-test-current"],
           "manual_evidence_ids": ["evidence-comprehension-current"],

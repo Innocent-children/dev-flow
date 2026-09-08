@@ -18,7 +18,11 @@ func validateActionResultAgainstTask(task domain.ProcessTask, transition domain.
 		violations = append(violations, domain.Violation("payload.node_result."+path, rule))
 	}
 	guard := func(path string, rule domain.GuardRule) {
-		guardFailures = append(guardFailures, domain.GuardViolation("payload.node_result."+path, rule))
+		fullPath := "payload.node_result"
+		if path != "" {
+			fullPath += "." + path
+		}
+		guardFailures = append(guardFailures, domain.GuardViolation(fullPath, rule))
 	}
 
 	switch value := result.(type) {
@@ -73,6 +77,9 @@ func validateActionResultAgainstTask(task domain.ProcessTask, transition domain.
 					add(fmt.Sprintf("completed_work_item_ids[%d]", index), domain.RuleKnownIdentifierRequired)
 				}
 			}
+			if transition.Destination == domain.NodeTest && !domain.CompletedWorkItemsCoverPlan(task.TaskPlan, value.CompletedWorkItemIDs) {
+				guard("completed_work_item_ids", domain.GuardAllWorkItemsCompleted)
+			}
 		}
 	case *workflow.TestResult:
 		if transition.TransitionID == "tests_passed" {
@@ -105,6 +112,9 @@ func validateActionResultAgainstTask(task domain.ProcessTask, transition domain.
 		}
 	case *workflow.RefactorResult:
 		if transition.TransitionID == "refactor_ready_for_test" {
+			if task.Implementation == nil || !domain.CompletedWorkItemsCoverPlan(task.TaskPlan, task.Implementation.CompletedWorkItemIDs) {
+				guard("", domain.GuardAllWorkItemsCompleted)
+			}
 			if len(value.Simplifications) == 0 {
 				guard("simplifications", domain.GuardRequiredCollectionNonEmpty)
 			}
@@ -150,15 +160,7 @@ func validateDeliveryResultAgainstTask(task domain.ProcessTask, result *workflow
 }
 
 func currentAcceptance(task domain.ProcessTask, acceptance []domain.OutcomeCriterion) bool {
-	if task.Requirements == nil || len(acceptance) != len(task.Requirements.AcceptanceCriteria) {
-		return false
-	}
-	for index, criterion := range acceptance {
-		if criterion.Criterion != task.Requirements.AcceptanceCriteria[index] || criterion.Status != domain.CriterionSatisfied {
-			return false
-		}
-	}
-	return true
+	return domain.AcceptanceLinksCurrent(task, acceptance)
 }
 
 func currentDeliveryEvidence(task domain.ProcessTask) ([]domain.ID, []domain.ID, bool) {

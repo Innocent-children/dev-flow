@@ -241,7 +241,7 @@ func TestDeliveryEvidenceRequiresExactCurrentSets(t *testing.T) {
 	task = applyPhase5(t, service, task, "comprehension_passed", "", comprehensionNodeResult([]string{"component"}, nil, nil, "user", "passed", nil))
 	exact := func() map[string]any {
 		return map[string]any{
-			"acceptance":             []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}},
+			"acceptance":             linkedAcceptance(task),
 			"automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])},
 			"manual_evidence_ids":    []string{string(task.Test.EvidenceIDs[1]), string(task.Comprehension.UserEvidenceID)},
 			"test_record_id":         task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID,

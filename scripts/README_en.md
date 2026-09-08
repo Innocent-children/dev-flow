@@ -147,3 +147,5 @@ The build uses `scripts/desktop-pet-artwork.mjs` to copy the default SVG appeara
 Build the Windows desktop package with `build-desktop-pet-windows.mjs`. From the repository root, run `npm ci --prefix packages/desktop-pet/windows`, then `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`. Output must be outside the repository. This entry assembles the Windows desktop, launcher and both Adapter packages through the Core target catalog; it does not execute Mac programs, Mac tests or publication.
 
 The Windows desktop development distribution now carries complete Codex and DeepSeek packages through buildCoreRuntimes and stageAndPack. It does not create special Adapter archives missing the other Core runtime. After launcher bootstrap, dev-flow install --host all --yes installs both Adapters and the desktop app.
+
+WebUI semantic submission and recovery regressions run with `pnpm --dir packages/webui test`. They exercise current components and the HTTP client with simulated hooks and HTTP, covering transport failure, reopening pending Actions and recovery by Action ID. These are not native browser checks.

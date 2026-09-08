@@ -54,7 +54,7 @@ func designNodeResultWithoutRevision() map[string]any {
 
 func deliverySubmissionNodeResult() map[string]any {
 	return map[string]any{
-		"problem_class": "none", "unverified_items": []any{}, "risks": []any{}, "findings": []any{},
+		"problem_class": "none", "acceptance": []any{}, "unverified_items": []any{}, "risks": []any{}, "findings": []any{},
 	}
 }
 
@@ -124,7 +124,6 @@ func TestDeliverySubmissionBoundaryRejectsCoreOwnedMembers(t *testing.T) {
 	}
 
 	coreOwned := map[string]any{
-		"acceptance":              []any{},
 		"automated_evidence_ids":  []any{},
 		"manual_evidence_ids":     []any{},
 		"test_record_id":          "test-current",

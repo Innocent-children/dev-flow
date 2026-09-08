@@ -116,7 +116,7 @@ func applyImplementationResult(task *domain.ProcessTask, transition domain.Trans
 		}
 	}
 	if transition.TransitionID == "implementation_ready_for_test" {
-		if len(result.Findings) != 0 {
+		if len(result.Findings) != 0 || !domain.CompletedWorkItemsCoverPlan(task.TaskPlan, result.CompletedWorkItemIDs) {
 			return domain.ErrTransitionNotAllowed
 		}
 	} else if len(result.Findings) == 0 {
@@ -318,7 +318,7 @@ func applyRefactorResult(task *domain.ProcessTask, transition domain.TransitionD
 		}
 		return invalidateForDestination(task, transition.Destination)
 	}
-	if len(result.Simplifications) == 0 || result.BehaviorChangeIntended || len(result.Findings) != 0 {
+	if len(result.Simplifications) == 0 || result.BehaviorChangeIntended || len(result.Findings) != 0 || !domain.CompletedWorkItemsCoverPlan(task.TaskPlan, task.Implementation.CompletedWorkItemIDs) {
 		return domain.ErrTransitionNotAllowed
 	}
 	previous := task.Implementation
@@ -344,10 +344,8 @@ func applyDeliveryResult(task *domain.ProcessTask, transition domain.TransitionD
 	if task.Requirements == nil || task.Design == nil || task.TaskPlan == nil || task.Implementation == nil || task.Test == nil || task.Comprehension == nil || len(task.Test.UnverifiedItems) != 0 || len(task.Test.ManualHandoffItems) != 0 || len(result.UnverifiedItems) != 0 || len(result.Findings) != 0 || result.TestRecordID != task.Test.RecordID || result.ComprehensionRecordID != task.Comprehension.RecordID || len(result.Acceptance) != len(task.Requirements.AcceptanceCriteria) {
 		return domain.ErrTransitionNotAllowed
 	}
-	for i, criterion := range result.Acceptance {
-		if criterion.Criterion != task.Requirements.AcceptanceCriteria[i] || criterion.Status != domain.CriterionSatisfied {
-			return domain.ErrTransitionNotAllowed
-		}
+	if !domain.AcceptanceLinksCurrent(*task, result.Acceptance) {
+		return domain.ErrTransitionNotAllowed
 	}
 	if !deliveryEvidenceCurrent(task, result.AutomatedEvidenceIDs, result.ManualEvidenceIDs) {
 		return domain.ErrTransitionNotAllowed

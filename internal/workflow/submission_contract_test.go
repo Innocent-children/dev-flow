@@ -277,18 +277,18 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 			}
 		})
 	}
-	t.Run("Delivery authority belongs only to Core", func(t *testing.T) {
+	t.Run("Delivery requires explicit acceptance and Core-owned aggregate references", func(t *testing.T) {
 		schema, err := SubmissionNodeResultSchema(domain.ActionCompleteDelivery)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, member := range []string{"acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id"} {
+		for _, member := range []string{"automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id"} {
 			if schemaRequires(schema, member) || schemaDeclaresProperty(schema, member) {
 				t.Fatalf("Delivery submission still exposes %s", member)
 			}
 		}
 		minimal := map[string]any{
-			"problem_class": "none", "unverified_items": []any{}, "risks": []any{}, "findings": []any{},
+			"problem_class": "none", "acceptance": []any{}, "unverified_items": []any{}, "risks": []any{}, "findings": []any{},
 		}
 		raw, marshalErr := json.Marshal(minimal)
 		if marshalErr != nil {
@@ -297,12 +297,12 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 		if err := ValidateSubmissionNodeResult(domain.ActionCompleteDelivery, raw); err != nil {
 			t.Fatalf("minimal Delivery submission was refused: %v", err)
 		}
-		minimal["acceptance"] = []any{}
+		delete(minimal, "acceptance")
 		raw, _ = json.Marshal(minimal)
 		err = ValidateSubmissionNodeResult(domain.ActionCompleteDelivery, raw)
 		typed, ok := err.(*domain.Error)
-		if !ok || len(typed.Violations) != 1 || typed.Violations[0].Path != "node_result.acceptance" || typed.Violations[0].Rule != domain.RuleUnknownMember {
-			t.Fatalf("removed Delivery member error=%v", err)
+		if !ok || len(typed.Violations) != 1 || typed.Violations[0].Path != "node_result.acceptance" || typed.Violations[0].Rule != domain.RuleRequiredMemberMissing {
+			t.Fatalf("missing acceptance error=%v", err)
 		}
 	})
 	t.Run("Core-owned revision is rejected", func(t *testing.T) {

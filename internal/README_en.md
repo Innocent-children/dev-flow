@@ -60,6 +60,8 @@ Store implements one current SQLite Schema and strict snapshot. Any non-current 
 not enter Core or Task state. Operating-system process, receipt, and signal behavior lives in `darwin`
 and `windows` build-tag files; Domain, Workflow, Application, and Recovery contain no platform decision.
 
+`domain/completion.go` validates the complete work-item set and acceptance references to current checks. WebUI and MCP share Application semantic submission and retained-operation recovery; WebUI detail exposes `pending_action_id` so recovery survives reopening the page.
+
 ## Targeted validation
 
 Prefer package-specific tests for a local change:

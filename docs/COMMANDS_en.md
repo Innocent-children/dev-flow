@@ -303,7 +303,7 @@ terminal shell commands.
 | `dev_flow_submit_test` | Mutation | Submit the TEST node result. `verification_budget_increased` records a concrete increase and stays in TEST; normal results send `budget_adjustment=null`; a third exact repetition pauses. |
 | `dev_flow_submit_comprehension` | Mutation | Submit the COMPREHENSION_REVIEW node result. |
 | `dev_flow_submit_refactor` | Mutation | Submit the REFACTOR node result. |
-| `dev_flow_submit_delivery` | Mutation | Submit Host-owned DELIVERY judgment, risks, and findings. Core fills acceptance, evidence IDs, and Test/Comprehension record IDs; submitting those members is rejected as `unknown_member`. |
+| `dev_flow_submit_delivery` | Mutation | Submit DELIVERY judgment, explicit acceptance links, risks and findings. Each criterion supplies work_item_ids and current Test evidence_ids. Core fills aggregate evidence IDs and Test/Comprehension record IDs; caller-supplied aggregate members are rejected. |
 | `dev_flow_resolve_blocker` | Mutation | Resolve after Core verifies the condition. File scope uses `choice` and `reason`; history uses `history_resolution:{choice:"accept_current_history",reason}`; relocation uses `relocation_id` plus every `relocation_destinations[{key,repository_path}]`; verification/Recovery blockers use current identities. |
 | `dev_flow_recover_action` | Mutation | Recover an uncertain Action from the normalized submission retained in an independent Action operation record; accepts no original payload. |
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |

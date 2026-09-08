@@ -15,6 +15,7 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
 func TestControlCenterLifecycleCP2(t *testing.T) {
@@ -106,7 +107,8 @@ func TestControlCenterLifecycleCP2(t *testing.T) {
 
 func TestControlCenterActionAndRecoveryCP3(t *testing.T) {
 	ctx := context.Background()
-	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "control-center-action.db"))
+	databasePath := filepath.Join(t.TempDir(), "control-center-action.db")
+	database, err := store.Open(ctx, databasePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,28 +132,127 @@ func TestControlCenterActionAndRecoveryCP3(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requirementsPayload := phase5Payload(t, *opened.Task, "requirements_ready", "", requirementsNodeResult("Action goal", []string{"Action works"}))
+
+	requirementsPayload := webSubmissionPayload(t, *opened.Task, "requirements_ready", requirementsNodeResult("Action goal", []string{"Action works"}))
 	action := opened.Task.CurrentAction
-	first, err := center.SubmitCurrentAction(ctx, SubmitControlCenterActionRequest{RequestID: "submit-action", TaskID: opened.Task.TaskID, ExpectedRevision: opened.Task.Revision, ActionID: action.ActionID, ActionKind: action.Kind, ProcessID: opened.Task.Process.ID, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceNode: opened.Task.CurrentNode, RepositoryBindingDigest: action.RepositoryBindingDigest, IssuanceIdentityDigest: action.IssuanceIdentityDigest, IssuanceHistoryDigest: action.IssuanceHistoryDigest, IssuanceContentDigest: action.IssuanceContentDigest, Payload: requirementsPayload})
+	first, err := center.SubmitCurrentAction(ctx, SubmitControlCenterActionRequest{RequestID: "submit-action", TaskID: opened.Task.TaskID, ExpectedRevision: opened.Task.Revision, ActionID: action.ActionID, Payload: requirementsPayload})
 	if err != nil || !first.Committed || first.Task.CurrentNode != domain.NodeDesign {
 		t.Fatalf("submit=%#v err=%v", first, err)
 	}
+	operation, found, err := database.LoadActionOperation(ctx, first.Task.TaskID)
+	if err != nil || !found || !operation.RecordedBy(first.Task) {
+		t.Fatalf("ordinary HTTP operation was not retained: %+v %v", operation, err)
+	}
 
-	designPayload := phase5Payload(t, first.Task, "design_ready", "", designNodeResult(1, "Direct design"))
-	probe := graphProbe(first.Task, "uncertain-design", designPayload)
-	assessed, err := center.AssessTaskOperation(ctx, AssessControlCenterRecoveryRequest{TaskID: first.Task.TaskID, Operation: probe})
-	if err != nil || assessed.Assessment == nil || assessed.Assessment.NextAdvice != recovery.AdviceSubmitRecoveryApply || assessed.Committed {
-		t.Fatalf("assessment=%#v err=%v", assessed, err)
+	failing := &controlCenterCommitFailureStore{SQLite: database, fail: true}
+	center, err = NewControlCenter(failing, &mutableObserver{binding: binding, origin: origin})
+	if err != nil {
+		t.Fatal(err)
 	}
-	recovered, err := center.ApplyTaskRecovery(ctx, ApplyControlCenterRecoveryRequest{TaskID: first.Task.TaskID, Operation: probe, RecoveryAction: recovery.AdviceSubmitRecoveryApply})
-	if err != nil || !recovered.Committed || recovered.Task.CurrentNode != domain.NodeTasks {
-		t.Fatalf("recovery=%#v err=%v", recovered, err)
+	design := designNodeResult(1, "Direct design")
+	delete(design["baseline"].(map[string]any), "requirements_revision")
+	designPayload := webSubmissionPayload(t, first.Task, "design_ready", design)
+	pendingID := first.Task.CurrentAction.ActionID
+	_, err = center.SubmitCurrentAction(ctx, SubmitControlCenterActionRequest{RequestID: "uncertain-design", TaskID: first.Task.TaskID, ExpectedRevision: first.Task.Revision, ActionID: pendingID, Payload: designPayload})
+	if !errors.Is(err, domain.ErrStorageUnavailable) {
+		t.Fatalf("failure=%v", err)
 	}
-	if _, err := center.ApplyTaskRecovery(ctx, ApplyControlCenterRecoveryRequest{TaskID: first.Task.TaskID, Operation: probe, RecoveryAction: recovery.AdviceRetryCurrentAction}); !errors.Is(err, domain.ErrRecoveryUnavailable) {
-		t.Fatalf("mismatched recovery advice err=%v", err)
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
 	}
-	var retained map[string]any
-	if json.Unmarshal(probe.Payload, &retained) != nil || retained["transition_id"] != "design_ready" {
-		t.Fatalf("retained payload changed: %s", probe.Payload)
+	database, err = store.Open(ctx, databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	center, err = NewControlCenter(database, &mutableObserver{binding: binding, origin: origin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail, err := center.GetTaskDetail(ctx, GetControlCenterTaskRequest{TaskID: first.Task.TaskID})
+	if err != nil || detail.PendingActionID == nil || *detail.PendingActionID != pendingID || detail.Task.Revision != first.Task.Revision {
+		t.Fatalf("pending after reopen=%+v err=%v", detail.PendingActionID, err)
+	}
+	assessed, err := center.AssessTaskOperation(ctx, AssessControlCenterRecoveryRequest{TaskID: first.Task.TaskID, ActionID: pendingID})
+	if err != nil || assessed.Assessment == nil || assessed.Assessment.NextAdvice != recovery.AdviceSubmitRecoveryApply {
+		t.Fatalf("assessment=%+v err=%v", assessed, err)
+	}
+	recovered, err := center.ApplyTaskRecovery(ctx, ApplyControlCenterRecoveryRequest{TaskID: first.Task.TaskID, ActionID: pendingID})
+	if err != nil || recovered.Task.CurrentNode != domain.NodeTasks {
+		t.Fatalf("recovery=%+v err=%v", recovered, err)
+	}
+	duplicate, err := center.ApplyTaskRecovery(ctx, ApplyControlCenterRecoveryRequest{TaskID: first.Task.TaskID, ActionID: pendingID})
+	if err != nil || duplicate.Task.Revision != recovered.Task.Revision {
+		t.Fatalf("duplicate=%+v err=%v", duplicate, err)
+	}
+	detail, err = center.GetTaskDetail(ctx, GetControlCenterTaskRequest{TaskID: first.Task.TaskID})
+	if err != nil || detail.PendingActionID != nil || len(detail.Events) != 3 {
+		t.Fatalf("detail after recovery=%+v err=%v", detail, err)
+	}
+	_, err = center.SubmitCurrentAction(ctx, SubmitControlCenterActionRequest{RequestID: "stale-submit", TaskID: first.Task.TaskID, ExpectedRevision: first.Task.Revision, ActionID: pendingID, Payload: designPayload})
+	if !errors.Is(err, domain.ErrRevisionConflict) {
+		t.Fatalf("stale page error=%v", err)
+	}
+}
+
+type controlCenterCommitFailureStore struct {
+	*store.SQLite
+	fail bool
+}
+
+func (s *controlCenterCommitFailureStore) CommitActionOperation(ctx context.Context, id domain.ID, mutation store.TaskMutation) error {
+	if s.fail {
+		return store.ErrStorageUnavailable
+	}
+	return s.SQLite.CommitActionOperation(ctx, id, mutation)
+}
+
+func webSubmissionPayload(t *testing.T, task domain.ProcessTask, transition domain.TransitionID, result map[string]any) json.RawMessage {
+	t.Helper()
+	result["problem_class"] = "none"
+	methods := map[domain.MethodStepID]MethodResultSubmission{}
+	for _, step := range task.CurrentAction.SemanticMethodSteps {
+		methods[step.StepID] = MethodResultSubmission{Summary: "Complete current work."}
+	}
+	artifacts := map[string]any{"other_process": []any{}}
+	if _, allowed := workflow.PrimaryArtifactRoleForNode(task.CurrentNode); allowed {
+		artifacts["current"] = []any{}
+	}
+	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "Current semantic work completed.", "reason": "", "artifacts": artifacts, "method_results": methods, "node_result": result})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+func TestControlCenterBlockerSubmissionRetainsCoreAssembledPayload(t *testing.T) {
+	ctx := context.Background()
+	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "blocker.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	_, _, observer := phase5Service(t)
+	center, err := NewControlCenter(database, observer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := phase5TaskAtRefactor(t, center.core)
+	observer.binding = graphChangedBinding(task.Repository, []string{"internal/file.go"}, "c")
+	blocked, err := center.core.ApplyAction(ctx, graphRecoveryApply(task, "partial-work", json.RawMessage("null")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	observer.binding = task.Repository
+	resolved, err := center.SubmitCurrentAction(ctx, SubmitControlCenterActionRequest{
+		RequestID: "resolve-from-webui", TaskID: task.TaskID, ExpectedRevision: blocked.Task.Revision,
+		ActionID: blocked.Task.CurrentAction.ActionID, Payload: json.RawMessage(`{}`),
+	})
+	if err != nil || resolved.Task.CurrentNode != domain.NodeRefactor || resolved.Task.Blocker != nil {
+		t.Fatalf("resolution=%+v err=%v", resolved, err)
+	}
+	operation, found, err := database.LoadActionOperation(ctx, task.TaskID)
+	if err != nil || !found || !operation.RecordedBy(resolved.Task) || operation.Commit.Operation.SourceCursor != domain.NodeBlocked {
+		t.Fatalf("retained blocker operation=%+v err=%v", operation, err)
 	}
 }

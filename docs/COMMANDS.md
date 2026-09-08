@@ -290,7 +290,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | `dev_flow_submit_test` | mutation | 提交 TEST 节点结果；`verification_budget_increased` 用具体原因增加预算并留在 TEST，普通结果发送 `budget_adjustment=null`；第三次精确重复时暂停。 |
 | `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
 | `dev_flow_submit_refactor` | mutation | 提交 REFACTOR 节点结果。 |
-| `dev_flow_submit_delivery` | mutation | 提交 Host 负责的 DELIVERY 判断、风险和发现；acceptance、验证记录 ID 与 Test/Comprehension record ID 由 Core 补齐，提交这些字段会按 `unknown_member` 拒绝。 |
+| `dev_flow_submit_delivery` | mutation | 提交 DELIVERY 判断、明确的 acceptance 关联、风险和发现；每条验收包含 work_item_ids 与当前 Test 的 evidence_ids。汇总验证记录 ID 与 Test/Comprehension record ID 由 Core 补齐，调用方提交这些汇总字段会被拒绝。 |
 | `dev_flow_resolve_blocker` | mutation | 在 Core 确认当前 blocker 条件后解除阻塞；文件范围使用 `choice` 与 `reason`，history 使用 `history_resolution:{choice:"accept_current_history",reason}`，relocation 使用 `relocation_id` 与全部 `relocation_destinations[{key,repository_path}]`，验证/Recovery blocker 使用当前身份字段。 |
 | `dev_flow_recover_action` | mutation | 使用 Core 在独立 Action 操作记录中保存的规范化提交恢复不确定 Action；不接收原始 payload。 |
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |

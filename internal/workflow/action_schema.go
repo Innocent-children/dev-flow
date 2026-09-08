@@ -15,7 +15,6 @@ type ActionPayloadSchema struct {
 }
 
 var deliveryAuthorityMembers = []string{
-	"acceptance",
 	"automated_evidence_ids",
 	"manual_evidence_ids",
 	"test_record_id",
@@ -76,7 +75,7 @@ func ActionPayloadSchemas() []ActionPayloadSchema {
 		"problem_class": schemaEnum("none", "design_change", "requirement_change"), "simplifications": schemaList(), "behavior_change_intended": map[string]any{"type": "boolean"}, "findings": schemaList(),
 	}))
 	delivery := standardPayloadSchema(schemaObject([]string{"problem_class", "acceptance", "automated_evidence_ids", "manual_evidence_ids", "test_record_id", "comprehension_record_id", "unverified_items", "risks", "findings"}, map[string]any{
-		"problem_class": schemaEnum("none", "implementation_gap", "test_gap", "comprehension_gap", "design_gap", "requirement_gap"), "acceptance": map[string]any{"type": "array", "items": schemaObject([]string{"criterion", "status"}, map[string]any{"criterion": schemaString(), "status": map[string]any{"const": "satisfied"}})}, "automated_evidence_ids": map[string]any{"type": "array", "items": schemaID()}, "manual_evidence_ids": map[string]any{"type": "array", "items": schemaID()}, "test_record_id": schemaID(), "comprehension_record_id": schemaID(), "unverified_items": schemaList(), "risks": schemaList(), "findings": schemaList(),
+		"problem_class": schemaEnum("none", "implementation_gap", "test_gap", "comprehension_gap", "design_gap", "requirement_gap"), "acceptance": map[string]any{"type": "array", "maxItems": domain.MaxAcceptanceCriteriaItems, "items": schemaObject([]string{"criterion", "status", "work_item_ids", "evidence_ids"}, map[string]any{"criterion": schemaString(), "status": map[string]any{"const": "satisfied"}, "work_item_ids": acceptanceIDs(domain.MaxWorkItemsPerTaskPlan), "evidence_ids": acceptanceIDs(domain.MaxEvidencePerAction)})}, "automated_evidence_ids": map[string]any{"type": "array", "items": schemaID()}, "manual_evidence_ids": map[string]any{"type": "array", "items": schemaID()}, "test_record_id": schemaID(), "comprehension_record_id": schemaID(), "unverified_items": schemaList(), "risks": schemaList(), "findings": schemaList(),
 	}))
 	condition := schemaObject([]string{"kind", "expected_binding_digest", "expected_identity_digest", "expected_history_digest", "expected_content_digest"}, map[string]any{
 		"kind": schemaEnum("restore_issuance_binding", "allow_verification_retry", "resolve_file_scope", "resolve_workspace_history", "resolve_task_relocation"), "expected_binding_digest": schemaDigest(), "expected_identity_digest": schemaDigest(), "expected_history_digest": schemaDigest(), "expected_content_digest": schemaDigest(), "scope_request_id": schemaID(), "relocation_id": schemaID(),
@@ -339,4 +338,8 @@ func standardPayloadSchema(nodeResult map[string]any) map[string]any {
 	return schemaObject([]string{"transition_id", "summary", "reason", "artifacts", "method_evidence", "node_result"}, map[string]any{
 		"transition_id": schemaID(), "summary": schemaString(), "reason": map[string]any{"type": "string", "maxLength": 4096}, "artifacts": map[string]any{"type": "array", "maxItems": 16, "items": artifact}, "method_evidence": map[string]any{"type": "array", "maxItems": 16, "items": method}, "node_result": nodeResult,
 	})
+}
+
+func acceptanceIDs(limit int) map[string]any {
+	return map[string]any{"type": "array", "minItems": 1, "maxItems": limit, "uniqueItems": true, "items": schemaID()}
 }

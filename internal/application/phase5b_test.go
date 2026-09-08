@@ -273,7 +273,9 @@ func TestDeliveryCompleteValidatesAuthoritiesEvidenceAndReleasesClaim(t *testing
 		}},
 		{"acceptance count", func(v map[string]any) { v["acceptance"] = []any{} }},
 		{"acceptance text", func(v map[string]any) {
-			v["acceptance"] = []map[string]any{{"criterion": "wrong", "status": "satisfied"}}
+			acceptance := linkedAcceptance(task)
+			acceptance[0].Criterion = "wrong"
+			v["acceptance"] = acceptance
 		}},
 		{"unverified", func(v map[string]any) { v["unverified_items"] = []string{"remaining"} }},
 	}
@@ -417,7 +419,7 @@ func refactorNodeResult(paths []string, noChanges bool, simplifications []string
 	return map[string]any{"simplifications": simplifications, "behavior_change_intended": behavior, "findings": findings}
 }
 func deliveryCompleteNodeResult(task domain.ProcessTask) map[string]any {
-	return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
+	return map[string]any{"acceptance": linkedAcceptance(task), "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
 }
 func deliveryRemediationNodeResult() map[string]any {
 	return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"gap"}}

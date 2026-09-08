@@ -128,3 +128,5 @@ Adapter 安装、不发布 npm。安装、确认运行路径和替换已有应�
 Windows 桌面包由 `build-desktop-pet-windows.mjs` 构建；在仓库根目录先执行 `npm ci --prefix packages/desktop-pet/windows`，再执行 `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`。输出必须在仓库外。该入口装配 Windows 桌面应用、统一入口及两个 Adapter 安装包；复用 Core 构建目标表，不运行 Mac 程序或测试，也不执行发布。
 
 Windows 桌面开发包现在同时携带完整的 Codex 与 DeepSeek 安装包；构建复用 buildCoreRuntimes 和 stageAndPack，不生成缺少另一平台 Core 的临时特制 Adapter 包。安装统一入口后，两个插件与桌面应用由 dev-flow install --host all --yes 完成。
+
+WebUI 的语义提交和恢复回归使用 `pnpm --dir packages/webui test`，运行当前组件与 HTTP 客户端的模拟检查，覆盖网络异常、待恢复页面重开和仅按 Action ID 恢复。这不是原生浏览器验证。

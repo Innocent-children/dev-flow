@@ -105,22 +105,15 @@ type GraphView struct {
 }
 
 type ActionView struct {
-	ActionID                string          `json:"action_id"`
-	ActionKind              string          `json:"action_kind"`
-	ProcessID               string          `json:"process_id"`
-	ProcessDefinitionDigest string          `json:"process_definition_digest"`
-	SourceNode              string          `json:"source_node"`
-	RepositoryBindingDigest string          `json:"repository_binding_digest"`
-	IssuanceIdentityDigest  string          `json:"issuance_identity_digest"`
-	IssuanceHistoryDigest   string          `json:"issuance_history_digest"`
-	IssuanceContentDigest   string          `json:"issuance_content_digest"`
-	Purpose                 string          `json:"purpose"`
-	Conditions              []string        `json:"conditions"`
-	AllowedEffects          []string        `json:"allowed_effects"`
-	RequiredEvidence        []string        `json:"required_evidence"`
-	MethodSteps             []string        `json:"method_steps"`
-	LegalTransitionIDs      []string        `json:"legal_transition_ids"`
-	PayloadSchema           json.RawMessage `json:"payload_schema"`
+	ActionID           string          `json:"action_id"`
+	ActionKind         string          `json:"action_kind"`
+	Purpose            string          `json:"purpose"`
+	Conditions         []string        `json:"conditions"`
+	AllowedEffects     []string        `json:"allowed_effects"`
+	RequiredEvidence   []string        `json:"required_evidence"`
+	MethodSteps        []string        `json:"method_steps"`
+	LegalTransitionIDs []string        `json:"legal_transition_ids"`
+	PayloadSchema      json.RawMessage `json:"payload_schema"`
 }
 
 type RepositoryView struct {
@@ -233,6 +226,7 @@ type VerificationView struct {
 }
 
 type TaskDetailResponse struct {
+	PendingActionID    *string          `json:"pending_action_id"`
 	OK                 bool             `json:"ok"`
 	RequestID          string           `json:"request_id"`
 	Readiness          Readiness        `json:"readiness"`
@@ -370,43 +364,14 @@ type PurgeMutationRequest struct {
 }
 
 type ActionSubmissionRequest struct {
-	RequestID               string          `json:"request_id"`
-	TaskRevision            uint64          `json:"task_revision"`
-	ActionID                string          `json:"action_id"`
-	ActionKind              string          `json:"action_kind"`
-	ProcessID               string          `json:"process_id"`
-	ProcessDefinitionDigest string          `json:"process_definition_digest"`
-	SourceNode              string          `json:"source_node"`
-	RepositoryBindingDigest string          `json:"repository_binding_digest"`
-	IssuanceIdentityDigest  string          `json:"issuance_identity_digest"`
-	IssuanceHistoryDigest   string          `json:"issuance_history_digest"`
-	IssuanceContentDigest   string          `json:"issuance_content_digest"`
-	Payload                 json.RawMessage `json:"payload"`
-	CSRF                    string          `json:"csrf"`
+	RequestID    string          `json:"request_id"`
+	TaskRevision uint64          `json:"task_revision"`
+	ActionID     string          `json:"action_id"`
+	Payload      json.RawMessage `json:"payload"`
+	CSRF         string          `json:"csrf"`
 }
 
-type OperationProbe struct {
-	OperationID             string          `json:"operation_id"`
-	ExpectedRevision        uint64          `json:"expected_revision"`
-	ActionID                string          `json:"action_id"`
-	ActionKind              string          `json:"action_kind"`
-	ProcessID               string          `json:"process_id"`
-	ProcessDefinitionDigest string          `json:"process_definition_digest"`
-	SourceNode              string          `json:"source_node"`
-	RepositoryBindingDigest string          `json:"repository_binding_digest"`
-	IssuanceIdentityDigest  string          `json:"issuance_identity_digest"`
-	IssuanceHistoryDigest   string          `json:"issuance_history_digest"`
-	IssuanceContentDigest   string          `json:"issuance_content_digest"`
-	Payload                 json.RawMessage `json:"payload"`
-}
-
-type RecoveryAssessmentRequest struct {
-	Operation OperationProbe `json:"operation"`
-	CSRF      string         `json:"csrf"`
-}
-
-type RecoverySubmissionRequest struct {
-	Operation      OperationProbe `json:"operation"`
-	RecoveryAction RecoveryAction `json:"recovery_action"`
-	CSRF           string         `json:"csrf"`
+type ActionRecoveryRequest struct {
+	ActionID string `json:"action_id"`
+	CSRF     string `json:"csrf"`
 }

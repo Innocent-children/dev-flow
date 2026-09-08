@@ -1,138 +1,144 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
 type SubmitControlCenterActionRequest struct {
-	RequestID               domain.ID
-	TaskID                  domain.ID
-	ExpectedRevision        uint64
-	ActionID                domain.ID
-	ActionKind              domain.ActionKind
-	ProcessID               domain.ProcessID
-	ProcessDefinitionDigest domain.Digest
-	SourceNode              domain.NodeID
-	RepositoryBindingDigest domain.Digest
-	IssuanceIdentityDigest  domain.Digest
-	IssuanceHistoryDigest   domain.Digest
-	IssuanceContentDigest   domain.Digest
-	Payload                 json.RawMessage
+	RequestID        domain.ID
+	TaskID           domain.ID
+	ExpectedRevision uint64
+	ActionID         domain.ID
+	Payload          json.RawMessage
 }
 
 type AssessControlCenterRecoveryRequest struct {
-	TaskID    domain.ID
-	Operation OperationProbe
+	TaskID   domain.ID
+	ActionID domain.ID
 }
-
 type ApplyControlCenterRecoveryRequest struct {
-	TaskID         domain.ID
-	Operation      OperationProbe
-	RecoveryAction recovery.RecoveryAdvice
+	TaskID   domain.ID
+	ActionID domain.ID
 }
-
 type ControlCenterActionResult struct {
 	Task       domain.ProcessTask
 	Assessment *recovery.RecoveryAssessment
 	Committed  bool
 }
 
+// controlCenterSubmission translates the semantic HTTP payload into Core requests.
+type controlCenterSubmission struct {
+	TransitionID domain.TransitionID `json:"transition_id"`
+	Summary      string              `json:"summary"`
+	Reason       string              `json:"reason"`
+	Artifacts    struct {
+		Current      []ArtifactSubmission `json:"current"`
+		OtherProcess []ArtifactSubmission `json:"other_process"`
+	} `json:"artifacts"`
+	MethodResults          map[domain.MethodStepID]MethodResultSubmission `json:"method_results"`
+	NodeResult             json.RawMessage                                `json:"node_result"`
+	Choice                 domain.FileScopeDecision                       `json:"choice"`
+	RelocationID           domain.ID                                      `json:"relocation_id"`
+	RelocationDestinations []domain.RelocationDestination                 `json:"relocation_destinations"`
+	HistoryResolution      *domain.WorkspaceHistoryResolutionInput        `json:"history_resolution"`
+}
+
 func (c *ControlCenter) SubmitCurrentAction(ctx context.Context, request SubmitControlCenterActionRequest) (ControlCenterActionResult, error) {
-	if !c.valid() || ctx == nil {
+	if !c.valid() || ctx == nil || !request.RequestID.IsValid() || !request.TaskID.IsValid() || !request.ActionID.IsValid() || request.ExpectedRevision == 0 {
 		return ControlCenterActionResult{}, domain.ErrInvalidArgument
 	}
-	host, err := c.controlCenterTaskHost(ctx, request.TaskID)
+	stored, err := c.tasks.LoadTask(ctx, request.TaskID)
+	if err != nil {
+		return ControlCenterActionResult{}, mapStoreError(err)
+	}
+	if stored.Revision != request.ExpectedRevision {
+		return ControlCenterActionResult{}, domain.ErrRevisionConflict
+	}
+	if stored.CurrentAction == nil || stored.CurrentAction.ActionID != request.ActionID {
+		return ControlCenterActionResult{}, domain.ErrActionStale
+	}
+	if err := workflow.ValidateCurrentSubmission(*stored.CurrentAction, stored.Blocker, request.Payload); err != nil {
+		return ControlCenterActionResult{}, err
+	}
+	var payload controlCenterSubmission
+	decoder := json.NewDecoder(bytes.NewReader(request.Payload))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&payload) != nil {
+		return ControlCenterActionResult{}, domain.ErrInvalidArgument
+	}
+	var applied ApplyActionResult
+	if stored.CurrentAction.Kind == domain.ActionResolveBlocker {
+		resolve := RecoverActionRequest{Host: stored.OriginHost, TaskID: request.TaskID, ActionID: request.ActionID, ExpectedRevision: request.ExpectedRevision, RelocationID: payload.RelocationID, RelocationDestinations: payload.RelocationDestinations, HistoryResolution: payload.HistoryResolution}
+		if payload.Choice != "" {
+			resolve.FileScopeDecision = &domain.FileScopeDecisionInput{Choice: payload.Choice, Reason: payload.Reason}
+		}
+		applied, err = c.core.ResolveBlockerAction(ctx, resolve, request.RequestID)
+	} else {
+		applied, err = c.core.SubmitAction(ctx, SubmitActionRequest{
+			RequestID: request.RequestID, Host: stored.OriginHost, TaskID: request.TaskID, ActionID: request.ActionID,
+			ExpectedRevision: request.ExpectedRevision, ExpectedActionKind: stored.CurrentAction.Kind,
+			TransitionID: payload.TransitionID, Summary: payload.Summary, Reason: payload.Reason,
+			CurrentArtifacts: payload.Artifacts.Current, OtherProcessArtifacts: payload.Artifacts.OtherProcess,
+			MethodResults: payload.MethodResults, NodeResult: payload.NodeResult,
+		})
+	}
 	if err != nil {
 		return ControlCenterActionResult{}, err
 	}
-	result, err := c.core.ApplyAction(ctx, ApplyActionRequest{
-		RequestID: request.RequestID, Host: host, TaskID: request.TaskID, ExpectedRevision: request.ExpectedRevision,
-		ActionID: request.ActionID, ActionKind: request.ActionKind, ProcessID: request.ProcessID,
-		ProcessDefinitionDigest: request.ProcessDefinitionDigest, SourceCursor: request.SourceNode,
-		RepositoryBindingDigest: request.RepositoryBindingDigest, IssuanceIdentityDigest: request.IssuanceIdentityDigest,
-		IssuanceHistoryDigest: request.IssuanceHistoryDigest, IssuanceContentDigest: request.IssuanceContentDigest, Payload: append([]byte(nil), request.Payload...),
-	})
-	if err != nil {
-		return ControlCenterActionResult{}, err
-	}
-	return ControlCenterActionResult{Task: result.Task, Committed: true}, nil
+	return ControlCenterActionResult{Task: applied.Task, Committed: true}, nil
 }
 
 func (c *ControlCenter) AssessTaskOperation(ctx context.Context, request AssessControlCenterRecoveryRequest) (ControlCenterActionResult, error) {
-	if !c.valid() || ctx == nil {
+	if !c.valid() || ctx == nil || !request.ActionID.IsValid() {
 		return ControlCenterActionResult{}, domain.ErrInvalidArgument
 	}
 	host, err := c.controlCenterTaskHost(ctx, request.TaskID)
 	if err != nil {
 		return ControlCenterActionResult{}, err
 	}
-	probe := cloneOperationProbe(request.Operation)
-	result, err := c.core.GetTask(ctx, GetTaskRequest{Host: host, TaskID: request.TaskID, OperationProbe: &probe})
+	result, err := c.core.GetTask(ctx, GetTaskRequest{Host: host, TaskID: request.TaskID})
 	if err != nil {
 		return ControlCenterActionResult{}, err
 	}
-	if result.RecoveryAssessment == nil {
-		return ControlCenterActionResult{}, domain.ErrRecoveryUnavailable
+	assessment := result.RecoveryAssessment
+	if assessment != nil && assessment.Operation.ActionID != request.ActionID {
+		assessment = nil
 	}
-	return ControlCenterActionResult{Task: result.Task, Assessment: result.RecoveryAssessment}, nil
+	return ControlCenterActionResult{Task: result.Task, Assessment: assessment, Committed: assessment != nil && assessment.Classification == domain.RecoveryCompletedAndRecorded}, nil
 }
 
 func (c *ControlCenter) ApplyTaskRecovery(ctx context.Context, request ApplyControlCenterRecoveryRequest) (ControlCenterActionResult, error) {
-	assessed, err := c.AssessTaskOperation(ctx, AssessControlCenterRecoveryRequest{TaskID: request.TaskID, Operation: request.Operation})
-	if err != nil {
-		return ControlCenterActionResult{}, err
-	}
-	if assessed.Assessment.NextAdvice != request.RecoveryAction {
-		return ControlCenterActionResult{}, domain.ErrRecoveryUnavailable
-	}
-	switch request.RecoveryAction {
-	case recovery.AdviceReadNextAction, recovery.AdviceResolveBlocker, recovery.AdviceStopForRepositoryDrift:
-		return assessed, nil
-	case recovery.AdviceRetryCurrentAction, recovery.AdviceSubmitRecoveryApply:
-	default:
-		return ControlCenterActionResult{}, domain.ErrRecoveryUnavailable
+	if !c.valid() || ctx == nil || !request.ActionID.IsValid() {
+		return ControlCenterActionResult{}, domain.ErrInvalidArgument
 	}
 	host, err := c.controlCenterTaskHost(ctx, request.TaskID)
 	if err != nil {
 		return ControlCenterActionResult{}, err
 	}
-	operation := request.Operation
-	apply := ApplyActionRequest{
-		RequestID: operation.OperationID, Host: host, TaskID: request.TaskID, ExpectedRevision: operation.ExpectedRevision,
-		ActionID: operation.ActionID, ActionKind: operation.ActionKind, ProcessID: operation.ProcessID,
-		ProcessDefinitionDigest: operation.ProcessDefinitionDigest, SourceCursor: operation.SourceCursor,
-		RepositoryBindingDigest: operation.RepositoryBindingDigest, IssuanceIdentityDigest: operation.IssuanceIdentityDigest,
-		IssuanceHistoryDigest: operation.IssuanceHistoryDigest, IssuanceContentDigest: operation.IssuanceContentDigest, Payload: append([]byte(nil), operation.Payload...),
-	}
-	if request.RecoveryAction == recovery.AdviceSubmitRecoveryApply {
-		apply.RecoveryApply = &RecoveryApplyInput{OperationID: operation.OperationID, SourceCursor: operation.SourceCursor}
-	}
-	result, err := c.core.ApplyAction(ctx, apply)
+	result, err := c.core.RecoverAction(ctx, RecoverActionRequest{Host: host, TaskID: request.TaskID, ActionID: request.ActionID})
 	if err != nil {
 		return ControlCenterActionResult{}, err
 	}
-	return ControlCenterActionResult{Task: result.Task, Assessment: assessed.Assessment, Committed: result.Task.Revision != assessed.Task.Revision}, nil
+	recorded := result.Task.LastOperation != nil && result.Task.LastOperation.ActionID != nil && *result.Task.LastOperation.ActionID == request.ActionID
+	return ControlCenterActionResult{Task: result.Task, Committed: recorded}, nil
 }
 
 func (c *ControlCenter) controlCenterTaskHost(ctx context.Context, taskID domain.ID) (domain.Host, error) {
 	if !taskID.IsValid() {
 		return "", domain.ErrInvalidArgument
 	}
-	stored, err := c.tasks.LoadControlCenterTask(ctx, taskID)
+	task, err := c.tasks.LoadTask(ctx, taskID)
 	if err != nil {
 		return "", mapStoreError(err)
 	}
-	if !stored.Task.OriginHost.IsValid() {
+	if !task.OriginHost.IsValid() {
 		return "", domain.ErrInternal
 	}
-	return stored.Task.OriginHost, nil
-}
-
-func cloneOperationProbe(probe OperationProbe) OperationProbe {
-	probe.Payload = append([]byte(nil), probe.Payload...)
-	return probe
+	return task.OriginHost, nil
 }

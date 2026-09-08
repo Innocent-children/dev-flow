@@ -37,6 +37,9 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 		}
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
 	}
+	if request.ExpectedRevision != 0 && task.Revision != request.ExpectedRevision {
+		return ApplyActionResult{}, domain.ErrRevisionConflict
+	}
 	if task.CurrentAction == nil || task.CurrentAction.ActionID != request.ActionID ||
 		task.CurrentAction.Kind != request.ExpectedActionKind || task.CurrentNode == domain.NodeBlocked || task.CurrentNode.Terminal() {
 		return ApplyActionResult{}, domain.ErrActionStale
@@ -213,7 +216,6 @@ func hydrateDeliveryNodeResult(task domain.ProcessTask, transition domain.Transi
 		return nil, domain.InvalidArgumentViolations(violations...)
 	}
 
-	acceptance := []domain.OutcomeCriterion{}
 	automated := []domain.ID{}
 	manual := []domain.ID{}
 	testRecordID := domain.ID("")
@@ -221,10 +223,6 @@ func hydrateDeliveryNodeResult(task domain.ProcessTask, transition domain.Transi
 	if transition == "delivery_complete" {
 		if task.Requirements == nil || task.Test == nil || task.Comprehension == nil {
 			return nil, domain.ErrTransitionNotAllowed
-		}
-		acceptance = make([]domain.OutcomeCriterion, len(task.Requirements.AcceptanceCriteria))
-		for index, criterion := range task.Requirements.AcceptanceCriteria {
-			acceptance[index] = domain.OutcomeCriterion{Criterion: criterion, Status: domain.CriterionSatisfied}
 		}
 		var current bool
 		automated, manual, current = currentDeliveryEvidence(task)
@@ -242,7 +240,6 @@ func hydrateDeliveryNodeResult(task domain.ProcessTask, transition domain.Transi
 	}
 
 	values := map[string]any{
-		"acceptance":              acceptance,
 		"automated_evidence_ids":  automated,
 		"manual_evidence_ids":     manual,
 		"test_record_id":          testRecordID,

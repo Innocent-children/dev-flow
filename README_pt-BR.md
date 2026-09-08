@@ -42,6 +42,7 @@ Essas instruções têm prioridade sobre a preferência do plugin para o índice
   verificações restantes e a decisão atual sem reconstruí-las a partir da conversa.
 - **Somente resultados atuais são reutilizados.** Mudanças no pedido, no plano, na implementação ou no
   repositório invalidam verificações antigas; o desenvolvedor revisa o resultado antes da entrega.
+- **Conclusão e recuperação verificáveis.** O Core exige a conclusão de todos os itens do plano e vincula cada critério de aceitação a verificações válidas para o estado atual. Após uma interrupção, a WebUI recupera os envios salvos no Core.
 
 ## Início rápido
 

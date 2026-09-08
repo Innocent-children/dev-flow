@@ -58,11 +58,12 @@ type ControlCenterDashboard struct {
 }
 
 type ControlCenterTaskDetail struct {
-	Task     domain.ProcessTask
-	Archived bool
-	Events   []store.TaskEvent
-	Graph    workflow.ControlCenterGraph
-	ReadOnly bool
+	Task            domain.ProcessTask
+	Archived        bool
+	Events          []store.TaskEvent
+	Graph           workflow.ControlCenterGraph
+	ReadOnly        bool
+	PendingActionID *domain.ID
 }
 
 type SetTaskArchiveRequest struct {
@@ -196,15 +197,16 @@ type ApplyActionRequest struct {
 }
 type ApplyActionResult struct{ Task domain.ProcessTask }
 type ArtifactSubmission struct {
-	Path    string
-	Digest  domain.Digest
-	Summary string
+	Path    string        `json:"path"`
+	Digest  domain.Digest `json:"digest"`
+	Summary string        `json:"summary"`
 }
 type MethodResultSubmission struct {
-	Capability string
-	Summary    string
+	Capability string `json:"capability"`
+	Summary    string `json:"summary"`
 }
 type SubmitActionRequest struct {
+	ExpectedRevision      uint64
 	RequestID             domain.ID
 	Host                  domain.Host
 	TaskID                domain.ID
@@ -219,6 +221,7 @@ type SubmitActionRequest struct {
 	NodeResult            json.RawMessage
 }
 type RecoverActionRequest struct {
+	ExpectedRevision       uint64
 	Host                   domain.Host
 	TaskID                 domain.ID
 	ActionID               domain.ID

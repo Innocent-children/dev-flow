@@ -42,6 +42,7 @@ en la Task. Estas instrucciones tienen prioridad sobre la preferencia del plugin
   comprobaciones pendientes y la decisión actual sin reconstruirlas desde la conversación.
 - **Solo se reutilizan resultados vigentes.** Los cambios en la petición, el plan, la implementación o
   el repositorio invalidan las comprobaciones antiguas; el desarrollador revisa el resultado antes de entregarlo.
+- **Finalización y recuperación comprobables.** Core exige completar todos los elementos del plan y vincular cada criterio de aceptación con comprobaciones vigentes. Tras una interrupción, WebUI recupera los envíos guardados en Core.
 
 ## Inicio rápido
 

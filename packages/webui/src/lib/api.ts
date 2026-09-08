@@ -72,13 +72,6 @@ export interface GraphView {
 export interface ActionView {
   action_id: string;
   action_kind: string;
-  process_id: string;
-  process_definition_digest: string;
-  source_node: string;
-  repository_binding_digest: string;
-  issuance_identity_digest: string;
-  issuance_history_digest: string;
-  issuance_content_digest: string;
   purpose: string;
   conditions: string[];
   allowed_effects: string[];
@@ -147,6 +140,7 @@ export interface VerificationView {
   }>;
 }
 export interface TaskDetailResponse {
+  pending_action_id: string | null;
   ok: true;
   request_id: string;
   readiness: Readiness;
@@ -233,20 +227,6 @@ export interface FailureResponse {
 export interface RecoveryAdvice { action: RecoveryAction; retry_safe: boolean; message: string }
 export type RecoveryAction = "none" | "correct_current_action" | "retry_current_action" | "submit_recovery_apply" | "read_next_action" | "resolve_blocker" | "stop_for_repository_drift";
 
-export interface OperationProbe {
-  operation_id: string;
-  expected_revision: number;
-  action_id: string;
-  action_kind: string;
-  process_id: string;
-  process_definition_digest: string;
-  source_node: string;
-  repository_binding_digest: string;
-  issuance_identity_digest: string;
-  issuance_history_digest: string;
-  issuance_content_digest: string;
-  payload: Record<string, unknown>;
-}
 
 export class APIError extends Error {
   constructor(public readonly failure: FailureResponse) {
@@ -347,44 +327,16 @@ export function purgeTask(taskID: string, revision: number, typedTaskID: string,
 
 export function submitCurrentAction(taskID: string, revision: number, action: ActionView, payload: Record<string, unknown>, operationID = requestID("action")) {
   return postJSON(`/api/tasks/${encodeURIComponent(taskID)}/actions/submit`, {
-    request_id: operationID,
-    task_revision: revision,
-    action_id: action.action_id,
-    action_kind: action.action_kind,
-    process_id: action.process_id,
-    process_definition_digest: action.process_definition_digest,
-    source_node: action.source_node,
-    repository_binding_digest: action.repository_binding_digest,
-    issuance_identity_digest: action.issuance_identity_digest,
-    issuance_history_digest: action.issuance_history_digest,
-    issuance_content_digest: action.issuance_content_digest,
-    payload,
+    request_id: operationID, task_revision: revision, action_id: action.action_id, payload,
   });
 }
 
-export function operationProbe(revision: number, action: ActionView, payload: Record<string, unknown>, operationID: string): OperationProbe {
-  return {
-    operation_id: operationID,
-    expected_revision: revision,
-    action_id: action.action_id,
-    action_kind: action.action_kind,
-    process_id: action.process_id,
-    process_definition_digest: action.process_definition_digest,
-    source_node: action.source_node,
-    repository_binding_digest: action.repository_binding_digest,
-    issuance_identity_digest: action.issuance_identity_digest,
-    issuance_history_digest: action.issuance_history_digest,
-    issuance_content_digest: action.issuance_content_digest,
-    payload,
-  };
+export function assessRecovery(taskID: string, actionID: string) {
+  return postJSON(`/api/tasks/${encodeURIComponent(taskID)}/recovery/assess`, { action_id: actionID });
 }
 
-export function assessRecovery(taskID: string, operation: OperationProbe) {
-  return postJSON(`/api/tasks/${encodeURIComponent(taskID)}/recovery/assess`, { operation });
-}
-
-export function applyRecovery(taskID: string, operation: OperationProbe, recoveryAction: RecoveryAction) {
-  return postJSON(`/api/tasks/${encodeURIComponent(taskID)}/recovery/apply`, { operation, recovery_action: recoveryAction });
+export function applyRecovery(taskID: string, actionID: string) {
+  return postJSON(`/api/tasks/${encodeURIComponent(taskID)}/recovery/apply`, { action_id: actionID });
 }
 
 import { translateCurrent } from "./i18n";

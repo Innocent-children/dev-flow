@@ -290,6 +290,15 @@ func (t ProcessTask) Validate() error {
 	if t.Implementation != nil && !implementationWorkItemsValid(*t.Implementation, t.TaskPlan) {
 		return ErrInvalidArgument
 	}
+	node := t.CurrentNode
+	if node == NodeBlocked && t.ResumeNode != nil {
+		node = *t.ResumeNode
+	}
+	if t.Test != nil || node == NodeTest || node == NodeComprehensionReview || node == NodeDelivery || node == NodeDone {
+		if t.Implementation == nil || !CompletedWorkItemsCoverPlan(t.TaskPlan, t.Implementation.CompletedWorkItemIDs) {
+			return ErrInvalidArgument
+		}
+	}
 	if t.Comprehension != nil && (t.Comprehension.Validate() != nil || t.Test == nil || t.Comprehension.TestRecordID != t.Test.RecordID || t.Comprehension.RequirementsRevision != t.Test.RequirementsRevision || t.Comprehension.DesignRevision != t.Test.DesignRevision || t.Comprehension.TaskPlanRevision != t.Test.TaskPlanRevision || t.Comprehension.ContentDigest != t.Test.ContentDigest) {
 		return ErrInvalidArgument
 	}
@@ -603,10 +612,8 @@ func completedOutcomeMatchesTask(t ProcessTask, evidence map[ID]EvidenceSummary)
 		len(t.Test.UnverifiedItems) != 0 || len(t.Test.ManualHandoffItems) != 0 || len(t.Outcome.Acceptance) != len(t.Requirements.AcceptanceCriteria) {
 		return false
 	}
-	for i, criterion := range t.Outcome.Acceptance {
-		if criterion.Criterion != t.Requirements.AcceptanceCriteria[i] || criterion.Status != CriterionSatisfied {
-			return false
-		}
+	if !AcceptanceLinksCurrent(t, t.Outcome.Acceptance) {
+		return false
 	}
 	expectedAutomated := []ID{}
 	expectedManual := []ID{}

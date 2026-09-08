@@ -41,6 +41,7 @@ Diese Anweisungen haben Vorrang vor der Code-Index-Einstellung des Plugins.
   aktuelle Entscheidung wieder her, statt sie aus dem Gespräch zu rekonstruieren.
 - **Nur aktuelle Ergebnisse gelten weiter.** Änderungen an Anfrage, Plan, Implementierung oder Repository
   machen alte Prüfungen ungültig; vor der Auslieferung prüft der Entwickler das tatsächliche Ergebnis.
+- **Abschluss und Wiederaufnahme bleiben nachvollziehbar.** Core verlangt den Abschluss aller geplanten Arbeitsschritte und verknüpft jedes Abnahmekriterium mit aktuell gültigen Prüfungen. Nach einer Unterbrechung stellt WebUI die in Core gespeicherten Einreichungen wieder her.
 
 ## Schnellstart
 

@@ -54,6 +54,22 @@ Hosts still ask Core before supported structured writes outside the Task Plan. B
 processes, and other tools may write first; Core finds those changes during the next Task/Action Git
 observation. A dedicated worktree has no option to ignore a supposedly external change.
 
+## Completion and Action recovery
+
+Before entering TEST, every work item in the current Task Plan must be completed. DELIVERY receives explicit acceptance results linking each criterion to completed work items mapped to that criterion and passed checks in the current Test. Automated, static, Host-observed and explicit manual checks are supported. Comprehension confirmation remains separate and does not automatically substitute for acceptance checks. Missing, incorrect or outdated references reject the submission.
+
+WebUI and MCP share Core semantic submission, operation retention and recovery. Core retains the canonical payload; the page sends the current Task revision, Action ID and semantic results. Network failures first trigger a Core read. Reopening the page discovers pending operations and recovers them by Action ID. Invalid completion results neither advance the Task nor retain an operation.
+
+### Action HTTP fields
+
+| Route | Request fields, in addition to csrf |
+| --- | --- |
+| `POST /api/tasks/{task_id}/actions/submit` | request_id, task_revision, action_id, payload; payload follows the current semantic form schema |
+| `POST /api/tasks/{task_id}/recovery/assess` | action_id |
+| `POST /api/tasks/{task_id}/recovery/apply` | action_id |
+
+A null `pending_action_id` means the current detail read found no unapplied operation. A present ID exposes recovery controls. Core re-reads and validates the Action to decide the actual result.
+
 ## Start, open, inspect, and stop
 
 ```bash

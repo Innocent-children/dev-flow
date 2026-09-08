@@ -74,8 +74,23 @@ func (c *ControlCenter) GetTaskDetail(ctx context.Context, request GetControlCen
 	for index, event := range stored.Events {
 		traversals[index] = workflow.CommittedTraversal{Revision: event.Revision, Kind: event.Kind, Source: event.SourceNode, Destination: event.DestinationNode, TransitionID: event.TransitionID, Reason: event.TransitionReason, CreatedAt: event.CreatedAt}
 	}
+	var pending *domain.ID
+	operation, found, err := c.tasks.LoadActionOperation(ctx, request.TaskID)
+	if err != nil {
+		return ControlCenterTaskDetail{}, mapStoreError(err)
+	}
+	if found && operation.AppliedRevision == nil {
+		if stored.Task.CurrentAction == nil || operation.Commit.Operation.ExpectedRevision != stored.Task.Revision || operation.Commit.Operation.ActionID != stored.Task.CurrentAction.ActionID {
+			return ControlCenterTaskDetail{}, domain.ErrRevisionConflict
+		}
+		if workflow.ValidateActionCommit(stored.Task, operation.Commit) != nil {
+			return ControlCenterTaskDetail{}, domain.ErrStorageUnavailable
+		}
+		id := operation.Commit.Operation.ActionID
+		pending = &id
+	}
 	graph := workflow.ProjectControlCenterGraph(stored.Task, traversals)
-	return ControlCenterTaskDetail{Task: stored.Task, Archived: stored.ArchivedAt != nil, Events: stored.Events, Graph: graph, ReadOnly: !graph.Safe}, nil
+	return ControlCenterTaskDetail{Task: stored.Task, Archived: stored.ArchivedAt != nil, Events: stored.Events, Graph: graph, ReadOnly: !graph.Safe, PendingActionID: pending}, nil
 }
 
 func validControlCenterFilter(filter TaskListFilter) bool {

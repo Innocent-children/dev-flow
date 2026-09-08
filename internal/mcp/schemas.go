@@ -563,55 +563,21 @@ func actionSubmissionDescription(kind domain.ActionKind) string {
 		description += " The Task Plan owns the initial verification budget. A justified verification_budget_increased transition stays in TEST. Automated command_count is 1 to 20; user, static and host_observed use command_count 0 and full_suite false. Every full-suite check records its current reason."
 	}
 	if kind == domain.ActionCompleteDelivery {
-		description += " Core also fills current acceptance, test and comprehension record IDs, and automated and manual evidence IDs from the current Task."
+		description += " Submit every current acceptance criterion with completed work_item_ids and passed current Test evidence_ids. Core fills test and comprehension record IDs and aggregate automated and manual evidence IDs from the current Task."
 	}
 	return description
 }
 
 func actionSubmissionSchema(kind domain.ActionKind) map[string]any {
-	node, err := workflow.NodeDefinitionForActionKind(workflow.StandardProcess(), kind)
-	if err != nil || node.NodeID == domain.NodeBlocked {
-		panic("invalid Action submission kind")
-	}
-	// The published tool schema is the submission contract. Revision members
-	// filled from the current Task are optional; Delivery authority members are
-	// absent because node submissions never own them.
-	submissionSchema, err := workflow.SubmissionNodeResultSchema(kind)
+	schema, err := workflow.ActionSubmissionSchema(kind)
 	if err != nil {
-		panic("missing Action submission payload schema")
+		panic("missing Action submission schema")
 	}
-	nodeResult := flattenSchema(submissionSchema)
-	artifact := obj([]string{"path", "digest", "summary"}, map[string]any{"path": str(), "digest": digest(), "summary": str()})
-	artifactProperties := map[string]any{"other_process": map[string]any{"type": "array", "maxItems": 16, "items": artifact}}
-	artifactRequired := []string{"other_process"}
-	if _, ok := workflow.PrimaryArtifactRoleForNode(node.NodeID); ok {
-		artifactProperties["current"] = map[string]any{"type": "array", "maxItems": 16, "items": artifact}
-		artifactRequired = append([]string{"current"}, artifactRequired...)
-	}
-	methodProperties := make(map[string]any, len(node.SemanticMethodSteps))
-	methodRequired := make([]string, len(node.SemanticMethodSteps))
-	for index, step := range node.SemanticMethodSteps {
-		methodRequired[index] = string(step.StepID)
-		methodProperties[string(step.StepID)] = obj([]string{"capability", "summary"}, map[string]any{
-			"capability": map[string]any{"type": "string", "maxLength": 128, "pattern": "^[a-z0-9_.@-]*$"},
-			"summary":    str(),
-		})
-	}
-	transitions := make([]string, len(node.OutgoingTransitions))
-	for index, transition := range node.OutgoingTransitions {
-		transitions[index] = string(transition.TransitionID)
-	}
-	return flattenSchema(obj([]string{"host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"}, map[string]any{
-		"host":           map[string]any{"enum": []string{"codex", "deepseek"}},
-		"task_id":        id(),
-		"action_id":      id(),
-		"transition_id":  map[string]any{"type": "string", "enum": transitions},
-		"summary":        str(),
-		"reason":         map[string]any{"type": "string", "maxLength": 4096},
-		"artifacts":      obj(artifactRequired, artifactProperties),
-		"method_results": obj(methodRequired, methodProperties),
-		"node_result":    nodeResult,
-	}))
+	properties := schema["properties"].(map[string]any)
+	properties["host"] = map[string]any{"enum": []string{"codex", "deepseek"}}
+	properties["task_id"], properties["action_id"] = id(), id()
+	schema["required"] = append([]string{"host", "task_id", "action_id"}, schema["required"].([]string)...)
+	return flattenSchema(schema)
 }
 
 func submissionKindForTool(name string) (domain.ActionKind, bool) {

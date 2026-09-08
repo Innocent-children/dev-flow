@@ -229,7 +229,7 @@ func TestActionSubmissionDescriptionsStateCoreOwnedAssembly(t *testing.T) {
 			}
 		}
 		if entry.Name == ToolSubmitDelivery {
-			for _, fact := range []string{"current acceptance", "test and comprehension record IDs", "automated and manual evidence IDs", "current Task"} {
+			for _, fact := range []string{"acceptance criterion", "test and comprehension record IDs", "automated and manual evidence IDs", "current Task"} {
 				if !strings.Contains(description, fact) {
 					t.Fatalf("%s description misses %q", entry.Name, fact)
 				}

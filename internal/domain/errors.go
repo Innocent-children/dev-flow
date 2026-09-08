@@ -102,7 +102,7 @@ var violationMessages = map[ViolationRule]string{
 	RuleArtifactRoleNotAllowed:        "the current Action does not allow this artifact role",
 	RuleCurrentValueRequired:          "the member must equal the current value returned by Core",
 	RuleCurrentSetRequired:            "the list must equal the current set returned by Core",
-	RuleAcceptanceSetCurrent:          "acceptance must exactly match the current requirements in order and status",
+	RuleAcceptanceSetCurrent:          "acceptance must cover current requirements in order and link completed matching work items to passed current Test evidence",
 	RuleRequiredCollectionNonEmpty:    "the current transition requires at least one item",
 	RuleCollectionMustBeEmpty:         "the current transition requires this collection to be empty",
 	RulePassingStatusRequired:         "the current transition requires every submitted status to be passed",
@@ -129,6 +129,7 @@ const (
 	GuardProblemClassTransitionMismatch GuardRule = "problem_class_transition_mismatch"
 	GuardCurrentValueRequired           GuardRule = "current_value_required"
 	GuardCurrentSetRequired             GuardRule = "current_set_required"
+	GuardAllWorkItemsCompleted          GuardRule = "all_planned_work_items_completed"
 	GuardAcceptanceSetCurrent           GuardRule = "acceptance_set_current"
 	GuardRequiredCollectionNonEmpty     GuardRule = "required_collection_non_empty"
 	GuardCollectionMustBeEmpty          GuardRule = "collection_must_be_empty"
@@ -143,7 +144,8 @@ var guardMessages = map[GuardRule]string{
 	GuardProblemClassTransitionMismatch: "problem_class must match the problem class the selected transition reports",
 	GuardCurrentValueRequired:           "the member must equal the current value returned by Core",
 	GuardCurrentSetRequired:             "the list must equal the current set returned by Core",
-	GuardAcceptanceSetCurrent:           "acceptance must exactly match the current requirements in order and status",
+	GuardAllWorkItemsCompleted:          "complete every work item in the current plan before entering TEST",
+	GuardAcceptanceSetCurrent:           "acceptance must cover current requirements in order and link completed matching work items to passed current Test evidence",
 	GuardRequiredCollectionNonEmpty:     "the current transition requires at least one item",
 	GuardCollectionMustBeEmpty:          "the current transition requires this collection to be empty",
 	GuardPassingStatusRequired:          "the current transition requires every submitted status to be passed",

@@ -29,6 +29,7 @@ const APPLY_RULES = [
   "Use the live artifacts object and one method_results entry with capability empty for every current method step ID.",
   "For a forward ready, passed, or completed transition use problem_class=none and findings=[].",
   "Use a non-none problem_class and nonempty findings only for the exact corrective transition whose condition they establish.",
+  "Before TEST complete every planned work item. DELIVERY requires explicit acceptance links with completed work_item_ids and passed current Test evidence_ids.",
   "Never send changed_paths or no_file_changes; Core computes file effects from the dedicated worktrees.",
   "For REQUIREMENTS, node_result contains exactly problem_class, baseline, and unresolved_questions; unresolved_questions is a sibling of baseline and baseline contains exactly goal, scope, out_of_scope, acceptance_criteria, constraints, and assumptions.",
   "If any apply returns an error, stop immediately without retrying.",

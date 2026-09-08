@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "dev": "vite",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules --test tests/*.test.mjs"
   },
   "dependencies": {
     "react": "19.2.8",

@@ -145,7 +145,7 @@ func setAuthorityMatrixAction(task *ProcessTask, node NodeID) {
 func completedMatrixOutcome(task ProcessTask, now time.Time) *ProcessOutcome {
 	return &ProcessOutcome{
 		Status: TerminalCompleted, Summary: "Task completed.", RequirementsRevision: task.Requirements.Revision,
-		Acceptance:   []OutcomeCriterion{{Criterion: task.Requirements.AcceptanceCriteria[0], Status: CriterionSatisfied}},
+		Acceptance:   []OutcomeCriterion{{Criterion: task.Requirements.AcceptanceCriteria[0], Status: CriterionSatisfied, WorkItemIDs: task.Implementation.CompletedWorkItemIDs, EvidenceIDs: task.Test.EvidenceIDs}},
 		TestRecordID: task.Test.RecordID, ComprehensionRecordID: task.Comprehension.RecordID,
 		AutomatedEvidenceIDs: []ID{"automated"}, ManualEvidenceIDs: []ID{"user"},
 		FinalRepositoryDigest: task.Repository.BindingDigest, CompletedAt: now,

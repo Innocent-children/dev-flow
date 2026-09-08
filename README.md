@@ -40,6 +40,7 @@ over the plugin's code-index preference.
   decision instead of rebuilding them from the conversation.
 - **Results stay current.** Changes to the request, plan, implementation, or repository retire stale
   checks; the developer reviews the actual result before delivery.
+- **Completion and recovery stay verifiable.** Core requires all planned work items and links every acceptance criterion to current checks. WebUI recovers retained submissions from Core after an interruption.
 
 ## Quick start
 

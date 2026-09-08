@@ -54,7 +54,7 @@ const nativeCheckpoints = Object.freeze([
     "/dev-flow I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
     "Use the fresh current action, complete delivery, follow only legal Core transitions, confirm Core DONE, then stop.",
     "At DELIVERY, call the current Action submission_tool with exactly host, task_id, action_id, transition_id, summary, reason, artifacts, method_results, and node_result.",
-    "Do not send payload, method_evidence, revision, Action kind, process identity, source cursor, repository binding, acceptance, evidence IDs, or record IDs; Core fills those members.",
+    "Do not send payload, method_evidence, revision, Action kind, process identity, source cursor, repository binding, aggregate evidence IDs, or record IDs; Core fills those members. Submit explicit acceptance links with completed work_item_ids and passed current Test evidence_ids.",
   ]),
 ]);
 
@@ -642,7 +642,7 @@ async function selfTest() {
     reason: "",
     artifacts: { other_process: [] },
     method_results: { "delivery.prepare_summary": { capability: "", summary: "Prepared delivery." } },
-    node_result: { problem_class: "none", unverified_items: [], risks: [], findings: [] },
+    node_result: { problem_class: "none", acceptance: [{ criterion: "Current criterion", status: "satisfied", work_item_ids: ["work-current"], evidence_ids: ["evidence-current"] }], unverified_items: [], risks: [], findings: [] },
   };
   assertMutationIdentities([{
     name: "mcp__dev_flow__dev_flow_submit_delivery",

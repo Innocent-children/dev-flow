@@ -180,7 +180,7 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 		readiness = ReadinessReadOnly
 	}
 	criteria := append([]string{}, detail.Task.Intent.KnownAcceptanceCriteria...)
-	currentAction, err := projectAction(detail.Task.CurrentAction)
+	currentAction, err := projectAction(detail.Task.CurrentAction, detail.Task.Blocker)
 	if err != nil {
 		return TaskDetailResponse{}, err
 	}
@@ -194,7 +194,7 @@ func projectTaskDetail(requestID string, detail application.ControlCenterTaskDet
 		FinalCheckEnabled:   scope.FinalCheckEnabled,
 	}
 	workspace := projectWorkspace(detail.Task)
-	return TaskDetailResponse{OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, Verification: projectVerification(detail.Task), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction, FileScope: fileScope, Workspace: workspace}, nil
+	return TaskDetailResponse{PendingActionID: actionIDText(detail.PendingActionID), OK: true, RequestID: requestID, Readiness: readiness, Summary: summary, Intent: detail.Task.Intent.Request, AcceptanceCriteria: criteria, Verification: projectVerification(detail.Task), MethodProfile: string(detail.Task.Intent.MethodProfile), Repositories: repositories, Baselines: baselines, Records: records, Evidence: evidence, Blocker: blocker, Outcome: outcome, Events: events, Graph: projectGraph(detail.Graph), CurrentAction: currentAction, FileScope: fileScope, Workspace: workspace}, nil
 }
 
 func projectVerification(task domain.ProcessTask) VerificationView {
@@ -399,13 +399,17 @@ func projectGraph(graph workflow.ControlCenterGraph) GraphView {
 	return GraphView{ProcessID: string(graph.Process.ID), DefinitionDigest: string(graph.Process.DefinitionDigest), CurrentNode: string(graph.CurrentNode), ResumeNode: optionalNode(graph.ResumeNode), Nodes: nodes, Transitions: transitions, ActualTransitionIDs: actual, CurrentLegalTransitionIDs: transitionStrings(graph.CurrentLegalTransitionIDs), FutureNodeIDs: nodeStrings(graph.FutureNodeIDs), FutureTransitionIDs: transitionStrings(graph.FutureTransitionIDs)}
 }
 
-func projectAction(action *domain.ProcessAction) (*ActionView, error) {
+func projectAction(action *domain.ProcessAction, blocker *domain.ProcessBlocker) (*ActionView, error) {
 	if action == nil {
 		return nil, nil
 	}
-	payloadSchema, err := workflow.ActionPayloadSchemaFor(*action)
+	schema, err := workflow.CurrentSubmissionSchema(*action, blocker)
 	if err != nil {
 		return nil, err
+	}
+	payloadSchema, err := json.Marshal(schema)
+	if err != nil {
+		return nil, domain.ErrInternal
 	}
 	conditions := append([]string(nil), action.NodeContract.EntryConditions...)
 	conditions = append(conditions, action.NodeContract.CompletionConditions...)
@@ -425,7 +429,7 @@ func projectAction(action *domain.ProcessAction) (*ActionView, error) {
 	for index, transition := range action.AvailableTransitions {
 		legal[index] = string(transition.TransitionID)
 	}
-	return &ActionView{ActionID: string(action.ActionID), ActionKind: string(action.Kind), ProcessID: string(action.Process.ID), ProcessDefinitionDigest: string(action.Process.DefinitionDigest), SourceNode: string(action.NodeID), RepositoryBindingDigest: string(action.RepositoryBindingDigest), IssuanceIdentityDigest: string(action.IssuanceIdentityDigest), IssuanceHistoryDigest: string(action.IssuanceHistoryDigest), IssuanceContentDigest: string(action.IssuanceContentDigest), Purpose: action.NodeContract.Purpose, Conditions: conditions, AllowedEffects: effects, RequiredEvidence: evidence, MethodSteps: steps, LegalTransitionIDs: legal, PayloadSchema: payloadSchema}, nil
+	return &ActionView{ActionID: string(action.ActionID), ActionKind: string(action.Kind), Purpose: action.NodeContract.Purpose, Conditions: conditions, AllowedEffects: effects, RequiredEvidence: evidence, MethodSteps: steps, LegalTransitionIDs: legal, PayloadSchema: payloadSchema}, nil
 }
 
 func writeReadError(w http.ResponseWriter, requestID string, err error) {
@@ -477,4 +481,12 @@ func nodeStrings(values []domain.NodeID) []string {
 		result[index] = string(value)
 	}
 	return result
+}
+
+func actionIDText(id *domain.ID) *string {
+	if id == nil {
+		return nil
+	}
+	value := string(*id)
+	return &value
 }

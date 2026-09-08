@@ -115,6 +115,12 @@ remote/base 的本地仓库，以及需要跨机器交接、安全沙箱、远�
 4. Core 保存不确定 Action、blocker、relocation 和 outcome。同机 relocation 在 Host handoff 前后保持旧 claim，
    验证目标后一次替换。终态清理需要独立授权。
 
+## 完成条件与操作恢复
+
+进入 TEST 前，当前 Task Plan 的全部工作项必须已经完成。DELIVERY 逐条接收明确的验收结果，每项关联已完成且对应此验收条件的工作项，以及当前 Test 中通过的检查。自动检查、静态检查、Host 观察和明确人工检查均可使用；理解确认仍单独保存，不自动代替验收检查。遗漏、错误或过期引用会使提交被拒绝。
+
+WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core 保存规范化载荷，页面只提交当前 Task revision、Action ID 和语义结果。网络异常先回读 Core；页面重新打开后仍能发现待恢复操作，并按 Action ID 恢复。无效完成结果不会推进任务或保存操作。
+
 ## 明确非目标
 
 Dev Flow 不做通用 Agent 或 workflow DSL；Core 不执行 fetch、branch、worktree、commit、stash、reset、

@@ -132,6 +132,12 @@ automatic Git publication, does not fit.
 4. Core retains uncertain Actions, blockers, relocation, and outcome. Same-machine relocation keeps
    source claims during Host handoff and replaces them once after verification. Cleanup needs separate authorization.
 
+## Completion and Action recovery
+
+Before entering TEST, every work item in the current Task Plan must be completed. DELIVERY receives explicit acceptance results linking each criterion to completed work items mapped to that criterion and passed checks in the current Test. Automated, static, Host-observed and explicit manual checks are supported. Comprehension confirmation remains separate and does not automatically substitute for acceptance checks. Missing, incorrect or outdated references reject the submission.
+
+WebUI and MCP share Core semantic submission, operation retention and recovery. Core retains the canonical payload; the page sends the current Task revision, Action ID and semantic results. Network failures first trigger a Core read. Reopening the page discovers pending operations and recovers them by Action ID. Invalid completion results neither advance the Task nor retain an operation.
+
 ## Explicit non-goals
 
 Dev Flow is not a general agent or workflow DSL. Core does not fetch, create branches/worktrees,

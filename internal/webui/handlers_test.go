@@ -89,15 +89,14 @@ func TestActionHandlersCP3(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest := strings.Repeat("a", 64)
+
 	csrf := strings.Repeat("s", 32)
 	payload := `{"transition_id":"requirements_ready"}`
-	operation := `{"operation_id":"action-request","expected_revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","process_id":"standard-development","process_definition_digest":"` + digest + `","source_node":"REQUIREMENTS","repository_binding_digest":"` + digest + `","issuance_identity_digest":"` + digest + `","issuance_history_digest":"` + digest + `","issuance_content_digest":"` + digest + `","payload":` + payload + `}`
 	cases := []struct{ name, path, body, call string }{
-		{"submit", "/api/tasks/task/actions/submit", `{"request_id":"action-request","task_revision":1,"action_id":"action","action_kind":"COMPLETE_REQUIREMENTS","process_id":"standard-development","process_definition_digest":"` + digest + `","source_node":"REQUIREMENTS","repository_binding_digest":"` + digest + `","issuance_identity_digest":"` + digest + `","issuance_history_digest":"` + digest + `","issuance_content_digest":"` + digest + `","payload":` + payload + `,"csrf":"` + csrf + `"}`, "submit"},
-		{"assess", "/api/tasks/task/recovery/assess", `{"operation":` + operation + `,"csrf":"` + csrf + `"}`, "assess"},
-		{"apply", "/api/tasks/task/recovery/apply", `{"operation":` + operation + `,"recovery_action":"submit_recovery_apply","csrf":"` + csrf + `"}`, "recover"},
-		{"resolve blocker", "/api/tasks/task/actions/submit", `{"request_id":"blocker-request","task_revision":2,"action_id":"blocker-action","action_kind":"RESOLVE_BLOCKER","process_id":"standard-development","process_definition_digest":"` + digest + `","source_node":"BLOCKED","repository_binding_digest":"` + digest + `","issuance_identity_digest":"` + digest + `","issuance_history_digest":"` + digest + `","issuance_content_digest":"` + digest + `","payload":{"blocker_id":"blocker","condition":{"kind":"restore_issuance_binding","expected_binding_digest":"` + digest + `","expected_identity_digest":"` + digest + `","expected_history_digest":"` + digest + `","expected_content_digest":"` + digest + `"},"observed_binding_digest":"` + digest + `"},"csrf":"` + csrf + `"}`, "submit"},
+		{"submit", "/api/tasks/task/actions/submit", `{"request_id":"action-request","task_revision":1,"action_id":"action","payload":` + payload + `,"csrf":"` + csrf + `"}`, "submit"},
+		{"assess", "/api/tasks/task/recovery/assess", `{"action_id":"action","csrf":"` + csrf + `"}`, "assess"},
+		{"apply", "/api/tasks/task/recovery/apply", `{"action_id":"action","csrf":"` + csrf + `"}`, "recover"},
+		{"resolve blocker", "/api/tasks/task/actions/submit", `{"request_id":"blocker-request","task_revision":2,"action_id":"blocker-action","payload":{"choice":"allow_once","reason":"Approve exact requested paths."},"csrf":"` + csrf + `"}`, "submit"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

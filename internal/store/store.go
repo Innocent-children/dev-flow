@@ -71,7 +71,7 @@ type PurgeTaskMutation struct {
 
 // ControlCenterStore owns existing Task persistence and the bounded read models used by ControlCenter.
 type ControlCenterStore interface {
-	Store
+	ActionOperationStore
 	ListControlCenterTasks(context.Context, TaskListQuery) (ControlCenterTaskPage, error)
 	LoadControlCenterTask(context.Context, domain.ID) (ControlCenterTask, error)
 	LoadTaskEvents(context.Context, domain.ID) ([]TaskEvent, error)

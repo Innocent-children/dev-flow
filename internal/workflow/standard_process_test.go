@@ -407,7 +407,7 @@ func validNodeResult(task domain.ProcessTask, transition domain.TransitionID) an
 		return map[string]any{"simplifications": []string{}, "behavior_change_intended": true, "findings": []string{"Upstream correction is required."}}
 	case domain.NodeDelivery:
 		if transition == "delivery_complete" {
-			return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
+			return map[string]any{"acceptance": []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied", "work_item_ids": task.Implementation.CompletedWorkItemIDs, "evidence_ids": task.Test.EvidenceIDs}}, "automated_evidence_ids": []string{string(task.Test.EvidenceIDs[0])}, "manual_evidence_ids": []string{string(task.Comprehension.UserEvidenceID)}, "test_record_id": task.Test.RecordID, "comprehension_record_id": task.Comprehension.RecordID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}
 		}
 		return map[string]any{"acceptance": []any{}, "automated_evidence_ids": []string{}, "manual_evidence_ids": []string{}, "test_record_id": "", "comprehension_record_id": "", "unverified_items": []string{}, "risks": []string{}, "findings": []string{"Delivery remediation is required."}}
 	}

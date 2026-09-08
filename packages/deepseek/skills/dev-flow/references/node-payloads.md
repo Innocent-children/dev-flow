@@ -66,15 +66,28 @@ Use the live tool schema for types and nested members. These are the closed top-
 | Test | `problem_class`, `checks`, `failed_items`, `unverified_items`, `manual_handoff_items`, `findings`, `budget_adjustment` |
 | Comprehension | `problem_class`, `explained_components`, `unresolved_questions`, `unnecessary_abstractions`, `maintenance_risks`, `user_confirmation`, `findings` |
 | Refactor | `problem_class`, `simplifications`, `behavior_change_intended`, `findings` |
-| Delivery | `problem_class`, `unverified_items`, `risks`, `findings` |
+| Delivery | `problem_class`, `acceptance`, `unverified_items`, `risks`, `findings` |
 
 The Host never submits file-effect fields. Core observes the dedicated worktree before applying an
 Action and computes the Action delta and current Task surface from Git facts.
 
-Delivery submissions never send `acceptance`, `automated_evidence_ids`, `manual_evidence_ids`,
-`test_record_id`, or `comprehension_record_id`. Core derives those authority members from the current
-Requirements, Test, Comprehension, and Evidence records before canonical validation and Recovery
-retention. A submission containing any of those members violates the closed contract.
+Before `implementation_ready_for_test` or `refactor_ready_for_test`, every work item in the current plan must be completed.
+
+Delivery submissions explicitly send `acceptance` in current Requirements order. Each item contains
+`criterion`, `status="satisfied"`, nonempty unique `work_item_ids`, and nonempty unique `evidence_ids`.
+Work items must be completed and mapped to that criterion; evidence must be passed and belong to the
+current Test and Task Plan revision. A passed manual Test check can be linked. Comprehension confirmation
+is checked separately. Remediation transitions send `acceptance=[]`.
+
+`automated_evidence_ids`, `manual_evidence_ids`, `test_record_id`, and `comprehension_record_id` are
+filled by Core and are absent from the submission contract. Core retains the exact explicit acceptance
+links with the canonical operation and completed outcome.
+
+Use the current `dev_flow_get_task` result when these records are not already available: criteria are
+`task.baselines.requirements.acceptance_criteria`, work items are `task.baselines.task_plan.work_items`,
+and eligible evidence IDs are `task.test.evidence_ids`. `task.evidence` supplies the corresponding
+check names, sources and results. Select the checks that establish each criterion; do not attach
+unrelated checks merely because they passed.
 
 The Tasks baseline contains `work_items` plus `verification_plan`. The plan contains `checks[]` with
 `name` and `rationale`, `initial_budget`, `full_suite_expected`, and

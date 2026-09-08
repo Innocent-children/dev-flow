@@ -194,7 +194,7 @@ func TestActionAuthorityAndAggregateCorruptionSafeStopMatrix(t *testing.T) {
 		task.CompletedAt = &task.UpdatedAt
 		task.Outcome = &domain.ProcessOutcome{
 			Status: domain.TerminalCompleted, Summary: "Completed with corrupt evidence.", RequirementsRevision: task.Requirements.Revision,
-			Acceptance:   []domain.OutcomeCriterion{{Criterion: task.Requirements.AcceptanceCriteria[0], Status: domain.CriterionSatisfied}},
+			Acceptance:   []domain.OutcomeCriterion{{Criterion: task.Requirements.AcceptanceCriteria[0], Status: domain.CriterionSatisfied, WorkItemIDs: task.Implementation.CompletedWorkItemIDs, EvidenceIDs: task.Test.EvidenceIDs}},
 			TestRecordID: task.Test.RecordID, ComprehensionRecordID: task.Comprehension.RecordID,
 			AutomatedEvidenceIDs: []domain.ID{"automated"}, ManualEvidenceIDs: nil,
 			FinalRepositoryDigest: task.Repository.BindingDigest, CompletedAt: task.UpdatedAt,

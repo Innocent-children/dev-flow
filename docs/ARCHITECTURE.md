@@ -164,6 +164,18 @@ ExpectedPaths，再构造一次完整 `TaskMutation`。
 响应丢失时 Host 只保留 Task ID 与 Action ID，读取 Core retained operation 后按 `next_advice` 继续；不
 重新拼装 payload，也不从文件状态猜测提交是否成功。
 
+## 完成记录关联
+
+`internal/domain/completion.go` 校验计划、实现、验收和当前检查的记录关系；Application 在写入前返回具体的字段或转换错误，并在构造 mutation 时再次使用同一约束。持久化快照也校验这些关系。
+
+IMPLEMENT→TEST、REFACTOR→TEST 要求 `completed_work_item_ids` 覆盖当前计划全部工作项。返工转换仍可保存部分完成的实现记录。DELIVERY 的 `acceptance` 是调用方必填的语义结果，每项包含 `criterion`、`status`、`work_item_ids`、`evidence_ids`。验收条件按当前 Requirements 顺序完整出现；关联工作项必须已完成并包含对应 `acceptance_indexes`；检查 ID 必须属于当前 Test、状态为 passed 且属于当前 Task Plan revision。Core 只补齐 Test/Comprehension record IDs 和汇总验证记录 ID，不自动生成通过的验收结果。
+
+## HTTP 与 MCP 的共同提交路径
+
+普通 Action 使用 `Service.SubmitAction`，blocker 使用 `Service.ResolveBlockerAction`；两者都由 Core 组装内部载荷，再经过 `StageActionOperation` 和 `CommitActionOperation`。HTTP 保留当前页面的 revision 检查。`workflow.ActionSubmissionSchema` 定义共享语义字段，MCP 适配 Host Schema 限制，WebUI 使用同一份语义结构生成表单。
+
+任务详情返回 `pending_action_id`，表示 Core 已保存但尚未应用的操作。HTTP 恢复只接收 Action ID，由 `GetTask` 和 `RecoverAction` 读取保存载荷并决定下一步。浏览器网络异常先查询 Core，待恢复期间隐藏普通提交表单；刷新页面后仍从 Core 读取待恢复标识。浏览器不再组装内部 OperationProbe。
+
 ## 验证计划、预算增加和复核范围
 
 最终验证预算不属于创建时的 `TaskIntent`。TASKS 已经完成 Requirements、Design、工作拆分、影响面和

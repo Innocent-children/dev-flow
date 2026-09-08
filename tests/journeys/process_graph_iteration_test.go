@@ -203,13 +203,14 @@ func TestProcessGraphIterationNegativeDelivery(t *testing.T) {
 		{"wrong_comprehension_record_id", func(v map[string]any, _ domain.ProcessTask) { v["comprehension_record_id"] = "wrong-comprehension" }},
 		{"acceptance_count", func(v map[string]any, _ domain.ProcessTask) { v["acceptance"] = []any{} }},
 		{"acceptance_order", func(v map[string]any, task domain.ProcessTask) {
-			v["acceptance"] = []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[1], "status": "satisfied"}, {"criterion": task.Requirements.AcceptanceCriteria[0], "status": "satisfied"}}
+			items := v["acceptance"].([]map[string]any)
+			items[0], items[1] = items[1], items[0]
 		}},
 		{"acceptance_text", func(v map[string]any, _ domain.ProcessTask) {
-			v["acceptance"] = []map[string]any{{"criterion": "wrong", "status": "satisfied"}, {"criterion": "second acceptance", "status": "satisfied"}}
+			v["acceptance"].([]map[string]any)[0]["criterion"] = "wrong"
 		}},
 		{"acceptance_status", func(v map[string]any, task domain.ProcessTask) {
-			v["acceptance"] = []map[string]any{{"criterion": task.Requirements.AcceptanceCriteria[0], "status": "unsatisfied"}, {"criterion": task.Requirements.AcceptanceCriteria[1], "status": "satisfied"}}
+			v["acceptance"].([]map[string]any)[0]["status"] = "unsatisfied"
 		}},
 		{"missing_evidence", func(v map[string]any, _ domain.ProcessTask) {
 			v["automated_evidence_ids"] = []string{"missing-evidence"}
@@ -701,8 +702,22 @@ func deliveryJourneyResult(task domain.ProcessTask) map[string]any {
 	}
 	acceptance := []map[string]any{}
 	if task.Requirements != nil {
-		for _, criterion := range task.Requirements.AcceptanceCriteria {
-			acceptance = append(acceptance, map[string]any{"criterion": criterion, "status": "satisfied"})
+		for index, criterion := range task.Requirements.AcceptanceCriteria {
+			ids := []domain.ID{}
+			if task.TaskPlan != nil {
+				for _, item := range task.TaskPlan.WorkItems {
+					for _, target := range item.AcceptanceIndexes {
+						if int(target) == index {
+							ids = append(ids, item.WorkItemID)
+						}
+					}
+				}
+			}
+			evidence := []domain.ID{}
+			if task.Test != nil {
+				evidence = task.Test.EvidenceIDs
+			}
+			acceptance = append(acceptance, map[string]any{"criterion": criterion, "status": "satisfied", "work_item_ids": ids, "evidence_ids": evidence})
 		}
 	}
 	return map[string]any{"acceptance": acceptance, "automated_evidence_ids": automated, "manual_evidence_ids": manual, "test_record_id": testID, "comprehension_record_id": comprehensionID, "unverified_items": []string{}, "risks": []string{}, "findings": []string{}}

@@ -173,6 +173,18 @@ A normal mutation:
 After a lost response, the Host retains only Task ID and Action ID and follows the `next_advice` backed
 by Core's retained operation. It does not reconstruct the payload or infer success from files.
 
+## Completion record relationships
+
+`internal/domain/completion.go` validates the relationships among plans, implementation, acceptance and current checks. Application reports field or transition errors before writing and uses the same constraints when constructing a mutation. Persisted snapshots validate these relationships as well.
+
+IMPLEMENT→TEST and REFACTOR→TEST require `completed_work_item_ids` to cover every current planned work item. Remediation transitions may retain partial implementation. DELIVERY requires caller-supplied semantic `acceptance` results containing `criterion`, `status`, `work_item_ids` and `evidence_ids`. Criteria completely match current Requirements in order. Linked work items must be completed and include the corresponding `acceptance_indexes`; check IDs must belong to the current Test, be passed and belong to the current Task Plan revision. Core fills only Test/Comprehension record IDs and aggregate evidence IDs, without generating passed acceptance results.
+
+## Shared HTTP and MCP submission
+
+Ordinary Actions use `Service.SubmitAction`; blockers use `Service.ResolveBlockerAction`. Both assemble canonical payloads in Core and use `StageActionOperation` followed by `CommitActionOperation`. HTTP retains the page revision check. `workflow.ActionSubmissionSchema` defines shared semantic fields; MCP adapts Host schema constraints, while WebUI uses the same semantic structure for its form.
+
+Task detail returns `pending_action_id` for a retained operation that has not been applied. HTTP recovery accepts only the Action ID; `GetTask` and `RecoverAction` read the retained payload and decide the next step. A browser network failure first queries Core, and ordinary submission is hidden while recovery is pending. Reloading the page reads the pending reference from Core. The browser no longer assembles an internal OperationProbe.
+
 ## Verification plan, budget increases, and review scope
 
 The final verification budget is not part of creation-time `TaskIntent`. TASKS runs after

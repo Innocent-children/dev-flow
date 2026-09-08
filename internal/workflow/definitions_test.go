@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("44f013fc56810340f5d2f12b56ad041478ba01a5e16757e945f5908868744625"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -55,7 +55,7 @@ func TestSemanticMethodCatalogExact(t *testing.T) {
 			{StepID: "tasks.plan_verification", Purpose: "Set the initial verification plan after analyzing scope, impact, and the existing test structure.", Required: true},
 		},
 		domain.NodeImplement: {
-			{StepID: "implementation.execute_plan", Purpose: "Execute only the work authorized by the current task plan.", Required: true},
+			{StepID: "implementation.execute_plan", Purpose: "Complete every work item authorized by the current task plan before entering TEST.", Required: true},
 			{StepID: "implementation.record_surface", Purpose: "Record exact changed paths or the no-change state and deviations.", Required: true},
 			{StepID: "implementation.classify_deviations", Purpose: "Classify implementation deviations as requirement, design, or complexity concerns.", Required: true},
 		},
@@ -75,7 +75,7 @@ func TestSemanticMethodCatalogExact(t *testing.T) {
 			{StepID: "refactor.record_surface", Purpose: "Record exact simplifications and the changed surface.", Required: true},
 		},
 		domain.NodeDelivery: {
-			{StepID: "delivery.reconcile_acceptance", Purpose: "Map the latest acceptance criteria to current test and comprehension evidence.", Required: true},
+			{StepID: "delivery.reconcile_acceptance", Purpose: "Explicitly link every current acceptance criterion to completed work items and passed current Test evidence.", Required: true},
 			{StepID: "delivery.reconcile_method_artifacts", Purpose: "Reconcile method artifacts with the delivered behavior.", Required: true},
 			{StepID: "delivery.prepare_summary", Purpose: "Prepare a bounded delivery summary and remaining risks.", Required: true},
 		},

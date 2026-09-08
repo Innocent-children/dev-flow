@@ -417,9 +417,11 @@ Before submitting, perform this order:
    catalog.
 3. Open the matching node-result template and fill only Host-owned current facts. Use current
    work-item IDs where the live contract requests them. Do not copy `requirements_revision`,
-   `design_revision`, or `task_plan_revision`; do not send Delivery acceptance, evidence IDs, or
-   Test/Comprehension record IDs. Core fills those system-state and Delivery authority members from
-   the current Task snapshot after verifying the current Action.
+   `design_revision`, or `task_plan_revision`; Core fills those revisions, Test/Comprehension record IDs
+   and aggregate evidence IDs from the current Task. Before entering TEST, complete every planned work item.
+   For Delivery, explicitly submit every acceptance criterion with its completed `work_item_ids` and
+   passed current Test `evidence_ids`; each work item must map to that criterion in the current plan.
+   Keep comprehension confirmation separate from acceptance checks.
 4. Set `host="codex"`, copy only `task_id` and `action_id`, and select one returned `transition_id`.
 5. Provide `summary`, the transition's required or empty `reason`, and the exact `node_result`.
 6. Put current-node artifacts in `artifacts.current` only when the live schema exposes it. Put

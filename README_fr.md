@@ -42,6 +42,7 @@ confirmé dans la Task. Ces instructions priment sur la préférence du plugin p
   restants et la décision en cours sans les reconstruire depuis la conversation.
 - **Seuls les résultats encore valides sont réutilisés.** Toute modification de la demande, du plan, de
   l'implémentation ou du dépôt invalide les anciens contrôles ; le développeur examine le résultat avant livraison.
+- **La finalisation et la reprise restent vérifiables.** Core exige que tous les éléments du plan soient terminés et relie chaque critère d’acceptation à des vérifications valides pour l’état actuel. Après une interruption, WebUI reprend les soumissions conservées par Core.
 
 ## Démarrage rapide
 

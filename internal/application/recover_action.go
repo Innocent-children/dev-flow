@@ -124,6 +124,9 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 		}
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
 	}
+	if request.ExpectedRevision != 0 && task.Revision != request.ExpectedRevision {
+		return ApplyActionResult{}, domain.ErrRevisionConflict
+	}
 	if task.CurrentNode != domain.NodeBlocked || task.CurrentAction == nil || task.CurrentAction.ActionID != request.ActionID || task.Blocker == nil {
 		return ApplyActionResult{}, domain.ErrActionStale
 	}

@@ -46,6 +46,22 @@ fetch、专属工作树创建和验证后，再从目标 Host 调用 Core。
 计划外结构化写入仍由 Host 在写前调用 Core。Bash、外部进程或其他工具的写入可能先发生，Core 在
 下一次 Task 读取或 Action 前从 Git 观察中发现。专属工作树内没有“忽略外部改动”的选项。
 
+## 完成条件与操作恢复
+
+进入 TEST 前，当前 Task Plan 的全部工作项必须已经完成。DELIVERY 逐条接收明确的验收结果，每项关联已完成且对应此验收条件的工作项，以及当前 Test 中通过的检查。自动检查、静态检查、Host 观察和明确人工检查均可使用；理解确认仍单独保存，不自动代替验收检查。遗漏、错误或过期引用会使提交被拒绝。
+
+WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core 保存规范化载荷，页面只提交当前 Task revision、Action ID 和语义结果。网络异常先回读 Core；页面重新打开后仍能发现待恢复操作，并按 Action ID 恢复。无效完成结果不会推进任务或保存操作。
+
+### Action HTTP 字段
+
+| 路径 | 请求字段（另含 csrf） |
+| --- | --- |
+| `POST /api/tasks/{task_id}/actions/submit` | request_id、task_revision、action_id、payload；payload 使用当前表单返回的语义字段 |
+| `POST /api/tasks/{task_id}/recovery/assess` | action_id |
+| `POST /api/tasks/{task_id}/recovery/apply` | action_id |
+
+详情的 `pending_action_id` 为空时表示当前读取没有待应用操作；存在时页面显示恢复入口。Core 的再次读取和 Action 校验决定实际执行结果。
+
 ## 启动、打开、查看状态和停止
 
 ```bash

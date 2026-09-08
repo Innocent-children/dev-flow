@@ -20,11 +20,7 @@ func (h *actionHandlers) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.mutator.SubmitCurrentAction(r.Context(), application.SubmitControlCenterActionRequest{
 		RequestID: domain.ID(request.RequestID), TaskID: domain.ID(r.PathValue("task_id")), ExpectedRevision: request.TaskRevision,
-		ActionID: domain.ID(request.ActionID), ActionKind: domain.ActionKind(request.ActionKind), ProcessID: domain.ProcessID(request.ProcessID),
-		ProcessDefinitionDigest: domain.Digest(request.ProcessDefinitionDigest), SourceNode: domain.NodeID(request.SourceNode),
-		RepositoryBindingDigest: domain.Digest(request.RepositoryBindingDigest), IssuanceIdentityDigest: domain.Digest(request.IssuanceIdentityDigest),
-		IssuanceHistoryDigest: domain.Digest(request.IssuanceHistoryDigest), IssuanceContentDigest: domain.Digest(request.IssuanceContentDigest),
-		Payload: append([]byte(nil), request.Payload...),
+		ActionID: domain.ID(request.ActionID), Payload: append([]byte(nil), request.Payload...),
 	})
 	if err != nil {
 		writeActionError(w, request.RequestID, err, false)
@@ -34,43 +30,33 @@ func (h *actionHandlers) submit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *actionHandlers) assessRecovery(w http.ResponseWriter, r *http.Request) {
-	var request RecoveryAssessmentRequest
+	var request ActionRecoveryRequest
 	if DecodeJSON(r, &request) != nil {
 		writeActionError(w, "request-invalid", domain.ErrInvalidArgument, true)
 		return
 	}
-	result, err := h.mutator.AssessTaskOperation(r.Context(), application.AssessControlCenterRecoveryRequest{TaskID: domain.ID(r.PathValue("task_id")), Operation: projectOperationProbe(request.Operation)})
+	result, err := h.mutator.AssessTaskOperation(r.Context(), application.AssessControlCenterRecoveryRequest{TaskID: domain.ID(r.PathValue("task_id")), ActionID: domain.ID(request.ActionID)})
 	if err != nil {
-		writeActionError(w, request.Operation.OperationID, err, true)
+		writeActionError(w, request.ActionID, err, true)
 		return
 	}
-	writeActionResult(w, request.Operation.OperationID, result)
+	writeActionResult(w, request.ActionID, result)
 }
 
 func (h *actionHandlers) applyRecovery(w http.ResponseWriter, r *http.Request) {
-	var request RecoverySubmissionRequest
+	var request ActionRecoveryRequest
 	if DecodeJSON(r, &request) != nil {
 		writeActionError(w, "request-invalid", domain.ErrInvalidArgument, true)
 		return
 	}
 	result, err := h.mutator.ApplyTaskRecovery(r.Context(), application.ApplyControlCenterRecoveryRequest{
-		TaskID: domain.ID(r.PathValue("task_id")), Operation: projectOperationProbe(request.Operation), RecoveryAction: recovery.RecoveryAdvice(request.RecoveryAction),
+		TaskID: domain.ID(r.PathValue("task_id")), ActionID: domain.ID(request.ActionID),
 	})
 	if err != nil {
-		writeActionError(w, request.Operation.OperationID, err, false)
+		writeActionError(w, request.ActionID, err, false)
 		return
 	}
-	writeActionResult(w, request.Operation.OperationID, result)
-}
-
-func projectOperationProbe(probe OperationProbe) application.OperationProbe {
-	return application.OperationProbe{
-		OperationID: domain.ID(probe.OperationID), ExpectedRevision: probe.ExpectedRevision, ActionID: domain.ID(probe.ActionID),
-		ActionKind: domain.ActionKind(probe.ActionKind), ProcessID: domain.ProcessID(probe.ProcessID), ProcessDefinitionDigest: domain.Digest(probe.ProcessDefinitionDigest),
-		SourceCursor: domain.NodeID(probe.SourceNode), RepositoryBindingDigest: domain.Digest(probe.RepositoryBindingDigest),
-		IssuanceIdentityDigest: domain.Digest(probe.IssuanceIdentityDigest), IssuanceHistoryDigest: domain.Digest(probe.IssuanceHistoryDigest), IssuanceContentDigest: domain.Digest(probe.IssuanceContentDigest),
-		Payload: append([]byte(nil), probe.Payload...),
-	}
+	writeActionResult(w, request.ActionID, result)
 }
 
 func writeActionResult(w http.ResponseWriter, requestID string, result application.ControlCenterActionResult) {
@@ -80,7 +66,7 @@ func writeActionResult(w http.ResponseWriter, requestID string, result applicati
 	if result.Committed {
 		writeState = "committed"
 	}
-	var advice *RecoveryAdvice
+	advice := &RecoveryAdvice{Action: RecoveryReadNextAction, RetrySafe: false, Message: "Read the current Task before another submission."}
 	if result.Assessment != nil {
 		mapped := projectRecoveryAdvice(result.Assessment.NextAdvice, result.Assessment.ActionRetrySafe)
 		advice = &mapped

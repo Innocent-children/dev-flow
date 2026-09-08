@@ -3,7 +3,7 @@
   "evidence_class": "simulated_static_adapter_journey",
   "server_info": {
     "product": "dev-flow",
-    "version": "0.8.2",
+    "version": "0.9.0",
     "transport": "stdio",
     "health": "ready",
     "supported_hosts": [
@@ -13,7 +13,7 @@
     "supported_processes": [
       {
         "process_id": "standard-development",
-        "definition_digest": "58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101",
+        "definition_digest": "44f013fc56810340f5d2f12b56ad041478ba01a5e16757e945f5908868744625",
         "new_task_supported": true
       }
     ],
@@ -58,7 +58,7 @@
       "action_kind": "COMPLETE_REQUIREMENTS",
       "submission_tool": "dev_flow_submit_requirements",
       "process_id": "standard-development",
-      "process_definition_digest": "58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101",
+      "process_definition_digest": "44f013fc56810340f5d2f12b56ad041478ba01a5e16757e945f5908868744625",
       "current_node": "REQUIREMENTS",
       "node_purpose": "Transform the immutable initial intent into the current requirements authority.",
       "entry_conditions": [
@@ -132,7 +132,7 @@
       "action_kind": "COMPLETE_TEST",
       "submission_tool": "dev_flow_submit_test",
       "process_id": "standard-development",
-      "process_definition_digest": "58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101",
+      "process_definition_digest": "44f013fc56810340f5d2f12b56ad041478ba01a5e16757e945f5908868744625",
       "current_node": "TEST",
       "node_purpose": "Verify the current repository behavior within the analyzed plan and record any justified budget increase before more commands run.",
       "entry_conditions": [
@@ -236,7 +236,7 @@
       "action_kind": "COMPLETE_COMPREHENSION_REVIEW",
       "submission_tool": "dev_flow_submit_comprehension",
       "process_id": "standard-development",
-      "process_definition_digest": "58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101",
+      "process_definition_digest": "44f013fc56810340f5d2f12b56ad041478ba01a5e16757e945f5908868744625",
       "current_node": "COMPREHENSION_REVIEW",
       "node_purpose": "Verify that the developer can explain and maintain the current design and implementation.",
       "entry_conditions": [

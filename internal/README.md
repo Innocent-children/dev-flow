@@ -58,6 +58,8 @@ internal/application
 操作系统相关的进程、receipt 与 signal 行为位于 `darwin`、`windows` build-tag 文件，Domain、Workflow、
 Application 和 Recovery 不包含平台判断。
 
+完成关系由 `domain/completion.go` 统一校验，覆盖完整工作项集合和验收对当前检查的引用。WebUI 与 MCP 共用 Application 的语义提交与保存操作恢复；WebUI 详情中的 `pending_action_id` 支持页面重开后继续恢复。
+
 ## 定向验证
 
 修改单个 package 时优先运行对应测试：
