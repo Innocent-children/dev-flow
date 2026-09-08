@@ -101,8 +101,9 @@ tar -xzf "/absolute/pet-build/<local-package>.tgz" -C "/absolute/pet-unpack"
 
 菜单栏入口使用 Dev Flow 流线标识的单色图标，横笔与主曲线之间留出适合小尺寸的间隙。图标以 18 pt 矢量绘制，由 macOS 根据菜单栏外观和选中状态着色。
 
-启动后优先恢复该数据目录中保存的任务选择；没有保存选择时，先选最近更新的受阻任务，再选最近更新的进行中任务。
-都没有时保持未选择状态。可从右键菜单或菜单栏的“选择任务”手动更换关注对象；本次运行初次没有任务时，后续新建任务需要从面板选择。
+启动后优先恢复该数据目录中保存的任务选择。未选中任务时，每轮观察先查找最近更新的受阻任务，再查找最近更新的进行中任务；都没有时保持未选择状态，并在后续轮询中继续查找。
+选中后保持当前关注对象，其他任务的新建或更新不会替换选择；任务完成或不可用时也保留选择。可从右键菜单或菜单栏的“选择任务”手动更换关注对象；清除选择后恢复自动查找。
+查找沿用现有观察间隔：macOS 每轮结束后等待 5 秒，Windows 等待 3 秒；隐藏或睡眠时暂停。列表读取失败显示断连，恢复连接后继续查找。
 
 普通 Codex 对话不会自动成为 Dev Flow Task。所选任务持续处于进行中时，即使 Host 暂时没有输出，宠物仍展示工作或审核动作。
 
@@ -345,6 +346,8 @@ Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Cod
 | 同目录的 behavior-map.json 没生效 | 当前读取 `pet.json`、图集或 `animations.json`；`behavior-map.json` 不控制帧时长或行为，使用当前支持的清单字段。 |
 
 ## 验收方式
+
+`swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` 在本机 macOS 上通过 24 项观察器测试，使用模拟 Core 与 HTTP 返回验证空列表后发现新任务、保留已有选择、清除选择后继续查找、读取失败和迟到响应。`node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` 在本机通过 4 项测试，以模拟 Electron、设置存储和 HTTP 执行 Windows 主进程轮询，验证相同选择规则。本次未执行 Windows 原生窗口测试，也未替换正在运行的应用。
 
 `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` 使用模拟 DOM、IPC 和时钟验证 Windows 渲染脚本，可在 Mac 和 Windows 上运行。普通轮询保留散步，缩放结束散步后能安排后续活动，工作和庆祝动画保持进度。两端 CI 均运行此检查；测试不启动原生窗口。包路径、权限与 `.exe` 检查的环境要求见[平台定向检查](../scripts/README.md#平台定向检查)。
 

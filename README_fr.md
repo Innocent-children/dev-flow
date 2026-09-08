@@ -127,6 +127,8 @@ Importez un PNG ou SVG statique, un pack d’animation natif PNG/SVG ou un atlas
 
 La barre de menus affiche le logo monochrome aux lignes courbes de Dev Flow, dont la couleur s’adapte à l’apparence du système. La taille de la mascotte propose six réglages de 50% à 200%, en conservant la taille du texte de la bulle. L’apparence par défaut est fournie dans un pack distinct de neuf animations et 312 images SVG.
 
+Tant qu’aucune tâche n’est sélectionnée, la mascotte continue de rechercher de nouvelles tâches : elle choisit en priorité la tâche bloquée mise à jour le plus récemment, puis la tâche active mise à jour le plus récemment. La sélection reste inchangée jusqu’à une modification manuelle.
+
 Consultez le [guide de la mascotte](docs/DESKTOP-PETS_en.md) pour obtenir l’application, l’installer, la mettre à jour et connaître les règles, limites et solutions aux problèmes. La matrice de support définit le support public.
 
 ```bash

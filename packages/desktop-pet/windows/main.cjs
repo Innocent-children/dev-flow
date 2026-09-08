@@ -213,10 +213,6 @@ async function createDesktop(request) {
   );
   const observer = new Observer(request);
   let selected = prefs.value.selected_tasks[request.dataRootDigest] ?? null,
-    initialized = Object.hasOwn(
-      prefs.value.selected_tasks,
-      request.dataRootDigest,
-    ),
     display = presentation(null, null, true, Boolean(selected)),
     picker = null,
     visible = true,
@@ -449,7 +445,6 @@ async function createDesktop(request) {
       else delete p.selected_tasks[request.dataRootDigest];
     });
     selected = id;
-    initialized = true;
     picker = null;
     continuous = false;
     await poll();
@@ -462,20 +457,20 @@ async function createDesktop(request) {
     observer.controller = new AbortController();
     try {
       await observer.connect();
-      if (!initialized) {
+      if (selected === null) {
         const blocked = await observer.list(1, "blocked");
         let item = blocked.items.find((t) => !t.archived);
         if (!item)
           item = (await observer.list(1, "active")).items.find(
             (t) => !t.archived,
           );
-        selected = item?.task_id ?? null;
-        if (round !== generation) return;
-        await prefs.update((p) => {
-          if (selected) p.selected_tasks[request.dataRootDigest] = selected;
-          else delete p.selected_tasks[request.dataRootDigest];
-        });
-        initialized = true;
+        if (round !== generation || selected !== null) return;
+        if (item) {
+          selected = item.task_id;
+          await prefs.update((p) => {
+            p.selected_tasks[request.dataRootDigest] = item.task_id;
+          });
+        }
       }
       const result = selected ? await observer.detail(selected) : null;
       if (round !== generation) return;

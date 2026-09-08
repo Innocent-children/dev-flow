@@ -126,6 +126,8 @@ Puedes importar un PNG o SVG estático, un paquete de animación nativo PNG/SVG 
 
 La barra de menús muestra el logotipo curvo de Dev Flow en un solo color, que se adapta a la apariencia del sistema. El tamaño de la mascota ofrece seis ajustes del 50% al 200%, sin cambiar el texto del globo. La apariencia predeterminada se incluye en un paquete separado con nueve animaciones y 312 fotogramas SVG.
 
+Mientras no haya una tarea seleccionada, la mascota sigue buscando tareas nuevas: primero elige la tarea bloqueada actualizada más recientemente y, si no hay ninguna, la tarea activa actualizada más recientemente. Mantiene la selección hasta que la cambies manualmente.
+
 Consulta la [guía de la mascota](docs/DESKTOP-PETS_en.md) para obtener la aplicación, instalarla, actualizarla, conocer las reglas y los límites, y resolver problemas. La matriz de soporte define el soporte público.
 
 ```bash

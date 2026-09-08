@@ -126,6 +126,8 @@ O mascote está disponível no macOS arm64 por meio de um pacote local de desenv
 
 A barra de menus exibe o logotipo curvo do Dev Flow em uma única cor, que se adapta à aparência do sistema. O tamanho do mascote oferece seis ajustes de 50% a 200%, mantendo o tamanho do texto do balão. A aparência padrão acompanha o aplicativo como um pacote separado com nove animações e 312 quadros SVG.
 
+Enquanto nenhuma tarefa estiver selecionada, o mascote continua procurando novas tarefas: primeiro escolhe a tarefa bloqueada atualizada mais recentemente e, se não houver nenhuma, a tarefa ativa atualizada mais recentemente. A seleção permanece até que você a altere manualmente.
+
 Consulte o [guia do mascote](docs/DESKTOP-PETS_en.md) para obter o aplicativo, instalar, atualizar, conhecer as regras e os limites e resolver problemas. A matriz de suporte define o suporte público.
 
 ```bash

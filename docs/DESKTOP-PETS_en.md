@@ -102,9 +102,9 @@ Reimport the same source folder to update a custom appearance. Switching appeara
 
 The menu bar entry uses a monochrome Dev Flow mark, with a clear gap between the crossbar and main curve at small sizes. The 18 pt vector icon is tinted by macOS for the menu bar appearance and selection state.
 
-Startup restores the saved task selection for the current data directory. Without a saved selection, it chooses the most recently updated blocked task,
-then the most recently updated active task. If neither exists, it remains unselected. Use Choose task from the context menu or menu bar to change the watched task;
-if no task existed at startup in the current run, choose a subsequently created task from the panel.
+Startup restores the saved task selection for the current data directory. While unselected, each observation looks for the most recently updated blocked task, then the most recently updated active task. If neither exists, it stays unselected and keeps looking on subsequent polls.
+Once selected, the watched task stays selected even when other tasks are created or updated, or the watched task completes or becomes unavailable. Use Choose task from the context menu or menu bar to change it; clearing the selection resumes automatic discovery.
+Discovery uses the existing observation intervals: macOS waits 5 seconds after each round, Windows 3 seconds. Hiding or sleeping pauses observation. A failed list read shows disconnection; discovery continues after reconnection.
 
 Ordinary Codex chats do not automatically become Dev Flow Tasks. A selected task that remains active keeps working or review artwork even when its Host has no new output.
 
@@ -354,6 +354,8 @@ Packs contain presentation data, not executable scripts.
 | A sibling behavior-map.json has no effect | The importer reads `pet.json` with an atlas or `animations.json`. `behavior-map.json` controls neither timing nor behavior; use the supported catalog fields. |
 
 ## Acceptance checks
+
+`swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` passed 24 observer tests on local macOS, using simulated Core and HTTP responses to check discovery after empty lists, retaining a selection, resuming discovery after clearing it, read failures, and late responses. `node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` passed 4 tests locally, running Windows main-process polling with simulated Electron, preference storage, and HTTP to check the same selection rules. This change did not run native Windows window tests or replace the running application.
 
 `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` exercises the Windows renderer using a simulated DOM, IPC and clock on Mac or Windows. Ordinary polls preserve walking, resizing cancels walking and allows later activities, and work and celebration playback retain their progress. Both CI jobs run this check without starting a native window. See [platform-targeted checks](../scripts/README_en.md#platform-targeted-checks) for package-path, permission and `.exe` prerequisites.
 

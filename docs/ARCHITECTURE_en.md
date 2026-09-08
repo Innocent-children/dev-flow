@@ -314,8 +314,7 @@ Source, machine-readable schemas, package manifests, CLI parsers, and executable
 `packages/dev-flow/lib/pet.mjs` reuses installed Adapter Core selection and WebUI commands; macOS
 invocation lives in `lib/platform/macos/pet.mjs`. `packages/desktop-pet/macos` owns AppKit windows,
 read-only HTTP, presentation, process identity, the single instance, and preferences. Each observation
-checks the same Core and service identities; cancellation invalidates old responses. After default
-selection, idle observation only checks the service, while the chooser pages on demand.
+checks the same Core and service identities; cancellation invalidates old responses. While unselected, each observation searches blocked tasks, then active tasks; empty lists preserve the unselected state so later polls keep looking. With a selection, observation reads only that task until the user changes it; stale discovery responses cannot overwrite a newer selection. The chooser pages on demand.
 `productRoot/pet/settings.json` stores position, the animation switch, and selection per data root;
 `selected_appearance`, the enabled-by-default `idle_activities_enabled`, and the character scale `scale` are also saved. `runtime.json` records process identity.
 Core data, the process graph, and MCP tools retain their owners.

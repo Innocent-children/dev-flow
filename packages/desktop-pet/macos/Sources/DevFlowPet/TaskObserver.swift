@@ -59,7 +59,6 @@ actor TaskObserver {
     private var selectedTaskID: String?
     private var isObserving = false
     private var observationGeneration = 0
-    private var defaultSelectionResolved = false
     private var loop: Task<Void, Never>?
     private var exitReason: ExitReason?
 
@@ -121,7 +120,6 @@ actor TaskObserver {
         guard taskID != selectedTaskID else { return }
         selectionGeneration += 1
         selectedTaskID = taskID
-        defaultSelectionResolved = true
         preferences.update { preferences in
             preferences.select(taskID: taskID, for: expectedDataRootDigest)
         }
@@ -138,7 +136,6 @@ actor TaskObserver {
     /// default is resolved later from the blocked and active lists.
     func restoreSelectionFromPreferences() {
         selectedTaskID = preferences.current.selectedTask(for: expectedDataRootDigest)
-        defaultSelectionResolved = selectedTaskID != nil
     }
 
     // MARK: - Explicit retry
@@ -218,7 +215,7 @@ actor TaskObserver {
         }
         guard let client else { return Self.reconnectInterval }
 
-        if !defaultSelectionResolved {
+        if selectedTaskID == nil {
             let resolved = await resolveDefaultSelection(client: client, generation: generation)
             guard isCurrent(generation) else { return Self.pollInterval }
             guard resolved else {
@@ -376,13 +373,12 @@ actor TaskObserver {
     private func resolveDefaultSelection(client: WebUIReading, generation: Int) async -> Bool {
         for lifecycle in [TaskLifecycle.blocked, .active] {
             let result = await client.taskList(page: 1, lifecycle: lifecycle)
-            guard isCurrent(generation), !defaultSelectionResolved else { return false }
+            guard isCurrent(generation), selectedTaskID == nil else { return false }
             switch result {
             case .value(let list):
                 guard let newest = list.items.max(by: { $0.updatedAt < $1.updatedAt }) else { continue }
                 selectionGeneration += 1
                 selectedTaskID = newest.taskID
-                defaultSelectionResolved = true
                 preferences.update { preferences in
                     preferences.select(taskID: newest.taskID, for: expectedDataRootDigest)
                 }
@@ -392,7 +388,6 @@ actor TaskObserver {
                 return false
             }
         }
-        defaultSelectionResolved = true
         return true
     }
 }

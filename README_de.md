@@ -124,6 +124,8 @@ Importiert werden können ein statisches PNG oder SVG, ein natives PNG/SVG-Anima
 
 Die Menüleiste zeigt das geschwungene Dev-Flow-Logo einfarbig; die Farbe passt sich dem Erscheinungsbild des Systems an. Die Größe des Maskottchens lässt sich in sechs Stufen von 50% bis 200% einstellen; die Schriftgröße der Sprechblase bleibt gleich. Das Standardaussehen wird als separates Grafikpaket mit neun Animationen und 312 SVG-Einzelbildern mitgeliefert.
 
+Solange keine Aufgabe ausgewählt ist, sucht das Haustier weiter nach neuen Aufgaben. Es wählt zuerst die zuletzt aktualisierte blockierte Aufgabe, andernfalls die zuletzt aktualisierte aktive Aufgabe. Die Auswahl bleibt bestehen, bis sie manuell geändert wird.
+
 Bezug, Installation, Aktualisierung, Auslöseregeln, Grenzen und Fehlerbehebung stehen im [Desktop-Maskottchen-Handbuch](docs/DESKTOP-PETS_en.md). Die Support-Matrix definiert den öffentlichen Support.
 
 ```bash

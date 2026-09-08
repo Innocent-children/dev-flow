@@ -213,6 +213,49 @@ final class TaskObserverTests: XCTestCase {
         XCTAssertEqual(empty.collector.snapshot.last?.connection, .connected(url: TestFixtures.origin))
     }
 
+    func testIdlePollingDiscoversANewTaskAndKeepsWatchingIt() async {
+        let context = makeContext(selectedTaskID: nil)
+        context.client.setList(lifecycle: .blocked, .value(TestDetails.list(summaries: [])))
+        context.client.setList(lifecycle: .active, .value(TestDetails.list(summaries: [])))
+        await context.observer.beginObserving()
+        await assertEventually { context.collector.snapshot.last?.presentation.phase == .noSelection }
+
+        context.client.setList(lifecycle: .active, .value(TestDetails.list(summaries: [
+            TestFixtures.summary(taskID: "created-later", lifecycle: .active),
+        ])))
+        context.client.setDetail(taskID: "created-later", .value(TestDetails.detail(taskID: "created-later")))
+        await context.observer.refreshNow()
+        await assertEventually { context.collector.snapshot.last?.selectedTaskID == "created-later" }
+        XCTAssertEqual(context.preferences.current.selectedTask(for: TestFixtures.dataRootDigest), "created-later")
+        XCTAssertEqual(context.collector.snapshot.last?.presentation.phase, .working(node: "IMPLEMENT"))
+
+        context.client.setList(lifecycle: .blocked, .value(TestDetails.list(summaries: [
+            TestFixtures.summary(taskID: "new-blocked", lifecycle: .blocked),
+        ])))
+        let reads = context.client.requestCount("detail:")
+        let lists = context.client.requestCount("list:")
+        await context.observer.refreshNow()
+        await assertEventually { context.client.requestCount("detail:") > reads }
+        let selected = await context.observer.currentSelection()
+        XCTAssertEqual(selected, "created-later")
+        XCTAssertEqual(context.client.requestCount("list:"), lists)
+    }
+
+    func testClearingSelectionResumesDiscovery() async {
+        let context = makeContext(selectedTaskID: "task-1")
+        context.client.setDetail(taskID: "task-1", .value(TestDetails.detail()))
+        context.client.setList(lifecycle: .blocked, .value(TestDetails.list(summaries: [
+            TestFixtures.summary(taskID: "blocked", lifecycle: .blocked),
+        ])))
+        context.client.setDetail(taskID: "blocked", .value(TestDetails.detail(taskID: "blocked", lifecycle: .blocked)))
+        await context.observer.restoreSelectionFromPreferences()
+        await context.observer.beginObserving()
+        await assertEventually { context.collector.snapshot.last?.selectedTaskID == "task-1" }
+        await context.observer.select(taskID: nil)
+        await assertEventually { context.collector.snapshot.last?.selectedTaskID == "blocked" }
+        XCTAssertEqual(context.preferences.current.selectedTask(for: TestFixtures.dataRootDigest), "blocked")
+    }
+
     func testOtherTaskUpdatesDoNotChangeTheWatchedTask() async {
         let context = makeContext(selectedTaskID: "task-1")
         context.client.setDetail(taskID: "task-1", .value(TestDetails.detail(taskID: "task-1")))
@@ -429,7 +472,7 @@ final class TaskObserverTests: XCTestCase {
         XCTAssertEqual(context.collector.count, count)
     }
 
-    func testIdleRefreshChecksTheServiceWithoutRescanningTasks() async {
+    func testIdleRefreshChecksTheServiceAndRescansTasks() async {
         let context = makeContext(selectedTaskID: nil)
         context.client.setList(lifecycle: .blocked, .value(TestDetails.list(summaries: [])))
         context.client.setList(lifecycle: .active, .value(TestDetails.list(summaries: [])))
@@ -438,7 +481,7 @@ final class TaskObserverTests: XCTestCase {
         let count = context.collector.count
         await context.observer.refreshNow()
         await assertEventually { context.collector.count > count }
-        XCTAssertEqual(context.client.requestCount("list:"), 2)
+        XCTAssertEqual(context.client.requestCount("list:"), 4)
         XCTAssertEqual(context.client.requestCount("status"), 2)
     }
 

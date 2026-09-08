@@ -292,8 +292,7 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 
 `packages/dev-flow/lib/pet.mjs` 复用已安装 Adapter 的 Core 选择与 WebUI 入口；macOS 调用位于
 `lib/platform/macos/pet.mjs`。`packages/desktop-pet/macos` 负责 AppKit 窗口、只读 HTTP、展示、进程身份、
-单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。默认选择完成后，待机只
-检查服务，任务面板按需分页。`productRoot/pet/settings.json` 只保存位置、动画开关和按数据目录分组的
+单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。未选中任务时，每轮观察按受阻、进行中的顺序查找任务；空列表保留未选择状态，后续轮询继续查找。已有选择时只读取所选任务，直到用户更换选择；过期查找响应不能覆盖新选择。任务面板按需分页。`productRoot/pet/settings.json` 只保存位置、动画开关和按数据目录分组的
 任务选择，还保存 `selected_appearance`、默认开启的 `idle_activities_enabled` 与角色缩放比例 `scale`；`runtime.json` 记录进程身份。
 Core 数据、流程图和 MCP 工具保持现有职责。
 

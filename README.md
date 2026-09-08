@@ -122,6 +122,8 @@ Import a static PNG or SVG, a native PNG/SVG animation pack, or a Codex format 1
 
 The menu bar uses a monochrome Dev Flow mark that adapts to the system appearance. Pet size offers six settings from 50% to 200% while keeping bubble text unchanged. The default appearance ships as a separate nine-clip pack of 312 SVG frames.
 
+While no task is selected, the pet keeps looking for new tasks, preferring the most recently updated blocked task, then the most recently updated active task. Once selected, the watched task stays selected until you change it.
+
 See the [desktop pet guide](docs/DESKTOP-PETS_en.md) for obtaining the app, installation, updates, triggers, limits, and troubleshooting; the support matrix defines public support.
 
 ```bash

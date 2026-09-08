@@ -164,6 +164,7 @@ schemas, package manifests, CLI parsers, and executable tests.
 On macOS arm64, the desktop pet uses a local development package containing `DevFlowPet.app`, with Core supplied by an already configured Codex or DeepSeek Adapter.
 Regular npm file lists and release preparation currently omit the native app; see the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) to obtain it.
 The pet shows one selected Task's saved state and opens its WebUI. Core owns Task state; presentation indicates neither live Host activity nor completion percentages.
+While no task is selected, the pet keeps looking for new tasks, preferring the most recently updated blocked task, then the most recently updated active task. Once selected, the watched task stays selected until you change it.
 The menu bar uses a monochrome Dev Flow mark that adapts to the system appearance. Pet size offers six settings from 50% to 200% and saves the selection while keeping bubble text unchanged.
 
 Appearances can use a single PNG or SVG, a native PNG/SVG animation pack, a standard Codex format 1/2 atlas, or Dev Flow's high-resolution extension. Five task clips are required;
