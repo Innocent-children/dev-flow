@@ -503,3 +503,9 @@ stdin: {"launch_id":"<saved launch ID>","repository_keys":["api","web"],"primary
 `read_next_action` 可以直接使用 open/next-action 已返回的完整 Action；来自只读快照 `get_task` 时查询一次新 Action。已经完成的恢复评估持续存在时不重复查询。
 
 Task Plan 的 `expected_paths` 支持精确路径及目录后缀 `/**`，不支持一般 glob；`src` 不代表目录下的全部文件。多仓库使用 `key::relative-path`。`acceptance_indexes` 从 0 开始，对应当前 Requirements 的 `acceptance_criteria` 数组；`dependencies` 引用同一计划中的 work-item ID。
+
+`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `fetched` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
+
+`dispatch-result` 的 `host_result` 使用 Codex 原始完整返回值：支持直接结果对象、`result`、`structuredContent`、`structuredContent.result`，以及没有结构化结果时单个 `content` 文本块中的 JSON。结构化结果优先；文本 JSON 必须合法且无重复成员。`isError: true`、缺少标识、无法解析或多个文本块均记录为 `uncertain`。
+
+有效 `clientThreadId` 保存到 `operation_status.host_client_thread_id`，阶段为 `queued`；有效 `threadId` 保存到 `host_thread_id`，阶段为 `dispatched`。对相同 `launch_id` 和 `repository_key` 补交保留的原始结果，允许 `uncertain → queued`；后续就绪结果沿 `queued → dispatched` 保存，并保留排队 ID 和原派发标识。`dispatch-start` 在这些阶段均返回 `should_dispatch: false`。Host 继续检查同一次创建；`clientThreadId` 不是可传给要求 `threadId` 的工具的任务 ID。

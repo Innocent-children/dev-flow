@@ -103,6 +103,122 @@ test("available Codex CLI natively parses the relaunch -C and --add-dir options 
   }
 });
 
+for (const surface of ["managed_worktree", "cli_worktree"]) {
+  test(`${surface} prepare generates a launch ID and resumes the same receipt on retry`, async (t) => {
+    const fixture = await makeRemoteFixture(t, "generated-launch-id");
+    const request = "Prepare a launch without an explicit ID.";
+    const input = Object.freeze({
+      request,
+      handoff_file: await writeHandoffFixture(fixture.root, request),
+      assessment_anchor: await assessmentAnchor(fixture, request),
+      repository_key: "primary",
+      repository_path: fixture.source,
+      remote_name: "origin",
+      base_branch: "main",
+      target_branch: "codex/generated-launch-id",
+      surface,
+      worktree_path: surface === "managed_worktree" ? null : join(fixture.root, "CLI worktree"),
+    });
+    const launch = await prepareTaskLaunch(input, fixture.options);
+    assert.match(launch.receipt.launch_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
+    assert.equal(Object.hasOwn(input, "launch_id"), false);
+    assert.equal(launch.receipt.operation_status.phase, "fetched");
+    assert.equal(launch.fetch_performed, true);
+    assert.equal(launch.resumed, false);
+    assert.equal(launch.receipt.fetched_commit, await gitOutput(fixture.source, "rev-parse", "refs/remotes/origin/main"));
+    assert.deepEqual(await readProvisioningReceipt(launch.receipt_path, fixture.options), launch.receipt);
+
+    const retryInput = { ...input, launch_id: launch.receipt.launch_id };
+    const retryOptions = {
+      ...fixture.options,
+      createLaunchId: () => assert.fail("an explicit launch ID must be retained"),
+      runGit: () => assert.fail("a fetched launch must resume without Git operations"),
+    };
+    const retry = await prepareTaskLaunch(retryInput, retryOptions);
+    assert.equal(retry.receipt_path, launch.receipt_path);
+    assert.deepEqual(retry.receipt, launch.receipt);
+    assert.equal(retry.resumed, true);
+    assert.equal(retry.fetch_performed, false);
+    await assert.rejects(
+      prepareTaskLaunch({ ...retryInput, target_branch: "codex/conflicting-target" }, retryOptions),
+      /launch identity conflicts/u,
+    );
+    await writeFile(launch.receipt_path, JSON.stringify({ ...launch.receipt, launch_id: "different-launch" }));
+    await assert.rejects(prepareTaskLaunch(retryInput, retryOptions), /launch identity conflicts/u);
+  });
+}
+
+test("managed dispatch records complete Codex results and resumes without redispatch", async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-dispatch-result-")));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const options = { productSupportRoot: root };
+  const clientThreadId = "client-new-thread:1bb3adae-ad01-4210-909e-06fe333f69c2";
+  const queued = { clientThreadId, hostId: "local" };
+  const wrapped = { content: [{ type: "text", text: JSON.stringify(queued) }], isError: false };
+  const cases = [
+    ["text", wrapped, "queued"],
+    ["direct", queued, "queued"],
+    ["structured", { structuredContent: queued }, "queued"],
+    ["structured-result", { structuredContent: { result: queued } }, "queued"],
+    ["result", { result: queued }, "queued"],
+    ["ready-text", { content: [{ type: "text", text: '{"threadId":"thread-1","hostId":"local"}' }] }, "dispatched"],
+    ["tool-error", { ...wrapped, isError: true }, "uncertain"],
+    ["structured-error", { structuredContent: queued, isError: true }, "uncertain"],
+    ["invalid-json", { content: [{ type: "text", text: "creation timed out" }] }, "uncertain"],
+    ["duplicate-id", { content: [{ type: "text", text: '{"clientThreadId":"a","clientThreadId":"b"}' }] }, "uncertain"],
+    ["multiple-texts", { content: [...wrapped.content, ...wrapped.content] }, "uncertain"],
+    ["missing-id", { content: [{ type: "text", text: '{"hostId":"local"}' }] }, "uncertain"],
+    ["lost", null, "uncertain"],
+  ];
+  for (const [name, host_result, phase] of cases) {
+    await t.test(name, async () => {
+      const identity = { launch_id: `launch-result-${name}`, repository_key: "primary" };
+      const path = provisioningReceiptPath(root, identity.launch_id, identity.repository_key);
+      let receipt = createProvisioningReceipt({
+        launchId: identity.launch_id, repositoryKey: identity.repository_key,
+        requestDigest: "a".repeat(64), handoffDigest: "b".repeat(64), sourceRepositoryIdentity: "c".repeat(64),
+        remoteName: "origin", baseBranch: "main", targetBranch: "codex/result", surface: "managed_worktree",
+      });
+      receipt = updateProvisioningReceipt(receipt, { phase: "fetching", values: {} });
+      receipt = updateProvisioningReceipt(receipt, { phase: "fetched", values: { fetched_commit: "d".repeat(40) } });
+      receipt = updateProvisioningReceipt(receipt, { phase: "dispatching", values: { dispatch_attempt_id: "e".repeat(64) } });
+      await writeProvisioningReceiptAtomic(path, receipt, options);
+      let output = "";
+      const command = await runCLI(["host-launch", "dispatch-result"], {
+        resolvePaths: () => ({ ...options, enforcePrivateModes: true }),
+        readInput: () => JSON.stringify({ ...identity, host_result }),
+        stdout: { write: (text) => { output += text; } },
+        stderr: { write: (text) => assert.fail(text) },
+      });
+      assert.equal(command.code, 0);
+      const saved = await readProvisioningReceipt(path, options);
+      assert.deepEqual(JSON.parse(output).receipt, saved);
+      assert.equal(saved.operation_status.phase, phase);
+      assert.equal(saved.operation_status.host_client_thread_id, phase === "queued" ? clientThreadId : null);
+      assert.equal(saved.operation_status.host_thread_id, phase === "dispatched" ? "thread-1" : null);
+      assert.equal(saved.operation_status.dispatch_attempt_id, receipt.operation_status.dispatch_attempt_id);
+      assert.equal((await beginManagedTaskDispatch({ ...identity, project_id: "project-1" }, options)).should_dispatch, false);
+
+      if (phase === "uncertain") {
+        const recovered = await recordManagedTaskDispatch({ ...identity, host_result: wrapped }, options);
+        assert.equal(recovered.receipt.operation_status.phase, "queued");
+        assert.equal(recovered.receipt.operation_status.host_client_thread_id, clientThreadId);
+      }
+      if (phase !== "dispatched") {
+        const ready = await recordManagedTaskDispatch({
+          ...identity, host_result: { content: [{ type: "text", text: '{"threadId":"thread-1"}' }], isError: false },
+        }, options);
+        assert.equal(ready.receipt.operation_status.phase, "dispatched");
+        assert.equal(ready.receipt.operation_status.host_thread_id, "thread-1");
+        assert.equal(ready.receipt.operation_status.host_client_thread_id, clientThreadId);
+        assert.equal(ready.receipt.operation_status.dispatch_attempt_id, receipt.operation_status.dispatch_attempt_id);
+        assert.deepEqual(await readProvisioningReceipt(path, options), ready.receipt);
+        assert.equal((await beginManagedTaskDispatch({ ...identity, project_id: "project-1" }, options)).should_dispatch, false);
+      }
+    });
+  }
+});
+
 test("managed launch freezes the confirmed remote ref, dispatches once, and bootstraps a named clean branch", async (t) => {
   const fixture = await makeRemoteFixture(t, "managed");
   await writeFile(join(fixture.source, "source-only.txt"), "do not copy\n");

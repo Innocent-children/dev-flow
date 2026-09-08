@@ -173,3 +173,7 @@ dev-flow-codex host-launch prepare --help
 ```
 
 Consulta los parámetros y las reglas de recuperación en la [referencia de comandos](docs/COMMANDS_en.md).
+
+`host-launch prepare` genera `launch_id` cuando se omite y usa ese ID para comprobar el registro de inicio. Para reintentar el mismo inicio, envíe el `receipt.launch_id` devuelto; si el registro ya está en `fetched`, se omite fetch. Un ID explícito debe coincidir con el registro guardado.
+
+`host-launch dispatch-result` acepta la respuesta completa de creación de Codex, incluido el JSON de `content[].text`. Guarda `clientThreadId` como `host_client_thread_id` con la fase `queued`; reenviar un resultado conservado con los mismos `launch_id` y `repository_key` permite recuperar un registro `uncertain`. Las comprobaciones posteriores siguen la misma creación, sin volver a despacharla.

@@ -169,3 +169,7 @@ dev-flow-codex host-launch prepare --help
 ```
 
 See the [command reference](docs/COMMANDS_en.md) for parameter and recovery rules.
+
+`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `fetched` skips fetch. An explicit ID must match the saved receipt.
+
+`host-launch dispatch-result` accepts the complete Codex creation response, including JSON in `content[].text`. It saves `clientThreadId` as `host_client_thread_id` with phase `queued`; resubmitting a retained result with the same `launch_id` and `repository_key` can recover an `uncertain` record. Subsequent inspection follows the same creation, without dispatching again.

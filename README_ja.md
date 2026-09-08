@@ -168,3 +168,7 @@ dev-flow-codex host-launch prepare --help
 ```
 
 引数と復旧手順は[コマンドリファレンス](docs/COMMANDS_en.md)を参照してください。
+
+`host-launch prepare` は `launch_id` が省略された場合に ID を生成し、その ID で起動記録を照合します。再試行時は返された `receipt.launch_id` を渡して同じ起動を再開します。記録がすでに `fetched` なら fetch を省略します。明示した ID は保存済みの記録と一致する必要があります。
+
+`host-launch dispatch-result` は、`content[].text` 内の JSON を含む Codex のタスク作成応答全体を受け取ります。`clientThreadId` を `host_client_thread_id` として保存し、段階を `queued` に設定します。同じ `launch_id` と `repository_key` で保持済みの結果を再送すると、`uncertain` の記録を復旧できます。その後の確認は同じ作成処理を追跡し、再ディスパッチしません。

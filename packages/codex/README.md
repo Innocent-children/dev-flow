@@ -263,3 +263,7 @@ Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-
 `dev-flow-codex --help` 列出命令；`dev-flow-codex host-launch <operation> --help` 返回该操作的完整输入 Schema、字段来源、输出字段和下一步。帮助查询不读取 stdin 或执行工作区操作。所有仓库准备完成后，`host-launch scope` 汇总同一 launch 的创建记录供 Core 使用。
 
 MCP 提供结果 Schema，并在 `structuredContent` 和文本中返回同一 JSON。Skill 按工具类型读取 Task 或 Action，并在恢复会话中优先处理已有恢复建议；创建、取消、放弃和迁移准备使用各自的结果回读规则。正常执行仅展示简短状态。详见[命令参考](../../docs/COMMANDS.md)。
+
+`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `fetched` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
+
+`host-launch dispatch-result` 接收 Codex 创建任务的完整返回值，包括 `content[].text` 中的 JSON。它将 `clientThreadId` 保存为 `host_client_thread_id`，阶段设为 `queued`；以相同 `launch_id` 和 `repository_key` 重新提交保留的结果，可以恢复 `uncertain` 记录。后续检查继续跟踪同一次创建，不重复派发。

@@ -64,7 +64,7 @@ const contracts = {
     next_step: "Forward host_request to the Host unchanged, then record the complete response with dispatch-result. For false, read status and the existing Host task.",
   },
   "dispatch-result": {
-    description: "Record the original Codex creation result; a missing or malformed result records uncertainty.",
+    description: "Record the complete Codex creation result, including structuredContent/result or a single JSON text content block. Save clientThreadId as queued and threadId as dispatched; tool errors, missing or malformed results record uncertainty.",
     input_schema: object({ ...identity, host_result: hostResult }), output_fields: { ...receiptOutput, changed: "Whether the record changed." },
     next_step: "Queued/clientThreadId results require Host inspection, never another create_thread. The destination session consumes the receipt with bootstrap.",
   },

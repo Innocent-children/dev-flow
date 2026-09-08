@@ -183,3 +183,7 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`，复用 Core 对当前 Action 的完整 Git 观察。Codex 只补充文件用途和说明，准备命令检查清单与当前观察一致后生成 artifact 数组。流程文件漏报返回具体路径和仅修改 artifact 字段的一次纠正指示；实际仓库异常继续按原有恢复规则处理。详见[文件收集与提交](ARTIFACTS.md)。
 
 Codex 可通过 `dev-flow-codex --help` 和工作区操作帮助查询参数 Schema、字段来源及下一步，并从同一批已准备的工作区记录生成完整仓库参数。MCP 提供结果 Schema 和结构化返回；恢复会话先处理 Core 保存的未完成提交，再执行当前节点。创建、取消、放弃和迁移准备分别按自身标识回读结果。
+
+`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `fetched` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
+
+`host-launch dispatch-result` 接收 Codex 创建任务的完整返回值，包括 `content[].text` 中的 JSON。它将 `clientThreadId` 保存为 `host_client_thread_id`，阶段设为 `queued`；以相同 `launch_id` 和 `repository_key` 重新提交保留的结果，可以恢复 `uncertain` 记录。后续检查继续跟踪同一次创建，不重复派发。

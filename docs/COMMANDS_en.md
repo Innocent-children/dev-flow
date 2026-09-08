@@ -536,3 +536,9 @@ On fresh-session resume, a retained `recovery_assessment` takes precedence over 
 `read_next_action` consumes a guarded Action already returned by open/next-action lookup; an advice from saved-state `get_task` requires one guarded lookup. A retained completed assessment does not cause repeated queries.
 
 Task Plan `expected_paths` supports exact paths and a directory suffix `/**`, not general globs; `src` does not cover every file below that directory. Multi-repository paths use `key::relative-path`. `acceptance_indexes` starts at 0 in the current Requirements `acceptance_criteria` array; `dependencies` refers to work-item IDs in the same plan.
+
+`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `fetched` skips fetch. An explicit ID must match the saved receipt.
+
+Use the complete original Codex response as `dispatch-result` input `host_result`: a direct result object, `result`, `structuredContent`, `structuredContent.result`, or JSON in a single `content` text block when no structured result is present. Structured results take precedence; text JSON must be valid and contain no duplicate members. `isError: true`, missing identifiers, parsing failures, or multiple text blocks record `uncertain`.
+
+A valid `clientThreadId` is saved as `operation_status.host_client_thread_id` with phase `queued`; a valid `threadId` is saved as `host_thread_id` with phase `dispatched`. Resubmitting the retained original result for the same `launch_id` and `repository_key` allows `uncertain → queued`; a later ready result follows `queued → dispatched`, retaining the queued ID and original dispatch marker. `dispatch-start` returns `should_dispatch: false` in all these phases. The Host continues inspecting the same creation; `clientThreadId` is not a task ID usable with tools requiring `threadId`.

@@ -174,3 +174,7 @@ dev-flow-codex host-launch prepare --help
 ```
 
 Les paramètres et les règles de reprise figurent dans la [référence des commandes](docs/COMMANDS_en.md).
+
+`host-launch prepare` génère `launch_id` lorsqu’il est omis et utilise cet ID pour vérifier l’enregistrement du lancement. Pour reprendre le même lancement, transmettez le `receipt.launch_id` renvoyé ; si l’enregistrement est déjà à l’état `fetched`, fetch est ignoré. Un ID explicite doit correspondre à l’enregistrement sauvegardé.
+
+`host-launch dispatch-result` accepte la réponse complète de création de Codex, y compris le JSON dans `content[].text`. Il enregistre `clientThreadId` dans `host_client_thread_id` avec la phase `queued` ; renvoyer un résultat conservé avec les mêmes `launch_id` et `repository_key` permet de récupérer un enregistrement `uncertain`. Les vérifications suivantes suivent la même création, sans nouvelle demande de création.

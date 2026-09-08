@@ -38,7 +38,7 @@ const phaseTransitions = Object.freeze({
   dispatched: Object.freeze(["dispatched", "provisioning", "failed", "uncertain"]),
   provisioning: Object.freeze(["provisioning", "provisioned", "failed", "uncertain"]),
   provisioned: Object.freeze(["provisioned", "handoff_dispatching", "worktree_removed"]),
-  uncertain: Object.freeze(["uncertain", "dispatched", "provisioning", "provisioned", "handoff_pending", "failed"]),
+  uncertain: Object.freeze(["uncertain", "queued", "dispatched", "provisioning", "provisioned", "handoff_pending", "failed"]),
   failed: Object.freeze(["failed"]),
   handoff_dispatching: Object.freeze(["handoff_dispatching", "handoff_pending", "handoff_failed", "uncertain"]),
   handoff_pending: Object.freeze(["handoff_pending", "handoff_succeeded", "handoff_failed", "uncertain"]),

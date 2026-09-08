@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { isAbsolute, resolve } from "node:path";
 
+import { assertNoDuplicateJSONMembers } from "./json.mjs";
 import { requestDigest, validateAdmissionAnchor } from "./task-admission.mjs";
 import {
   buildManagedBootstrapPrompt,
@@ -37,6 +38,7 @@ export async function prepareTaskLaunch(input, {
 } = {}) {
   validatePrepareInput(input);
   const launchId = input.launch_id ?? createLaunchId();
+  const receiptInput = { ...input, launch_id: launchId };
   const currentRequestDigest = requestDigest(input.request);
   const assessmentAnchor = validateAdmissionAnchor(input.assessment_anchor);
   if (assessmentAnchor.request_digest !== currentRequestDigest) {
@@ -49,7 +51,7 @@ export async function prepareTaskLaunch(input, {
   const path = provisioningReceiptPath(productSupportRoot, launchId, input.repository_key);
   const existing = await readProvisioningReceipt(path, { productSupportRoot });
   if (existing !== null) {
-    assertInputMatchesReceipt(existing, input, currentRequestDigest, handoffDigest);
+    assertInputMatchesReceipt(existing, receiptInput, currentRequestDigest, handoffDigest);
     if (existing.operation_status.phase !== "confirmed") {
       return Object.freeze({ receipt_path: path, receipt: existing, resumed: true, fetch_performed: false });
     }
@@ -94,7 +96,7 @@ export async function prepareTaskLaunch(input, {
       if (error?.code !== "EEXIST") throw error;
       const concurrent = await readProvisioningReceipt(path, { productSupportRoot });
       if (concurrent === null) throw error;
-      assertInputMatchesReceipt(concurrent, input, currentRequestDigest, handoffDigest);
+      assertInputMatchesReceipt(concurrent, receiptInput, currentRequestDigest, handoffDigest);
       return Object.freeze({ receipt_path: path, receipt: concurrent, resumed: true, fetch_performed: false });
     }
   } else if (initial.source_repository_identity !== source.source_repository_identity) {
@@ -107,7 +109,7 @@ export async function prepareTaskLaunch(input, {
       if (current.operation_status.phase !== "confirmed") {
         return Object.freeze({ receipt_path: path, receipt: current, resumed: true, fetch_performed: false });
       }
-      assertInputMatchesReceipt(current, input, currentRequestDigest, handoffDigest);
+      assertInputMatchesReceipt(current, receiptInput, currentRequestDigest, handoffDigest);
       await writeTaskHandoff(path, handoff, { enforcePrivateModes });
       const fetching = updateProvisioningReceipt(current, { phase: "fetching", values: {} });
       await writeProvisioningReceiptAtomic(path, fetching, { productSupportRoot, enforcePrivateModes });
@@ -611,7 +613,19 @@ async function persistReceipt(path, receipt, options) {
 }
 
 function normalizeHostCreationResult(value) {
-  const result = normalizedStructuredResult(value);
+  if (value?.isError === true) return { kind: "uncertain" };
+  let result = normalizedStructuredResult(value);
+  if (result === value && Array.isArray(value?.content)) {
+    const texts = value.content.filter((entry) => entry?.type === "text");
+    if (texts.length !== 1 || typeof texts[0].text !== "string") return { kind: "uncertain" };
+    try {
+      assertNoDuplicateJSONMembers(texts[0].text);
+      result = normalizedStructuredResult(JSON.parse(texts[0].text));
+    } catch {
+      return { kind: "uncertain" };
+    }
+  }
+  if (result?.isError === true) return { kind: "uncertain" };
   if (result && typeof result.threadId === "string" && result.threadId !== "") {
     return { kind: "ready", threadId: result.threadId };
   }

@@ -171,3 +171,7 @@ dev-flow-codex host-launch prepare --help
 ```
 
 Parameter und Regeln zur Wiederaufnahme stehen in der [Befehlsreferenz](docs/COMMANDS_en.md).
+
+`host-launch prepare` erzeugt bei ausgelassenem `launch_id` eine ID und verwendet sie zum Abgleich des Startdatensatzes. Übergeben Sie bei einem erneuten Versuch die zurückgegebene `receipt.launch_id`, um denselben Start fortzusetzen; bei einem Datensatz im Zustand `fetched` entfällt fetch. Eine explizite ID muss mit dem gespeicherten Datensatz übereinstimmen.
+
+`host-launch dispatch-result` akzeptiert die vollständige Codex-Antwort zur Aufgabenerstellung, einschließlich JSON in `content[].text`. Es speichert `clientThreadId` als `host_client_thread_id` mit der Phase `queued`; ein gespeichertes Ergebnis kann mit derselben `launch_id` und demselben `repository_key` erneut übermittelt werden, um einen `uncertain`-Datensatz wiederherzustellen. Weitere Prüfungen verfolgen dieselbe Erstellung, ohne sie erneut auszulösen.

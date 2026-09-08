@@ -74,6 +74,8 @@ digest, `handoff_digest`, source repository identity, repository key, remote/bas
 operation status, and time. It contains no remote URL, credentials, file content, or workflow node.
 Uncertain results read receipt/Host state instead of dispatching again.
 
+The Host Adapter parses Codex creation results, including JSON in a single text block of the complete response. It saves `clientThreadId` as `host_client_thread_id` and enters `queued`; recording a valid retained result for the same launch can recover `uncertain` to `queued`, followed by `dispatched` when ready. Both transitions retain the original dispatch marker, and `dispatch-start` continues rejecting repeat dispatch. These Host record transitions do not change Core Task state.
+
 ## Codex requirements handoff
 
 The source Codex session organizes the complete relevant discussion, including early requirements,

@@ -67,6 +67,8 @@ Host 在第一次 Git 写入前保存窄 provisioning receipt：launch/host/requ
 key、remote/base/target、fetched commit、worktree path、operation status 与时间。它不保存凭据、remote
 URL、文件内容或流程节点。结果不确定时读取 receipt/Host 状态，禁止盲目再次 dispatch。
 
+Codex 创建结果由 Host Adapter 解析，包括完整返回值中单个文本块的 JSON。`clientThreadId` 写入 `host_client_thread_id` 并进入 `queued`；相同启动记录补交有效结果可从 `uncertain` 恢复到 `queued`，再由就绪结果进入 `dispatched`。这两个转换保留原派发标识，`dispatch-start` 继续拒绝重复派发；Core Task 状态不受这些 Host 记录转换影响。
+
 ## Codex 需求交接
 
 原 Codex 会话从本次需求的完整相关讨论整理交接材料，保留用户早期要求、后续更正、明确采纳的方案、
