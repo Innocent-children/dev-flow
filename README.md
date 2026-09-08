@@ -80,6 +80,8 @@ Send this as a user message in **Codex**:
 $dev-flow-codex:dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
+Codex continues with existing valid choices and authorization, without extra “confirm to continue” pauses. It still asks concrete questions for unresolved decisions or required input.
+
 Or send this in **DeepSeek Harness**:
 
 ```text

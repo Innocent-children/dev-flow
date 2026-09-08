@@ -204,7 +204,7 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   const wrongSkillDescription = await makeSetupFixture(t, "wrong-skill-description");
   await writeFile(
     join(wrongSkillDescription.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    "---\nname: dev-flow\ndescription: \"Only explain repositories.\"\n---\n\nShow the assessment and stop. An explicit resume uses zero Dev Flow calls before discovery.\n",
+    "---\nname: dev-flow\ndescription: \"Only explain repositories.\"\n---\n\nShow the assessment. If the choice is unresolved. An explicit resume uses zero Dev Flow calls before discovery.\n",
   );
   await assert.rejects(setupRegistration(wrongSkillDescription.options), /description is missing activation boundary/);
   await assert.rejects(stat(wrongSkillDescription.statePath), { code: "ENOENT" });
@@ -216,7 +216,7 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   );
   await writeFile(
     join(wrongSkillAdmission.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    validSkill.replace("Show the assessment and stop.", "Continue immediately."),
+    validSkill.replace("Show the assessment. If the choice is unresolved", "Continue immediately"),
   );
   await assert.rejects(setupRegistration(wrongSkillAdmission.options), /admission does not require assessment/);
   await assert.rejects(stat(wrongSkillAdmission.statePath), { code: "ENOENT" });

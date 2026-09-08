@@ -34,6 +34,17 @@ A request with several dependent steps toward one result remains one request. Ex
 design discussion, ordinary questions, and ambiguous intent create no Task. `ACTIVE_TASK_CONFLICT`
 never authorizes post-conflict relocation or a replacement dispatch.
 
+## User interaction
+
+Continue authorized work when no user decision or required input is outstanding. Progress updates,
+assessment presentation, and explanations of Skill rules do not create acknowledgment checkpoints.
+When input is required, ask the concrete unresolved question in the same response; a statement that
+work has paused is not a substitute for that question. Retain explicit choices and authorizations
+that remain valid for the current request and assessment. Ask only for missing or invalidated input.
+A generic “continue” does not supply an unresolved development-mode choice, provisioning parameter,
+comprehension verdict, or separate authorization required for an operation. Core blockers, uncertain
+operations, and the read-only review checkpoint retain their existing stopping rules.
+
 ## Admission gate
 
 For every new user request, perform a read-only suitability assessment before any Dev Flow tool call,
@@ -86,8 +97,10 @@ anchor: request_digest + repository root/HEAD/status digests
    state graphs, multiple repositories, multiple Hosts/platforms, security, concurrency, recovery,
    or real Host Journeys cannot be `small`. Missing entry points, impact, or verification makes the
    result `uncertain` and the recommendation `clarify`.
-6. Show the assessment and stop. Ask the user to choose direct development, Dev Flow, or clarification.
-   Do not call Core, create a receipt, or dispatch a child in this turn.
+6. Show the assessment. If the choice is unresolved, ask the user to choose direct development,
+   Dev Flow, or clarification and wait for that answer before calling Core, creating a receipt,
+   or dispatching a child. Apply an explicit choice already valid for this assessment immediately;
+   no separate acknowledgment or “confirm to continue” turn is needed.
 
 If the user chooses direct development, leave Dev Flow with zero Dev Flow calls, Tasks, claims,
 receipts, fetches, branches, or worktrees. If the user chooses Dev Flow, re-read the request, HEAD,

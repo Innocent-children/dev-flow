@@ -220,6 +220,8 @@ after both the Codex and DeepSeek Adapters are removed and no Task is needed.
 $dev-flow-codex:dev-flow <task description>
 ```
 
+Codex retains explicit choices and authorizations that remain valid for the current request and assessment. When no decision or required input is outstanding, it continues without an acknowledgment pause for progress updates or Skill-rule explanations. When input is needed, it asks the concrete question in the same response; development mode, worktree parameters, comprehension confirmation, separate operation authorization, and blockers keep their respective rules.
+
 This is not a shell command. It is the exact Skill selector in a Codex user message. The Host may also
 select the Skill implicitly for bounded development; bare `$dev-flow` and a wrong namespace are not
 explicit selectors. Under either activation, a new request first receives read-only assessment with

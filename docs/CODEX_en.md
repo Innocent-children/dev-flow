@@ -39,6 +39,8 @@ When absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
 
 ## Assess and start a Task
 
+Codex retains explicit choices and authorizations that remain valid for the current request and assessment. When no decision or required input is outstanding, it continues without an acknowledgment pause for progress updates or Skill-rule explanations. When input is needed, it asks the concrete question in the same response; development mode, worktree parameters, comprehension confirmation, separate operation authorization, and blockers keep their respective rules.
+
 Repository discovery follows current user instructions and applicable `AGENTS.md`. When a project
 index is required, Codex reads it, candidate project documentation, and relevant code/configuration
 within existing permissions to establish the complete proposed scope before confirming and
@@ -55,7 +57,7 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 For every new request—including an exact selector and each item in a parallel batch—Codex first performs
 read-only code and Git discovery. It reports `small|standard|large|uncertain`, observed repositories,
 candidate components and paths, public-contract/state/Host flags, verification shape, unknowns, a
-recommendation, and reasons. Then it stops. Before the developer chooses Dev Flow there is no Dev Flow
+recommendation, and reasons. It waits when a developer choice is still required. Before the developer chooses Dev Flow there is no Dev Flow
 tool call, Task, claim, Git write, provisioning receipt, or child dispatch. A changed request,
 canonical root, HEAD, or status invalidates the assessment.
 

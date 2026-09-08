@@ -82,6 +82,8 @@ Sende in **Codex** diese Benutzernachricht:
 $dev-flow-codex:dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
 ```
 
+Codex übernimmt weiterhin gültige Entscheidungen und Freigaben, ohne zusätzliche Pausen zum bloßen Bestätigen der Fortsetzung. Bei offenen Entscheidungen oder fehlenden erforderlichen Angaben stellt es konkrete Fragen.
+
 Oder sende in **DeepSeek Harness**:
 
 ```text

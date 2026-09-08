@@ -68,6 +68,8 @@ index, the Host reads it, candidate project documentation, and relevant code/con
 creation to establish the complete proposed scope. Every repository is confirmed and provisioned
 before that scope is fixed in the Task; discovery respects existing Host permissions.
 
+Codex retains explicit choices and authorizations that remain valid for the current request and assessment. When no decision or required input is outstanding, it continues without an acknowledgment pause for progress updates or Skill-rule explanations. When input is needed, it asks the concrete question in the same response; development mode, worktree parameters, comprehension confirmation, separate operation authorization, and blockers keep their respective rules.
+
 | User event | Product behavior |
 | --- | --- |
 | A new request may be small | The Host performs read-only discovery and stops for a choice; no Core call, Task, Git write, receipt, or child dispatch exists before confirmation |

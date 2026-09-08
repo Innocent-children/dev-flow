@@ -515,7 +515,7 @@ async function assertPackageResources(paths, packageVersion) {
       throw new Error(`Dev Flow Skill description is missing activation boundary: ${required}`);
     }
   }
-  if (!normalizedSkill.includes("Show the assessment and stop") ||
+  if (!normalizedSkill.includes("Show the assessment. If the choice is unresolved") ||
       !normalizedSkill.includes("explicit resume") ||
       !normalizedSkill.includes("zero Dev Flow calls")) {
     throw new Error("Dev Flow Skill admission does not require assessment and explicit choice");

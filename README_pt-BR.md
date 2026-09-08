@@ -82,6 +82,8 @@ Envie esta mensagem de usuário no **Codex**:
 $dev-flow-codex:dev-flow Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
 ```
 
+O Codex mantém as escolhas e autorizações que continuam válidas, sem pausas extras para «confirmar e continuar». Quando há uma decisão pendente ou falta uma informação necessária, faz uma pergunta concreta.
+
 Ou envie esta mensagem no **DeepSeek Harness**:
 
 ```text

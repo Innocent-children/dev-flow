@@ -82,6 +82,8 @@ Envoyez ce message utilisateur dans **Codex** :
 $dev-flow-codex:dev-flow Ajoutez une limitation de fréquence aux échecs de connexion. Modifiez uniquement les fichiers d'authentification et exécutez au plus 4 contrôles ciblés.
 ```
 
+Codex conserve les choix et autorisations encore valides, sans pause supplémentaire pour « confirmer et continuer ». Si une décision reste à prendre ou si une information nécessaire manque, il pose une question précise.
+
 Ou envoyez ce message dans **DeepSeek Harness** :
 
 ```text

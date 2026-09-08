@@ -55,13 +55,15 @@ marketplace、Plugin 与 MCP。桌面宠物另按本文的本地开发包说明�
 
 ## 评估并启动一个 Task
 
+Codex 沿用当前请求和评估下仍有效的明确选择与授权；没有待决定事项或必需输入时直接继续，不为进度说明或技能规则解释增加“确认后继续”的暂停。需要输入时，在同一回复中提出具体问题；开发方式、工作树参数、理解确认、独立操作授权及阻塞处理仍按各自规则执行。
+
 仓库调查遵循当前用户指令和适用的 `AGENTS.md`。需要项目索引时，Codex 在现有权限内只读检查索引、
 候选项目说明及相关代码与配置，形成完整候选范围，再逐仓确认并准备工作树；Task 创建后范围固定。
 选择代码检索工具时，这些指令优先于 `host_preferences.codex.codebase_memory` 默认偏好。
 
 在 Git 仓库中描述实现、缺陷修复、重构、定向测试或开发交付请求后，Codex 先只读检查候选代码、
 调用关系、测试、配置、HEAD 和工作区状态，并给出 `small | standard | large | uncertain` 的改动量判断。
-用户随后选择直接开发、使用 Dev Flow 或先澄清；第一次评估不会调用 Core、fetch、创建 Task、branch
+尚未选择时，用户选择直接开发、使用 Dev Flow 或先澄清；选择前不会调用 Core、fetch、创建 Task、branch
 或 worktree。需要明确选择本 Skill 时使用精确 selector：
 
 ```text

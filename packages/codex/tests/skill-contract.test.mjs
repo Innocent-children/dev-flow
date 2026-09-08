@@ -51,7 +51,7 @@ test("Skill contains required operational sections and the complete Core tool ca
   assert.equal(section(skill, "Compatibility handshake").match(/\b(dev_flow_[a-z_]+)\b/u)?.[1], "dev_flow_server_info");
 });
 
-test("all new requests assess and wait before worktree dispatch", async () => {
+test("new requests assess and wait for unresolved choices before worktree dispatch", async () => {
   const routing = section(await readFile(skillPath, "utf8"), "Request routing").replace(/\s+/gu, " ");
   const admission = section(await readFile(skillPath, "utf8"), "Admission gate");
   for (const required of [
@@ -69,7 +69,7 @@ test("all new requests assess and wait before worktree dispatch", async () => {
     "change_level: small | standard | large | uncertain",
     "recommendation: direct | dev_flow | clarify",
     "anchor: request_digest",
-    "Show the assessment and stop",
+    "Show the assessment. If the choice is unresolved",
     "zero Dev Flow calls",
     "anchor change invalidates the assessment",
   ]) assert.equal(admission.includes(required), true, required);

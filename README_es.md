@@ -82,6 +82,8 @@ Envía este mensaje de usuario en **Codex**:
 $dev-flow-codex:dev-flow Añade un límite de frecuencia para los inicios de sesión fallidos. Modifica solo archivos de autenticación y ejecuta como máximo 4 comprobaciones dirigidas.
 ```
 
+Codex conserva las decisiones y autorizaciones que siguen siendo válidas, sin pausas adicionales para «confirmar y continuar». Si queda una decisión pendiente o falta información necesaria, formula una pregunta concreta.
+
 O envía este mensaje en **DeepSeek Harness**:
 
 ```text
