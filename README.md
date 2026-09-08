@@ -42,6 +42,10 @@ over the plugin's code-index preference.
   checks; the developer reviews the actual result before delivery.
 - **Completion and recovery stay verifiable.** Core requires all planned work items and links every acceptance criterion to current checks. WebUI recovers retained submissions from Core after an interruption.
 
+## Artifact preparation
+
+Before submitting, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`. Core enumerates the current Action changes; Codex classifies every file and the command generates the artifact arrays. Omitted files receive exact paths and a bounded correction instruction. Workspace, history and node permissions remain enforced. See [artifact collection and submission](docs/ARTIFACTS_en.md).
+
 ## Quick start
 
 > Stable npm `@latest` is currently verified on macOS arm64. Use Node.js `>=24` and an installed,

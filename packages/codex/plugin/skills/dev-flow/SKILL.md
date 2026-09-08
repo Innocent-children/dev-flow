@@ -402,6 +402,36 @@ Never submit a transition absent from the fresh Action and never maintain a copi
 
 ## Closed forwarding contract
 
+Before every ordinary submission, run the packaged read-only artifact preparation commands:
+
+1. Run `dev-flow-codex artifacts collect` with exactly `{host:"codex",task_id,action_id}` as
+   JSON on stdin, using the fresh Action identities. Require exit code 0 and a complete `ok=true`
+   result. Store the JSON outside all Task worktrees; read the complete file if tool output is
+   truncated. The returned collection includes every Core-observed Action delta, including hidden,
+   staged, unstaged, untracked and already committed changes. `git status --short` is not a manifest.
+2. Preserve the returned collection and every entry. Edit only each entry's `slot` and `summary`.
+   Use `current` for the current node's process documents, `other_process` for related method files,
+   and `product` for product changes only at IMPLEMENT or REFACTOR. Inspect file purpose before
+   classification; never classify all remaining paths as process files automatically. OpenSpec
+   initialization configuration, change metadata and generated README files require classification
+   just like authored proposal/spec files. An unexplained or forbidden change stops preparation.
+3. Run `dev-flow-codex artifacts prepare` with exactly `{host:"codex",collection:<classified result>}`
+   as JSON on stdin. Core reobserves all Task repositories, checks the same Task/Action/revision and
+   observation, rejects missing, duplicate, altered or unclassified entries, and generates the
+   `artifacts` object. A changed observation requires a new collection and classification.
+   Missing/classification errors are corrected in the collection before preparing again. For
+   `ACTION_STALE`, `WORKSPACE_HISTORY_CONFLICT` or `REPOSITORY_DRIFT`, read the next Core Action and
+   follow its workspace decision. `WORKSPACE_UNAVAILABLE` follows the existing workspace rule.
+4. Use the successful `result` directly as `artifacts` in the submission draft; do not retype its
+   paths or digests. Separately verified unchanged document references may be appended in an allowed
+   slot. Keep every generated entry. Complete the live-schema gate below and submit without further
+   repository writes; if files change, collect and prepare again. Preparation does not advance the
+   Task or authorize a transition; Core still checks repository effects during submission.
+
+These commands require the existing Task database and the packaged Core. They create no Task,
+blocker, operation, Git change or workflow cursor. Report unavailable commands honestly and stop
+submission; do not replace collection with a hand-written file list.
+
 Use the same `fresh_action` already bound from `result.task.current_action` or `result.action`; do
 not construct another Action view.
 
@@ -424,7 +454,7 @@ Before submitting, perform this order:
    Keep comprehension confirmation separate from acceptance checks.
 4. Set `host="codex"`, copy only `task_id` and `action_id`, and select one returned `transition_id`.
 5. Provide `summary`, the transition's required or empty `reason`, and the exact `node_result`.
-6. Put current-node artifacts in `artifacts.current` only when the live schema exposes it. Put
+6. Use the prepared artifact object. Put current-node artifacts in `artifacts.current` only when the live schema exposes it. Put
    related method artifacts in `artifacts.other_process`. Each entry contains only `path`, `digest`
    and `summary`; Core assigns the role.
 7. Build `method_results` as a closed object keyed by every returned method `step_id`. Each member
@@ -509,6 +539,14 @@ uncertainty. Never convert or treat that domain error as missing or transport fa
 `retry_safe=false` and `action=none`, stop; do not submit or recover the Action.
 
 ## Bounded correction of the current action
+
+For `artifact_manifest_incomplete`, `error.repository_paths` lists the omitted repository files;
+`recovery.allowed_paths` lists the submission fields that may change. Collect again, inspect and
+classify every file, prepare the artifact object, then apply only the authorized artifact changes.
+Use the same Action and submission tool once only when the complete error permits
+`correct_current_action`. Keep the semantic node result, transition and method conclusions unchanged.
+A repository path is not permission to treat product code as a process document. A second failed
+submission stops. Real repository drift and uncertain writes retain their existing recovery rules.
 
 A complete structured domain error may carry field-level detail. `error.details[]` names the exact
 failing member as `path`, a closed `rule`, and a fixed non-sensitive `message`. A refused transition

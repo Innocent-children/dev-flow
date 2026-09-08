@@ -41,6 +41,10 @@ branch、新しい task branch を確認し、Host がそのリモート基準�
   デリバリー前に開発者が実際の結果を確認します。
 - **完了結果と復旧を確認できます。** Core は計画した全作業の完了と、各受け入れ条件に対応する現在有効な検証を確認します。WebUI が中断しても、Core に保存された送信内容から復旧できます。
 
+## ファイルの提出準備
+
+Codex は提出前に `dev-flow-codex artifacts collect` と `dev-flow-codex artifacts prepare` を実行します。Core が現在の Action の変更をすべて列挙し、Codex が各ファイルを分類すると、コマンドが artifact 配列を生成します。申告漏れには正確なパスと範囲を限定した修正手順を返します。作業ツリー、履歴、ノードの権限チェックは維持されます。[ファイルの収集と提出](docs/ARTIFACTS_en.md)を参照してください。
+
 ## クイックスタート
 
 > npm の `@latest` で公開されている安定版は、現在 macOS arm64 で検証済みです。Node.js `>=24` と、対応する Codex

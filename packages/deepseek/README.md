@@ -248,3 +248,7 @@ WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core �
 ## 当前 DSH 接口
 
 当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
+
+## 文件漏报处理
+
+流程文件漏报返回 `artifact_manifest_incomplete` 和 `error.repository_paths`，与请求字段路径分开。仅在 Core 确认零写入并明确允许时，可保持同一 Action、仅纠正指定 artifact 字段一次。工作树和历史异常继续使用原有恢复方式；WebUI 展示遗漏路径。详见[文件收集与提交](../../docs/ARTIFACTS.md)。

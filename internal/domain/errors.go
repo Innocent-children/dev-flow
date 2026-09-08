@@ -69,6 +69,7 @@ const (
 	RuleRepositoryPathInvalid         ViolationRule = "repository_path_invalid"
 	RuleProblemClassNotValidForNode   ViolationRule = "problem_class_not_valid_for_node"
 	RuleArtifactRoleNotAllowed        ViolationRule = "artifact_role_not_allowed"
+	RuleArtifactManifestIncomplete    ViolationRule = "artifact_manifest_incomplete"
 	RuleCurrentValueRequired          ViolationRule = "current_value_required"
 	RuleCurrentSetRequired            ViolationRule = "current_set_required"
 	RuleAcceptanceSetCurrent          ViolationRule = "acceptance_set_current"
@@ -100,6 +101,7 @@ var violationMessages = map[ViolationRule]string{
 	RuleRepositoryPathInvalid:         "the repository contract path is invalid",
 	RuleProblemClassNotValidForNode:   "problem_class is not allowed for the current node",
 	RuleArtifactRoleNotAllowed:        "the current Action does not allow this artifact role",
+	RuleArtifactManifestIncomplete:    "classify every observed change and declare all permitted process artifacts before resubmitting",
 	RuleCurrentValueRequired:          "the member must equal the current value returned by Core",
 	RuleCurrentSetRequired:            "the list must equal the current set returned by Core",
 	RuleAcceptanceSetCurrent:          "acceptance must cover current requirements in order and link completed matching work items to passed current Test evidence",
@@ -180,6 +182,8 @@ type Error struct {
 	Message string
 	// Violations is the closed field-level detail of a contract failure.
 	Violations []ContractViolation
+	// RepositoryPaths contains Core-observed paths missing from an artifact manifest.
+	RepositoryPaths []string
 	// Guard is the closed guard detail of a transition failure.
 	Guard *GuardFailure
 	// ZeroWrite records that Core proved this request failed before any Task,
@@ -305,6 +309,37 @@ func ViolationPaths(err error) []string {
 		seen[entry.Path] = true
 		out = append(out, entry.Path)
 	}
+	return out
+}
+
+// ViolationRepositoryPaths exposes validated repository-relative file names,
+// separately from request member paths. File contents and absolute paths stay private.
+func ViolationRepositoryPaths(err error) []string {
+	typed, ok := err.(*Error)
+	if !ok || typed == nil || typed.Code != ErrorInvalidArgument || len(typed.RepositoryPaths) > MaxRepositoryDeltaPaths {
+		return nil
+	}
+	allowed := false
+	for _, violation := range typed.Violations {
+		if violation.Rule == RuleArtifactManifestIncomplete || violation.Rule == RuleCurrentSetRequired {
+			allowed = true
+		}
+	}
+	if !allowed {
+		return nil
+	}
+	out := []string{}
+	seen := map[string]bool{}
+	for _, path := range typed.RepositoryPaths {
+		if ValidateRepositoryContractPath(path) != nil {
+			return nil
+		}
+		if !seen[path] {
+			out = append(out, path)
+			seen[path] = true
+		}
+	}
+	sort.Strings(out)
 	return out
 }
 

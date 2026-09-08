@@ -218,3 +218,7 @@ WebUI and MCP share Core semantic submission, operation retention and recovery. 
 ## Current DSH interface
 
 The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
+
+## Missing artifact handling
+
+Missing process files return `artifact_manifest_incomplete` and `error.repository_paths`, separately from request field paths. Only after Core proves zero writes and explicitly permits correction may the caller correct the specified artifact fields once on the same Action. Workspace and history failures keep their existing recovery routes; WebUI displays omitted paths. See [artifact collection and submission](ARTIFACTS_en.md).

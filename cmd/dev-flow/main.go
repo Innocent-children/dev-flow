@@ -35,6 +35,8 @@ Usage:
   dev-flow version
   dev-flow mcp --stdio
   dev-flow host-check pre-file-write
+  dev-flow artifacts collect
+  dev-flow artifacts prepare
   dev-flow webui start [--no-open] [--plain|--json]
   dev-flow webui open [--plain|--json]
   dev-flow webui status [--plain|--json]
@@ -85,6 +87,9 @@ func run(
 	}
 	if len(args) == 2 && args[0] == "host-check" && args[1] == "pre-file-write" {
 		return runPreFileWriteCheck(stdin, stdout, stderr, getenv)
+	}
+	if len(args) == 2 && args[0] == "artifacts" && (args[1] == "collect" || args[1] == "prepare") {
+		return runArtifacts(args[1], stdin, stdout, stderr, getenv)
 	}
 	if len(args) >= 2 && args[0] == "webui" {
 		return runWebUI(args[1:], stdout, stderr, getenv)

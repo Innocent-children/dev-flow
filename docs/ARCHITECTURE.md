@@ -342,3 +342,7 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 ## 生命周期 CLI 职责
 
 `packages/dev-flow/lib/cli.mjs` 解析参数并组织交互菜单，`terminal.mjs` 保留同一次交互中的输入，`presentation.mjs` 展示计划、进度和结果。`plan.mjs` 生成维护动作与确认要求，`lifecycle.mjs` 先观察、解析目标版本、展示计划和取得确认，再执行并记录操作结果。`diagnostics.mjs` 汇总安装与用户配置检查。Host driver 分别核对 Codex/npm 与 DeepSeek Profile/Core，并执行已确认的 Adapter 操作。平台模块负责进程、路径、权限、清理及可复制命令的参数引用。重试重新观察实际安装；安装记录不决定 Core Task 的状态。
+
+## 文件提交准备
+
+Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`，复用 Core 对当前 Action 的完整 Git 观察。Codex 只补充文件用途和说明，准备命令检查清单与当前观察一致后生成 artifact 数组。流程文件漏报返回具体路径和仅修改 artifact 字段的一次纠正指示；实际仓库异常继续按原有恢复规则处理。详见[文件收集与提交](ARTIFACTS.md)。

@@ -141,3 +141,7 @@ The local pet package retains the default appearance. Import Whale Girl or other
 The Windows 10/11 x64 desktop pet aligns with macOS task selection and status bubbles, WebUI navigation, tray/context menus, static and native animated PNG/SVG appearances, Codex PNG/WebP atlas imports, nine actions, dragging, six scale settings, hide/restore and independent start/stop. Windows uses a separate Electron implementation while macOS retains Swift/AppKit; both only read Core state. The Windows local package is built by `scripts/build-desktop-pet-windows.mjs`, with user data in `%LOCALAPPDATA%\dev-flow\pet`. See the [desktop pet guide](DESKTOP-PETS_en.md) for building, installation, updates and verification.
 
 The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
+
+## Missing artifact handling
+
+Missing process files return `artifact_manifest_incomplete` and `error.repository_paths`, separately from request field paths. Only after Core proves zero writes and explicitly permits correction may the caller correct the specified artifact fields once on the same Action. Workspace and history failures keep their existing recovery routes; WebUI displays omitted paths. See [artifact collection and submission](ARTIFACTS_en.md).

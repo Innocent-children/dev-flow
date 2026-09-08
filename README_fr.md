@@ -44,6 +44,10 @@ confirmé dans la Task. Ces instructions priment sur la préférence du plugin p
   l'implémentation ou du dépôt invalide les anciens contrôles ; le développeur examine le résultat avant livraison.
 - **La finalisation et la reprise restent vérifiables.** Core exige que tous les éléments du plan soient terminés et relie chaque critère d’acceptation à des vérifications valides pour l’état actuel. Après une interruption, WebUI reprend les soumissions conservées par Core.
 
+## Préparation des fichiers
+
+Avant la soumission, Codex exécute `dev-flow-codex artifacts collect` et `dev-flow-codex artifacts prepare`. Core énumère toutes les modifications de l’Action en cours ; Codex classe chaque fichier et la commande génère les listes d’artefacts. Les omissions sont signalées avec leurs chemins exacts et une procédure de correction limitée. Les contrôles de l’arbre de travail, de l’historique et des permissions du nœud restent appliqués. Voir [collecte et soumission des fichiers](docs/ARTIFACTS_en.md).
+
 ## Démarrage rapide
 
 > La version stable publiée sur npm sous `@latest` est actuellement vérifiée sur macOS arm64. Installez d'abord Node.js `>=24`

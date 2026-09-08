@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	"github.com/Innocent-children/dev-flow/internal/repository"
 	"strings"
@@ -53,7 +54,7 @@ func (o *mutableObserver) ObserveWorkspace(context.Context, string, repository.W
 	o.calls++
 	return o.origin, o.binding, nil
 }
-func TestApplyRepositoryDriftIsZeroWrite(t *testing.T) {
+func TestApplyMissingArtifactManifestIsZeroWrite(t *testing.T) {
 	now := time.Now().UTC()
 	d := domain.Digest(strings.Repeat("a", 64))
 	branch := "feature/task"
@@ -74,7 +75,7 @@ func TestApplyRepositoryDriftIsZeroWrite(t *testing.T) {
 	before := ms.commits
 	a := opened.Task.CurrentAction
 	_, err = s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: "request-apply", Host: domain.HostCodex, TaskID: opened.Task.TaskID, ExpectedRevision: 1, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: opened.Task.Process.ID, ProcessDefinitionDigest: opened.Task.Process.DefinitionDigest, SourceCursor: opened.Task.CurrentNode, RepositoryBindingDigest: a.RepositoryBindingDigest, IssuanceIdentityDigest: a.IssuanceIdentityDigest, IssuanceHistoryDigest: a.IssuanceHistoryDigest, IssuanceContentDigest: a.IssuanceContentDigest, Payload: payload})
-	if err != domain.ErrRepositoryDrift || ms.commits != before {
+	if !errors.Is(err, domain.ErrInvalidArgument) || len(domain.ViolationRepositoryPaths(err)) != 1 || ms.commits != before {
 		t.Fatalf("drift=%v writes=%d", err, ms.commits-before)
 	}
 }

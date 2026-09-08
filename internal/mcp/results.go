@@ -25,11 +25,11 @@ type Envelope struct {
 type ErrorResult struct {
 	Code    domain.ErrorCode `json:"code"`
 	Message string           `json:"message"`
-	// Details is the closed field-level contract detail. It is omitted when Core
-	// has no safe field detail, which keeps the previous public shape valid.
+	// Details names safe field-level contract failures when available.
 	Details []domain.ContractViolation `json:"details,omitempty"`
 	// Guard is the closed transition-guard detail.
-	Guard *domain.GuardFailure `json:"guard,omitempty"`
+	Guard           *domain.GuardFailure `json:"guard,omitempty"`
+	RepositoryPaths []string             `json:"repository_paths,omitempty"`
 }
 type RecoveryGuidance struct {
 	RetrySafe bool   `json:"retry_safe"`
@@ -83,6 +83,10 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		result.Message = message
 	}
 	result.Details = projectSubmissionViolationPaths(tool, publicViolations(code, typed))
+	result.RepositoryPaths = domain.ViolationRepositoryPaths(err)
+	if len(result.RepositoryPaths) != 0 {
+		result.Message = "The artifact manifest omits observed repository changes."
+	}
 	recoveryResult := &RecoveryGuidance{RetrySafe: false, Action: action, Message: guidance}
 	if paths := boundedCorrectionPaths(tool, typed, result); len(paths) != 0 {
 		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: boundedCorrectionMessage, AllowedPaths: paths}
@@ -174,6 +178,9 @@ func boundedCorrectionPaths(tool string, typed *domain.Error, result *ErrorResul
 	seen := make(map[string]bool, len(entries))
 	paths := make([]string, 0, len(entries))
 	for _, entry := range entries {
+		if entry.Rule == domain.RuleArtifactManifestIncomplete && len(result.RepositoryPaths) == 0 {
+			return nil
+		}
 		if !boundedCorrectionRule(entry.Rule, submissionTool) {
 			return nil
 		}
@@ -192,7 +199,7 @@ func boundedCorrectionPaths(tool string, typed *domain.Error, result *ErrorResul
 // node submission tool may correct it once; the same rule outside a submission
 // tool keeps non-retryable guidance.
 func boundedCorrectionRule(rule domain.ViolationRule, submissionTool bool) bool {
-	if rule == domain.RuleRequiredMemberMissing {
+	if rule == domain.RuleRequiredMemberMissing || rule == domain.RuleArtifactManifestIncomplete {
 		return submissionTool
 	}
 	switch rule {

@@ -41,6 +41,10 @@ Core가 Task를 생성합니다. 원본 checkout의 기존 변경은 복사되�
   전달 전에 개발자가 실제 결과를 검토합니다.
 - **완료 결과와 복구 상태를 확인할 수 있습니다.** Core는 계획된 모든 작업의 완료와 각 인수 조건에 연결된 현재 유효한 검증을 확인합니다. WebUI가 중단되어도 Core에 저장된 제출 내용을 복구할 수 있습니다.
 
+## 파일 제출 준비
+
+Codex는 제출 전에 `dev-flow-codex artifacts collect`와 `dev-flow-codex artifacts prepare`를 실행합니다. Core가 현재 Action의 모든 변경을 수집하고 Codex가 각 파일을 분류하면 명령이 artifact 배열을 생성합니다. 누락된 파일에는 정확한 경로와 허용 범위가 제한된 수정 지침을 반환합니다. 작업 트리, 이력 및 노드 권한 검사는 계속 적용됩니다. [파일 수집 및 제출](docs/ARTIFACTS_en.md)을 참고하세요.
+
 ## 빠른 시작
 
 > npm의 `@latest`로 공개된 안정 버전은 현재 macOS arm64에서 검증되었습니다. Node.js `>=24`와 지원되는 Codex 또는

@@ -301,10 +301,11 @@ type MutationResponse struct {
 }
 
 type ErrorResponse struct {
-	Code       string   `json:"code"`
-	Message    string   `json:"message"`
-	FieldPaths []string `json:"field_paths"`
-	GuardID    *string  `json:"guard_id"`
+	RepositoryPaths []string `json:"repository_paths,omitempty"`
+	Code            string   `json:"code"`
+	Message         string   `json:"message"`
+	FieldPaths      []string `json:"field_paths"`
+	GuardID         *string  `json:"guard_id"`
 }
 
 type FailureResponse struct {

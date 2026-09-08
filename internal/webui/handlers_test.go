@@ -15,6 +15,20 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/store"
 )
 
+func TestActionErrorShowsMissingRepositoryPathsAndCorrection(t *testing.T) {
+	failure := domain.InvalidArgumentViolations(domain.Violation("artifacts.other_process", domain.RuleArtifactManifestIncomplete))
+	failure.RepositoryPaths = []string{"openspec/config.yaml"}
+	response := httptest.NewRecorder()
+	writeActionError(response, "artifact-rejection", failure, true)
+	var body FailureResponse
+	if json.Unmarshal(response.Body.Bytes(), &body) != nil || body.WorkflowWriteState != "not_committed" ||
+		len(body.Error.RepositoryPaths) != 1 || body.Error.RepositoryPaths[0] != "openspec/config.yaml" ||
+		len(body.Error.FieldPaths) != 1 || body.Error.FieldPaths[0] != "artifacts.other_process" ||
+		body.Recovery.Action != RecoveryCorrectCurrentAction || !body.Recovery.RetrySafe {
+		t.Fatalf("body=%s", response.Body.String())
+	}
+}
+
 func TestLifecycleHandlersCP2(t *testing.T) {
 	mutator := &stubControlCenterMutator{}
 	api, err := NewAPI(&stubControlCenterReader{}, mutator, func() SystemStatusResponse { return SystemStatusResponse{Readiness: ReadinessReady} })

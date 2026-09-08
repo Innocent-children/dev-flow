@@ -19,6 +19,30 @@ import { resolveProductPaths } from "../lib/paths.mjs";
 const execFile = promisify(execFileCallback);
 const launcherPath = fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url));
 
+test("artifact commands forward exact argv and stdin without creating storage", async (t) => {
+  const paths = await makePaths(t, { usesDefaultDataDirectory: false });
+  for (const operation of ["collect", "prepare"]) {
+    const calls = [];
+    const result = await runCLI(["artifacts", operation], {
+      environment: {}, stdout: captureStream(), stderr: captureStream(),
+      resolvePaths: async () => paths,
+      ensureDefaultDataDirectory: async () => assert.fail("read-only command created storage"),
+      spawnImpl: (executable, arguments_, options) => {
+        calls.push({ executable, arguments_, options });
+        const child = new EventEmitter(); child.kill = () => true;
+        queueMicrotask(() => child.emit("exit", 0, null)); return child;
+      }, signalSource: new EventEmitter(),
+    });
+    assert.equal(result.code, 0);
+    assert.equal(calls[0].executable, paths.runtimePath);
+    assert.deepEqual(calls[0].arguments_, ["artifacts", operation]);
+    assert.equal(calls[0].options.stdio, "inherit");
+    assert.equal(calls[0].options.shell, false);
+  }
+  const result = await runCLI(["artifacts", "submit"], { stdout: captureStream(), stderr: captureStream() });
+  assert.equal(result.code, 2);
+});
+
 test("mcp selects only the package-local Core and inherits protocol stdio", async (t) => {
   const paths = await makePaths(t, { usesDefaultDataDirectory: true });
   const signalSource = new EventEmitter();

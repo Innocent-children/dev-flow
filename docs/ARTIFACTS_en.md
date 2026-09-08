@@ -1,0 +1,90 @@
+# Artifact collection and submission
+
+[中文](ARTIFACTS.md) | [English](ARTIFACTS_en.md)
+
+## Responsibilities
+
+Core observes Git and computes the complete current Action delta. Codex classifies each file and
+describes its purpose. Read-only preparation generates artifact references from those observed
+facts. A successful preparation is permission to construct the submission; Core still validates the
+node result, transition, workspace identity, history, allowed effects and file scope when submitting.
+
+The process definition, transitions, Task revision and persisted Schema are unchanged by collection
+or preparation. These commands write no Task, Event, Claim, Action operation or Git state. Temporary
+JSON files belong outside Task worktrees. Ignored files are outside Core's Git-visible scope.
+
+## Commands
+
+`dev-flow-codex artifacts collect` forwards to the packaged `dev-flow artifacts collect`.
+`dev-flow-codex artifacts prepare` forwards to the packaged `dev-flow artifacts prepare`.
+Both read one closed UTF-8 JSON object from stdin, bounded to 1 MiB. Unknown or duplicate members,
+trailing JSON and malformed UTF-8 are rejected. The commands use the existing Task database, return
+JSON on stdout, and exit with 0 on success or 1 on failure. They do not initialize storage.
+
+Collect input:
+
+```json
+{"host":"codex","task_id":"task-example","action_id":"action-example"}
+```
+
+The successful response is `{ "ok": true, "result": <collection> }`. The collection contains
+`task_id`, `action_id`, `revision`, `observation_digest`, and `files`. Each file has `path`,
+`change_type`, `digest`, `slot`, and `summary`. Core fills the facts and leaves the last two strings
+empty. Preserve the entire collection and fill only `slot` and `summary`.
+
+`path` is repository-relative for a single repository, or `<repository-key>::<relative-path>` for
+an existing multi-repository Task. The delta includes hidden files, staged and unstaged changes,
+untracked files and changes committed during this Action. `change_type` describes the current Task
+surface relative to its frozen base; `restored` means a previously retained changed path returned
+to the base state. Digests describe observed path state, including deletion; they are not copied
+from model-generated text. File enumeration is complete within Core's existing repository limits.
+
+Prepare input is `{ "host": "codex", "collection": <classified collection> }`:
+
+- `slot="current"`: current-node process document, only where the node exposes this artifact slot.
+- `slot="other_process"`: related method document or support file.
+- `slot="product"`: product change, permitted only at IMPLEMENT and REFACTOR; omitted from artifact
+  arrays and still checked against the Task Plan by the ordinary submission.
+- Every entry needs a non-empty bounded `summary`. Unknown purposes must be resolved before preparing.
+
+Preparation reobserves Git and rejects changed observations, missing or duplicate paths, altered
+file facts, unclassified entries and roles unavailable at the current node. The successful `result`
+is the generated `artifacts` object with `current` where allowed and `other_process`. Use it directly
+in the ordinary submission. Separately verified unchanged document references may be appended to an
+allowed slot. Further repository writes require recollection and preparation. Preparation does not
+replace the ordinary submission's live-schema validation or authorization checks.
+
+For stale Action, history-conflict or repository-drift errors, read the next Core Action and follow
+its workspace decision. A changed observation requires recollection; missing or unclassified entries
+are completed before preparing again. Workspace unavailability follows the existing restore or
+abandonment rules.
+
+## OpenSpec files
+
+Classify the proposal and specifications as current-node documents where appropriate. Inspect and
+classify initialization configuration, change metadata and generated README files as well. File
+location alone does not authorize a change; no `openspec/**` allowlist or automatic classification
+of remaining files is introduced. OpenSpec validation checks content and structure; the collection
+and preparation commands check file coverage.
+
+## Rejection and correction
+
+An ordinary process-artifact submission that omits changed files returns `INVALID_ARGUMENT` with
+the closed rule `artifact_manifest_incomplete`. `error.repository_paths` carries validated omitted
+file paths, separately from JSON field paths. After a proven zero-write failure, MCP returns
+`correct_current_action`, `retry_safe=true`, and only the applicable artifact fields in
+`allowed_paths`. The Host may collect, classify and prepare again, correct only those artifact
+fields through the same current submission tool once, and must stop if that submission also fails.
+Semantic results, transitions and method conclusions keep the same meaning. HTTP exposes omitted
+paths alongside `field_paths`; WebUI displays both. Real workspace/history failures and uncertain
+operations keep their existing recovery routes. Correction never bypasses current Core checks.
+
+## Verification
+
+The targeted application regression covers five changed files with only two declared, exact omitted
+paths, zero writes on rejection, the unchanged Action on reread, and successful corrected submission
+to DESIGN. The native Git/CLI test covers hidden and Unicode paths, committed/staged/untracked
+changes, preparation, unchanged database/Git bytes, post-collection content changes and a branch
+switch. Application and MCP tests cover forbidden product classification, stale Action/worktree
+identity, bounded correction and unsafe public path rejection. These are local automated tests,
+not a real Codex session running the OpenSpec executable or a Windows validation claim.

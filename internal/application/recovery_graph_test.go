@@ -208,7 +208,7 @@ func TestMultiRepositoryRecoveryRejectsUndeclaredAdditionalDriftWithoutWrite(t *
 	apply := graphRecoveryApply(opened.Task, "multi-drift-apply", payload)
 	apply.RecoveryApply = nil
 	commits := taskStore.commits
-	if _, err := service.ApplyAction(context.Background(), apply); !errors.Is(err, domain.ErrRepositoryDrift) {
+	if _, err := service.ApplyAction(context.Background(), apply); !errors.Is(err, domain.ErrInvalidArgument) || len(domain.ViolationRepositoryPaths(err)) != 1 {
 		t.Fatalf("error=%v", err)
 	}
 	if taskStore.commits != commits || taskStore.task.Revision != opened.Task.Revision {

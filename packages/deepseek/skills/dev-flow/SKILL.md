@@ -465,6 +465,13 @@ uncertainty. Never convert or treat that domain error as missing or transport fa
 
 ## Bounded correction of the current action
 
+For `artifact_manifest_incomplete`, `error.repository_paths` names omitted repository files, while
+`recovery.allowed_paths` names the only submission fields that may change. Inspect each omitted file
+and correct the artifact references once only when Core explicitly permits `correct_current_action`.
+Keep the same Action, submission tool, semantic result and transition. File names alone do not
+authorize product changes as process artifacts. Real repository drift keeps its existing recovery rule.
+
+
 A complete structured domain error may carry field-level detail. `error.details[]` names the exact
 failing member as `path`, a closed `rule`, and a fixed non-sensitive `message`. A refused transition
 may instead carry `error.guard` with the Core `guard_id` and the same failure shape.

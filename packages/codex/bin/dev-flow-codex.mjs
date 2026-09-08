@@ -63,7 +63,7 @@ export async function runCLI(arguments_, dependencies = {}) {
   let setupAttempted = false;
 
   if (!isProductionCommand(arguments_)) {
-    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, hook pre-tool-use, host-check pre-file-write, host-launch <operation>, or --version\n");
+    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, artifacts <collect|prepare>, hook pre-tool-use, host-check pre-file-write, host-launch <operation>, or --version\n");
     return { code: 2, signal: null };
   }
 
@@ -77,6 +77,13 @@ export async function runCLI(arguments_, dependencies = {}) {
       return { code: await invokeHook(), signal: null };
     }
     const paths = await resolvePaths();
+    if (arguments_.length === 2 && arguments_[0] === "artifacts") {
+      return await launchPackagedCore(paths, arguments_, {
+        environment,
+        spawnImpl: dependencies.spawnImpl ?? spawn,
+        signalSource: dependencies.signalSource ?? process,
+      });
+    }
     if (arguments_.length === 1 && arguments_[0] === "mcp") {
       if (paths.usesDefaultDataDirectory) await ensureDataDirectory(paths);
       return await launchPackagedCore(paths, ["mcp", "--stdio"], {
@@ -329,6 +336,7 @@ function writeSetupSuccess(stdout, result, json, { environment, renderSetupResul
 
 function isProductionCommand(arguments_) {
   if (!Array.isArray(arguments_)) return false;
+  if (arguments_.length === 2 && arguments_[0] === "artifacts" && ["collect", "prepare"].includes(arguments_[1])) return true;
   if (arguments_.length === 1 && ["mcp", "--version"].includes(arguments_[0])) return true;
   if (arguments_.length === 2 && arguments_[0] === "hook" && arguments_[1] === "pre-tool-use") return true;
   if (arguments_.length === 2 && arguments_[0] === "host-check" && arguments_[1] === "pre-file-write") return true;

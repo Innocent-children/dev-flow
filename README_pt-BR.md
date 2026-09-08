@@ -44,6 +44,10 @@ Essas instruções têm prioridade sobre a preferência do plugin para o índice
   repositório invalidam verificações antigas; o desenvolvedor revisa o resultado antes da entrega.
 - **Conclusão e recuperação verificáveis.** O Core exige a conclusão de todos os itens do plano e vincula cada critério de aceitação a verificações válidas para o estado atual. Após uma interrupção, a WebUI recupera os envios salvos no Core.
 
+## Preparação de arquivos
+
+Antes do envio, o Codex executa `dev-flow-codex artifacts collect` e `dev-flow-codex artifacts prepare`. O Core enumera todas as alterações da Action atual; o Codex classifica cada arquivo e o comando gera as listas de artefatos. As omissões recebem os caminhos exatos e uma instrução de correção limitada. As verificações da árvore de trabalho, do histórico e das permissões do nó continuam em vigor. Consulte [coleta e envio de arquivos](docs/ARTIFACTS_en.md).
+
 ## Início rápido
 
 > A versão estável publicada no npm sob `@latest` está atualmente verificada no macOS arm64. Instale

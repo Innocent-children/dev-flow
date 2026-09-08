@@ -38,6 +38,10 @@ Host 在确认前只读调查候选仓库，再将确认后的范围固定到 Ta
   实际结果。
 - **完成结果可以核对。** 所有计划工作项完成、每条验收关联当前有效检查后，才能交付；WebUI 中断后从 Core 恢复保存的提交。
 
+## 文件提交准备
+
+Codex 提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`。Core 完整枚举当前 Action 的改动，Codex 逐项分类后由命令生成 artifact 数组。漏报时返回准确路径和受限纠正指示，工作树、历史及节点权限检查继续执行。详见[文件收集与提交](docs/ARTIFACTS.md)。
+
 ## 快速开始
 
 > 稳定 npm `@latest` 目前已验证 macOS arm64。请使用 Node.js `>=24`，并提前安装受支持的 Codex

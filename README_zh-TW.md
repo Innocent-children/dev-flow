@@ -39,6 +39,10 @@ Dev Flow 把已同意的請求、預期路徑、分析後形成的驗證計畫�
   檢視實際結果。
 - **完成結果可以核對。** 所有計畫工作項目完成、每條驗收條件關聯目前有效的檢查後，才能交付；WebUI 中斷後可從 Core 恢復已儲存的提交。
 
+## 檔案提交準備
+
+Codex 提交前執行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`。Core 完整列出目前 Action 的變更，Codex 逐項分類後由命令產生 artifact 陣列。漏報時回傳確切路徑和受限修正指示，工作樹、歷史及節點權限檢查持續執行。詳見[檔案收集與提交](docs/ARTIFACTS.md)。
+
 ## 快速開始
 
 > 穩定 npm `@latest` 目前已在 macOS arm64 驗證。請使用 Node.js `>=24`，並先安裝受支援的 Codex

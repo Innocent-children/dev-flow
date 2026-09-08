@@ -342,6 +342,9 @@ func validatedRepositoryEffect(task domain.ProcessTask, raw json.RawMessage, fre
 	}
 	effect.Paths = actual
 	if len(outside) != 0 {
+		if effect.Kind == recovery.EffectProcessArtifactOnly {
+			return effect, nil, artifactManifestError(task, outside)
+		}
 		return effect, outside, nil
 	}
 	verificationEffect := effect

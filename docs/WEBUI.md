@@ -129,3 +129,7 @@ macOS arm64 的桌面宠物通过包含 `DevFlowPet.app` 的本地开发包使�
 Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](DESKTOP-PETS.md)。
 
 当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
+
+## 文件漏报处理
+
+流程文件漏报返回 `artifact_manifest_incomplete` 和 `error.repository_paths`，与请求字段路径分开。仅在 Core 确认零写入并明确允许时，可保持同一 Action、仅纠正指定 artifact 字段一次。工作树和历史异常继续使用原有恢复方式；WebUI 展示遗漏路径。详见[文件收集与提交](ARTIFACTS.md)。

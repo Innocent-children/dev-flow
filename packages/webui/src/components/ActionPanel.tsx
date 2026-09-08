@@ -11,22 +11,23 @@ export function ActionPanel({ taskID, revision, action, disabled, onChanged, pen
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [paths, setPaths] = useState<string[]>([]);
+  const [repositoryPaths, setRepositoryPaths] = useState<string[]>([]);
   const [guard, setGuard] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState<{ actionID: string; advice?: RecoveryAdvice } | null>(null);
   const errorSummary = useRef<HTMLDivElement>(null);
   const currentActionID = useRef(action.action_id);
   currentActionID.current = action.action_id;
-  useEffect(() => { setPayload(asObject(defaultValue(action.payload_schema))); setError(""); setPaths([]); setGuard(null); setUncertain(null); setBusy(false); }, [action.action_id]);
-  useEffect(() => { setError(""); setPaths([]); setGuard(null); }, [language]);
+  useEffect(() => { setPayload(asObject(defaultValue(action.payload_schema))); setError(""); setPaths([]); setRepositoryPaths([]); setGuard(null); setUncertain(null); setBusy(false); }, [action.action_id]);
+  useEffect(() => { setError(""); setPaths([]); setRepositoryPaths([]); setGuard(null); }, [language]);
   const submit = async () => {
     const submittedActionID = action.action_id;
     const operationID = `action-${crypto.randomUUID()}`;
-    setBusy(true); setError(""); setPaths([]); setGuard(null); setUncertain(null);
+    setBusy(true); setError(""); setPaths([]); setRepositoryPaths([]); setGuard(null); setUncertain(null);
     try { await submitCurrentAction(taskID, revision, action, payload, operationID); if (currentActionID.current === submittedActionID) onChanged(); }
     catch (reason) {
       if (currentActionID.current !== submittedActionID) return;
       if (reason instanceof APIError) {
-        setError(reason.failure.error.message); setPaths(reason.failure.error.field_paths); setGuard(reason.failure.error.guard_id);
+        setError(reason.failure.error.message); setPaths(reason.failure.error.field_paths); setGuard(reason.failure.error.guard_id); setRepositoryPaths(reason.failure.error.repository_paths ?? []);
         if (reason.failure.workflow_write_state === "unknown") setUncertain({ actionID: action.action_id, advice: reason.failure.recovery });
       } else {
         setError(reason instanceof Error ? reason.message : t("action.failure"));
@@ -42,7 +43,7 @@ export function ActionPanel({ taskID, revision, action, disabled, onChanged, pen
     <div className="section-heading"><div><p className="eyebrow">{t("action.eyebrow")}</p><h2 id="action-title">{titleKey === null ? action.action_kind : t(titleKey)}</h2></div><div className="action-identity"><code>{action.action_kind}</code><code>{action.action_id}</code></div></div>
     <p className="action-purpose">{action.purpose}</p>
     <details className="action-requirements"><summary>{t("action.requirements")}<span className="disclosure-chevron" aria-hidden="true" /></summary><div className="action-contract-grid"><ContractList title={t("action.conditions")} values={action.conditions} /><ContractList title={t("action.effects")} values={action.allowed_effects} /><ContractList title={t("action.evidence")} values={action.required_evidence} /><ContractList title={t("action.steps")} values={action.method_steps} /></div></details>
-    {error !== "" && <div ref={errorSummary} className="notice error error-summary" role="alert" tabIndex={-1}><strong>{guard === null ? t("action.rejected") : t("action.guard", { guard })}</strong> {error}{paths.length > 0 && <ul>{paths.map((path) => <li key={path}><code>{path}</code></li>)}</ul>}</div>}
+    {error !== "" && <div ref={errorSummary} className="notice error error-summary" role="alert" tabIndex={-1}><strong>{guard === null ? t("action.rejected") : t("action.guard", { guard })}</strong> {error}{paths.length > 0 && <ul>{paths.map((path) => <li key={path}><code>{path}</code></li>)}</ul>}{repositoryPaths.length > 0 && <ul>{repositoryPaths.map((path) => <li key={path}><code>{path}</code></li>)}</ul>}</div>}
     {recoveryID === null && <form onSubmit={(event) => { event.preventDefault(); void submit(); }}><SchemaField name={t("action.payload")} schema={action.payload_schema} value={payload} path="payload" errors={paths} onChange={(value) => setPayload(asObject(value))} /><div className="form-actions"><button className="button primary" disabled={disabled || busy}>{busy ? t("action.submitting") : t("action.submit")}</button></div></form>}
     {recoveryID !== null && <RecoveryPanel taskID={taskID} actionID={recoveryID} initial={uncertain?.advice} onChanged={refreshed} />}
   </section>;

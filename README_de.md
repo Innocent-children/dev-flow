@@ -43,6 +43,10 @@ Diese Anweisungen haben Vorrang vor der Code-Index-Einstellung des Plugins.
   machen alte Prüfungen ungültig; vor der Auslieferung prüft der Entwickler das tatsächliche Ergebnis.
 - **Abschluss und Wiederaufnahme bleiben nachvollziehbar.** Core verlangt den Abschluss aller geplanten Arbeitsschritte und verknüpft jedes Abnahmekriterium mit aktuell gültigen Prüfungen. Nach einer Unterbrechung stellt WebUI die in Core gespeicherten Einreichungen wieder her.
 
+## Dateien zur Übermittlung vorbereiten
+
+Vor der Übermittlung führt Codex `dev-flow-codex artifacts collect` und `dev-flow-codex artifacts prepare` aus. Core erfasst sämtliche Änderungen der aktuellen Action; Codex ordnet jede Datei ein und der Befehl erzeugt die Artefaktlisten. Bei Auslassungen werden die genauen Pfade und eine begrenzte Korrekturanweisung zurückgegeben. Prüfungen des Arbeitsbaums, des Verlaufs und der Knotenberechtigungen bleiben bestehen. Siehe [Dateien erfassen und übermitteln](docs/ARTIFACTS_en.md).
+
 ## Schnellstart
 
 > Die unter `@latest` auf npm veröffentlichte stabile Version ist derzeit auf macOS arm64 verifiziert. Installiere zuerst Node.js `>=24`

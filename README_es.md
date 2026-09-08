@@ -44,6 +44,10 @@ en la Task. Estas instrucciones tienen prioridad sobre la preferencia del plugin
   el repositorio invalidan las comprobaciones antiguas; el desarrollador revisa el resultado antes de entregarlo.
 - **Finalización y recuperación comprobables.** Core exige completar todos los elementos del plan y vincular cada criterio de aceptación con comprobaciones vigentes. Tras una interrupción, WebUI recupera los envíos guardados en Core.
 
+## Preparación de archivos
+
+Antes de enviar, Codex ejecuta `dev-flow-codex artifacts collect` y `dev-flow-codex artifacts prepare`. Core enumera todos los cambios de la Action actual; Codex clasifica cada archivo y el comando genera las listas de artefactos. Las omisiones reciben rutas exactas e instrucciones de corrección limitada. Se mantienen las comprobaciones del árbol de trabajo, el historial y los permisos del nodo. Consulte [recopilación y envío de archivos](docs/ARTIFACTS_en.md).
+
 ## Inicio rápido
 
 > La versión estable publicada en npm bajo `@latest` está verificada actualmente en macOS arm64. Instala primero Node.js `>=24`

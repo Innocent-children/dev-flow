@@ -116,7 +116,11 @@ func writeActionError(w http.ResponseWriter, requestID string, err error, bounda
 	} else if code == domain.ErrorRevisionConflict || code == domain.ErrorActionStale {
 		advice = RecoveryAdvice{Action: RecoveryReadNextAction, RetrySafe: false, Message: "Read the authoritative current Task before another mutation."}
 	}
-	_ = WriteFailure(w, status, requestID, writeState, ErrorResponse{Code: string(code), Message: message, FieldPaths: paths, GuardID: guardID}, advice)
+	repositoryPaths := domain.ViolationRepositoryPaths(err)
+	if len(repositoryPaths) != 0 {
+		message = "The artifact manifest omits observed repository changes."
+	}
+	_ = WriteFailure(w, status, requestID, writeState, ErrorResponse{Code: string(code), Message: message, FieldPaths: paths, GuardID: guardID, RepositoryPaths: repositoryPaths}, advice)
 }
 
 func actionCorrectionSafe(failure *domain.Error) bool {
@@ -133,6 +137,10 @@ func actionCorrectionSafe(failure *domain.Error) bool {
 	for _, entry := range entries {
 		switch entry.Rule {
 		case domain.RuleNonAutomatedCommandCountZero, domain.RuleNonAutomatedFullSuiteFalse, domain.RuleUnknownMember:
+		case domain.RuleArtifactManifestIncomplete:
+			if len(domain.ViolationRepositoryPaths(failure)) == 0 {
+				return false
+			}
 		default:
 			if domain.GuardRule(entry.Rule) != domain.GuardForwardFindingsEmpty {
 				return false

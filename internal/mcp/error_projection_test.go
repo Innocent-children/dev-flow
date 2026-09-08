@@ -17,6 +17,31 @@ func decodeEnvelope(t *testing.T, encoded EncodedResult) Envelope {
 	return envelope
 }
 
+func TestMissingArtifactPathsOfferOnlyManifestCorrection(t *testing.T) {
+	failure := domain.InvalidArgumentViolations(domain.Violation("artifacts.current", domain.RuleArtifactManifestIncomplete), domain.Violation("artifacts.other_process", domain.RuleArtifactManifestIncomplete))
+	failure.RepositoryPaths = []string{"openspec/config.yaml", "docs::openspec/.openspec.yaml"}
+	result := decodeEnvelope(t, EncodeError("artifact-error", ToolSubmitRequirements, failure))
+	if len(result.Error.RepositoryPaths) != 2 || result.Recovery.Action != correctCurrentAction || !result.Recovery.RetrySafe || len(result.Recovery.AllowedPaths) != 2 {
+		t.Fatalf("result=%+v", result)
+	}
+	for _, path := range result.Recovery.AllowedPaths {
+		if path != "artifacts.current" && path != "artifacts.other_process" {
+			t.Fatalf("allowed path=%s", path)
+		}
+	}
+	for _, err := range []error{domain.WithoutZeroWriteProof(failure), domain.ErrRepositoryDrift} {
+		result := decodeEnvelope(t, EncodeError("artifact-error", ToolSubmitRequirements, err))
+		if result.Recovery.RetrySafe || len(result.Recovery.AllowedPaths) != 0 {
+			t.Fatal("unsafe correction")
+		}
+	}
+	failure.RepositoryPaths = []string{"/private/config"}
+	result = decodeEnvelope(t, EncodeError("artifact-error", ToolSubmitRequirements, failure))
+	if len(result.Error.RepositoryPaths) != 0 || result.Recovery.RetrySafe {
+		t.Fatal("unsafe repository path exposed")
+	}
+}
+
 // TestApplyErrorDetailsProjectClosedFieldViolations covers the public
 // INVALID_ARGUMENT shape with field-level detail.
 func TestApplyErrorDetailsProjectClosedFieldViolations(t *testing.T) {

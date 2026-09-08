@@ -371,3 +371,7 @@ The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the cu
 ## Lifecycle CLI responsibilities
 
 `packages/dev-flow/lib/cli.mjs` parses arguments and organizes menus; `terminal.mjs` retains input across one interactive session, and `presentation.mjs` renders plans, progress and results. `plan.mjs` creates maintenance actions and confirmation requirements. `lifecycle.mjs` observes state, resolves target versions, presents the plan and obtains confirmation before executing and recording results. `diagnostics.mjs` collects installation and user-configuration checks. Host drivers inspect Codex/npm or DeepSeek Profile/Core and execute confirmed Adapter operations. Platform modules own processes, paths, permissions, cleanup and argument quoting for copyable commands. Retries observe actual installation state; installation records do not determine Core Task state.
+
+## Artifact preparation
+
+Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
