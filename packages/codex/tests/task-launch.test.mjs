@@ -12,6 +12,9 @@ import { readTaskHandoff, taskHandoffPaths } from "../lib/task-handoff.mjs";
 import { inspectAdmissionAnchor } from "../lib/task-admission.mjs";
 import {
   beginManagedTaskDispatch,
+  claimManagedTaskDispatch,
+  recoverUncalledManagedTaskDispatch,
+  reconcileManagedTaskDispatch,
   beginTaskHandoff,
   bootstrapManagedTask,
   buildCliRelaunchDescriptor,
@@ -181,7 +184,8 @@ test("managed dispatch records complete Codex results and resumes without redisp
       });
       receipt = updateProvisioningReceipt(receipt, { phase: "fetching", values: {} });
       receipt = updateProvisioningReceipt(receipt, { phase: "fetched", values: { fetched_commit: "d".repeat(40) } });
-      receipt = updateProvisioningReceipt(receipt, { phase: "dispatching", values: { dispatch_attempt_id: "e".repeat(64) } });
+      receipt = updateProvisioningReceipt(receipt, { phase: "dispatch_prepared", values: { dispatch_attempt_id: "e".repeat(64), host_request: { prompt: "saved prompt", title: "saved title", target: { type: "project", projectId: "project-1", environment: { type: "worktree", startingState: { type: "branch", branchName: "refs/remotes/origin/main" } } } } } });
+      receipt = updateProvisioningReceipt(receipt, { phase: "dispatching", values: {} });
       await writeProvisioningReceiptAtomic(path, receipt, options);
       let output = "";
       const command = await runCLI(["host-launch", "dispatch-result"], {
@@ -217,6 +221,67 @@ test("managed dispatch records complete Codex results and resumes without redisp
       }
     });
   }
+});
+
+test("interrupted dispatch preserves its request, fences stale claims, and reconciles actual Host tasks", async (t) => {
+  const fixture = await makeRemoteFixture(t, "dispatch-recovery");
+  const request = "Recover a dispatch after truncated output.";
+  const identity = { launch_id: "dispatch-recovery", repository_key: "primary" };
+  const launch = await prepareTaskLaunch({
+    ...identity, request, handoff_file: await writeHandoffFixture(fixture.root, request),
+    assessment_anchor: await assessmentAnchor(fixture, request), repository_path: fixture.source,
+    remote_name: "origin", base_branch: "main", target_branch: "codex/recovery",
+    surface: "managed_worktree", worktree_path: null,
+  }, fixture.options);
+  const invoke = async (operation, input) => {
+    let output = "";
+    const result = await runCLI(["host-launch", operation], {
+      resolvePaths: () => ({ ...fixture.options, enforcePrivateModes: true }),
+      readInput: () => JSON.stringify(input), stdout: { write: (text) => { output += text; } },
+      stderr: { write: (text) => assert.fail(text) },
+    });
+    assert.equal(result.code, 0);
+    // The caller parses the complete file, independently of the displayed output limit.
+    const outputPath = join(fixture.root, "command-result.json");
+    await writeFile(outputPath, output);
+    assert.throws(() => JSON.parse(output.slice(0, 40)));
+    return JSON.parse(await readFile(outputPath, "utf8"));
+  };
+  const prepared = await invoke("dispatch-start", { ...identity, project_id: "project-1" });
+  assert.equal(prepared.should_dispatch, false);
+  assert.equal(prepared.receipt.operation_status.phase, "dispatch_prepared");
+  const status = await invoke("status", identity);
+  assert.deepEqual(status.receipt.operation_status.host_request, prepared.host_request);
+  await assert.rejects(beginManagedTaskDispatch({ ...identity, project_id: "other" }, fixture.options), /conflicts/);
+  // Saved request reads survive removal of the original rendering material.
+  await rm(taskHandoffPaths(launch.receipt_path).markdown_path);
+  assert.deepEqual((await invoke("dispatch-start", { ...identity, project_id: "project-1" })).host_request, prepared.host_request);
+  const firstClaim = { ...identity, dispatch_attempt_id: status.receipt.operation_status.dispatch_attempt_id };
+  assert.equal((await invoke("dispatch-call", firstClaim)).should_dispatch, true);
+  assert.equal((await invoke("dispatch-call", firstClaim)).should_dispatch, false);
+  const recovery = { ...firstClaim, host_call_not_made: true, previous_caller_stopped: true, reason: "JSON parsing failed before create_thread; original execution ended." };
+  await assert.rejects(recoverUncalledManagedTaskDispatch({ ...recovery, host_call_not_made: false }, fixture.options), /uncalled/);
+  await assert.rejects(recoverUncalledManagedTaskDispatch({ ...recovery, previous_caller_stopped: false }, fixture.options), /stopped/);
+  const recovered = await invoke("dispatch-recover", recovery);
+  assert.equal(recovered.should_dispatch, false);
+  assert.deepEqual(recovered.host_request, prepared.host_request);
+  assert.equal(recovered.receipt.operation_status.dispatch_recovery_reason, recovery.reason);
+  await assert.rejects(claimManagedTaskDispatch(firstClaim, fixture.options), /does not match/);
+  const newClaim = { ...identity, dispatch_attempt_id: recovered.receipt.operation_status.dispatch_attempt_id };
+  assert.equal((await invoke("dispatch-call", newClaim)).should_dispatch, true);
+  await invoke("dispatch-result", { ...identity, host_result: null });
+  await assert.rejects(recoverUncalledManagedTaskDispatch({ ...recovery, ...newClaim }, fixture.options), /uncalled dispatching/);
+  assert.equal((await invoke("dispatch-call", newClaim)).should_dispatch, false);
+  assert.equal((await invoke("dispatch-reconcile", { ...identity, candidates: [] })).matched, false);
+  assert.equal((await invoke("dispatch-reconcile", { ...identity, candidates: [{ thread_id: "unrelated", initial_prompt: "different launch" }] })).matched, false);
+  const candidate = { thread_id: "actual-host-task", initial_prompt: prepared.host_request.prompt };
+  await assert.rejects(reconcileManagedTaskDispatch({ ...identity, candidates: [candidate, { ...candidate, thread_id: "duplicate" }] }, fixture.options), /multiple/);
+  const matched = await invoke("dispatch-reconcile", { ...identity, candidates: [candidate] });
+  assert.equal(matched.matched, true);
+  assert.equal(matched.should_dispatch, false);
+  assert.equal(matched.receipt.operation_status.host_thread_id, candidate.thread_id);
+  assert.equal((await invoke("dispatch-call", newClaim)).should_dispatch, false);
+  assert.equal(await gitOutput(fixture.source, "branch", "--list", "codex/recovery"), "");
 });
 
 test("managed launch freezes the confirmed remote ref, dispatches once, and bootstraps a named clean branch", async (t) => {
@@ -259,7 +324,9 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
     repository_key: "primary",
     project_id: "project-1",
   }, fixture.options);
-  assert.equal(dispatched.should_dispatch, true);
+  assert.equal(dispatched.should_dispatch, false);
+  const claim = await claimManagedTaskDispatch({ launch_id: "launch-managed-0001", repository_key: "primary", dispatch_attempt_id: dispatched.receipt.operation_status.dispatch_attempt_id }, fixture.options);
+  assert.equal(claim.should_dispatch, true);
   assert.equal(dispatched.host_request.title, "Dev Flow launch-managed-0001 primary");
   assert.deepEqual(dispatched.host_request.target.environment.startingState, {
     type: "branch",

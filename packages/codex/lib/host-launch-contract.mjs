@@ -58,10 +58,28 @@ const contracts = {
     next_step: "Use the retained phase and original Host operation/thread marker. An uncertain result never authorizes another dispatch.",
   },
   "dispatch-start": {
-    description: "Record a managed-worktree dispatch attempt before calling Codex task creation.",
+    description: "Persist the complete managed-worktree request in dispatch_prepared. Repeated calls return the same saved request.",
     input_schema: object({ ...identity, project_id: text("Codex saved-project ID returned by its project listing.") }),
-    output_fields: { ...receiptOutput, should_dispatch: "Call the Host exactly once only when true.", host_request: "Exact Codex create_thread arguments, present only when should_dispatch=true." },
-    next_step: "Forward host_request to the Host unchanged, then record the complete response with dispatch-result. For false, read status and the existing Host task.",
+    output_fields: { ...receiptOutput, should_dispatch: "Always false; dispatch-call grants the single Host call.", host_request: "Exact persisted Codex create_thread arguments; reading them never authorizes dispatch." },
+    next_step: "Save stdout to a file and parse that file. Call dispatch-call with the retained dispatch_attempt_id before invoking the Host.",
+  },
+  "dispatch-call": {
+    description: "Atomically claim one Host creation call after the saved request has been read successfully.",
+    input_schema: object({ ...identity, dispatch_attempt_id: text("Current receipt.operation_status.dispatch_attempt_id.") }),
+    output_fields: { ...receiptOutput, should_dispatch: "True only for the first claim; call the Host once in this execution.", host_request: "Complete retained request." },
+    next_step: "Save and parse complete stdout before calling create_thread unchanged. Record its complete response with dispatch-result. If interrupted before the call, use dispatch-recover; if the result is unknown, inspect the Host by saved title and initial prompt, then use dispatch-reconcile.",
+  },
+  "dispatch-recover": {
+    description: "Restore a dispatch that provably never called the Host; empty IDs alone are insufficient. Retains the exact request and rotates the claim ID.",
+    input_schema: object({ ...identity, dispatch_attempt_id: text("Current claim ID."), host_call_not_made: { const: true }, previous_caller_stopped: { const: true }, reason: text("Observed call sequence proving no create_thread call and that the previous caller has stopped.") }),
+    output_fields: { ...receiptOutput, should_dispatch: "False; use dispatch-call with the new claim ID.", host_request: "Unchanged saved request." },
+    next_step: "Read the saved request, then dispatch-call. Never use recovery for a timeout or missing Host response.",
+  },
+  "dispatch-reconcile": {
+    description: "Match actual Host task initial prompts to the retained request after searching by launch/repository title. An empty result never authorizes creation.",
+    input_schema: object({ ...identity, candidates: array(object({ thread_id: text("Actual threadId from Host inspection, never clientThreadId."), initial_prompt: text("Complete initial user prompt read from that Host task.") }), "Inspected Host candidates. Include all matches; do not infer absence from a bounded task list.") }),
+    output_fields: { ...receiptOutput, matched: "Whether exactly one task matched the complete saved prompt.", should_dispatch: "Always false." },
+    next_step: "Continue the matched task. If no match or Host inspection is unavailable, retain uncertainty and inspect again later; never create another task.",
   },
   "dispatch-result": {
     description: "Record the complete Codex creation result, including structuredContent/result or a single JSON text content block. Save clientThreadId as queued and threadId as dispatched; tool errors, missing or malformed results record uncertainty.",

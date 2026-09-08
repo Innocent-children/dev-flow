@@ -118,14 +118,32 @@ After confirmation:
 2. Fetch only `refs/heads/<base>:refs/remotes/<remote>/<base>` from the selected remote with closed
    argv, no pull and no prune, then freeze the fetched commit. A failed fetch leaves no target branch,
    worktree, or Core Task.
-3. For a managed Codex worktree, call the packaged `host-launch dispatch-start` helper before exactly
-   one Host creation call. Create from the existing ref `refs/remotes/<remote>/<base>` with
-   `target.environment.type="worktree"`; omit `onMissing` and never use Host create-branch fallback.
-   Send the helper's complete `host_request` unchanged, including its prompt and deterministic
-   launch/repository title. `dispatch-start` takes only `launch_id`, `repository_key`, and `project_id`;
-   it reads the saved handoff instead of accepting another request summary. A `clientThreadId`, queued result,
-   timeout, or malformed result is read through the receipt and Host status using that marker only;
-   never dispatch again.
+3. For a managed Codex worktree, call `host-launch dispatch-start` with `launch_id`,
+   `repository_key`, and `project_id`. It saves the complete `host_request` in
+   `receipt.operation_status.host_request` and enters `dispatch_prepared`; it grants no creation call.
+   Redirect every host-launch command's complete stdout to a private file outside assessed repositories,
+   check the exit code, and parse the file with filesystem APIs. Never JSON.parse a tool's displayed
+   stdout: display limits may truncate it. Retain the full parsed object in the tool orchestration
+   context and forward `host_request` directly; do not reconstruct it from a preview.
+   Read back `status` or repeat `dispatch-start` to retrieve the exact saved request.
+   Call `dispatch-call` with the current `dispatch_attempt_id` immediately before `create_thread`.
+   Only that invocation's `should_dispatch=true` permits one creation call. Save and parse its full
+   JSON output before calling the Host. Create with the exact retained request, including the
+   existing `refs/remotes/<remote>/<base>` ref, `target.environment.type="worktree"`,
+   prompt and launch/repository title; omit `onMissing`.
+   Record the complete Host response with `dispatch-result`.
+   If interrupted before `create_thread`, stop the previous caller and inspect the actual call sequence.
+   Only proven non-invocation permits `dispatch-recover` with `host_call_not_made=true`,
+   `previous_caller_stopped=true`, the current attempt ID and a specific reason. Empty Host IDs alone
+   are insufficient. Recovery retains the request and returns a new attempt ID for `dispatch-call`.
+   If the call happened or its outcome is unknown, inspect the known Host ID; otherwise list Host tasks
+   and archived tasks using the saved launch/repository title as a search hint, and read candidate tasks'
+   complete initial prompts. Titles may be normalized or renamed, so use the launch/repository values
+   in the saved prompt to find candidates. Pass actual `thread_id` and complete `initial_prompt` pairs
+   to `dispatch-reconcile`. It records exactly one prompt match; zero matches, incomplete listing,
+   unavailable inspection or multiple matches never authorize creation. A `clientThreadId` is a queued
+   marker, not a `threadId`; after an unknown result, never dispatch again.
+   Retained original creation responses can still be saved with `dispatch-result`.
 4. The child consumes the receipt before any Core call, verifies the same Git common group, a new
    worktree Git directory, exact fetched HEAD, and clean status, then creates and switches to the
    confirmed target branch. It verifies branch, HEAD, clean status, submodules, and Host write access.

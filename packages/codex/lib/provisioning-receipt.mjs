@@ -13,6 +13,7 @@ export const PROVISIONING_PHASES = Object.freeze([
   "confirmed",
   "fetching",
   "fetched",
+  "dispatch_prepared",
   "dispatching",
   "provisioning",
   "queued",
@@ -32,8 +33,9 @@ const cleanupStates = Object.freeze(["not_requested", "requested", "completed", 
 const phaseTransitions = Object.freeze({
   confirmed: Object.freeze(["confirmed", "fetching", "failed"]),
   fetching: Object.freeze(["fetching", "fetched", "failed", "uncertain"]),
-  fetched: Object.freeze(["fetched", "dispatching", "provisioning", "failed", "uncertain"]),
-  dispatching: Object.freeze(["dispatching", "queued", "dispatched", "provisioning", "failed", "uncertain"]),
+  fetched: Object.freeze(["fetched", "dispatch_prepared", "provisioning", "failed", "uncertain"]),
+  dispatch_prepared: Object.freeze(["dispatch_prepared", "dispatching"]),
+  dispatching: Object.freeze(["dispatch_prepared", "dispatching", "queued", "dispatched", "provisioning", "failed", "uncertain"]),
   queued: Object.freeze(["queued", "dispatched", "provisioning", "failed", "uncertain"]),
   dispatched: Object.freeze(["dispatched", "provisioning", "failed", "uncertain"]),
   provisioning: Object.freeze(["provisioning", "provisioned", "failed", "uncertain"]),
@@ -77,6 +79,8 @@ export function createProvisioningReceipt({
       phase: "confirmed",
       surface,
       dispatch_attempt_id: null,
+      host_request: null,
+      dispatch_recovery_reason: null,
       host_thread_id: null,
       host_client_thread_id: null,
       host_operation_id: null,
@@ -293,7 +297,7 @@ export function updateProvisioningReceipt(receipt, patch) {
   const allowed = new Set([
     "fetched_commit", "worktree_path", "dispatch_attempt_id", "host_thread_id",
     "host_client_thread_id", "host_operation_id", "host_operation_revision", "relocation_id",
-    "worktree_cleanup", "branch_cleanup",
+    "worktree_cleanup", "branch_cleanup", "host_request", "dispatch_recovery_reason",
   ]);
   for (const key of Object.keys(patch.values)) {
     if (!allowed.has(key)) throw new Error(`provisioning receipt update cannot change ${key}`);
@@ -312,8 +316,29 @@ export function updateProvisioningReceipt(receipt, patch) {
 function validateOperationStatus(value) {
   assertExactKeys(value, [
     "phase", "surface", "dispatch_attempt_id", "host_thread_id", "host_client_thread_id",
-    "host_operation_id", "host_operation_revision", "relocation_id", "worktree_cleanup", "branch_cleanup",
+    "host_operation_id", "host_operation_revision", "relocation_id", "worktree_cleanup", "branch_cleanup", "host_request", "dispatch_recovery_reason",
   ], "provisioning operation_status");
+  if (value.host_request !== null) {
+    const request = value.host_request;
+    assertExactKeys(request, ["prompt", "title", "target"], "host_request");
+    for (const field of ["prompt", "title"]) {
+      if (typeof request[field] !== "string" || request[field].trim() === "") throw new Error(`host_request.${field} is invalid`);
+    }
+    assertExactKeys(request.target, ["type", "projectId", "environment"], "host_request.target");
+    assertExactKeys(request.target.environment, ["type", "startingState"], "host_request.environment");
+    assertExactKeys(request.target.environment.startingState, ["type", "branchName"], "host_request.startingState");
+    if (request.target.type !== "project" || typeof request.target.projectId !== "string" || request.target.projectId.trim() === "" ||
+        request.target.environment.type !== "worktree" || request.target.environment.startingState.type !== "branch") {
+      throw new Error("host_request target is invalid");
+    }
+    assertBranchText(request.target.environment.startingState.branchName, "host_request branchName");
+  }
+  if (["dispatch_prepared", "dispatching"].includes(value.phase) && (value.host_request === null || value.dispatch_attempt_id === null)) {
+    throw new Error("dispatch requires a retained host_request and attempt ID");
+  }
+  if (value.dispatch_recovery_reason !== null && (typeof value.dispatch_recovery_reason !== "string" || value.dispatch_recovery_reason.trim() === "")) {
+    throw new Error("dispatch_recovery_reason is invalid");
+  }
   if (!PROVISIONING_PHASES.includes(value.phase)) throw new Error("provisioning operation phase is invalid");
   if (!["managed_worktree", "cli_worktree"].includes(value.surface)) {
     throw new Error("provisioning surface is invalid");

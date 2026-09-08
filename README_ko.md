@@ -172,3 +172,5 @@ dev-flow-codex host-launch prepare --help
 `host-launch prepare`는 `launch_id`가 생략되면 ID를 생성하고 해당 ID로 시작 기록을 확인합니다. 재시도할 때 반환된 `receipt.launch_id`를 전달하면 같은 시작 작업을 재개하며, 기록이 이미 `fetched`이면 fetch를 건너뜁니다. 명시적으로 전달한 ID는 저장된 기록과 일치해야 합니다.
 
 `host-launch dispatch-result`는 `content[].text`의 JSON을 포함한 Codex 작업 생성 응답 전체를 받습니다. `clientThreadId`를 `host_client_thread_id`로 저장하고 단계를 `queued`로 설정합니다. 같은 `launch_id`와 `repository_key`로 보관한 결과를 다시 제출하면 `uncertain` 기록을 복구할 수 있습니다. 이후 확인은 같은 생성 작업을 추적하며 다시 디스패치하지 않습니다.
+
+Codex는 작업 공간 생성 요청 전체를 저장하여 다시 읽을 수 있게 합니다. `dispatch-start`는 요청을 준비하고, `dispatch-call`은 한 번의 호출을 허용하며, `dispatch-recover`는 호출하지 않았음이 확인된 작업을 복구합니다. 결과가 불명확하면 `dispatch-reconcile`로 기존 작업을 확인합니다. 호출자는 완전한 JSON 파일을 파싱하며, 결과 누락을 이유로 중복 생성하지 않습니다.

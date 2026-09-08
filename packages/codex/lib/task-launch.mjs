@@ -155,42 +155,95 @@ export async function beginManagedTaskDispatch(input, options = {}) {
   assertNonEmpty(input.project_id, "project_id");
   return await withLockedReceipt(input, options, async (state) => {
     const receipt = state.receipt;
-    if (["dispatching", "queued", "dispatched", "provisioning", "provisioned", "uncertain"].includes(receipt.operation_status.phase)) {
-      return Object.freeze({ should_dispatch: false, receipt_path: state.path, receipt });
+    const retained = receipt.operation_status.host_request;
+    if (retained !== null && retained.target.projectId !== input.project_id) throw new Error("dispatch project conflicts with retained request");
+    if (["dispatch_prepared", "dispatching", "queued", "dispatched", "provisioning", "provisioned", "uncertain"].includes(receipt.operation_status.phase)) {
+      return Object.freeze({ should_dispatch: false, receipt_path: state.path, receipt, host_request: retained });
     }
     if (receipt.operation_status.phase !== "fetched" || receipt.operation_status.surface !== "managed_worktree") {
       throw new Error("managed dispatch requires one fetched managed-worktree receipt");
     }
     const handoff = await readTaskHandoff(state.path, receipt.handoff_digest);
     const prompt = buildManagedBootstrapPrompt({ launchId: receipt.launch_id, repositoryKey: receipt.repository_key, handoff });
-    const attemptId = createHash("sha256")
-      .update(`${receipt.launch_id}\0${receipt.repository_key}\0managed-dispatch`)
-      .digest("hex");
-    const dispatching = updateProvisioningReceipt(receipt, {
-      phase: "dispatching",
-      values: { dispatch_attempt_id: attemptId },
+    const attemptId = createHash("sha256").update(`${receipt.launch_id}\0${receipt.repository_key}\0managed-dispatch`).digest("hex");
+    const hostRequest = {
+      prompt,
+      title: `Dev Flow ${receipt.launch_id} ${receipt.repository_key}`,
+      target: {
+        type: "project", projectId: input.project_id,
+        environment: { type: "worktree", startingState: { type: "branch", branchName: `refs/remotes/${receipt.remote_name}/${receipt.base_branch}` } },
+      },
+    };
+    const prepared = updateProvisioningReceipt(receipt, {
+      phase: "dispatch_prepared", values: { dispatch_attempt_id: attemptId, host_request: hostRequest },
     });
-    await persistReceipt(state.path, dispatching, options);
-    return Object.freeze({
-      should_dispatch: true,
-      receipt_path: state.path,
-      receipt: dispatching,
-      host_request: Object.freeze({
-        prompt,
-        title: `Dev Flow ${receipt.launch_id} ${receipt.repository_key}`,
-        target: Object.freeze({
-          type: "project",
-          projectId: input.project_id,
-          environment: Object.freeze({
-            type: "worktree",
-            startingState: Object.freeze({
-              type: "branch",
-              branchName: `refs/remotes/${receipt.remote_name}/${receipt.base_branch}`,
-            }),
-          }),
-        }),
-      }),
+    await persistReceipt(state.path, prepared, options);
+    return Object.freeze({ should_dispatch: false, receipt_path: state.path, receipt: prepared, host_request: hostRequest });
+  });
+}
+
+export async function claimManagedTaskDispatch(input, options = {}) {
+  assertExactKeys(input, ["launch_id", "repository_key", "dispatch_attempt_id"], "dispatch call input");
+  return await withLockedReceipt(input, options, async (state) => {
+    const status = state.receipt.operation_status;
+    assertDispatchAttempt(status, input);
+    if (status.phase !== "dispatch_prepared") {
+      return { should_dispatch: false, receipt_path: state.path, receipt: state.receipt, host_request: status.host_request };
+    }
+    const next = updateProvisioningReceipt(state.receipt, { phase: "dispatching", values: {} });
+    await persistReceipt(state.path, next, options);
+    return { should_dispatch: true, receipt_path: state.path, receipt: next, host_request: next.operation_status.host_request };
+  });
+}
+
+export async function recoverUncalledManagedTaskDispatch(input, options = {}) {
+  assertExactKeys(input, ["launch_id", "repository_key", "dispatch_attempt_id", "host_call_not_made", "previous_caller_stopped", "reason"], "dispatch recovery input");
+  if (input.host_call_not_made !== true || input.previous_caller_stopped !== true) throw new Error("recovery requires an uncalled Host and stopped previous caller");
+  assertNonEmpty(input.reason, "reason");
+  return await withLockedReceipt(input, options, async (state) => {
+    const status = state.receipt.operation_status;
+    assertDispatchAttempt(status, input);
+    if (status.phase !== "dispatching" || state.receipt.worktree_path !== null ||
+        status.host_thread_id !== null || status.host_client_thread_id !== null || status.host_operation_id !== null || status.relocation_id !== null) {
+      throw new Error("recovery requires an uncalled dispatching receipt without Host resources");
+    }
+    const next = updateProvisioningReceipt(state.receipt, {
+      phase: "dispatch_prepared",
+      values: { dispatch_attempt_id: randomUUID(), dispatch_recovery_reason: input.reason },
     });
+    await persistReceipt(state.path, next, options);
+    return { should_dispatch: false, receipt_path: state.path, receipt: next, host_request: next.operation_status.host_request };
+  });
+}
+
+function assertDispatchAttempt(status, input) {
+  assertNonEmpty(input.dispatch_attempt_id, "dispatch_attempt_id");
+  if (status.surface !== "managed_worktree" || status.host_request === null || status.dispatch_attempt_id !== input.dispatch_attempt_id) {
+    throw new Error("dispatch attempt does not match the retained managed request");
+  }
+}
+
+export async function reconcileManagedTaskDispatch(input, options = {}) {
+  assertExactKeys(input, ["launch_id", "repository_key", "candidates"], "dispatch reconciliation input");
+  if (!Array.isArray(input.candidates)) throw new Error("candidates must be an array");
+  for (const candidate of input.candidates) {
+    assertExactKeys(candidate, ["thread_id", "initial_prompt"], "Host candidate");
+    assertNonEmpty(candidate.thread_id, "thread_id");
+    assertNonEmpty(candidate.initial_prompt, "initial_prompt");
+  }
+  return await withLockedReceipt(input, options, async (state) => {
+    const status = state.receipt.operation_status;
+    if (status.surface !== "managed_worktree" || status.host_request === null || status.relocation_id !== null ||
+        !["dispatching", "uncertain", "queued", "dispatched"].includes(status.phase)) {
+      throw new Error("reconciliation requires a pending managed creation");
+    }
+    const matches = [...new Set(input.candidates.filter((entry) => entry.initial_prompt === status.host_request.prompt).map((entry) => entry.thread_id))];
+    if (matches.length > 1) throw new Error("multiple Host tasks match the saved launch; inspect duplicates before continuing");
+    if (matches.length === 0) return { receipt_path: state.path, receipt: state.receipt, matched: false, should_dispatch: false };
+    if (status.host_thread_id !== null && status.host_thread_id !== matches[0]) throw new Error("Host task conflicts with retained thread ID");
+    const next = updateProvisioningReceipt(state.receipt, { phase: "dispatched", values: { host_thread_id: matches[0] } });
+    await persistReceipt(state.path, next, options);
+    return { receipt_path: state.path, receipt: next, matched: true, should_dispatch: false };
   });
 }
 

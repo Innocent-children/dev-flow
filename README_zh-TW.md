@@ -166,3 +166,5 @@ dev-flow-codex host-launch prepare --help
 `host-launch prepare` 省略 `launch_id` 時自動產生 ID，並使用該 ID 核對啟動記錄。重試時傳入回傳的 `receipt.launch_id`，繼續同一次啟動；記錄已為 `fetched` 時略過 fetch。明確傳入的 ID 必須與儲存記錄一致。
 
 `host-launch dispatch-result` 接收 Codex 建立任務的完整回傳值，包括 `content[].text` 中的 JSON。它將 `clientThreadId` 儲存為 `host_client_thread_id`，階段設為 `queued`；以相同 `launch_id` 和 `repository_key` 重新提交保留的結果，可以恢復 `uncertain` 記錄。後續檢查繼續追蹤同一次建立，不重複派發。
+
+Codex 儲存完整工作區建立請求供重新讀取。`dispatch-start` 準備請求，`dispatch-call` 允許一次呼叫，`dispatch-recover` 恢復確認尚未呼叫的操作，`dispatch-reconcile` 在結果未知時比對既有任務。呼叫端從完整 JSON 檔案解析；缺少結果不能作為重複建立的理由。

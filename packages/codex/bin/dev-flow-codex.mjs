@@ -31,6 +31,9 @@ import { inspectAdmissionAnchor } from "../lib/task-admission.mjs";
 import { HOST_LAUNCH_OPERATIONS, hostLaunchHelp } from "../lib/host-launch-contract.mjs";
 import {
   beginManagedTaskDispatch,
+  claimManagedTaskDispatch,
+  reconcileManagedTaskDispatch,
+  recoverUncalledManagedTaskDispatch,
   beginTaskHandoff,
   bootstrapManagedTask,
   cleanupCliTaskWorktree,
@@ -388,6 +391,9 @@ async function runHostLaunchCommand(operation, input, paths, dependencies) {
     };
   }
   if (operation === "dispatch-start") return await beginManagedTaskDispatch(input, common);
+  if (operation === "dispatch-reconcile") return await reconcileManagedTaskDispatch(input, common);
+  if (operation === "dispatch-call") return await claimManagedTaskDispatch(input, common);
+  if (operation === "dispatch-recover") return await recoverUncalledManagedTaskDispatch(input, common);
   if (operation === "dispatch-result") return await recordManagedTaskDispatch(input, common);
   if (operation === "handoff-start") return await beginTaskHandoff(input, common);
   if (operation === "handoff-result") return await recordTaskHandoff(input, common);

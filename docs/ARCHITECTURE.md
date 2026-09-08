@@ -379,3 +379,8 @@ Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-
 Codex 的命令说明由 Host 包的 `lib/host-launch-contract.mjs` 提供；`host-launch <operation> --help` 在读取 stdin、解析安装路径或执行操作前返回输入 Schema、字段来源、输出字段和下一步。`host-launch scope` 只读取已确认的仓库记录，复用协调器的完整性检查后生成 Core 仓库参数。Git 操作继续由 Host 协调器负责。
 
 Core MCP 的 `inputSchema` 描述提交参数，`outputSchema` 描述公开结果外层和继续执行所需的字段路径，保存记录的内容由 Core 领域校验负责。`structuredContent` 与文本内容携带同一 JSON 结果。Host 先处理 `recovery_assessment.next_advice`，再读取当前 Action；新会话从 `recovery_assessment.operation.action_id` 获取保存的提交身份。生命周期操作回读 Task、创建来源或迁移记录，不借用普通 Action 恢复入口。
+
+
+Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.operation_status.host_request`，进入 `dispatch_prepared`；重复调用和 `status` 均可回读。`dispatch-call` 使用当前 `dispatch_attempt_id` 将阶段改为 `dispatching`，仅首次返回 `should_dispatch=true` 时允许调用一次创建工具。调用方将命令完整 stdout 写入私有文件，检查退出码并从文件解析 JSON，再原样转发请求，避免显示长度限制截断内容。
+
+确认原调用方已停止且创建工具尚未调用时，`dispatch-recover` 接收当前派发 ID、`host_call_not_made=true`、`previous_caller_stopped=true` 和具体 `reason`，保留原请求并换发调用许可 ID；随后执行 `dispatch-call`。空任务 ID 本身不能证明未调用。已经调用但结果未知时，Host 按保存的启动标题、启动 ID 和仓库标识查找任务及归档任务，读取候选任务完整初始消息，将 `candidates`（`thread_id`、`initial_prompt`）交给 `dispatch-reconcile`。唯一完整消息匹配才保存任务 ID；零匹配、多个匹配或查询不可用均不允许重新创建。Core Task 状态保持由 Core 管理。

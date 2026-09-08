@@ -33,6 +33,7 @@ export const CODEX_MCP_INSTRUCTIONS = [
   "A direct choice creates no Dev Flow state. A Dev Flow choice requires separate explicit confirmation of every repository key, remote, base branch, and new target branch.",
   "After confirmation, use the packaged host-launch receipt helpers, exact fetch, and frozen remote/base commit; read dev-flow-codex host-launch <operation> --help for input Schemas and use host-launch scope to assemble all provisioned repositories. Source checkout changes are not copied.",
   "Managed Codex task creation starts exactly once from the existing refs/remotes/<remote>/<base> ref with target.environment.type=worktree and no onMissing fallback; queued, clientThreadId, timeout, or uncertain results are read from the receipt and Host state without redispatch.",
+  "dispatch-start persists the complete host_request; dispatch-call grants one creation call. Parse complete stdout files rather than displayed output. dispatch-recover requires confirmed non-invocation and a stopped caller; dispatch-reconcile matches actual Host task initial prompts after an unknown result, never granting another creation.",
   "The child verifies the fetched HEAD and clean managed worktree, creates the confirmed target branch, and only then performs dev_flow_server_info followed by dev_flow_open_task with receipt-backed workspace_origin.",
   "ACTIVE_TASK_CONFLICT is a safe stop and never authorizes relocation or replacement dispatch.",
   "Core computes repository file effects from Git; Host node results carry semantic facts only.",

@@ -162,7 +162,7 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `dev-flow-codex mcp` | **内部 Host 命令。** 由 Plugin 的 MCP 配置调用；它设置数据目录和 Codex admission instructions，然后启动 packaged Core 的 `mcp --stdio`。正常用户不应手工启动它。 |
 | `dev-flow-codex hook pre-tool-use` | **内部 Host 命令。** Codex packaged hook 通过 `PATH` 中 package-owned launcher 调用它；该命令读取一个 Hook 事件，提取 `apply_patch` 目标并执行写前检查。正常用户不应手工启动它。 |
 | `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** `hook pre-tool-use` 的实现调用它；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |
-| `dev-flow-codex host-launch <operation>` | **内部 Host 命令。** 从 stdin 接收一个 closed JSON 对象，并输出一个 JSON 对象。`operation` 只允许 `inspect|prepare|status|dispatch-start|dispatch-result|bootstrap|cli-provision|scope|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`；它执行或记录当前用户已经确认的 assessment、provisioning、relaunch、handoff 与 cleanup 步骤，不是通用 Git CLI。 |
+| `dev-flow-codex host-launch <operation>` | **内部 Host 命令。** 从 stdin 接收一个 closed JSON 对象，并输出一个 JSON 对象。`operation` 只允许 `inspect|prepare|status|dispatch-start|dispatch-call|dispatch-recover|dispatch-reconcile|dispatch-result|bootstrap|cli-provision|scope|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`；它执行或记录当前用户已经确认的 assessment、provisioning、relaunch、handoff 与 cleanup 步骤，不是通用 Git CLI。 |
 
 `dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。
 
@@ -171,7 +171,7 @@ Codex 新会话启动使用原会话保存的完整需求交接材料。以下�
 | 操作 | 输入字段与材料处理 |
 | --- | --- |
 | `prepare` | 必填 `request`、`assessment_anchor`、`repository_key`、`repository_path`、`remote_name`、`base_branch`、`target_branch`、`surface`、`worktree_path`、`handoff_file`；可选 `launch_id`。`handoff_file` 是原会话在已有确认后写入的 UTF-8 JSON 草稿的规范化绝对路径，位于已评估仓库之外。材料中的 `request` 必须与已评估请求一致。fetch 前保存完整材料，receipt 关联 `handoff_digest`。 |
-| `dispatch-start` | 只接收 `launch_id`、`repository_key`、`project_id`。从保存材料生成 `host_request.prompt`，调用方将返回的 `host_request` 原样交给桌面任务创建。 |
+| `dispatch-start` | 只接收 `launch_id`、`repository_key`、`project_id`。保存完整 `host_request`；由 `dispatch-call` 登记调用许可后原样交给桌面任务创建。 |
 | `cli-provision` | 只接收 `launch_id`、`repository_key`、`additional_worktree_paths`、`source_repository_path`。从同一份保存材料生成 relaunch 参数，调用方原样使用。 |
 
 材料包含目标、关联原始消息的确定要求、术语、范围限制、代码调查、工作要求、未采纳建议、假设、
@@ -509,3 +509,8 @@ Task Plan 的 `expected_paths` 支持精确路径及目录后缀 `/**`，不支�
 `dispatch-result` 的 `host_result` 使用 Codex 原始完整返回值：支持直接结果对象、`result`、`structuredContent`、`structuredContent.result`，以及没有结构化结果时单个 `content` 文本块中的 JSON。结构化结果优先；文本 JSON 必须合法且无重复成员。`isError: true`、缺少标识、无法解析或多个文本块均记录为 `uncertain`。
 
 有效 `clientThreadId` 保存到 `operation_status.host_client_thread_id`，阶段为 `queued`；有效 `threadId` 保存到 `host_thread_id`，阶段为 `dispatched`。对相同 `launch_id` 和 `repository_key` 补交保留的原始结果，允许 `uncertain → queued`；后续就绪结果沿 `queued → dispatched` 保存，并保留排队 ID 和原派发标识。`dispatch-start` 在这些阶段均返回 `should_dispatch: false`。Host 继续检查同一次创建；`clientThreadId` 不是可传给要求 `threadId` 的工具的任务 ID。
+
+
+Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.operation_status.host_request`，进入 `dispatch_prepared`；重复调用和 `status` 均可回读。`dispatch-call` 使用当前 `dispatch_attempt_id` 将阶段改为 `dispatching`，仅首次返回 `should_dispatch=true` 时允许调用一次创建工具。调用方将命令完整 stdout 写入私有文件，检查退出码并从文件解析 JSON，再原样转发请求，避免显示长度限制截断内容。
+
+确认原调用方已停止且创建工具尚未调用时，`dispatch-recover` 接收当前派发 ID、`host_call_not_made=true`、`previous_caller_stopped=true` 和具体 `reason`，保留原请求并换发调用许可 ID；随后执行 `dispatch-call`。空任务 ID 本身不能证明未调用。已经调用但结果未知时，Host 按保存的启动标题、启动 ID 和仓库标识查找任务及归档任务，读取候选任务完整初始消息，将 `candidates`（`thread_id`、`initial_prompt`）交给 `dispatch-reconcile`。唯一完整消息匹配才保存任务 ID；零匹配、多个匹配或查询不可用均不允许重新创建。Core Task 状态保持由 Core 管理。

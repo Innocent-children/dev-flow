@@ -173,3 +173,5 @@ See the [command reference](docs/COMMANDS_en.md) for parameter and recovery rule
 `host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `fetched` skips fetch. An explicit ID must match the saved receipt.
 
 `host-launch dispatch-result` accepts the complete Codex creation response, including JSON in `content[].text`. It saves `clientThreadId` as `host_client_thread_id` with phase `queued`; resubmitting a retained result with the same `launch_id` and `repository_key` can recover an `uncertain` record. Subsequent inspection follows the same creation, without dispatching again.
+
+Codex retains complete workspace creation requests for readback. `dispatch-start` prepares, `dispatch-call` grants one call, `dispatch-recover` resumes a proven uncalled operation, and `dispatch-reconcile` matches an existing task after an unknown result. Callers parse complete JSON files; missing results never authorize duplicate creation.
