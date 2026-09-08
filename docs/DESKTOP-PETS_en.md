@@ -125,6 +125,8 @@ and `2` for invalid arguments. There is no public `pet status` or `pet start --j
 Pet size offers 50%, 75%, 100%, 125%, 150%, and 200%, defaulting to 100% and saved as `scale` in `settings.json`. Scaling affects the character while bubble text and width stay unchanged.
 Resizing preserves the artwork anchor position before constraining the window to the visible screen. The size and position apply after saving succeeds; a failed save shows a message and keeps the current size. Walking speed follows the scale.
 
+On Windows, resizing ends the current idle activity and its movement, then schedules the next activity after the normal interval. Work animations and completion celebrations retain their playback progress.
+
 ## Appearance types and available animations
 
 Rules use animation keys for every appearance, with no behavior tied to a particular name. The artwork actually supplied determines which effects an appearance can show.
@@ -352,6 +354,10 @@ Packs contain presentation data, not executable scripts.
 | A sibling behavior-map.json has no effect | The importer reads `pet.json` with an atlas or `animations.json`. `behavior-map.json` controls neither timing nor behavior; use the supported catalog fields. |
 
 ## Acceptance checks
+
+`node --test packages/desktop-pet/windows/tests/renderer.test.cjs` exercises the Windows renderer using a simulated DOM, IPC and clock on Mac or Windows. Ordinary polls preserve walking, resizing cancels walking and allows later activities, and work and celebration playback retain their progress. Both CI jobs run this check without starting a native window. See [platform-targeted checks](../scripts/README_en.md#platform-targeted-checks) for package-path, permission and `.exe` prerequisites.
+
+`packages/desktop-pet/windows/tests/native.cjs` runs under Windows x64 Electron and checks that resizing a real window clears the renderer's walking activity; other platforms skip before loading Electron. It uses the existing native environment supplied by `DEV_FLOW_PET_NATIVE_OUTPUT`, `DEV_FLOW_PET_NATIVE_REQUEST`, and `DEV_FLOW_PET_APP_ROOT`. The Mac and cross-platform checks above passed on Mac arm64 in this correction; Windows `.exe` and Electron window checks were not run.
 
 The current macOS arm64 targeted checks cover 30 native tests and two artwork-staging tests, including size menu selection, scaled anchor and bubble layout, saved settings, walking speed, PNG regressions, and SVG import and rejection rules.
 Running `SVGArtworkTests` with the default appearance as `DEV_FLOW_PET_TEST_FIXTURE` verifies that all nine clips and 312 vector frames retain their contents after import. `node --test scripts/desktop-pet-artwork.test.mjs` verifies copied contents and rejects altered files. These are local component and artwork checks; full desktop sessions are verified separately.

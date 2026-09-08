@@ -193,6 +193,7 @@ window.pet.onState((next) => {
       state.preferences.animations_enabled ||
     next.preferences.idle_activities_enabled !==
       state.preferences.idle_activities_enabled ||
+    (next.preferences.scale !== state.preferences.scale && Boolean(activity)) ||
     Boolean(next.picker) !== Boolean(state.picker);
   state = next;
   const { canvas } = state.appearance.catalog;

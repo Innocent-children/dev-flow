@@ -143,6 +143,7 @@ dev-flow pet stop
 Windows 10/11 x64 cible les PC de bureau courants équipés de processeurs Intel ou AMD 64 bits. Les règles de chemins, permissions, commandes et nettoyage du Host sont séparées dans `platform/windows/` et `platform/macos/` ; Core partage la sémantique des tâches indépendante de la plateforme. Les lanceurs de commandes Windows utilisent UTF-8 et l’observation Git de Core masque les fenêtres de console. Consultez le [rapport d’adaptation](docs/WINDOWS-ADAPTATION_en.md) pour la vérification native sous Windows et ses limites ; ces résultats n’étendent pas la prise en charge des paquets stables.
 
 Windows propose aussi la mascotte de bureau : sélection des tâches et bulles d’état, menu de notification, apparences PNG/SVG, animations natives, atlas Codex PNG/WebP, neuf actions, déplacement à la souris, six tailles, masquage/restauration et démarrage/arrêt indépendants. Créez le paquet local Windows avec `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"` ; les prérequis et l’installation figurent dans le [guide de la mascotte](docs/DESKTOP-PETS_en.md). Les implémentations Windows et macOS restent séparées.
+Sous Windows, le redimensionnement termine l’activité de repos en cours et reprend la planification normale.
 
 Sous Windows, les répertoires AppData existants sont résolus vers leurs chemins réels, y compris les alias des hôtes de bureau empaquetés ; les liens symboliques restent refusés.
 

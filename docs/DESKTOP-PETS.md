@@ -123,6 +123,8 @@ tar -xzf "/absolute/pet-build/<local-package>.tgz" -C "/absolute/pet-unpack"
 “宠物大小”提供 50%、75%、100%、125%、150%、200% 六档，默认 100%，保存为 `settings.json` 的 `scale`。缩放只改变角色，气泡文字和宽度保持不变。
 调整时以素材锚点保持角色位置，再将窗口约束到屏幕可见区域；新大小和位置保存成功后应用，保存失败时显示提示并保持原大小。行走速度按缩放比例调整。
 
+Windows 调整大小时会结束当前待机活动、停止对应位移，再按正常间隔安排下一次活动；正在播放的工作动画和完成庆祝保留播放进度。
+
 ## 形象类型与动作可用性
 
 规则按动作键运行，适用于所有形象，不按名称指定行为。素材实际提供哪些动作，决定该形象能展示哪些效果。
@@ -343,6 +345,10 @@ Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Cod
 | 同目录的 behavior-map.json 没生效 | 当前读取 `pet.json`、图集或 `animations.json`；`behavior-map.json` 不控制帧时长或行为，使用当前支持的清单字段。 |
 
 ## 验收方式
+
+`node --test packages/desktop-pet/windows/tests/renderer.test.cjs` 使用模拟 DOM、IPC 和时钟验证 Windows 渲染脚本，可在 Mac 和 Windows 上运行。普通轮询保留散步，缩放结束散步后能安排后续活动，工作和庆祝动画保持进度。两端 CI 均运行此检查；测试不启动原生窗口。包路径、权限与 `.exe` 检查的环境要求见[平台定向检查](../scripts/README.md#平台定向检查)。
+
+`packages/desktop-pet/windows/tests/native.cjs` 由 Windows x64 Electron 执行，验证真实窗口缩放后渲染器退出散步状态；其他平台在加载 Electron 前跳过。该脚本沿用 `DEV_FLOW_PET_NATIVE_OUTPUT`、`DEV_FLOW_PET_NATIVE_REQUEST` 和 `DEV_FLOW_PET_APP_ROOT` 指定的原生测试环境。本轮在 Mac arm64 上通过上述 Mac 与跨平台定向检查，Windows `.exe` 和 Electron 窗口检查未执行。
 
 本次 macOS arm64 定向检查覆盖 30 项原生测试与 2 项素材装配测试，包括大小菜单、缩放后的锚点和气泡、设置保存、行走速度、PNG 回归，以及 SVG 导入和拒绝规则。
 使用默认形象作为 `DEV_FLOW_PET_TEST_FIXTURE` 运行 `SVGArtworkTests`，确认九类动作、312 个矢量帧导入后内容一致；`node --test scripts/desktop-pet-artwork.test.mjs` 验证复制内容及改动后拒绝。这些是本机组件和素材检查，完整桌面会话另行验证。

@@ -3,10 +3,9 @@ import { copyFile, mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { ensureDefaultDataDirectory, resolveDataDirectory } from "../lib/paths.mjs";
-import { preflightPackagedCore, selectPackagedRuntime } from "../lib/runtime.mjs";
 
 const windowsCore = process.env.DEV_FLOW_WINDOWS_CORE;
 const nativeWindows = process.platform === "win32" && process.arch === "x64";
@@ -26,7 +25,16 @@ test("DeepSeek stages and preflights an externally built Windows x64 Core", {
   await copyFile(externalCore, runtimePath);
   t.after(() => rm(root, { recursive: true, force: true }));
 
-  const selection = await selectPackagedRuntime({ packageRoot, platform: "win32", arch: "x64" });
+  for (const file of ["paths.mjs", "platform.mjs", "runtime.mjs", "platform/macos/policies.mjs", "platform/windows/policies.mjs"]) {
+    const target = join(packageRoot, "lib", file);
+    await mkdir(dirname(target), { recursive: true });
+    await copyFile(join(sourcePackageRoot, "lib", file), target);
+  }
+  const { packageRootFromModule } = await import(pathToFileURL(join(packageRoot, "lib", "paths.mjs")));
+  const { selectPackagedRuntime, preflightPackagedCore } = await import(pathToFileURL(join(packageRoot, "lib", "runtime.mjs")));
+  assert.equal(packageRootFromModule(), packageRoot);
+
+  const selection = await selectPackagedRuntime();
   assert.equal(selection.runtimePath, runtimePath);
   const runtime = await preflightPackagedCore(selection);
   const expectedVersion = (await readFile(new URL("../../../CORE_VERSION", import.meta.url), "utf8")).trim();

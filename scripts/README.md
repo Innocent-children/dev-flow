@@ -19,6 +19,17 @@
 `validate-repository.sh` 检查工具链、按锁定版本安装依赖、版本文件、空白字符、Go 格式、安装包
 约定、Host Adapter、可重复的完整流程测试和发布工具约定。该脚本不执行实际发布。
 
+## 平台定向检查
+
+测试按实际依赖的运行环境分开：
+
+| 检查 | 环境与预期结果 |
+| --- | --- |
+| `node --test packages/deepseek/tests/macos-paths.test.mjs` | 仅 macOS arm64：临时包包含两套平台模块，macOS shell 样例通过预检，POSIX 权限和符号链接规则通过；其他平台跳过。 |
+| `node --test packages/deepseek/tests/windows-support.test.mjs` | 仅 Windows x64，须设置 `DEV_FLOW_WINDOWS_CORE` 为实际构建的 Core：移出源码目录的包能加载模块并运行 `.exe` 预检；环境不满足时跳过。 |
+| `node --test packages/deepseek/tests/paths.test.mjs packages/dev-flow/tests/local-packages.test.mjs` | 跨平台：检查包路径选择与本地包摘要；路径比较使用实际路径，不执行其他平台的程序。 |
+| `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` | 跨平台模拟 DOM、IPC 和时钟：普通轮询保留散步；缩放取消散步并能安排后续活动；工作和庆祝动画保持进度。此检查已接入 Mac、Windows CI，不代表原生窗口测试。 |
+
 ## 本地安装测试
 
 下面一条命令会构建 WebUI 和 bundled Core，在仓库外的临时目录生成 `@imotong/dev-flow`、

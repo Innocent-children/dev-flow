@@ -1,3 +1,8 @@
+if (process.platform !== "win32" || process.arch !== "x64") {
+  console.log("SKIP Windows Electron desktop checks: requires Windows x64");
+  process.exit(0);
+}
+
 const { app } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -27,6 +32,17 @@ app
       await desktop.scale(value);
       assert.equal(desktop.prefs.value.scale, value);
     }
+    await desktop.scale(1);
+    await desktop.win.webContents.executeJavaScript(
+      'activity = "running-right"; play(activity); window.pet.command("walk", 1)',
+    );
+    await desktop.scale(1.5);
+    assert.equal(
+      await desktop.win.webContents.executeJavaScript(
+        'activity === null && current.clip === "idle"',
+      ),
+      true,
+    );
     await desktop.scale(1);
     await desktop.visibility(false);
     assert.equal(desktop.win.isVisible(), false);
@@ -112,6 +128,7 @@ app
           native_window: true,
           default_frames: 312,
           scales: 6,
+          resize_cancels_activity: true,
           hide_restore: true,
           task_picker: true,
           codex_atlases: ["v1-png", "v2-webp", "high-resolution-png"],

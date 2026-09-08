@@ -137,6 +137,7 @@ dev-flow pet stop
 Windows 10/11 x64 は、Intel または AMD の 64 ビットプロセッサを搭載した一般的なデスクトップ PC を対象とします。Host のパス、権限、コマンド、削除処理は `platform/windows/` と `platform/macos/` に分離し、Core はプラットフォームに依存しないタスクの意味規則を共有します。Windows のコマンド起動処理は UTF-8 を使用し、Core の Git 観測ではコンソールウィンドウを表示しません。Windows 実機検証の結果と制限は[対応レポート](docs/WINDOWS-ADAPTATION_en.md)を参照してください。安定版パッケージのサポート範囲は拡大しません。
 
 Windows でもデスクトップペットを利用できます。タスク選択と状態表示、トレイメニュー、PNG/SVG の外観、ネイティブアニメーション、Codex PNG/WebP アトラス、9 種類の動作、ドラッグ、6 段階のサイズ、非表示と復帰、個別の起動と停止に対応します。`node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"` で Windows ローカルパッケージをビルドできます。依存関係の準備とインストールは[デスクトップペットガイド](docs/DESKTOP-PETS_en.md)を参照してください。Windows と macOS のデスクトップ実装は独立しています。
+Windows では、サイズを変更すると実行中の待機動作を終了し、通常のスケジュールに戻ります。
 
 Windows では、パッケージ化されたデスクトップホストのディレクトリエイリアスを含め、既存の AppData ディレクトリを実際のパスに解決します。シンボリックリンクは引き続き拒否します。
 

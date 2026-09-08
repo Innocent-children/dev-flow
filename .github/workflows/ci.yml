@@ -92,6 +92,10 @@ jobs:
         shell: pwsh
         run: node scripts/dev-flow-local.mjs help
 
+      - name: Check Windows pet renderer logic with simulated DOM and IPC
+        shell: pwsh
+        run: node --test packages/desktop-pet/windows/tests/renderer.test.cjs
+
       - name: Run native Windows WebUI lifecycle
         shell: pwsh
         run: |

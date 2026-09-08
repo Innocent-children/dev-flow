@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -20,7 +20,7 @@ test("a declared development distribution binds both artifact paths and bytes", 
   }
   await writeFile(join(root,"package.json"),JSON.stringify({devFlowLocalPackages:entries}));
   const selected = await readLocalPackages(root);
-  assert.equal(selected.codex.path,join(root,"local-packages/codex.tgz"));
+  assert.equal(selected.codex.path,await realpath(join(root,"local-packages/codex.tgz")));
   await writeFile(selected.codex.path,"altered");
   let hostCalls = 0;
   await assert.rejects(runLifecycle(parseArguments(["install","--host","all","--yes"]),{

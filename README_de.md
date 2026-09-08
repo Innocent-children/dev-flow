@@ -140,6 +140,7 @@ dev-flow pet stop
 Windows 10/11 x64 richtet sich an gewöhnliche Desktop-PCs mit 64-Bit-Prozessoren von Intel oder AMD. Die Regeln für Pfade, Berechtigungen, Befehle und Bereinigung des Hosts sind in `platform/windows/` und `platform/macos/` getrennt; Core teilt die plattformunabhängige Aufgabensemantik. Windows-Befehlsstarter verwenden UTF-8, und die Git-Beobachtung von Core blendet Konsolenfenster aus. Der [Anpassungsbericht](docs/WINDOWS-ADAPTATION_en.md) beschreibt die native Windows-Prüfung und ihre Grenzen; diese Ergebnisse erweitern nicht den Supportumfang stabiler Pakete.
 
 Windows bietet jetzt auch das Desktop-Haustier: Aufgabenauswahl und Statusanzeigen, Infobereich-Menü, PNG/SVG-Gestalten, native Animationen, Codex-PNG/WebP-Atlanten, neun Aktionen, Ziehen, sechs Größen, Ausblenden/Wiederherstellen sowie unabhängiges Starten/Stoppen. Das lokale Windows-Paket wird mit `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"` gebaut; Voraussetzungen und Installation stehen im [Desktop-Haustier-Handbuch](docs/DESKTOP-PETS_en.md). Windows- und macOS-Implementierung bleiben getrennt.
+Unter Windows beendet eine Größenänderung die aktuelle Leerlaufaktivität und setzt die normale Ablaufplanung fort.
 
 Unter Windows werden vorhandene AppData-Verzeichnisse auf ihre tatsächlichen Pfade aufgelöst, einschließlich Verzeichnisaliasen paketierter Desktop-Hosts; symbolische Links werden weiterhin abgelehnt.
 

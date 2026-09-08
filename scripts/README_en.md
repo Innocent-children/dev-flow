@@ -21,6 +21,17 @@ install real Host products or create npm, Tag, or GitHub Release state.
 whitespace, Go formatting, package contracts, Host Adapter tests, deterministic end-to-end tests, and
 release-tooling contracts. It does not invoke a real release entrypoint.
 
+## Platform-targeted checks
+
+Tests are separated by the environment they actually require:
+
+| Check | Environment and expected result |
+| --- | --- |
+| `node --test packages/deepseek/tests/macos-paths.test.mjs` | macOS arm64 only: the detached package includes both platform modules, the macOS shell fixture passes preflight, and POSIX permissions and symlink rules pass; skipped elsewhere. |
+| `node --test packages/deepseek/tests/windows-support.test.mjs` | Windows x64 only, with `DEV_FLOW_WINDOWS_CORE` pointing to a built Core: the detached package loads its modules and runs the `.exe` preflight; skipped when prerequisites are absent. |
+| `node --test packages/deepseek/tests/paths.test.mjs packages/dev-flow/tests/local-packages.test.mjs` | Cross-platform package-path selection and local artifact hashes; comparisons use canonical paths and execute no foreign-platform programs. |
+| `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` | Simulated DOM, IPC and clock on either platform: ordinary polls preserve walking, resizing cancels walking and allows later activities, and work and celebration playback retain their progress. Both Mac and Windows CI run this check; it is not a native window test. |
+
 ## Local installation testing
 
 This one command builds the WebUI and bundled Core, creates `@imotong/dev-flow`, `dev-flow-codex`,

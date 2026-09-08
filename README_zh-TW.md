@@ -131,6 +131,7 @@ dev-flow pet stop
 Windows 10/11 x64 面向一般 Intel、AMD 64 位元桌面電腦。Host 的路徑、權限、命令與清理規則分別位於 `platform/windows/` 和 `platform/macos/`；Core 共用平台中立的任務語意。Windows 命令啟動器使用 UTF-8，Core 的 Git 觀察隱藏主控台視窗。原生 Windows 驗證及限制見[適配報告](docs/WINDOWS-ADAPTATION.md)，這些結果不擴大穩定安裝套件的支援聲明。
 
 Windows 現已提供桌面寵物：任務選擇與狀態氣泡、系統匣選單、PNG/SVG 形象、原生動畫、Codex PNG/WebP 圖集、九類動作、拖動、六段大小、隱藏還原和獨立啟停。使用 `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"` 建置 Windows 本機套件；相依項目準備與安裝見[桌面寵物指南](docs/DESKTOP-PETS.md)。Windows 與 macOS 桌面實作保持獨立。
+Windows 調整大小時會結束目前的待機活動，並恢復正常排程。
 
 Windows 會將既有 AppData 目錄解析為實際路徑，包括封裝桌面宿主提供的目錄別名；仍拒絕符號連結。
 

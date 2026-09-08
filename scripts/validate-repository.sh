@@ -177,6 +177,7 @@ run_step "Cross-platform local package syntax" node --check scripts/dev-flow-loc
 run_step "Cross-platform build contracts" node --test scripts/build-core-runtimes.test.mjs scripts/dev-flow-local.test.mjs
 run_step "Desktop pet artwork staging syntax" node --check scripts/desktop-pet-artwork.mjs
 run_step "Desktop pet artwork package contracts" node --test scripts/desktop-pet-artwork.test.mjs
+run_step "Windows pet renderer simulation (no native desktop)" node --test packages/desktop-pet/windows/tests/renderer.test.cjs
 run_step "npm release publisher syntax" node --check release/publish.mjs
 run_step "npm release publisher behavior" node --test release/publish.test.mjs
 run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs
@@ -198,6 +199,7 @@ run_step "DeepSeek package and adapter contracts" \
     packages/deepseek/tests/package-contract.test.mjs \
     packages/deepseek/tests/bundle-contract.test.mjs \
     packages/deepseek/tests/paths.test.mjs \
+    packages/deepseek/tests/macos-paths.test.mjs \
     packages/deepseek/tests/authorization.test.mjs \
     packages/deepseek/tests/integration-plugin.test.mjs \
     packages/deepseek/tests/file-scope.test.mjs \
