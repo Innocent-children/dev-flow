@@ -104,10 +104,19 @@ source inspection is not part of ordinary Task creation. `host-launch inspect` r
 
 ## Provisioning confirmation
 
-After a still-current Dev Flow choice, show for each repository its stable key, remote name, base
-branch, proposed new target branch, and bounded dirty-path list. Explain that staged, tracked-dirty,
-and untracked source content will not enter the Task worktree. Require explicit confirmation of every
-`repository_key`, `remote_name`, `base_branch`, and `target_branch`, then stop again.
+After a still-current Dev Flow choice, ask for each repository, in this order:
+
+1. `source_type`: local or remote. Never infer remote from the presence of `origin`.
+2. `base_branch`: show local branches for a local source; ask for `remote_name` and its branch for a remote source.
+3. For a local source, explicitly ask `carry_changes`: whether to copy staged, unstaged and non-ignored
+   untracked files. Show the source checkout and its dirty paths. Preserve the source checkout and
+   staged/unstaged separation. Ignored files are excluded. Changes are applied to the selected branch;
+   an application conflict stops provisioning and retains the destination for inspection.
+   Remote sources always use `carry_changes=false`; local sources use `remote_name=""`.
+4. Confirm the new `target_branch`, showing the complete selection and `repository_key`.
+
+Ask only for missing choices; retain explicit choices already supplied in this request. Do not fetch,
+capture content, dispatch, or create a worktree before all choices are explicit. No omitted field has a default.
 
 After confirmation:
 
@@ -115,9 +124,11 @@ After confirmation:
    worktree-occupied conflicts. Prepare the sender handoff described below and supply its absolute
    `handoff_file` to `host-launch prepare`. The helper saves the full material and the narrow
    provisioning receipt before the first Git write.
-2. Fetch only `refs/heads/<base>:refs/remotes/<remote>/<base>` from the selected remote with closed
-   argv, no pull and no prune, then freeze the fetched commit. A failed fetch leaves no target branch,
-   worktree, or Core Task.
+2. For a remote source, fetch only `refs/heads/<base>:refs/remotes/<remote>/<base>` with closed argv,
+   no pull and no prune. For a local source, resolve `refs/heads/<base>` without network access.
+   Freeze `base_commit`. If carrying local changes, capture their Git snapshot without changing the
+   source index, HEAD or stash list. The receipt records `snapshot_commit`; preparation uses
+   `confirmed -> resolving -> prepared`. Failure leaves no Core Task.
 3. For a managed Codex worktree, call `host-launch dispatch-start` with `launch_id`,
    `repository_key`, and `project_id`. It saves the complete `host_request` in
    `receipt.operation_status.host_request` and enters `dispatch_prepared`; it grants no creation call.
@@ -129,7 +140,7 @@ After confirmation:
    Call `dispatch-call` with the current `dispatch_attempt_id` immediately before `create_thread`.
    Only that invocation's `should_dispatch=true` permits one creation call. Save and parse its full
    JSON output before calling the Host. Create with the exact retained request, including the
-   existing `refs/remotes/<remote>/<base>` ref, `target.environment.type="worktree"`,
+   frozen `base_commit`, `target.environment.type="worktree"`,
    prompt and launch/repository title; omit `onMissing`.
    Record the complete Host response with `dispatch-result`.
    If interrupted before `create_thread`, stop the previous caller and inspect the actual call sequence.
@@ -145,8 +156,9 @@ After confirmation:
    marker, not a `threadId`; after an unknown result, never dispatch again.
    Retained original creation responses can still be saved with `dispatch-result`.
 4. The child consumes the receipt before any Core call, verifies the same Git common group, a new
-   worktree Git directory, exact fetched HEAD, and clean status, then creates and switches to the
-   confirmed target branch. It verifies branch, HEAD, clean status, submodules, and Host write access.
+   worktree Git directory, exact frozen HEAD, and clean status, then creates and switches to the
+   confirmed target branch. The helper then applies the saved snapshot with staged state preserved.
+   Core verifies the confirmed source and accepts initial changes only for local `carry_changes=true`.
 5. A Codex CLI surface without Host task creation uses the receipt-backed `cli-provision` helper and
    the returned closed relaunch descriptor: executable `codex`, `-C` for the primary worktree, one
    `--add-dir` per additional worktree, and the saved-material bootstrap prompt. `cli-provision` takes
@@ -166,9 +178,11 @@ Only a `provisioned` receipt can supply the exact Host-facing workspace origin:
 ```json
 {
   "mode": "dedicated_worktree",
+  "source_type": "remote",
+  "carry_changes": false,
   "remote_name": "origin",
   "base_branch": "main",
-  "base_commit": "<complete fetched commit>",
+  "base_commit": "<complete frozen commit>",
   "task_branch": "codex/example",
   "provisioning_receipt_id": "<stable receipt identity>"
 }
@@ -790,7 +804,7 @@ has completed and Core can observe the requested history. Do not reuse relocatio
 ## Terminal worktree presentation and cleanup
 
 `DONE` and `CANCELLED` release Core claims only. They never commit, push, create a pull request,
-Handoff, delete a worktree, or delete a branch. Present remote/base/base commit, task branch/current
+Handoff, delete a worktree, or delete a branch. Present source/base/base commit, task branch/current
 HEAD, worktree path, clean or dirty state, current changed paths, completed verification, and the
 available keep/review/Handoff/cleanup actions.
 

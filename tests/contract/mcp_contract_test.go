@@ -76,7 +76,7 @@ func TestMCPCurrentContractRequiredShapes(t *testing.T) {
 	requireNames(core.ToolAbandonTask, []string{"host", "task_id", "revision", "reason"})
 	openProperties := schemas[core.ToolOpenTask]["properties"].(map[string]any)
 	workspaceOrigin := openProperties["workspace_origin"].(map[string]any)
-	if !slices.Equal(stringsOf(workspaceOrigin["required"]), []string{"mode", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"}) {
+	if !slices.Equal(stringsOf(workspaceOrigin["required"]), []string{"mode", "source_type", "carry_changes", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"}) {
 		t.Fatalf("workspace_origin schema=%#v", workspaceOrigin)
 	}
 	additional := openProperties["additional_repositories"].(map[string]any)
@@ -161,8 +161,8 @@ func TestMCPStrictInputBoundaryAndDuplicateMembers(t *testing.T) {
 
 func TestMCPOpenTaskSingleAndMultiRepositoryInputBoundary(t *testing.T) {
 	newTask := `"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"method_profile":"plain"}`
-	origin := `"workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"task/core","provisioning_receipt_id":"receipt-core"}`
-	additionalOrigin := `"workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"task/docs","provisioning_receipt_id":"receipt-docs"}`
+	origin := `"workspace_origin":{"mode":"dedicated_worktree","source_type":"remote","carry_changes":false,"remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"task/core","provisioning_receipt_id":"receipt-core"}`
+	additionalOrigin := `"workspace_origin":{"mode":"dedicated_worktree","source_type":"remote","carry_changes":false,"remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"task/docs","provisioning_receipt_id":"receipt-docs"}`
 	for _, raw := range []string{
 		`{"host":"codex","repository_path":"/repo"}`,
 		`{"host":"codex","repository_path":"/core",` + origin + `,"primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs",` + additionalOrigin + `}],` + newTask + `}`,
@@ -194,7 +194,7 @@ func TestMCPOpenTaskSingleAndMultiRepositoryInputBoundary(t *testing.T) {
 }
 
 func workspaceOriginValue(taskBranch, receiptID string) map[string]any {
-	return map[string]any{"mode": "dedicated_worktree", "remote_name": "origin", "base_branch": "main", "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "task_branch": taskBranch, "provisioning_receipt_id": receiptID}
+	return map[string]any{"mode": "dedicated_worktree", "source_type": "remote", "carry_changes": false, "remote_name": "origin", "base_branch": "main", "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "task_branch": taskBranch, "provisioning_receipt_id": receiptID}
 }
 func TestMCPStableErrorEnvelopesAreClosedAndRedacted(t *testing.T) {
 	secret := "/Users/private/secret.db SELECT * FROM tasks"
@@ -216,6 +216,23 @@ func TestSchemaUnsupportedResultIsBoundedAndPathFree(t *testing.T) {
 	for _, required := range []string{`"code":"SCHEMA_UNSUPPORTED"`, "storage schema is unsupported", "Stop this operation"} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("SCHEMA_UNSUPPORTED guidance missing %q: %s", required, text)
+		}
+	}
+}
+
+func TestMCPLocalWorkspaceRequiresExplicitContentChoice(t *testing.T) {
+	valid := `{"host":"codex","repository_path":"/local","workspace_origin":{"mode":"dedicated_worktree","source_type":"local","carry_changes":true,"remote_name":"","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"task/local","provisioning_receipt_id":"receipt-local"},"new_task":{"request":"Local work","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"method_profile":"plain"}}`
+	if err := core.ValidateToolInput(core.ToolOpenTask, []byte(valid)); err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []string{
+		strings.Replace(valid, `"carry_changes":true,`, "", 1),
+		strings.Replace(valid, `"carry_changes":true`, `"carry_changes":null`, 1),
+		strings.Replace(valid, `"source_type":"local"`, `"source_type":"remote"`, 1),
+		strings.Replace(valid, `"remote_name":""`, `"remote_name":"origin"`, 1),
+	} {
+		if err := core.ValidateToolInput(core.ToolOpenTask, []byte(invalid)); err == nil {
+			t.Fatalf("invalid source accepted: %s", invalid)
 		}
 	}
 }

@@ -38,6 +38,7 @@ const expectedPackageFiles = [
   "lib/tool-names.mjs",
   "lib/workspace-coordinator.mjs",
   "lib/workspace-tool.mjs",
+  "lib/worktree-snapshot.mjs",
   ...runtimePaths,
   "skills/dev-flow/SKILL.md",
   "skills/dev-flow/references/method-profiles.md",

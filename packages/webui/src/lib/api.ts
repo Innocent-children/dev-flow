@@ -184,6 +184,8 @@ export interface RepositoryView {
   repository_group_id: string;
   workspace_origin: {
     mode: "dedicated_worktree";
+    source_type: "local" | "remote";
+    carry_changes: boolean;
     remote_name: string;
     base_branch: string;
     base_commit: string;

@@ -19,9 +19,12 @@ Versuch aus oder eine neu gestartete Sitzung muss den Fortschritt aus dem Chat r
 Dev Flow speichert die vereinbarte Anfrage, erwartete Pfade, den nach der Analyse erstellten Prüfplan, die aktuelle Phase und Ergebnisse
 in einer lokalen Aufgabe. Codex oder DeepSeek ändert weiterhin den Code.
 
-Jede neue Anfrage wird zuerst schreibgeschützt bewertet. Wenn du Dev Flow auswählst, bestätigst du Remote,
-Basis-Branch und einen neuen Task-Branch; der Host erstellt von dieser entfernten Basis einen sauberen,
-eigenen Worktree, bevor Core die Task anlegt. Änderungen aus dem Quell-Checkout werden nicht kopiert.
+Jede neue Anfrage wird vor der Auswahl von Dev Flow schreibgeschützt bewertet. Danach fragt der Host nach
+einer lokalen oder entfernten Quelle, dem Ausgangsbranch und dem Namen des neuen Task-Branches. Bei einer
+lokalen Quelle fragt er außerdem, ob vorgemerkte und nicht vorgemerkte Änderungen sowie nicht von Git ignorierte,
+unversionierte Dateien kopiert werden sollen. Quellarbeitsverzeichnis und Indexzustand bleiben erhalten.
+Die lokale Erstellung benötigt kein Netzwerk; nur die entfernte führt fetch aus. Konflikte stoppen die Task-Erstellung
+und lassen den Zielarbeitsbaum zur Prüfung bestehen.
 
 Die Repository-Suche und die Nutzung des Code-Index folgen den aktuellen Benutzeranweisungen und der
 anwendbaren `AGENTS.md`. Verlangen diese einen Projektindex, untersucht der Host die möglichen
@@ -88,7 +91,7 @@ Oder sende in **DeepSeek Harness**:
 Das sind Selektoren für die Unterhaltung, keine Shell-Befehle. Nenne ein konkretes Ziel, Abnahmekriterien,
 die Dateigrenze und das Testlimit. Die erste Antwort bewertet die Auswirkungen und fragt nach direkter
 Arbeit oder Dev Flow; auch ein expliziter Selektor überspringt diese Entscheidung nicht. Bei Dev Flow
-bestätigst du Remote, Basis und Ziel-Branch. Codex öffnet einen verwalteten Worktree, wenn der Host das
+bestätigst du Quelle, Basis- und Ziel-Branch sowie die Übernahme lokaler Änderungen. Codex öffnet einen verwalteten Worktree, wenn der Host das
 unterstützt; DeepSeek zeigt den Neustart aus dem neuen Worktree, weil der Workspace Root der Sitzung feststeht.
 
 Vor dem Start einer neuen Codex-Sitzung speichert die ursprüngliche Sitzung die relevante Anforderungsdiskussion im Original und eine strukturierte Übergabe. Dabei trennt sie bestätigte Anforderungen von nicht angenommenen Vorschlägen und offenen Fragen. Neue Desktop-Aufgaben und CLI-Neustarts verwenden dieselben gespeicherten Inhalte; lange Inhalte werden als vollständige Dateien ohne Kürzung übergeben. Siehe [Architektur](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
@@ -174,7 +177,7 @@ dev-flow-codex host-launch prepare --help
 
 Parameter und Regeln zur Wiederaufnahme stehen in der [Befehlsreferenz](docs/COMMANDS_en.md).
 
-`host-launch prepare` erzeugt bei ausgelassenem `launch_id` eine ID und verwendet sie zum Abgleich des Startdatensatzes. Übergeben Sie bei einem erneuten Versuch die zurückgegebene `receipt.launch_id`, um denselben Start fortzusetzen; bei einem Datensatz im Zustand `fetched` entfällt fetch. Eine explizite ID muss mit dem gespeicherten Datensatz übereinstimmen.
+`host-launch prepare` erzeugt bei ausgelassenem `launch_id` eine ID und verwendet sie zum Abgleich des Startdatensatzes. Übergeben Sie bei einem erneuten Versuch die zurückgegebene `receipt.launch_id`, um denselben Start fortzusetzen; bei einem Datensatz im Zustand `prepared` entfällt fetch. Eine explizite ID muss mit dem gespeicherten Datensatz übereinstimmen.
 
 `host-launch dispatch-result` akzeptiert die vollständige Codex-Antwort zur Aufgabenerstellung, einschließlich JSON in `content[].text`. Es speichert `clientThreadId` als `host_client_thread_id` mit der Phase `queued`; ein gespeichertes Ergebnis kann mit derselben `launch_id` und demselben `repository_key` erneut übermittelt werden, um einen `uncertain`-Datensatz wiederherzustellen. Weitere Prüfungen verfolgen dieselbe Erstellung, ohne sie erneut auszulösen.
 

@@ -20,7 +20,7 @@
 - 说明 Task 为什么被阻塞，以及需要确认什么；
 - 直接展示当前合法下一步；
 - 在新请求建立 Task 前显示只读改动量评估和是否建议进入完整流程；
-- 展示确认的 remote/base/target、专属工作树、Task Plan、当前修改路径、文件范围决定和未说明路径；
+- 展示确认的 source/base/target/carry、专属工作树、Task Plan、当前修改路径、文件范围决定和未说明路径；
 - 区分正常线性 commit、内容变化、history conflict、workspace unavailable 与 relocation；
 - 从 Host 与本机 WebUI 读取分析后形成的验证计划、当前预算/消耗、历次增加原因和 Recovery 判断；
 - 让普通修改后的复核停在当前 diff、因果影响和验收范围，修复后不重新启动全仓库审计。

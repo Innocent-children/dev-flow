@@ -27,7 +27,7 @@ Current source includes the shared local WebUI, embedded assets, and `dev-flow w
 start|open|status|stop`, and supports these operating-system/CPU pairs:
 
 The current-source new-Task lifecycle performs read-only Host assessment, asks the developer to
-confirm remote/base/target, provisions a dedicated worktree from the fetched frozen commit, and lets
+confirm source/base/target/carry, provisions a dedicated worktree from the frozen local or remote commit, and lets
 Core derive worktree identity, history, content, and current Task surface read-only. Source includes
 tests using temporary Git repositories and run records, plus validators for explicitly supplied
 actual run records. Report an environment as verified only after tests pass in that Host and platform.
@@ -87,3 +87,8 @@ The current Windows development distribution includes both Adapter packages and 
 ## Current DSH interface
 
 The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
+
+
+Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
+`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
+`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).

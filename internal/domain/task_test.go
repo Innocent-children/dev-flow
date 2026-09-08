@@ -95,7 +95,7 @@ func repositoryScopeEntryForTest(now time.Time, key RepositoryKey, seed int) Rep
 	root := testpath.Absolute("repo", string(key))
 	return RepositoryScopeEntry{
 		Key:     key,
-		Origin:  WorkspaceOrigin{Mode: WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: ID("receipt-" + string(key))},
+		Origin:  WorkspaceOrigin{Mode: WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: ID("receipt-" + string(key))},
 		Binding: RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest},
 	}
 }
@@ -104,7 +104,7 @@ func validProcessTaskForDomainTest(now time.Time, digest Digest) ProcessTask {
 	branch := "feature/task"
 	head := strings.Repeat("b", 40)
 	root := testpath.Absolute("repo")
-	origin := WorkspaceOrigin{Mode: WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt-task"}
+	origin := WorkspaceOrigin{Mode: WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt-task"}
 	repository := RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
 	process := ProcessReference{ID: ProcessStandardDevelopment, DefinitionDigest: digest}
 	action := &ProcessAction{ActionID: "action", Kind: ActionCompleteRequirements, TaskID: "task", Revision: 1, Process: process, NodeID: NodeRequirements, RepositoryBindingDigest: digest, IssuanceIdentityDigest: digest, IssuanceHistoryDigest: digest, IssuanceContentDigest: digest, AllowedEffects: []AllowedEffect{EffectReadRepository}, RequiredEvidence: []EvidenceRequirement{{Kind: RequirementRepositoryObservation, Required: true}}, PayloadContract: "requirements-result", NodeContract: NodeContractProjection{Purpose: "Capture requirements.", EntryConditions: []string{"intent"}, CompletionConditions: []string{"baseline"}}, MethodProfile: MethodPlain, SemanticMethodSteps: []SemanticMethodStep{{StepID: "requirements.capture", Purpose: "Capture requirements.", Required: true}}, Guidance: "Complete requirements.", IssuedAt: now}

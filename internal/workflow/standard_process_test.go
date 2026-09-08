@@ -258,14 +258,14 @@ func standardProcessFixture(t *testing.T) (*application.Service, *standardProces
 	digest := domain.Digest(strings.Repeat("a", 64))
 	branch, head := "feature/process", strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
-	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
 	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
 	memory := &standardProcessStore{}
 	service, err := application.NewService(memory, standardProcessObserver{origin: origin, binding: binding})
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-standard", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &application.WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}, NewTask: &application.NewTaskInput{Request: "Prove the process.", MethodProfile: domain.MethodPlain}})
+	opened, err := service.OpenTask(context.Background(), application.OpenTaskRequest{RequestID: "open-standard", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &application.WorkspaceOriginInput{Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}, NewTask: &application.NewTaskInput{Request: "Prove the process.", MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)
 	}

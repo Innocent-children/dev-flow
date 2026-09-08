@@ -12,7 +12,7 @@ func applicationWorkspaceFixture(now time.Time, root string, marker byte) (domai
 	head := strings.Repeat(string(marker), 40)
 	branch := "feature/" + string(marker)
 	origin := domain.WorkspaceOrigin{
-		Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head,
+		Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head,
 		TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root,
 		WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + string(marker)),
 	}
@@ -22,7 +22,7 @@ func applicationWorkspaceFixture(now time.Time, root string, marker byte) (domai
 		BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest,
 	}
 	input := WorkspaceOriginInput{
-		Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit,
+		Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit,
 		TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID,
 	}
 	return origin, binding, input

@@ -18,9 +18,10 @@
 Dev Flow 把已经同意的请求、预计路径、分析后形成的验证计划、当前阶段和结果保存在同一个本机任务中，代码仍由
 Codex 或 DeepSeek 完成。
 
-每个新请求都会先经过只读评估。用户选择 Dev Flow 后，需要确认 remote、base branch 和新的任务
-分支；Host 从该远端基线创建干净的专属工作树，Core 随后才创建 Task。源 checkout 的现有改动不会
-复制进去。
+每个新请求都会先经过只读评估。选择 Dev Flow 后，Host 先询问使用本地还是远端分支、起始分支和
+新任务分支名。选择本地时，还会询问是否复制已暂存、未暂存及未被 Git 忽略的新增文件，并保留
+源工作区和暂存状态。本地创建无需联网，远端创建才执行 fetch。应用改动发生冲突时停止创建 Task，
+保留目标工作树供检查。
 
 仓库调查和代码索引工具选择遵循当前用户指令及适用的 `AGENTS.md`。这些指令要求检查项目索引时，
 Host 在确认前只读调查候选仓库，再将确认后的范围固定到 Task；这些指令优先于插件的代码索引偏好。
@@ -80,7 +81,7 @@ $dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件�
 
 这两项是对话 selector，不是 shell 命令。尽量写清目标、验收条件、文件边界和测试上限。第一次回复
 只评估影响面并询问直接开发还是使用 Dev Flow；显式 selector 也不会跳过选择。选择 Dev Flow 后，
-还要确认建议的 remote、base 和 target branch。Codex 在 Host 支持时打开 managed worktree；DeepSeek
+还要确认上述来源、分支和携带改动的选择。Codex 在 Host 支持时打开 managed worktree；DeepSeek
 因为当前会话的 Workspace Root 固定，会给出从新工作树重新启动的命令。
 
 启动新的 Codex 会话前，原会话保存本次需求的相关讨论原文和结构化交接材料，区分已确定要求、未采纳建议和待确定问题。桌面新任务与 CLI 启动使用同一份保存内容；长内容通过完整文件传递，不截断需求。详见[架构说明](docs/ARCHITECTURE.md#codex-需求交接)。
@@ -163,7 +164,7 @@ dev-flow-codex host-launch prepare --help
 
 参数和恢复规则见[命令参考](docs/COMMANDS.md)。
 
-`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `fetched` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
+`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `prepared` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
 
 `host-launch dispatch-result` 接收 Codex 创建任务的完整返回值，包括 `content[].text` 中的 JSON。它将 `clientThreadId` 保存为 `host_client_thread_id`，阶段设为 `queued`；以相同 `launch_id` 和 `repository_key` 重新提交保留的结果，可以恢复 `uncertain` 记录。后续检查继续跟踪同一次创建，不重复派发。
 

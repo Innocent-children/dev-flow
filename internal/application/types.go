@@ -110,6 +110,8 @@ type AdditionalRepositoryInput struct {
 }
 type WorkspaceOriginInput struct {
 	Mode                  domain.WorkspaceMode `json:"mode"`
+	SourceType            string               `json:"source_type"`
+	CarryChanges          bool                 `json:"carry_changes"`
 	RemoteName            string               `json:"remote_name"`
 	BaseBranch            string               `json:"base_branch"`
 	BaseCommit            string               `json:"base_commit"`

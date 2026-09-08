@@ -8,8 +8,8 @@ const statePath = requiredIsolatedPath("FAKE_CORE_STATE");
 const tracePath = requiredIsolatedPath("FAKE_CORE_TRACE");
 const selectedCase = process.env.FAKE_CORE_CASE ?? "success";
 const session = process.env.FAKE_CORE_SESSION ?? "session-1";
-const coreVersion = "0.8.0";
-const processDefinitionDigest = "58118cf85fdd5a2013f95972f816fe267dcbad09a95fe0fce2d83488d69cb101";
+const coreVersion = (await readFile(new URL("../../../../CORE_VERSION", import.meta.url), "utf8")).trim();
+const processDefinitionDigest = JSON.parse(await readFile(new URL("../../../../protocol/fixtures/graph-server-info.json", import.meta.url), "utf8")).supported_processes[0].definition_digest;
 const state = await readState();
 const tools = toolDefinitions();
 const toolByName = new Map(tools.map((tool) => [tool.name, tool]));
@@ -245,7 +245,7 @@ function repositoryProjection(canonicalRoot, key) {
 function workspaceOriginSelection(key) {
   return {
     mode: "dedicated_worktree",
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     base_commit: objectID(),
     task_branch: `codex/${key}`,
@@ -440,9 +440,11 @@ function workspaceOriginSchema() {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["mode", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"],
+    required: ["mode", "source_type", "carry_changes", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"],
     properties: {
       mode: { const: "dedicated_worktree" },
+      source_type: { enum: ["local", "remote"] },
+      carry_changes: { type: "boolean" },
       remote_name: { type: "string" },
       base_branch: { type: "string" },
       base_commit: { type: "string" },

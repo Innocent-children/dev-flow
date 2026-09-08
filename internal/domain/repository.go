@@ -41,6 +41,8 @@ func (m WorkspaceMode) IsValid() bool { return m == WorkspaceModeDedicatedWorktr
 // fields before the Task is created.
 type WorkspaceOrigin struct {
 	Mode                        WorkspaceMode `json:"mode"`
+	SourceType                  string        `json:"source_type"`
+	CarryChanges                bool          `json:"carry_changes"`
 	RemoteName                  string        `json:"remote_name"`
 	BaseBranch                  string        `json:"base_branch"`
 	BaseCommit                  string        `json:"base_commit"`
@@ -52,13 +54,18 @@ type WorkspaceOrigin struct {
 }
 
 func (o WorkspaceOrigin) Validate() error {
-	if !o.Mode.IsValid() || !validRemoteName(o.RemoteName) || !validBranchName(o.BaseBranch) || !validBranchName(o.TaskBranch) ||
+	if !o.Mode.IsValid() || !ValidWorkspaceSource(o.SourceType, o.RemoteName, o.CarryChanges) || !validBranchName(o.BaseBranch) || !validBranchName(o.TaskBranch) ||
 		validateObjectID(o.BaseCommit) != nil || validateDigest(o.SourceRepositoryGroupDigest) != nil ||
 		validateCanonicalPath(o.CanonicalWorktreeRoot) != nil || validateDigest(o.WorktreeGitDirDigest) != nil ||
 		validateID(o.ProvisioningReceiptID) != nil {
 		return ErrInvalidArgument
 	}
 	return nil
+}
+
+// ValidWorkspaceSource validates the confirmed source and content selection.
+func ValidWorkspaceSource(source, remote string, carry bool) bool {
+	return source == "local" && remote == "" || source == "remote" && validRemoteName(remote) && !carry
 }
 
 func validRemoteName(value string) bool {

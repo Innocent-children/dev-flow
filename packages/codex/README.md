@@ -8,7 +8,7 @@
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
 `dev-flow-codex` 让 Codex 在独立工作树中使用一个持久 Core Task。新请求先评估、再接触 Core；用户
-选择 Dev Flow 后，Task 从确认的 remote、base 和 target branch 开始，Core 通过只读 Git 推导当前
+选择 Dev Flow 后，Task 从确认的来源、起始分支、目标分支和携带选择 开始，Core 通过只读 Git 推导当前
 改动面。
 
 ## 支持范围
@@ -71,10 +71,9 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 这不是 shell 命令。`$dev-flow` 不是它的别名；精确 selector 也不会跳过评估和用户选择。只解释、
 只查询状态、方案讨论、普通问答和含糊请求不会创建 Task。
 
-用户选择 Dev Flow 后，Codex 会逐仓显示并要求再次确认 remote、base branch、全新的 target branch
-以及源 checkout 的 dirty 路径。确认后，Host 只 fetch 选定 remote/base 并冻结 commit；源 checkout
-中的 staged、unstaged 和 untracked 内容不会进入任务工作树。只有独立工作树、目标分支、HEAD、clean
-状态和写权限全部通过检查后，才执行 Core handshake 并创建 Task。
+用户选择 Dev Flow 后，Codex 逐仓询问本地或远端来源、起始分支、目标分支，并在选择本地时询问是否
+携带暂存、未暂存和非 ignored 的未跟踪内容。Host 固定起点后建立独立工作树，按选择复制内容并验证；
+本地创建无需 remote 或联网，源工作区保持原样。规则与验收见[工作树来源](../../docs/WORKTREE-SOURCES.md)。
 
 新 Task 从需求阶段开始，只保存最初请求、范围、验收条件和 method profile，不在分析前冻结最终
 verification budget。可以在创建时选择 `plain`、`spec-kit` 或 `openspec`，但当前没有 OpenSpec /
@@ -205,7 +204,7 @@ child dispatch。Codex 只有在 Host 能为每个项目提供独立 worktree-ba
 child 有一个 Host task、一个 worktree 和一个 Core Task。`ACTIVE_TASK_CONFLICT` 现在只会停止，不再
 触发事后搬家。
 
-Codex App managed worktree 从精确 `refs/remotes/<remote>/<base>` 创建，child 在 Core 调用前建立用户
+Codex App managed worktree 从固定 `base_commit` 创建，child 在 Core 调用前建立用户
 确认的 target branch。无 task creation 能力的 Codex CLI 使用 receipt 返回的 `codex -C` / `--add-dir`
 argv descriptor 重新进入。managed worktree 的 snapshot、Handoff 和清理由 Codex Host 负责；CLI
 工作树与 branch 的删除分别需要用户授权，且不会使用 force。
@@ -270,7 +269,7 @@ Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-
 
 MCP 提供结果 Schema，并在 `structuredContent` 和文本中返回同一 JSON。Skill 按工具类型读取 Task 或 Action，并在恢复会话中优先处理已有恢复建议；创建、取消、放弃和迁移准备使用各自的结果回读规则。正常执行仅展示简短状态。详见[命令参考](../../docs/COMMANDS.md)。
 
-`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `fetched` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
+`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `prepared` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
 
 `host-launch dispatch-result` 接收 Codex 创建任务的完整返回值，包括 `content[].text` 中的 JSON。它将 `clientThreadId` 保存为 `host_client_thread_id`，阶段设为 `queued`；以相同 `launch_id` 和 `repository_key` 重新提交保留的结果，可以恢复 `uncertain` 记录。后续检查继续跟踪同一次创建，不重复派发。
 

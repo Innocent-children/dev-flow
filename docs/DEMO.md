@@ -15,10 +15,10 @@
 ```
 
 Host 先只读检查候选实现、调用方、测试和 Git 状态，给出改动级别、已知影响面、未知项和建议，然后
-停止。此时没有 Core 调用、Task 或 Git 写入。开发者选择 Dev Flow 后，确认 remote、base branch 和
-新的 target branch；Host 精确 fetch、冻结 base commit，并创建干净的专属工作树。源 checkout 的
-staged、unstaged 和 untracked 内容不会复制进去。只有目标工作树验证成功后，Core 才创建本地 Task，
-保存请求、范围、验收条件、WorkspaceOrigin 和 method profile；此时尚未冻结最终验证预算。
+停止。此时没有 Core 调用、Task 或 Git 写入。开发者选择 Dev Flow 后，确认本地或远端来源、起始
+分支、新任务分支，以及本地内容是否携带。Host 固定起点，创建专属工作树并按选择复制内容，保留源
+checkout。只有目标工作树验证成功后，Core 才创建本地 Task，保存请求、范围、验收条件、WorkspaceOrigin
+和 method profile；此时尚未冻结最终验证预算。
 
 ## 2. 实现完成，进入测试
 

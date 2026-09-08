@@ -19,9 +19,11 @@
 Dev Flow는 합의한 요청, 예정 경로, 분석 후 만든 검증 계획, 현재 단계, 결과를 하나의 로컬 작업으로 저장합니다.
 코드 변경은 계속 Codex 또는 DeepSeek가 수행합니다.
 
-모든 새 요청은 Dev Flow를 선택하기 전에 읽기 전용으로 평가됩니다. 사용하기로 선택하면 remote,
-base branch, 새 task branch를 확인하고, Host가 해당 원격 기준에서 깨끗한 전용 worktree를 만든 뒤에야
-Core가 Task를 생성합니다. 원본 checkout의 기존 변경은 복사되지 않습니다.
+모든 새 요청은 Dev Flow를 선택하기 전에 읽기 전용으로 평가됩니다. 선택하면 Host가 로컬 또는 원격
+소스, 시작 브랜치와 새 작업 브랜치 이름을 묻습니다. 로컬 소스라면 스테이징된 변경, 스테이징되지 않은
+변경과 Git이 무시하지 않는 미추적 파일을 복사할지도 묻습니다. 원본 작업 공간과 스테이징 상태는
+보존됩니다. 로컬 생성은 네트워크 없이 수행하며 원격 소스만 fetch합니다. 변경 적용 중 충돌이 발생하면
+Task 생성을 중지하고 확인할 수 있도록 대상 작업 트리를 보존합니다.
 
 저장소 조사와 코드 인덱스 도구 선택은 현재 사용자 지시와 적용되는 `AGENTS.md`를 따릅니다.
 해당 지시가 프로젝트 인덱스 확인을 요구하면 Host는 사용자 확인 전에 후보 저장소를 읽기 전용으로
@@ -85,7 +87,7 @@ $dev-flow-codex:dev-flow 로그인 실패 속도 제한을 추가하세요. 인�
 
 이는 shell 명령이 아니라 대화 selector입니다. 목표, 인수 조건, 파일 범위, 테스트 한도를 최대한
 구체적으로 작성하세요. 첫 응답은 영향 범위를 평가하고 직접 개발할지 Dev Flow를 사용할지 묻습니다.
-명시적 selector도 이 선택을 건너뛰지 않습니다. Dev Flow를 선택하면 remote, base, target branch를
+명시적 selector도 이 선택을 건너뛰지 않습니다. Dev Flow를 선택하면 위의 소스, 브랜치 및 변경 복사 여부를
 확인합니다. Codex는 Host가 지원할 때 managed worktree를 열고, DeepSeek는 현재 세션의 Workspace Root가
 고정되어 있으므로 새 worktree에서 다시 시작하는 방법을 제공합니다.
 
@@ -171,7 +173,7 @@ dev-flow-codex host-launch prepare --help
 
 매개변수와 복구 규칙은 [명령어 참조](docs/COMMANDS_en.md)를 확인하세요.
 
-`host-launch prepare`는 `launch_id`가 생략되면 ID를 생성하고 해당 ID로 시작 기록을 확인합니다. 재시도할 때 반환된 `receipt.launch_id`를 전달하면 같은 시작 작업을 재개하며, 기록이 이미 `fetched`이면 fetch를 건너뜁니다. 명시적으로 전달한 ID는 저장된 기록과 일치해야 합니다.
+`host-launch prepare`는 `launch_id`가 생략되면 ID를 생성하고 해당 ID로 시작 기록을 확인합니다. 재시도할 때 반환된 `receipt.launch_id`를 전달하면 같은 시작 작업을 재개하며, 기록이 이미 `prepared`이면 fetch를 건너뜁니다. 명시적으로 전달한 ID는 저장된 기록과 일치해야 합니다.
 
 `host-launch dispatch-result`는 `content[].text`의 JSON을 포함한 Codex 작업 생성 응답 전체를 받습니다. `clientThreadId`를 `host_client_thread_id`로 저장하고 단계를 `queued`로 설정합니다. 같은 `launch_id`와 `repository_key`로 보관한 결과를 다시 제출하면 `uncertain` 기록을 복구할 수 있습니다. 이후 확인은 같은 생성 작업을 추적하며 다시 디스패치하지 않습니다.
 

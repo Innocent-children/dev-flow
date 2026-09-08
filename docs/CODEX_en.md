@@ -4,7 +4,7 @@
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
 `dev-flow-codex` gives Codex one durable Core Task in a dedicated worktree. New requests are assessed
-before Core is contacted; selected requests start from a developer-confirmed remote/base/target, and
+before Core is contacted; selected requests start from a developer-confirmed source/base/target/carry, and
 Core derives the current change surface from read-only Git.
 
 ## Support and installation
@@ -59,15 +59,15 @@ recommendation, and reasons. Then it stops. Before the developer chooses Dev Flo
 tool call, Task, claim, Git write, provisioning receipt, or child dispatch. A changed request,
 canonical root, HEAD, or status invalidates the assessment.
 
-After the developer chooses Dev Flow, Codex shows every repository's remote, base branch, new target
-branch, and bounded source-checkout dirtiness. The confirmation authorizes one exact fetch and launch.
-The Host freezes the fetched commit and creates a dedicated worktree. Staged, unstaged, and untracked
-source content is never copied.
+After choosing Dev Flow, the developer selects a local or remote source, base and target branches,
+and whether to carry local staged, unstaged and non-ignored untracked content. Local preparation
+works offline. The Host freezes the selected commit and snapshot, creates the dedicated worktree,
+and applies confirmed contents while preserving the source checkout.
 
 In Codex App, managed-worktree and snapshot behavior remains Host-owned. The coordinator creates one
-task from the selected remote ref and records one launch; queued, timed-out, or uncertain creation is
+task from the frozen base commit and records one launch; queued, timed-out, or uncertain creation is
 read from that launch rather than dispatched again. The child verifies HEAD, creates/switches to the
-confirmed target branch, verifies clean state and worktree identity, then calls Core. Codex CLI uses
+confirmed target branch, applies the selected snapshot and verifies worktree identity, then calls Core. Codex CLI uses
 the parser-supported `codex -C <worktree> [--add-dir <additional-worktree>] -- <prompt>` relaunch descriptor. It never uses an on-missing
 default-branch fallback.
 
@@ -216,3 +216,8 @@ WebUI and MCP share Core semantic submission, operation retention and recovery. 
 ## Artifact preparation
 
 Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
+
+
+Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
+`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
+`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).

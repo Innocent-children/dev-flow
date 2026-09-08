@@ -17,7 +17,7 @@ flowchart TB
     H --> A[只读改动量评估]
     A --> C{选择 Dev Flow?}
     C -->|否| D[直接开发 · 无 Core Task]
-    C -->|是| P[确认 remote/base/target]
+    C -->|是| P[确认 source/base/target/carry]
     P --> W[Host provisioning receipt + dedicated worktree]
     W --> M[Local STDIO MCP · 17 tools]
     M --> S[Application Service]
@@ -52,19 +52,15 @@ reasons
 评估绑定 request、canonical root、HEAD 和 status digest。等待选择期间任一项变化都要重新评估。明确
 resume 是唯一跳过评估的入口。
 
-用户选择 Dev Flow 后，逐仓确认 `remote_name`、`base_branch` 和新的 `target_branch`。Host 使用参数
-数组执行精确 fetch：
-
-```text
-fetch <remote> refs/heads/<base>:refs/remotes/<remote>/<base>
-```
-
-随后冻结 commit，创建专属工作树和目标分支，并验证 canonical root、Git common dir、worktree-specific
-Git dir、HEAD、branch、clean、submodule 与 Host 写权限。源 checkout 可以 dirty，但其中 staged、
-unstaged 和 untracked 内容不进入 Task worktree。
+用户选择 Dev Flow 后，逐仓确认 `source_type`、`base_branch`、`carry_changes` 和新的 `target_branch`。
+远端来源还需确认 `remote_name`，随后以参数数组执行精确 fetch；本地来源的 `remote_name` 为空，直接
+解析 `refs/heads/<base>`，不访问网络。Host 固定 `base_commit`，并在携带本地改动时保存 `snapshot_commit`。
+创建独立工作树、目标分支并核对身份和 HEAD 后，Host 应用快照并保留暂存状态。Core 只对明确携带本地
+改动的创建接受初始修改。源 checkout 保持原样；冲突停止 Task 创建并保留现场。
+完整内容规则和验收范围见[工作树来源](WORKTREE-SOURCES.md)。
 
 Host 在第一次 Git 写入前保存窄 provisioning receipt：launch/host/request digest、`handoff_digest`、源仓库身份、repository
-key、remote/base/target、fetched commit、worktree path、operation status 与时间。它不保存凭据、remote
+key、source/base/target/carry、frozen commit、worktree path、operation status 与时间。它不保存凭据、remote
 URL、文件内容或流程节点。结果不确定时读取 receipt/Host 状态，禁止盲目再次 dispatch。
 
 Codex 创建结果由 Host Adapter 解析，包括完整返回值中单个文本块的 JSON。`clientThreadId` 写入 `host_client_thread_id` 并进入 `queued`；相同启动记录补交有效结果可从 `uncertain` 恢复到 `queued`，再由就绪结果进入 `dispatched`。这两个转换保留原派发标识，`dispatch-start` 继续拒绝重复派发；Core Task 状态不受这些 Host 记录转换影响。
@@ -111,19 +107,23 @@ repository 也带一个同形字段：
 ```json
 {
   "mode": "dedicated_worktree",
+  "source_type": "remote",
+  "carry_changes": false,
   "remote_name": "origin",
   "base_branch": "main",
-  "base_commit": "<fetched SHA>",
+  "base_commit": "<frozen SHA>",
   "task_branch": "feature/example",
   "provisioning_receipt_id": "launch-example"
 }
 ```
 
-Core 不信任这段文本本身。Observer 核对本地 branch、HEAD、remote-tracking ref、common dir、
-worktree-specific Git dir 和 clean 状态，再补齐并保存 `WorkspaceOrigin`：
+Core 不信任这段文本本身。Observer 核对本地 branch、HEAD、来源 ref、common dir、
+worktree-specific Git dir 和已确认的携带选择，再补齐并保存 `WorkspaceOrigin`：
 
 ```text
 mode
+source_type
+carry_changes
 remote_name
 base_branch
 base_commit
@@ -257,7 +257,7 @@ base、等价 surface 和 claim 可用性，在一个 transaction 中替换全�
 `dev_flow_abandon_task(host, task_id, revision, reason)` 可以保存最后已知 binding、进入 CANCELLED 并释放
 claims；它不访问或删除 Git 对象。
 
-DONE/CANCELLED 只结束 Task 和释放 claims。终态投影 remote/base/base commit、task branch/current
+DONE/CANCELLED 只结束 Task 和释放 claims。终态投影 source/base/base commit、task branch/current
 HEAD、worktree path、clean/dirty、当前 paths 和验证记录。keep/review/handoff/worktree cleanup/branch
 cleanup 是 Host 后续操作，其中两个 cleanup 分别授权。
 

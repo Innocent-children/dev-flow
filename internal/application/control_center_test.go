@@ -30,8 +30,8 @@ func TestControlCenterLifecycleCP2(t *testing.T) {
 	branch, head := "feature/task", strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
 	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
-	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
-	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	originInput := WorkspaceOriginInput{Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 	var sequence atomic.Int64
 	core, err := newService(database, &mutableObserver{binding: binding, origin: origin}, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
 		return domain.ID(fmt.Sprintf("%s-%d", prefix, sequence.Add(1))), nil
@@ -118,8 +118,8 @@ func TestControlCenterActionAndRecoveryCP3(t *testing.T) {
 	branch, head := "feature/task", strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
 	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
-	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
-	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	originInput := WorkspaceOriginInput{Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 	var sequence atomic.Int64
 	core, err := newService(database, &mutableObserver{binding: binding, origin: origin}, func() time.Time { return now }, func(prefix string) (domain.ID, error) {
 		return domain.ID(fmt.Sprintf("%s-%d", prefix, sequence.Add(1))), nil

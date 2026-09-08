@@ -187,7 +187,7 @@ func TestTaskReadModelsExposeRepositoryGroupAndWorktree(t *testing.T) {
 		Intent:          domain.TaskIntent{Request: "Parallel worktree task", MethodProfile: domain.MethodPlain},
 		Process:         domain.ProcessReference{ID: domain.ProcessStandardDevelopment, DefinitionDigest: digest},
 		CurrentNode:     domain.NodeRequirements,
-		WorkspaceOrigin: domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: "feature/task", SourceRepositoryGroupDigest: domain.Digest(group), CanonicalWorktreeRoot: "/worktrees/task-a", WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"},
+		WorkspaceOrigin: domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: "feature/task", SourceRepositoryGroupDigest: domain.Digest(group), CanonicalWorktreeRoot: "/worktrees/task-a", WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"},
 		Repository:      domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, ObservedAt: now, BindingDigest: digest},
 		Revision:        1, CreatedAt: now, UpdatedAt: now,
 	}, Events: []store.TaskEvent{{Revision: 1, Kind: domain.OperationApplyAction, SourceNode: domain.NodeRequirements, DestinationNode: domain.NodeRequirements, RepositoryDeltaPaths: []string{"internal/file.go"}, CreatedAt: now}}})

@@ -13,11 +13,11 @@ import (
 )
 
 func originSelection(input WorkspaceOriginInput) repository.WorkspaceOriginSelection {
-	return repository.WorkspaceOriginSelection{Mode: input.Mode, RemoteName: input.RemoteName, BaseBranch: input.BaseBranch, BaseCommit: input.BaseCommit, TaskBranch: input.TaskBranch, ProvisioningReceiptID: input.ProvisioningReceiptID}
+	return repository.WorkspaceOriginSelection{Mode: input.Mode, SourceType: input.SourceType, CarryChanges: input.CarryChanges, RemoteName: input.RemoteName, BaseBranch: input.BaseBranch, BaseCommit: input.BaseCommit, TaskBranch: input.TaskBranch, ProvisioningReceiptID: input.ProvisioningReceiptID}
 }
 
 func persistedOriginSelection(origin domain.WorkspaceOrigin) repository.WorkspaceOriginSelection {
-	return repository.WorkspaceOriginSelection{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	return repository.WorkspaceOriginSelection{Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 }
 
 func mapWorkspaceOpenError(err error) error {

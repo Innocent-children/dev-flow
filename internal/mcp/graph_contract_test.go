@@ -204,7 +204,7 @@ func TestMultiRepositoryTaskProjectionIsSortedAndUsesOneDigest(t *testing.T) {
 }
 
 func TestOpenTaskMultiRepositoryWireMapsApplicationRequest(t *testing.T) {
-	raw := []byte(`{"host":"codex","repository_path":"/core","workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"feature/core","provisioning_receipt_id":"receipt-core"},"primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs","workspace_origin":{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"feature/docs","provisioning_receipt_id":"receipt-docs"}}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"method_profile":"plain"}}`)
+	raw := []byte(`{"host":"codex","repository_path":"/core","workspace_origin":{"mode":"dedicated_worktree","source_type":"remote","carry_changes":false,"remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"feature/core","provisioning_receipt_id":"receipt-core"},"primary_repository_key":"core","additional_repositories":[{"key":"docs","repository_path":"/docs","workspace_origin":{"mode":"dedicated_worktree","source_type":"remote","carry_changes":false,"remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"feature/docs","provisioning_receipt_id":"receipt-docs"}}],"new_task":{"request":"Build feature","initial_scope":[],"initial_out_of_scope":[],"known_acceptance_criteria":[],"method_profile":"plain"}}`)
 	if err := ValidateToolInput(ToolOpenTask, raw); err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func graphContractBinding(now time.Time, root string, marker byte) domain.Reposi
 
 func graphContractOrigin(root string, marker byte) domain.WorkspaceOrigin {
 	digest := repeatedDigest(marker)
-	return domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: strings.Repeat(string(marker), 40), TaskBranch: "feature/" + string(marker), SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + string(marker))}
+	return domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: strings.Repeat(string(marker), 40), TaskBranch: "feature/" + string(marker), SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + string(marker))}
 }
 
 func repeatedDigest(marker byte) domain.Digest {

@@ -5,7 +5,7 @@
 ## One-sentence position
 
 > Dev Flow first helps a developer decide whether a request warrants the full workflow. A selected
-> Task starts from a developer-confirmed remote base in a dedicated worktree, while Core keeps its
+> Task starts from a developer-confirmed local or remote branch in a dedicated worktree, while Core keeps its
 > actual changes, post-analysis verification plan, and current progress coherent.
 
 Codex or DeepSeek still reads code, edits files, and runs commands. Dev Flow retains one saved
@@ -22,8 +22,8 @@ and isolation from unrelated changes in a shared checkout.
 Users can:
 
 - inspect a read-only change assessment before a Task exists and choose direct work, Dev Flow, or clarification;
-- confirm a remote, base branch, and new target branch for every repository;
-- start from the fetched and frozen base commit in a clean, dedicated, named-branch worktree;
+- confirm local or remote source, base branch, new target branch and local content choice for every repository;
+- start from a frozen base commit in a dedicated named-branch worktree, carrying local changes when selected;
 - retain the goal, acceptance criteria, exclusions, and expected paths, then save the verification
   plan and initial budget after task analysis;
 - retain the basis, reason, added checks, increment, and resulting budget before TEST continues with
@@ -45,7 +45,7 @@ author nor distinguish later content changes on an already-dirty path.
 
 The current flow uses one worktree instance as the ownership boundary. A new request receives a
 read-only assessment first. If the developer chooses Dev Flow, the Host obtains an explicit
-remote/base/target decision, fetches the exact remote ref, freezes its commit, and creates the Task
+source, branch and content decision, resolves the local or remote ref, freezes its commit, and creates the Task
 only in a dedicated worktree. Later changes in the source checkout are unrelated; every Git-visible
 change in the Task worktree belongs to that Task.
 
@@ -71,7 +71,7 @@ before that scope is fixed in the Task; discovery respects existing Host permiss
 | User event | Product behavior |
 | --- | --- |
 | A new request may be small | The Host performs read-only discovery and stops for a choice; no Core call, Task, Git write, receipt, or child dispatch exists before confirmation |
-| The developer chooses Dev Flow | The Host shows and confirms remote/base/target plus bounded source dirtiness, then fetches, freezes, provisions, and verifies a dedicated worktree |
+| The developer chooses Dev Flow | The Host shows and confirms the source, branch and content choices plus bounded source dirtiness, then resolves, freezes, provisions, and verifies a dedicated worktree |
 | The Task worktree changes | Core derives identity, history, content, Action delta, and the base-relative current Task surface |
 | Work leaves the plan | Supported structured writes ask first; later observation finds other writes, and unexplained paths cannot reach testing or delivery |
 | TASKS completes analysis | Retain planned checks and rationales, the initial automatic-command budget, full-suite expectation, and test-code expectation |
@@ -88,10 +88,10 @@ before that scope is fixed in the Task; discovery respects existing Host permiss
 
 Current source commits to:
 
-- creating every new Task only after confirmation in a clean, dedicated worktree on a named task branch;
+- creating every new Task only after confirmation in a dedicated worktree on a named task branch;
 - assessing every new request, exact selector, and parallel batch before waiting for a choice; only explicit resume skips assessment;
-- never copying staged, unstaged, or untracked source-checkout content into the Task worktree;
-- opening one multi-repository Task only after every repository has been fetched, isolated, authorized, and verified;
+- copying staged, unstaged and non-ignored untracked local content only when explicitly selected, while preserving the source;
+- opening one multi-repository Task only after every repository has been resolved, isolated, authorized, and verified;
 - keeping Core's Git access read-only while it stores WorkspaceOrigin, current observation and surface, Actions, records, blockers, and outcome;
 - creating no final test budget at Task open; TASKS owns the initial verification plan and Evidence
   consumption is scoped to the current Task Plan revision;
@@ -116,8 +116,7 @@ worktree isolation, or same-machine relocation. A few explicit repositories may 
 when each can be provisioned independently.
 
 Direct Host use is normally simpler for one-off questions, explanations, status requests, and small
-mechanical changes with no public-contract impact. A local/offline repository without an accessible
-remote/base, or work requiring cross-machine relocation, a security sandbox, remote execution, or
+mechanical changes with no public-contract impact. Work requiring cross-machine relocation, a security sandbox, remote execution, or
 automatic Git publication, does not fit.
 
 ## Relationship to other tools
@@ -133,8 +132,8 @@ automatic Git publication, does not fit.
 1. The Host assesses each new request read-only, reports `small|standard|large|uncertain`, candidate
    impact, unknowns, and a recommendation, then waits. Request, canonical root, HEAD, or status changes
    invalidate the assessment.
-2. After remote/base/target confirmation, the Host fetches and creates a dedicated worktree. Core
-   verifies worktree, branch, HEAD, base, and clean state before Task creation. Explicit resume returns
+2. After source, branch and content confirmation, the Host resolves the base and creates a dedicated worktree. Core
+   verifies worktree, branch, HEAD, base and the confirmed content choice before Task creation. Explicit resume returns
    to the original instance.
 3. Core derives the current Task surface from the base commit, commits, index, worktree, and untracked
    files. ExpectedPaths, one-time decisions, and the TASKS verification plan control progress. The
@@ -153,7 +152,7 @@ WebUI and MCP share Core semantic submission, operation retention and recovery. 
 
 Dev Flow is not a general agent or workflow DSL. Core does not fetch, create branches/worktrees,
 commit, stash, reset, merge, rebase, push, tag, open pull requests, or publish. The product does not
-copy `.env`, certificates, tokens, ignored/untracked files, or credentials; install dependencies;
+copy ignored files; install dependencies;
 isolate ports, databases, Docker volumes, or services; or automatically delete active, dirty,
 unpushed, unknown-owner, or uncertain worktrees. Cross-machine relocation, automatic addition of
 unconfirmed neighboring repositories, partly isolated multi-repository Tasks, remote MCP, and cloud
@@ -214,7 +213,7 @@ Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `d
 
 Codex can query parameter Schemas, field sources and next steps through `dev-flow-codex --help` and operation help, and assemble repository arguments from the same set of provisioned workspace records. MCP provides result Schemas and structured responses. Resumed sessions handle Core-retained pending submissions before performing the current node; creation, cancellation, abandonment and relocation preparation use their own readback identities.
 
-`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `fetched` skips fetch. An explicit ID must match the saved receipt.
+`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `prepared` skips fetch. An explicit ID must match the saved receipt.
 
 `host-launch dispatch-result` accepts the complete Codex creation response, including JSON in `content[].text`. It saves `clientThreadId` as `host_client_thread_id` with phase `queued`; resubmitting a retained result with the same `launch_id` and `repository_key` can recover an `uncertain` record. Subsequent inspection follows the same creation, without dispatching again.
 
@@ -222,3 +221,8 @@ Codex can query parameter Schemas, field sources and next steps through `dev-flo
 Codex `dispatch-start` saves the complete `host_request` in `receipt.operation_status.host_request` and enters `dispatch_prepared`; repeated calls and `status` can read it back. `dispatch-call` uses the current `dispatch_attempt_id` to enter `dispatching`; only its first `should_dispatch=true` result permits one creation call. The caller writes complete command stdout to a private file, checks the exit code and parses JSON from that file before forwarding the request unchanged, avoiding display truncation.
 
 When the previous caller has stopped and the creation tool was demonstrably never called, `dispatch-recover` accepts the current attempt ID, `host_call_not_made=true`, `previous_caller_stopped=true` and a specific `reason`, retains the request and issues a new claim ID for `dispatch-call`. Empty task IDs alone do not prove non-invocation. When creation was called but its result is unknown, the Host searches tasks and archived tasks using the saved title, launch ID and repository marker, reads complete initial messages and submits `candidates` (`thread_id`, `initial_prompt`) to `dispatch-reconcile`. Exactly one complete prompt match saves the task ID; zero matches, multiple matches or unavailable inspection never authorize another creation. Core continues to own Task state.
+
+
+Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
+`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
+`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).

@@ -41,6 +41,8 @@ export function registerWorkspaceCoordinator(ctx, options) {
           properties: {
             repository_key: { type: "string", required: true },
             source_repository_path: { type: "string", required: true },
+            source_type: { type: "string", required: true, enum: ["local", "remote"] },
+            carry_changes: { type: "boolean", required: true },
             remote_name: { type: "string", required: true },
             base_branch: { type: "string", required: true },
             target_branch: { type: "string", required: true },

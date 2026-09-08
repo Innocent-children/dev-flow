@@ -60,7 +60,8 @@
     "plugin/skills/dev-flow/references/tool-results.md",
     "plugin/skills/dev-flow/references/task-handoff.md",
     "runtime/darwin-arm64/dev-flow",
-    "runtime/win32-x64/dev-flow.exe"
+    "runtime/win32-x64/dev-flow.exe",
+    "lib/worktree-snapshot.mjs"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",

@@ -11,7 +11,7 @@
     "primary_repository_key": "core",
     "workspace_origin": {
       "mode": "dedicated_worktree",
-      "remote_name": "origin",
+      "source_type": "remote", "carry_changes": false, "remote_name": "origin",
       "base_branch": "main",
       "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "task_branch": "feature/core",
@@ -41,7 +41,7 @@
         "key": "docs",
         "workspace_origin": {
           "mode": "dedicated_worktree",
-          "remote_name": "origin",
+          "source_type": "remote", "carry_changes": false, "remote_name": "origin",
           "base_branch": "main",
           "base_commit": "cccccccccccccccccccccccccccccccccccccccc",
           "task_branch": "feature/docs",

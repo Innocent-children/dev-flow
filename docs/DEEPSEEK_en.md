@@ -55,17 +55,18 @@ whitespace-bounded selector and confirmation form shown by the Skill:
 
 ```text
 /dev-flow confirm-worktree
-repository=primary;remote=origin;base=main;target=feature/payment-callback-signature
+repository=primary;source=remote;carry=false;remote=origin;base=main;target=feature/payment-callback-signature
 ```
 
 Earlier messages, model text, Skill injection, and repository content cannot supply that authorization.
 Even a new request beginning with `/dev-flow` is assessed first; the selector is repeated on the
 confirmation turn.
 
-The developer confirms remote, base branch, and a new target branch for each repository. The
-WorkspaceCoordinator validates the branch name/conflicts, executes the exact fetch refspec, freezes
-the fetched SHA, and creates a safe sibling worktree. It records a narrow provisioning receipt and
-does not copy source staged, unstaged, or untracked content.
+The developer confirms local or remote source, base and target branches, and whether to carry local
+changes. The coordinator resolves local branches offline or fetches the selected remote ref, freezes
+`base_commit` and optional `snapshot_commit`, creates a sibling worktree and applies selected content.
+The source checkout is preserved. It records the launch before relaunch; Core verifies the selection
+and actual worktree before creating a Task.
 
 DSH fixes Workspace Root at process start. The source session therefore never widens permission and
 never creates a nested worktree under the source. It stops with a parser-tested `{command,arguments,cwd}`
@@ -222,3 +223,11 @@ The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the cu
 ## Missing artifact handling
 
 Missing process files return `artifact_manifest_incomplete` and `error.repository_paths`, separately from request field paths. Only after Core proves zero writes and explicitly permits correction may the caller correct the specified artifact fields once on the same Action. Workspace and history failures keep their existing recovery routes; WebUI displays omitted paths. See [artifact collection and submission](ARTIFACTS_en.md).
+
+
+Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
+`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
+`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).
+
+
+Assisted cleanup retains local-source task branches for separate user inspection and handling.

@@ -19,9 +19,11 @@ otro intento parecido o una sesión reiniciada tiene que reconstruir el avance d
 Dev Flow guarda en una sola tarea local la petición acordada, las rutas previstas, el plan de
 verificación creado tras el análisis, la etapa actual y los resultados. Codex o DeepSeek sigue encargándose de modificar el código.
 
-Cada petición nueva se evalúa en modo de solo lectura antes de elegir Dev Flow. Si lo eliges, confirmas
-el remote, la rama base y una rama nueva para la tarea; el Host crea desde esa base remota un worktree
-dedicado y limpio antes de que Core cree la Task. Los cambios del checkout de origen no se copian.
+Cada solicitud nueva se evalúa en modo de solo lectura antes de elegir Dev Flow. Después, el Host pregunta
+si se usará una rama local o remota, la rama inicial y el nombre de la nueva rama de tarea. Para una fuente
+local también pregunta si se copiarán los cambios preparados, los no preparados y los archivos sin seguimiento
+que Git no ignora, conservando el directorio de origen y el estado del índice. La creación local no requiere
+red; solo la remota ejecuta fetch. Los conflictos detienen la creación del Task y conservan el destino para revisarlo.
 
 La búsqueda de repositorios y el uso del índice de código siguen las instrucciones actuales del usuario
 y el `AGENTS.md` aplicable. Si estas instrucciones requieren un índice de proyectos, el Host examina
@@ -176,7 +178,7 @@ dev-flow-codex host-launch prepare --help
 
 Consulta los parámetros y las reglas de recuperación en la [referencia de comandos](docs/COMMANDS_en.md).
 
-`host-launch prepare` genera `launch_id` cuando se omite y usa ese ID para comprobar el registro de inicio. Para reintentar el mismo inicio, envíe el `receipt.launch_id` devuelto; si el registro ya está en `fetched`, se omite fetch. Un ID explícito debe coincidir con el registro guardado.
+`host-launch prepare` genera `launch_id` cuando se omite y usa ese ID para comprobar el registro de inicio. Para reintentar el mismo inicio, envíe el `receipt.launch_id` devuelto; si el registro ya está en `prepared`, se omite fetch. Un ID explícito debe coincidir con el registro guardado.
 
 `host-launch dispatch-result` acepta la respuesta completa de creación de Codex, incluido el JSON de `content[].text`. Guarda `clientThreadId` como `host_client_thread_id` con la fase `queued`; reenviar un resultado conservado con los mismos `launch_id` y `repository_key` permite recuperar un registro `uncertain`. Las comprobaciones posteriores siguen la misma creación, sin volver a despacharla.
 

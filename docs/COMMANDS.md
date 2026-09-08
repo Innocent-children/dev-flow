@@ -170,7 +170,7 @@ Codex 新会话启动使用原会话保存的完整需求交接材料。以下�
 
 | 操作 | 输入字段与材料处理 |
 | --- | --- |
-| `prepare` | 必填 `request`、`assessment_anchor`、`repository_key`、`repository_path`、`remote_name`、`base_branch`、`target_branch`、`surface`、`worktree_path`、`handoff_file`；可选 `launch_id`。`handoff_file` 是原会话在已有确认后写入的 UTF-8 JSON 草稿的规范化绝对路径，位于已评估仓库之外。材料中的 `request` 必须与已评估请求一致。fetch 前保存完整材料，receipt 关联 `handoff_digest`。 |
+| `prepare` | 必填 `request`、`assessment_anchor`、`repository_key`、`repository_path`、`source_type`、`carry_changes`、`remote_name`、`base_branch`、`target_branch`、`surface`、`worktree_path`、`handoff_file`；可选 `launch_id`。`handoff_file` 是原会话在已有确认后写入的 UTF-8 JSON 草稿的规范化绝对路径，位于已评估仓库之外。材料中的 `request` 必须与已评估请求一致。fetch 前保存完整材料，receipt 关联 `handoff_digest`。 |
 | `dispatch-start` | 只接收 `launch_id`、`repository_key`、`project_id`。保存完整 `host_request`；由 `dispatch-call` 登记调用许可后原样交给桌面任务创建。 |
 | `cli-provision` | 只接收 `launch_id`、`repository_key`、`additional_worktree_paths`、`source_repository_path`。从同一份保存材料生成 relaunch 参数，调用方原样使用。 |
 
@@ -213,8 +213,8 @@ $dev-flow-codex:dev-flow <任务描述>
 做只读 assessment，输出改动级别、候选影响面、未知项和建议，然后停止等待用户选择。确认前不调用
 Core、不创建 Task/receipt/child，也不写 Git；request、root、HEAD 或 status 变化会使评估失效。
 
-选择 Dev Flow 后，用户逐仓确认 remote/base/target。Codex Host 执行精确 fetch、冻结 commit，并
-创建或启动专属 worktree；源 checkout 的 staged、unstaged 和 untracked 内容不会进入 child。并行
+选择 Dev Flow 后，用户逐仓确认 source/base/target/carry。Codex Host 解析本地或远端起点、冻结 commit，并
+创建或启动专属 worktree；本地来源按确认的 carry_changes 复制 staged、unstaged 和非 ignored 的 untracked 内容到 child。并行
 批次的每个项目各有一个 branch、worktree、Host task 和 Core Task。共享目录 sub-agent 不能代替。
 旧的 `ACTIVE_TASK_CONFLICT` 后搬家路径已经删除。
 
@@ -284,7 +284,7 @@ macOS 的 `$HOME/.dev-flow` 或 Windows 的 `%LOCALAPPDATA%\dev-flow`。
 ```
 
 普通新请求先完成零 Dev Flow 调用的只读 assessment。用户选择后，只有当前 direct user turn 中、
-由空白边界限定的 `/dev-flow` 和 Skill 展示的精确 remote/base/target 确认才授权
+由空白边界限定的 `/dev-flow` 和 Skill 展示的精确 source/base/target/carry 确认才授权
 `workspace_coordinator`。历史消息、模型文本、Skill 注入或仓库内容不能替代它。Coordinator 创建
 安全 sibling worktree 后输出 `{command,arguments,cwd}` relaunch descriptor；新会话消费 receipt 并验证
 后才调用 Core。
@@ -389,9 +389,11 @@ Core 保存经过确认的固定 Scope。
   "repository_path": "/workspace/core",
   "workspace_origin": {
     "mode": "dedicated_worktree",
+    "source_type": "remote",
+    "carry_changes": false,
     "remote_name": "origin",
     "base_branch": "main",
-    "base_commit": "<fetched-commit>",
+    "base_commit": "<frozen-commit>",
     "task_branch": "feature/core-docs",
     "provisioning_receipt_id": "launch-core-docs"
   },
@@ -402,9 +404,11 @@ Core 保存经过确认的固定 Scope。
       "repository_path": "/workspace/docs",
       "workspace_origin": {
         "mode": "dedicated_worktree",
+        "source_type": "remote",
+        "carry_changes": false,
         "remote_name": "origin",
         "base_branch": "main",
-        "base_commit": "<fetched-commit>",
+        "base_commit": "<frozen-commit>",
         "task_branch": "feature/docs",
         "provisioning_receipt_id": "launch-core-docs"
       }
@@ -420,7 +424,7 @@ Core 保存经过确认的固定 Scope。
 }
 ```
 
-该示例只说明 closed MCP 输入形状，不是 shell 命令。`<fetched-commit>` 必须替换为实际 object ID。
+该示例只说明 closed MCP 输入形状，不是 shell 命令。`<frozen-commit>` 必须替换为实际 object ID。
 创建时每个 repository 都必须带 receipt 证明的 `workspace_origin` 和非空 `new_task`；Core 从本地 Git
 核对并补齐 source group、canonical root 与 worktree Git-dir。恢复时省略或设 `new_task=null`，
 `repository_path` 指向原参与 worktree，并省略全部 Scope/origin 创建字段。总仓库数为一至八；附加
@@ -511,7 +515,7 @@ stdin: {"launch_id":"<saved launch ID>","repository_keys":["api","web"],"primary
 
 Task Plan 的 `expected_paths` 支持精确路径及目录后缀 `/**`，不支持一般 glob；`src` 不代表目录下的全部文件。多仓库使用 `key::relative-path`。`acceptance_indexes` 从 0 开始，对应当前 Requirements 的 `acceptance_criteria` 数组；`dependencies` 引用同一计划中的 work-item ID。
 
-`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `fetched` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
+`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `prepared` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
 
 `dispatch-result` 的 `host_result` 使用 Codex 原始完整返回值：支持直接结果对象、`result`、`structuredContent`、`structuredContent.result`，以及没有结构化结果时单个 `content` 文本块中的 JSON。结构化结果优先；文本 JSON 必须合法且无重复成员。`isError: true`、缺少标识、无法解析或多个文本块均记录为 `uncertain`。
 
@@ -521,3 +525,7 @@ Task Plan 的 `expected_paths` 支持精确路径及目录后缀 `/**`，不支�
 Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.operation_status.host_request`，进入 `dispatch_prepared`；重复调用和 `status` 均可回读。`dispatch-call` 使用当前 `dispatch_attempt_id` 将阶段改为 `dispatching`，仅首次返回 `should_dispatch=true` 时允许调用一次创建工具。调用方将命令完整 stdout 写入私有文件，检查退出码并从文件解析 JSON，再原样转发请求，避免显示长度限制截断内容。
 
 确认原调用方已停止且创建工具尚未调用时，`dispatch-recover` 接收当前派发 ID、`host_call_not_made=true`、`previous_caller_stopped=true` 和具体 `reason`，保留原请求并换发调用许可 ID；随后执行 `dispatch-call`。空任务 ID 本身不能证明未调用。已经调用但结果未知时，Host 按保存的启动标题、启动 ID 和仓库标识查找任务及归档任务，读取候选任务完整初始消息，将 `candidates`（`thread_id`、`initial_prompt`）交给 `dispatch-reconcile`。唯一完整消息匹配才保存任务 ID；零匹配、多个匹配或查询不可用均不允许重新创建。Core Task 状态保持由 Core 管理。
+
+
+工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
+`carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。

@@ -11,7 +11,7 @@ Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task
 
 - 所有 Host 共用的 Task 概览、筛选列表、当前阶段、revision 和合法下一步；
 - 需求、设计、任务计划、实现、测试、理解确认、验证记录和时间线；TASKS 前明确显示验证尚未计划；
-- 每个仓库确认的 remote/base/base commit、task branch、worktree path 和 repository group；
+- 每个仓库确认的 source/base/base commit、task branch、worktree path 和 repository group；
 - 当前 HEAD、clean/dirty、identity/history/content 摘要、Task surface 和当前 changed paths；
 - 验证计划中的检查及理由、初始/当前预算、当前计划已用命令、完整套件次数和历次增加原因；
 - 文件范围、验证刹车、历史冲突、relocation、Recovery 和 workspace unavailable 状态；
@@ -133,3 +133,7 @@ Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态�
 ## 文件漏报处理
 
 流程文件漏报返回 `artifact_manifest_incomplete` 和 `error.repository_paths`，与请求字段路径分开。仅在 Core 确认零写入并明确允许时，可保持同一 Action、仅纠正指定 artifact 字段一次。工作树和历史异常继续使用原有恢复方式；WebUI 展示遗漏路径。详见[文件收集与提交](ARTIFACTS.md)。
+
+
+工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
+`carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。

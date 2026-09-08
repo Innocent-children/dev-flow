@@ -63,7 +63,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 
 	invalidService, _, _ := phase5Service(t)
 	invalidOrigin := invalidService.repositoryObserver.(*mutableObserver).origin
-	invalidOriginInput := WorkspaceOriginInput{Mode: invalidOrigin.Mode, RemoteName: invalidOrigin.RemoteName, BaseBranch: invalidOrigin.BaseBranch, BaseCommit: invalidOrigin.BaseCommit, TaskBranch: invalidOrigin.TaskBranch, ProvisioningReceiptID: invalidOrigin.ProvisioningReceiptID}
+	invalidOriginInput := WorkspaceOriginInput{Mode: invalidOrigin.Mode, SourceType: invalidOrigin.SourceType, CarryChanges: invalidOrigin.CarryChanges, RemoteName: invalidOrigin.RemoteName, BaseBranch: invalidOrigin.BaseBranch, BaseCommit: invalidOrigin.BaseCommit, TaskBranch: invalidOrigin.TaskBranch, ProvisioningReceiptID: invalidOrigin.ProvisioningReceiptID}
 	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &invalidOriginInput, NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: "future"}}); err != domain.ErrInvalidArgument {
 		t.Fatalf("invalid profile error=%v", err)
 	}
@@ -227,7 +227,7 @@ func TestMethodProfileGetNextActionActiveBlockedAndTerminal(t *testing.T) {
 func openMethodProfileTask(t *testing.T, service *Service, profile domain.MethodProfile) domain.ProcessTask {
 	t.Helper()
 	origin := service.repositoryObserver.(*mutableObserver).origin
-	input := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	input := WorkspaceOriginInput{Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 	result, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-method-task", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &input, NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: profile}})
 	if err != nil {
 		t.Fatal(err)

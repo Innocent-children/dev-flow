@@ -3,7 +3,7 @@
   "storage_schema_version": "0.5.0",
   "workspace_origin": {
     "mode": "dedicated_worktree",
-    "remote_name": "origin",
+    "source_type": "remote", "carry_changes": false, "remote_name": "origin",
     "base_branch": "main",
     "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "task_branch": "task/example",

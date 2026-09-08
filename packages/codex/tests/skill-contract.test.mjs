@@ -88,7 +88,8 @@ test("confirmed launches use frozen refs and never relocate after active conflic
     assert.equal(routing.includes(required), true, required);
   }
   for (const required of [
-    "`repository_key`, `remote_name`, `base_branch`, and `target_branch`",
+    "`repository_key`", "`source_type`", "`carry_changes`", "`base_branch`", "`target_branch`",
+    "ask", "No omitted field has a default",
     "refs/remotes/<remote>/<base>",
     "`target.environment.type=\"worktree\"`",
     "omit `onMissing`",

@@ -31,7 +31,7 @@ func testGraphTask(t *testing.T) domain.ProcessTask {
 	if err != nil {
 		t.Fatal(err)
 	}
-	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: testPath("repo"), WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: testPath("repo"), WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
 	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
 	return domain.ProcessTask{TaskID: "task", OriginHost: domain.HostCodex, Intent: domain.TaskIntent{Request: "Build graph storage.", MethodProfile: domain.MethodPlain}, Process: process.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action, WorkspaceOrigin: origin, Repository: binding, Revision: 1, CreatedAt: now, UpdatedAt: now}
 }

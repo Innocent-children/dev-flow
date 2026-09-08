@@ -24,8 +24,8 @@ Codex 的安装与移除测试检查安装包和 Core 标识、安装、setup、
 当前源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop`，并支持以下
 操作系统与 CPU 组合：
 
-当前源码的新 Task 生命周期先在 Host 中做只读改动量评估，再由用户确认 remote/base/target，从
-fetch 后冻结的 commit 建立专属工作树；Core 只读计算工作树 identity、history、content 和当前
+当前源码的新 Task 生命周期先在 Host 中做只读改动量评估，再由用户确认 source/base/target/carry，从
+解析本地或远端分支后固定的 commit 建立专属工作树；Core 只读计算工作树 identity、history、content 和当前
 Task surface。源码测试使用临时 Git 仓库和运行记录，也提供检查外部实际运行记录的入口。只有
 在对应 Host 和平台实际完成测试，才能报告该环境已验证；正式发布前，上方稳定支持表保持不变。
 
@@ -81,3 +81,7 @@ Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿
 ## 当前 DSH 接口
 
 当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
+
+
+工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
+`carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。

@@ -67,7 +67,7 @@ func TestWorkspaceLifecycleFixtureMatchesClosedMCPInputs(t *testing.T) {
 		t.Fatalf("history fixture input: %v", err)
 	}
 	var origin map[string]any
-	if json.Unmarshal(fixture.WorkspaceOrigin, &origin) != nil || len(origin) != 6 || origin["mode"] != "dedicated_worktree" {
+	if json.Unmarshal(fixture.WorkspaceOrigin, &origin) != nil || len(origin) != 8 || origin["mode"] != "dedicated_worktree" {
 		t.Fatalf("workspace origin=%s", fixture.WorkspaceOrigin)
 	}
 }
@@ -266,6 +266,8 @@ type multiRepositoryFixtureAdditional struct {
 
 type multiRepositoryFixtureOrigin struct {
 	Mode                        string `json:"mode"`
+	SourceType                  string `json:"source_type"`
+	CarryChanges                bool   `json:"carry_changes"`
 	RemoteName                  string `json:"remote_name"`
 	BaseBranch                  string `json:"base_branch"`
 	BaseCommit                  string `json:"base_commit"`

@@ -108,7 +108,7 @@ export function buildManagedBootstrapPrompt({ launchId, repositoryKey, handoff }
   const identity = [
     "$dev-flow-codex:dev-flow",
     `Resume the confirmed Dev Flow launch ${launchId} for repository ${repositoryKey}.`,
-    "Before any Core call, consume the provisioning receipt, verify the fetched commit and task worktree, create the confirmed target branch when needed, and prove the worktree is clean.",
+    "Before any Core call, consume the provisioning receipt, verify the frozen commit and task worktree, create the confirmed target branch when needed, and apply the receipt snapshot only when carry_changes is true. Use the returned workspace_origin unchanged.",
   ];
   const locations = [
     `Complete handoff and original discussion: ${JSON.stringify(handoff.markdown_path)}`,

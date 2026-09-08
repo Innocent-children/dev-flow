@@ -263,7 +263,7 @@ func phase5Service(t *testing.T) (*Service, *memoryStore, *mutableObserver) {
 	head := strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
 	binding := domain.RepositoryBinding{WorktreeInstanceDigest: d, IdentityDigest: d, HistoryDigest: d, ContentDigest: d, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: d}
-	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: d, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: d, ProvisioningReceiptID: "receipt"}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: d, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: d, ProvisioningReceiptID: "receipt"}
 	ms := &memoryStore{}
 	observer := &mutableObserver{binding: binding, origin: origin}
 	n := 0
@@ -277,7 +277,7 @@ func phase5Service(t *testing.T) (*Service, *memoryStore, *mutableObserver) {
 func openPhase5Task(t *testing.T, s *Service) domain.ProcessTask {
 	t.Helper()
 	origin := s.repositoryObserver.(*mutableObserver).origin
-	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	originInput := WorkspaceOriginInput{Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 	result, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "open-request", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)

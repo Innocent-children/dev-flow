@@ -17,8 +17,8 @@ func TestOpenTaskIntentConflictAndIDFailureAreZeroWrite(t *testing.T) {
 	head := strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
 	binding := domain.RepositoryBinding{WorktreeInstanceDigest: digest, IdentityDigest: digest, HistoryDigest: digest, ContentDigest: digest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: digest}
-	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
-	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	originInput := WorkspaceOriginInput{Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 	ms := &memoryStore{}
 	n := 0
 	s, _ := newService(ms, &mutableObserver{binding: binding, origin: origin}, func() time.Time { return now }, func(prefix string) (domain.ID, error) { n++; return domain.ID(prefix + "-id"), nil })
@@ -61,11 +61,11 @@ func TestApplyMissingArtifactManifestIsZeroWrite(t *testing.T) {
 	head := strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
 	binding := domain.RepositoryBinding{WorktreeInstanceDigest: d, IdentityDigest: d, HistoryDigest: d, ContentDigest: d, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: d}
-	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: d, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: d, ProvisioningReceiptID: "receipt"}
+	origin := domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: d, CanonicalWorktreeRoot: repositoryPath, WorktreeGitDirDigest: d, ProvisioningReceiptID: "receipt"}
 	o := &mutableObserver{binding: binding, origin: origin}
 	ms := &memoryStore{}
 	s, _ := newService(ms, o, func() time.Time { return now }, func(prefix string) (domain.ID, error) { return domain.ID(prefix + "-id"), nil })
-	originInput := WorkspaceOriginInput{Mode: origin.Mode, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
+	originInput := WorkspaceOriginInput{Mode: origin.Mode, SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch, BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch, ProvisioningReceiptID: origin.ProvisioningReceiptID}
 	opened, err := s.OpenTask(context.Background(), OpenTaskRequest{RequestID: "request-open", Host: domain.HostCodex, RepositoryPath: repositoryPath, WorkspaceOrigin: &originInput, NewTask: &NewTaskInput{Request: "Requirement", MethodProfile: domain.MethodPlain}})
 	if err != nil {
 		t.Fatal(err)

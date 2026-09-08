@@ -63,7 +63,7 @@ func recoveryBinding(seed byte) domain.RepositoryBinding {
 }
 func recoveryOrigin(seed byte) domain.WorkspaceOrigin {
 	digest := recoveryDigest(seed)
-	return domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: strings.Repeat("a", 40), TaskBranch: "feature/task", SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: "/tmp/task", WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
+	return domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: strings.Repeat("a", 40), TaskBranch: "feature/task", SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: "/tmp/task", WorktreeGitDirDigest: digest, ProvisioningReceiptID: "receipt"}
 }
 func recoveryEntry(path string, seed byte) domain.RepositoryChangedEntry {
 	digest := recoveryDigest(seed)

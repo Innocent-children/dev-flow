@@ -287,7 +287,7 @@ function submissionArguments(action) {
 function workspaceOrigin(key) {
   return {
     mode: "dedicated_worktree",
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     base_commit: "5265db6c44ce12ea55d9fdb072b4dcb2345f6e2a",
     task_branch: `codex/${key}`,

@@ -44,7 +44,7 @@ test("official DSH add/remove/reinstall preserves Core data, repository, and Cod
   const provisioned = await createWorkspaceCoordinator({ dataDirectory, workspaceRoot: repository }).provision({
     request: "Lifecycle acceptance task.",
     profile: profileName,
-    repositories: [{ repository_key: "primary", source_repository_path: repository, remote_name: "origin", base_branch: "main", target_branch: "feature/lifecycle-acceptance" }],
+    repositories: [{ repository_key: "primary", source_repository_path: repository, source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/lifecycle-acceptance" }],
   });
   const taskRepository = provisioned.workspace_root;
   const consumed = await createWorkspaceCoordinator({ dataDirectory, workspaceRoot: taskRepository }).consume({ launchID: provisioned.launch_id });

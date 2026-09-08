@@ -337,7 +337,7 @@ func provisionObserverWorktree(t *testing.T) (string, string, WorkspaceOriginSel
 	runObserverGit(t, source, "push", "-u", "origin", "main")
 	base := runObserverGit(t, source, "rev-parse", "HEAD")
 	runObserverGit(t, source, "worktree", "add", "-b", "feature/task", worktree, base)
-	return source, worktree, WorkspaceOriginSelection{Mode: "dedicated_worktree", RemoteName: "origin", BaseBranch: "main", BaseCommit: base, TaskBranch: "feature/task", ProvisioningReceiptID: "receipt-test"}
+	return source, worktree, WorkspaceOriginSelection{Mode: "dedicated_worktree", SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: base, TaskBranch: "feature/task", ProvisioningReceiptID: "receipt-test"}
 }
 
 func runObserverGit(t *testing.T, directory string, args ...string) string {
@@ -363,4 +363,29 @@ func bytesTrimSpace(value []byte) []byte {
 		end--
 	}
 	return value[start:end]
+}
+
+func TestWorkspaceObserverLocalSourceRequiresCarryChoiceForInitialChanges(t *testing.T) {
+	source, worktree, selection := provisionObserverWorktree(t)
+	runObserverGit(t, source, "remote", "remove", "origin")
+	selection.SourceType, selection.RemoteName = "local", ""
+	observer := NewGitObserver()
+	if _, _, err := observer.ObserveWorkspace(context.Background(), worktree, selection, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(worktree, "tracked.txt"), []byte("carried unstaged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := observer.ObserveWorkspace(context.Background(), worktree, selection, nil); !errors.Is(err, ErrProvisioningRequired) {
+		t.Fatalf("unconfirmed contents: %v", err)
+	}
+	selection.CarryChanges = true
+	origin, binding, err := observer.ObserveWorkspace(context.Background(), worktree, selection, nil)
+	if err != nil || !origin.CarryChanges || len(binding.TaskSurface) != 1 {
+		t.Fatalf("origin=%+v binding=%+v err=%v", origin, binding, err)
+	}
+	selection.SourceType, selection.RemoteName = "remote", "origin"
+	if _, _, err := observer.ObserveWorkspace(context.Background(), worktree, selection, nil); !errors.Is(err, ErrProvisioningRequired) {
+		t.Fatalf("remote carry accepted: %v", err)
+	}
 }

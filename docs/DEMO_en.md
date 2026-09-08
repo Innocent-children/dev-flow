@@ -18,11 +18,11 @@ targeted tests needed for this behavior.
 
 The Host first inspects candidate implementation, callers, tests, and Git state read-only, reports a
 change level, known impact, unknowns, and a recommendation, then stops. No Core call, Task, or Git
-write exists yet. After the developer chooses Dev Flow, they confirm a remote, base branch, and new
-target branch. The Host fetches the exact ref, freezes the base commit, and creates a clean dedicated
-worktree without copying staged, unstaged, or untracked source-checkout content. Core creates the
-local Task only after target verification and retains the request, scope, acceptance, WorkspaceOrigin,
-and method profile. No final verification budget is frozen before analysis.
+write exists yet. After choosing Dev Flow, the developer confirms local or remote source, base and
+target branches, and whether to carry local changes. The Host freezes the starting point, creates
+a dedicated worktree and applies selected content while preserving the source checkout. Core creates
+the Task after verification, retaining the request, scope, acceptance, WorkspaceOrigin and method
+profile. No final verification budget is frozen before analysis.
 
 ## 2. Implementation completes and testing begins
 

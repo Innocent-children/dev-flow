@@ -170,7 +170,7 @@ func fileScopeBinding(now time.Time, root string, seed byte) domain.RepositoryBi
 
 func fileScopeOrigin(root string, seed byte) domain.WorkspaceOrigin {
 	digest := testDigest(seed)
-	return domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: strings.Repeat(string(seed), 40), TaskBranch: "feature/task", SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + string(seed))}
+	return domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: strings.Repeat(string(seed), 40), TaskBranch: "feature/task", SourceRepositoryGroupDigest: digest, CanonicalWorktreeRoot: root, WorktreeGitDirDigest: digest, ProvisioningReceiptID: domain.ID("receipt-" + string(seed))}
 }
 
 func testDigest(seed byte) domain.Digest { return domain.Digest(strings.Repeat(string(seed), 64)) }

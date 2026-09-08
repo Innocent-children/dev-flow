@@ -388,7 +388,7 @@ var (
 	ErrWorkspaceUnavailable         = &Error{Code: ErrorWorkspaceUnavailable, Message: "the task worktree instance is unavailable"}
 	ErrWorkspaceObservationUnstable = &Error{Code: ErrorWorkspaceObservationUnstable, Message: "the task repository scope changed during observation"}
 	ErrWorkspaceHistoryConflict     = &Error{Code: ErrorWorkspaceHistoryConflict, Message: "the task worktree history conflicts with its retained state"}
-	ErrWorktreeProvisioningRequired = &Error{Code: ErrorWorktreeProvisioningRequired, Message: "a clean dedicated worktree is required before opening a task"}
+	ErrWorktreeProvisioningRequired = &Error{Code: ErrorWorktreeProvisioningRequired, Message: "a confirmed dedicated worktree is required before opening a task"}
 	ErrVerificationBudgetExceeded   = &Error{Code: ErrorVerificationBudgetExceeded, Message: "the verification budget was exceeded"}
 	ErrTaskBlocked                  = &Error{Code: ErrorTaskBlocked, Message: "the task is blocked"}
 	ErrTaskTerminal                 = &Error{Code: ErrorTaskTerminal, Message: "the task is terminal"}

@@ -99,7 +99,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     assessment_anchor: assessmentAnchor,
     repository_key: "primary",
     repository_path: targetRepository,
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     target_branch: "codex/retention-task",
     surface: "cli_worktree",

@@ -76,16 +76,16 @@ Task 创建后范围固定。选择代码检索工具时，这些指令优先于
 `small|standard|large|uncertain`、已经找到的影响面、未知项和建议；这一轮不调用 Core、不修改 Git、
 不运行测试，也不创建 Task。即使第一条消息已经包含 `/dev-flow`，新请求也不能跳过评估和确认。
 
-选择 Dev Flow 后，逐仓确认 remote、base branch 和新的 target branch。确认消息必须使用 Adapter
+选择 Dev Flow 后，逐仓确认 来源、起始分支、新目标分支和本地携带选择。确认消息必须使用 Adapter
 显示的精确形式，例如：
 
 ```text
 /dev-flow confirm-worktree
-repository=primary;remote=origin;base=main;target=feature/payment-callback-signature
+repository=primary;source=remote;carry=false;remote=origin;base=main;target=feature/payment-callback-signature
 ```
 
-WorkspaceCoordinator 随后精确 fetch 选定 remote/base，冻结 commit，并从该 commit 创建干净、独立、
-具名分支的 worktree。源 checkout 可以 dirty，但 staged、tracked dirty 和 untracked 内容都不会复制。
+WorkspaceCoordinator 随后解析本地或远端起点，冻结 commit，并从该 commit 创建独立、
+具名分支的 worktree。源 checkout 可以 dirty；本地来源按明确选择复制 staged、tracked dirty 和非 ignored 的 untracked 内容，源 checkout 保持原样。
 fetch、分支校验或 worktree 创建失败时不会创建 Core Task。
 
 DSH 的 Workspace Root 在进程启动时固定，因此 Adapter 不会扩大当前 Root。它返回由 command、argv 和
@@ -185,7 +185,7 @@ dsh --profile "$PROFILE" --dump-config
 - `/dev-flow` 不绕过当前 Action、Workspace 权限、Git 写入授权或发布确认。
 
 `DONE` 和 `CANCELLED` 只结束 Core Task并释放 claim，不会 commit、push、创建 PR、handoff 或删除
-worktree/branch。终态会显示 remote/base/frozen commit、task branch/HEAD、路径、clean 状态、当前改动和
+worktree/branch。终态会显示 source/base/frozen commit、task branch/HEAD、路径、clean 状态、当前改动和
 验证结果。worktree 删除与 branch 删除需要两次独立授权；active、dirty、未推送或状态不确定的资源不
 自动清理。
 
@@ -198,7 +198,7 @@ terminal HEAD 已精确推送的 worktree，并保留 task branch。第二次独
 
 ## 高级多仓库
 
-当前源码支持一个主仓库和最多七个显式附加仓库。每个仓库都要分别确认 remote、base branch 和唯一
+当前源码支持一个主仓库和最多七个显式附加仓库。每个仓库都要分别确认 来源、携带选择、起始分支和唯一
 target branch；只有全部仓库完成 fetch、独立 worktree 创建和验证后，才一次创建一个 Core Task。
 新 DSH 会话使用 Coordinator 返回的非 Git 共同 Workspace Root，所有 worktree 和 symlink 解析结果
 都必须位于该 Root 内。任一仓库失败时不能只使用部分 Scope、退回共享 checkout 或留下部分 Core
@@ -252,3 +252,6 @@ WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core �
 ## 文件漏报处理
 
 流程文件漏报返回 `artifact_manifest_incomplete` 和 `error.repository_paths`，与请求字段路径分开。仅在 Core 确认零写入并明确允许时，可保持同一 Action、仅纠正指定 artifact 字段一次。工作树和历史异常继续使用原有恢复方式；WebUI 展示遗漏路径。详见[文件收集与提交](../../docs/ARTIFACTS.md)。
+
+
+本地来源的任务分支由辅助清理流程保留，供用户单独检查处理。

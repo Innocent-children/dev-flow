@@ -19,9 +19,11 @@ essai similaire ou une session redémarrée doit reconstituer l'avancement depui
 Dev Flow conserve dans une seule tâche locale la demande convenue, les chemins prévus, le plan de
 vérification établi après analyse, l'étape actuelle et les résultats. Codex ou DeepSeek continue à modifier le code.
 
-Chaque nouvelle demande est d'abord évaluée en lecture seule. Si vous choisissez Dev Flow, vous confirmez
-le remote, la branche de base et une nouvelle branche de tâche ; le Host crée depuis cette base distante
-un worktree propre et dédié avant que Core ne crée la Task. Les changements du checkout source ne sont pas copiés.
+Chaque nouvelle demande est évaluée en lecture seule avant de choisir Dev Flow. Le Host demande ensuite
+si la source est locale ou distante, quelle branche utiliser et comment nommer la nouvelle branche de tâche.
+Pour une source locale, il demande aussi s’il faut copier les modifications indexées, non indexées et les fichiers
+non suivis que Git n’ignore pas, en conservant le répertoire source et l’état de l’index. La création locale fonctionne
+sans réseau ; seule la création distante exécute fetch. Un conflit arrête la création du Task et conserve la destination pour examen.
 
 La recherche de dépôts et l'utilisation de l'index de code suivent les instructions actuelles de
 l'utilisateur et le fichier `AGENTS.md` applicable. Si ces instructions imposent un index de projets,
@@ -89,7 +91,7 @@ Ou envoyez ce message dans **DeepSeek Harness** :
 Ce sont des sélecteurs de conversation, pas des commandes shell. Indiquez un objectif concret, les
 conditions d'acceptation, le périmètre des fichiers et la limite de tests. La première réponse évalue
 l'impact et demande de travailler directement ou avec Dev Flow ; même un sélecteur explicite ne saute
-pas ce choix. Si vous choisissez Dev Flow, confirmez le remote, la base et la branche cible. Codex ouvre
+pas ce choix. Si vous choisissez Dev Flow, confirmez la source, les branches et la copie des modifications décrites ci-dessus. Codex ouvre
 un worktree géré lorsque le Host le permet ; DeepSeek indique comment redémarrer depuis le nouveau
 worktree, car le Workspace Root de la session est fixe.
 
@@ -177,7 +179,7 @@ dev-flow-codex host-launch prepare --help
 
 Les paramètres et les règles de reprise figurent dans la [référence des commandes](docs/COMMANDS_en.md).
 
-`host-launch prepare` génère `launch_id` lorsqu’il est omis et utilise cet ID pour vérifier l’enregistrement du lancement. Pour reprendre le même lancement, transmettez le `receipt.launch_id` renvoyé ; si l’enregistrement est déjà à l’état `fetched`, fetch est ignoré. Un ID explicite doit correspondre à l’enregistrement sauvegardé.
+`host-launch prepare` génère `launch_id` lorsqu’il est omis et utilise cet ID pour vérifier l’enregistrement du lancement. Pour reprendre le même lancement, transmettez le `receipt.launch_id` renvoyé ; si l’enregistrement est déjà à l’état `prepared`, fetch est ignoré. Un ID explicite doit correspondre à l’enregistrement sauvegardé.
 
 `host-launch dispatch-result` accepte la réponse complète de création de Codex, y compris le JSON dans `content[].text`. Il enregistre `clientThreadId` dans `host_client_thread_id` avec la phase `queued` ; renvoyer un résultat conservé avec les mêmes `launch_id` et `repository_key` permet de récupérer un enregistrement `uncertain`. Les vérifications suivantes suivent la même création, sans nouvelle demande de création.
 

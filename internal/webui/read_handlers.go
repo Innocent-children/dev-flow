@@ -248,7 +248,7 @@ func projectRepository(key domain.RepositoryKey, role string, origin domain.Work
 		Key: string(key), Path: origin.CanonicalWorktreeRoot, Role: role,
 		RepositoryGroupID: string(origin.SourceRepositoryGroupDigest),
 		Origin: WorkspaceOriginView{
-			Mode: string(origin.Mode), RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch,
+			Mode: string(origin.Mode), SourceType: origin.SourceType, CarryChanges: origin.CarryChanges, RemoteName: origin.RemoteName, BaseBranch: origin.BaseBranch,
 			BaseCommit: origin.BaseCommit, TaskBranch: origin.TaskBranch,
 			ProvisioningReceiptID: string(origin.ProvisioningReceiptID),
 		},

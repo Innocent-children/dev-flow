@@ -142,11 +142,11 @@ func workspaceInputForBinding(path string, binding domain.RepositoryBinding) Wor
 	if binding.CurrentBranch != nil {
 		branch = *binding.CurrentBranch
 	}
-	return WorkspaceOriginInput{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: binding.CurrentHead, TaskBranch: branch, ProvisioningReceiptID: domain.ID("receipt-" + filepath.Base(path))}
+	return WorkspaceOriginInput{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: binding.CurrentHead, TaskBranch: branch, ProvisioningReceiptID: domain.ID("receipt-" + filepath.Base(path))}
 }
 
 func originForBinding(path string, selection repository.WorkspaceOriginSelection, binding domain.RepositoryBinding) domain.WorkspaceOrigin {
-	return domain.WorkspaceOrigin{Mode: selection.Mode, RemoteName: selection.RemoteName, BaseBranch: selection.BaseBranch, BaseCommit: selection.BaseCommit, TaskBranch: selection.TaskBranch, SourceRepositoryGroupDigest: binding.IdentityDigest, CanonicalWorktreeRoot: path, WorktreeGitDirDigest: binding.WorktreeInstanceDigest, ProvisioningReceiptID: selection.ProvisioningReceiptID}
+	return domain.WorkspaceOrigin{Mode: selection.Mode, SourceType: selection.SourceType, CarryChanges: selection.CarryChanges, RemoteName: selection.RemoteName, BaseBranch: selection.BaseBranch, BaseCommit: selection.BaseCommit, TaskBranch: selection.TaskBranch, SourceRepositoryGroupDigest: binding.IdentityDigest, CanonicalWorktreeRoot: path, WorktreeGitDirDigest: binding.WorktreeInstanceDigest, ProvisioningReceiptID: selection.ProvisioningReceiptID}
 }
 
 func multiRepositoryBinding(now time.Time, path string, marker byte) domain.RepositoryBinding {

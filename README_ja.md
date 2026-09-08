@@ -19,9 +19,11 @@
 Dev Flow は、合意した依頼、予定パス、分析後に作成した検証計画、現在の段階、結果を 1 つのローカル作業として
 保存します。コードの変更は引き続き Codex または DeepSeek が行います。
 
-新しい依頼はすべて、Dev Flow を選ぶ前に読み取り専用で評価されます。選択後は remote、base
-branch、新しい task branch を確認し、Host がそのリモート基準からクリーンな専用 worktree を作成して
-から Core が Task を作ります。元の checkout の変更はコピーされません。
+新しい依頼はすべて、Dev Flow を選ぶ前に読み取り専用で評価されます。選択後、Host はローカルか
+リモートか、開始ブランチと新しいタスクブランチ名を尋ねます。ローカルの場合は、ステージ済み・
+未ステージの変更と Git に無視されていない未追跡ファイルをコピーするかも確認します。
+元の作業領域とステージ状態を保ち、ローカル作成は通信せず、リモートの場合だけ fetch します。
+変更の適用が競合した場合は Task を作成せず、確認できるように対象の作業ツリーを残します。
 
 リポジトリの調査とコードインデックスの利用は、現在のユーザー指示と適用される `AGENTS.md` に従います。
 これらの指示でプロジェクトインデックスの確認が求められる場合、Host はユーザー確認前に候補リポジトリを
@@ -86,7 +88,7 @@ $dev-flow-codex:dev-flow ログイン失敗のレート制限を追加してく�
 これは shell コマンドではなく、会話用の selector です。目標、受け入れ条件、ファイル範囲、
 テスト上限をできるだけ具体的に書いてください。最初の応答では影響を評価し、直接作業するか
 Dev Flow を使うかを尋ねます。明示 selector でもこの選択は省略されません。Dev Flow を選んだら
-remote、base、target branch を確認します。Codex は Host が対応していれば managed worktree を開き、
+上記のソース、ブランチ、変更のコピーについて確認します。Codex は Host が対応していれば managed worktree を開き、
 DeepSeek は現在の Workspace Root が固定されるため、新しい worktree からの再起動方法を示します。
 
 新しい Codex セッションを開始する前に、元のセッションは今回の要件に関する議論の原文と構造化した引き継ぎ資料を保存し、確定した要件、未採用の提案、未解決の質問を区別します。デスクトップの新規タスクと CLI の再起動は同じ保存済み資料を使用し、長い内容は切り詰めずに完全なファイルで渡します。[アーキテクチャ](docs/ARCHITECTURE_en.md#codex-requirements-handoff)を参照してください。
@@ -171,7 +173,7 @@ dev-flow-codex host-launch prepare --help
 
 引数と復旧手順は[コマンドリファレンス](docs/COMMANDS_en.md)を参照してください。
 
-`host-launch prepare` は `launch_id` が省略された場合に ID を生成し、その ID で起動記録を照合します。再試行時は返された `receipt.launch_id` を渡して同じ起動を再開します。記録がすでに `fetched` なら fetch を省略します。明示した ID は保存済みの記録と一致する必要があります。
+`host-launch prepare` は `launch_id` が省略された場合に ID を生成し、その ID で起動記録を照合します。再試行時は返された `receipt.launch_id` を渡して同じ起動を再開します。記録がすでに `prepared` なら fetch を省略します。明示した ID は保存済みの記録と一致する必要があります。
 
 `host-launch dispatch-result` は、`content[].text` 内の JSON を含む Codex のタスク作成応答全体を受け取ります。`clientThreadId` を `host_client_thread_id` として保存し、段階を `queued` に設定します。同じ `launch_id` と `repository_key` で保持済みの結果を再送すると、`uncertain` の記録を復旧できます。その後の確認は同じ作成処理を追跡し、再ディスパッチしません。
 

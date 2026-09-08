@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { isAbsolute, resolve } from "node:path";
 
+import { captureWorkspaceChanges, applyWorkspaceChanges } from "./worktree-snapshot.mjs";
 import { assertNoDuplicateJSONMembers } from "./json.mjs";
 import { requestDigest, validateAdmissionAnchor } from "./task-admission.mjs";
 import {
@@ -21,7 +22,8 @@ import {
 } from "./provisioning-receipt.mjs";
 import {
   createCliWorktree,
-  fetchFrozenBase,
+  resolveFrozenBase,
+  defaultRunGit,
   initializeManagedWorktree,
   inspectSourceRepository,
   preflightWorktreeSelection,
@@ -59,6 +61,7 @@ export async function prepareTaskLaunch(input, {
   const source = await preflightWorktreeSelection({
     repositoryPath: input.repository_path,
     remoteName: input.remote_name,
+    sourceType: input.source_type,
     baseBranch: input.base_branch,
     targetBranch: input.target_branch,
     runGit,
@@ -80,6 +83,8 @@ export async function prepareTaskLaunch(input, {
       sourceRepositoryIdentity: source.source_repository_identity,
       repositoryKey: input.repository_key,
       remoteName: input.remote_name,
+      sourceType: input.source_type,
+      carryChanges: input.carry_changes,
       baseBranch: input.base_branch,
       targetBranch: input.target_branch,
       worktreePath: input.worktree_path,
@@ -105,39 +110,41 @@ export async function prepareTaskLaunch(input, {
   try {
     return await withProvisioningReceiptLock(path, { productSupportRoot, enforcePrivateModes }, async () => {
       const current = await readProvisioningReceipt(path, { productSupportRoot });
-      if (current === null) throw new Error("provisioning receipt disappeared before fetch");
+      if (current === null) throw new Error("provisioning receipt disappeared before preparation");
       if (current.operation_status.phase !== "confirmed") {
         return Object.freeze({ receipt_path: path, receipt: current, resumed: true, fetch_performed: false });
       }
       assertInputMatchesReceipt(current, receiptInput, currentRequestDigest, handoffDigest);
       await writeTaskHandoff(path, handoff, { enforcePrivateModes });
-      const fetching = updateProvisioningReceipt(current, { phase: "fetching", values: {} });
-      await writeProvisioningReceiptAtomic(path, fetching, { productSupportRoot, enforcePrivateModes });
+      const resolving = updateProvisioningReceipt(current, { phase: "resolving", values: {} });
+      await writeProvisioningReceiptAtomic(path, resolving, { productSupportRoot, enforcePrivateModes });
       try {
-        const fetched = await fetchFrozenBase({
+        const resolvedBase = await resolveFrozenBase({
           repositoryPath: source.canonical_root,
           remoteName: input.remote_name,
+          sourceType: input.source_type,
           baseBranch: input.base_branch,
           runGit,
         });
-        if (fetched.source_repository_identity !== source.source_repository_identity) {
-          throw new Error("source repository identity changed during fetch");
+        if (resolvedBase.source_repository_identity !== source.source_repository_identity) {
+          throw new Error("source repository identity changed during preparation");
         }
-        const complete = updateProvisioningReceipt(fetching, {
-          phase: "fetched",
-          values: { fetched_commit: fetched.fetched_commit },
+        const snapshot = input.carry_changes ? await captureWorkspaceChanges(source.canonical_root, snapshotRunner(runGit)) : null;
+        const complete = updateProvisioningReceipt(resolving, {
+          phase: "prepared",
+          values: { base_commit: resolvedBase.base_commit, snapshot_commit: snapshot },
         });
         await writeProvisioningReceiptAtomic(path, complete, { productSupportRoot, enforcePrivateModes });
         return Object.freeze({
           receipt_path: path,
           receipt: complete,
           resumed: existing !== null,
-          fetch_performed: true,
+          fetch_performed: input.source_type === "remote",
           source_dirty: !source.clean,
           source_status_digest: source.status_digest,
         });
       } catch (error) {
-        const failed = updateProvisioningReceipt(fetching, { phase: "failed", values: {} });
+        const failed = updateProvisioningReceipt(resolving, { phase: "failed", values: {} });
         await writeProvisioningReceiptAtomic(path, failed, { productSupportRoot, enforcePrivateModes }).catch(() => {});
         throw error;
       }
@@ -160,8 +167,8 @@ export async function beginManagedTaskDispatch(input, options = {}) {
     if (["dispatch_prepared", "dispatching", "queued", "dispatched", "provisioning", "provisioned", "uncertain"].includes(receipt.operation_status.phase)) {
       return Object.freeze({ should_dispatch: false, receipt_path: state.path, receipt, host_request: retained });
     }
-    if (receipt.operation_status.phase !== "fetched" || receipt.operation_status.surface !== "managed_worktree") {
-      throw new Error("managed dispatch requires one fetched managed-worktree receipt");
+    if (receipt.operation_status.phase !== "prepared" || receipt.operation_status.surface !== "managed_worktree") {
+      throw new Error("managed dispatch requires one prepared managed-worktree receipt");
     }
     const handoff = await readTaskHandoff(state.path, receipt.handoff_digest);
     const prompt = buildManagedBootstrapPrompt({ launchId: receipt.launch_id, repositoryKey: receipt.repository_key, handoff });
@@ -171,7 +178,7 @@ export async function beginManagedTaskDispatch(input, options = {}) {
       title: `Dev Flow ${receipt.launch_id} ${receipt.repository_key}`,
       target: {
         type: "project", projectId: input.project_id,
-        environment: { type: "worktree", startingState: { type: "branch", branchName: `refs/remotes/${receipt.remote_name}/${receipt.base_branch}` } },
+        environment: { type: "worktree", startingState: { type: "branch", branchName: receipt.base_commit } },
       },
     };
     const prepared = updateProvisioningReceipt(receipt, {
@@ -297,11 +304,12 @@ export async function bootstrapManagedTask(input, options = {}) {
     try {
       const verified = await initializeManagedWorktree({
         worktreePath: input.worktree_path,
-        fetchedCommit: provisioning.fetched_commit,
+        baseCommit: provisioning.base_commit,
         targetBranch: provisioning.target_branch,
         sourceRepositoryIdentity: provisioning.source_repository_identity,
         runGit: options.runGit,
       });
+      await applyWorkspaceChanges(verified.canonical_root, provisioning.snapshot_commit, snapshotRunner(options.runGit));
       const provisioned = updateProvisioningReceipt(provisioning, {
         phase: "provisioned",
         values: { worktree_path: verified.canonical_root },
@@ -330,8 +338,8 @@ export async function provisionCliTask(input, options = {}) {
     if (receipt.operation_status.phase === "provisioned") {
       return cliProvisionResult(state.path, receipt, input, handoff);
     }
-    if (receipt.operation_status.phase !== "fetched" || receipt.operation_status.surface !== "cli_worktree" || receipt.worktree_path === null) {
-      throw new Error("CLI provisioning requires one fetched receipt with a worktree path");
+    if (receipt.operation_status.phase !== "prepared" || receipt.operation_status.surface !== "cli_worktree" || receipt.worktree_path === null) {
+      throw new Error("CLI provisioning requires one prepared receipt with a worktree path");
     }
     const provisioning = updateProvisioningReceipt(receipt, { phase: "provisioning", values: {} });
     await persistReceipt(state.path, provisioning, options);
@@ -339,11 +347,12 @@ export async function provisionCliTask(input, options = {}) {
       const verified = await createCliWorktree({
         repositoryPath: options.sourceRepositoryPath,
         worktreePath: provisioning.worktree_path,
-        fetchedCommit: provisioning.fetched_commit,
+        baseCommit: provisioning.base_commit,
         targetBranch: provisioning.target_branch,
         sourceRepositoryIdentity: provisioning.source_repository_identity,
         runGit: options.runGit,
       });
+      await applyWorkspaceChanges(verified.canonical_root, provisioning.snapshot_commit, snapshotRunner(options.runGit));
       const provisioned = updateProvisioningReceipt(provisioning, {
         phase: "provisioned",
         values: { worktree_path: verified.canonical_root },
@@ -380,9 +389,11 @@ export function workspaceOriginFromReceipt(receipt) {
   if (value.operation_status.phase !== "provisioned") throw new Error("workspace origin requires a provisioned receipt");
   return Object.freeze({
     mode: "dedicated_worktree",
+    source_type: value.source_type,
+    carry_changes: value.carry_changes,
     remote_name: value.remote_name,
     base_branch: value.base_branch,
-    base_commit: value.fetched_commit,
+    base_commit: value.base_commit,
     task_branch: value.target_branch,
     provisioning_receipt_id: provisioningReceiptID(value.launch_id, value.repository_key),
   });
@@ -694,7 +705,7 @@ function normalizedStructuredResult(value) {
 
 function validatePrepareInput(value) {
   const keys = [
-    "request", "assessment_anchor", "repository_key", "repository_path", "remote_name", "base_branch", "target_branch",
+    "request", "assessment_anchor", "repository_key", "repository_path", "source_type", "carry_changes", "remote_name", "base_branch", "target_branch",
     "surface", "worktree_path", "handoff_file",
   ];
   if (Object.hasOwn(value ?? {}, "launch_id")) keys.push("launch_id");
@@ -703,7 +714,8 @@ function validatePrepareInput(value) {
   assertAbsolutePath(value.handoff_file, "handoff_file");
   assertNonEmpty(value.repository_key, "repository_key");
   assertAbsolutePath(value.repository_path, "repository_path");
-  assertNonEmpty(value.remote_name, "remote_name");
+  if (!["local", "remote"].includes(value.source_type) || typeof value.carry_changes !== "boolean" || value.source_type === "remote" && value.carry_changes || value.source_type === "local" && value.remote_name !== "") throw new Error("invalid workspace source selection");
+  if (value.source_type === "remote") assertNonEmpty(value.remote_name, "remote_name");
   assertNonEmpty(value.base_branch, "base_branch");
   assertNonEmpty(value.target_branch, "target_branch");
   if (!["managed_worktree", "cli_worktree"].includes(value.surface)) throw new Error("surface is invalid");
@@ -720,6 +732,8 @@ function assertInputMatchesReceipt(receipt, input, requestDigest, handoffDigest)
     request_digest: requestDigest,
     handoff_digest: handoffDigest,
     repository_key: input.repository_key,
+    source_type: input.source_type,
+    carry_changes: input.carry_changes,
     remote_name: input.remote_name,
     base_branch: input.base_branch,
     target_branch: input.target_branch,
@@ -731,6 +745,8 @@ function assertInputMatchesReceipt(receipt, input, requestDigest, handoffDigest)
     request_digest: receipt.request_digest,
     handoff_digest: receipt.handoff_digest,
     repository_key: receipt.repository_key,
+    source_type: receipt.source_type,
+    carry_changes: receipt.carry_changes,
     remote_name: receipt.remote_name,
     base_branch: receipt.base_branch,
     target_branch: receipt.target_branch,
@@ -766,9 +782,15 @@ function stableJSON(value) {
 }
 
 export function validateWorkspaceOrigin(value) {
-  assertExactKeys(value, ["mode", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"], "workspace origin");
+  assertExactKeys(value, ["mode", "source_type", "carry_changes", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"], "workspace origin");
+  if (!["local", "remote"].includes(value.source_type) || typeof value.carry_changes !== "boolean" || value.source_type === "remote" && (value.carry_changes || !value.remote_name) || value.source_type === "local" && value.remote_name !== "") throw new Error("invalid workspace source selection");
+  if (value.source_type === "remote") assertNonEmpty(value.remote_name, "remote_name");
   if (value.mode !== "dedicated_worktree") throw new Error("workspace origin mode is invalid");
-  for (const field of ["remote_name", "base_branch", "task_branch", "provisioning_receipt_id"]) assertNonEmpty(value[field], field);
+  for (const field of ["base_branch", "task_branch", "provisioning_receipt_id"]) assertNonEmpty(value[field], field);
   if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(value.base_commit)) throw new Error("workspace origin base_commit is invalid");
   return structuredClone(value);
+}
+
+function snapshotRunner(runGit = defaultRunGit) {
+  return async (root, args, env) => await runGit(["-C", root, ...args], { env });
 }

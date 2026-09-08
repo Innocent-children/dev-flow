@@ -21,7 +21,7 @@ This stage improves the clarity and cost of using capabilities that already exis
 - explain why a Task is blocked and what must be confirmed;
 - show the current legal next step directly;
 - show a read-only change assessment and recommendation before a new request creates a Task;
-- show confirmed remote/base/target, the dedicated worktree, Task Plan, current changed paths,
+- show confirmed source/base/target/carry, the dedicated worktree, Task Plan, current changed paths,
   file-scope decisions, and unexplained paths;
 - distinguish normal linear commits, content changes, history conflicts, workspace unavailability,
   and relocation;

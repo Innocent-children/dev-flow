@@ -13,7 +13,7 @@ or clean resources.
 - the shared Task overview, filters, current stage, revision, and legal next action;
 - requirements, design, Task Plan, implementation, tests, comprehension, verification records, and timeline, with
   verification explicitly shown as unplanned before TASKS;
-- each repository's confirmed remote/base/base commit, task branch, worktree path, and repository group;
+- each repository's confirmed source/base/base commit, task branch, worktree path, and repository group;
 - current HEAD, clean/dirty state, identity/history/content digests, Task surface, and current changed paths;
 - planned checks and rationales, initial/current budget, commands used by the current plan, full-suite
   count, and every increase reason;
@@ -145,3 +145,8 @@ The current Windows development distribution includes both Adapter packages and 
 ## Missing artifact handling
 
 Missing process files return `artifact_manifest_incomplete` and `error.repository_paths`, separately from request field paths. Only after Core proves zero writes and explicitly permits correction may the caller correct the specified artifact fields once on the same Action. Workspace and history failures keep their existing recovery routes; WebUI displays omitted paths. See [artifact collection and submission](ARTIFACTS_en.md).
+
+
+Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
+`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
+`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).

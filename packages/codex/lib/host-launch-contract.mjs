@@ -39,18 +39,19 @@ const contracts = {
     next_step: "Complete assessment and obtain the user's execution and workspace choices before prepare.",
   },
   prepare: {
-    description: "After user confirmation, save the launch material and receipt, fetch the selected base and freeze its commit.",
+    description: "After user confirmation, save the launch material and receipt, resolve the selected local or remote base and freeze its commit and selected workspace contents.",
     input_schema: object({
       request: text("Same exact request supplied to inspect."), assessment_anchor: anchor,
       ...identity, repository_path: source,
-      remote_name: text("Confirmed Git remote name."), base_branch: text("Confirmed branch name on that remote."),
+      source_type: { enum: ["local", "remote"] }, carry_changes: { type: "boolean", description: "Explicit user choice; only true for local sources." },
+      remote_name: { type: "string", description: "Confirmed remote, or empty for local." }, base_branch: text("Confirmed branch name on the selected source."),
       target_branch: text("Confirmed new task branch name."),
       surface: { enum: ["managed_worktree", "cli_worktree"] },
       worktree_path: nullablePath("Required null for managed_worktree; required destination path for cli_worktree."),
       handoff_file: path("Complete JSON material prepared using references/task-handoff.md; existing user confirmations remain effective."),
     }, ["launch_id"]),
     output_fields: { ...receiptOutput, resumed: "Whether a retained preparation was found.", fetch_performed: "Whether this invocation fetched the base." },
-    next_step: "Retain receipt.launch_id before preparing another repository. Only phase=fetched proceeds to dispatch-start or cli-provision; inspect status after uncertainty.",
+    next_step: "Retain receipt.launch_id before preparing another repository. Only phase=prepared proceeds to dispatch-start or cli-provision; inspect status after uncertainty.",
   },
   status: {
     description: "Read one exact launch/repository record without repeating the operation.",

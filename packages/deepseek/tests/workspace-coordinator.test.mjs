@@ -23,12 +23,12 @@ test("workspace confirmation is bound to the current direct user turn", () => {
   const repositories = [{
     repository_key: "primary",
     source_repository_path: "/workspace/source",
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     target_branch: "feature/proof",
   }];
   const expected = workspaceConfirmationText(repositories);
-  assert.equal(expected, "/dev-flow confirm-worktree\nrepository=primary;remote=origin;base=main;target=feature/proof");
+  assert.equal(expected, "/dev-flow confirm-worktree\nrepository=primary;source=remote;carry=false;remote=origin;base=main;target=feature/proof");
   assert.doesNotThrow(() => authorizeWorkspaceExecution(execution(expected, { operation: "provision", repositories })));
   assert.throws(
     () => authorizeWorkspaceExecution(execution("/dev-flow use it", { operation: "provision", repositories })),
@@ -72,7 +72,7 @@ test("coordinator fetches a frozen base, excludes dirty source state, and emits 
   const repositories = [{
     repository_key: "primary",
     source_repository_path: source,
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     target_branch: "feature/proof",
   }];
@@ -103,7 +103,7 @@ test("coordinator fetches a frozen base, excludes dirty source state, and emits 
 
   const receipt = await readProvisioningReceipt(data, fixedLaunchID);
   assert.equal(receipt.operation_status, "provisioned");
-  assert.equal(receipt.repositories[0].fetched_commit, baseCommit);
+  assert.equal(receipt.repositories[0].base_commit, baseCommit);
   assert.equal(JSON.stringify(receipt).includes(source), false);
   assert.equal(Object.hasOwn(receipt.repositories[0], "source_repository_path"), false);
   if (process.platform !== "win32") assert.equal((await stat(join(data, "host-operations", "deepseek", "provisioning", `${fixedLaunchID}.json`))).mode & 0o077, 0);
@@ -116,7 +116,7 @@ test("coordinator fetches a frozen base, excludes dirty source state, and emits 
   ]);
   assert.deepEqual(consumed.open_task.workspace_origin, {
     mode: "dedicated_worktree",
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     base_commit: baseCommit,
     task_branch: "feature/proof",
@@ -190,7 +190,7 @@ test("invalid or occupied target branches stop before a receipt or worktree is c
   const coordinator = createWorkspaceCoordinator({ dataDirectory: data, workspaceRoot: source, launchID: () => fixedLaunchID });
   await assert.rejects(coordinator.provision({
     request: "Do not collide.", profile: "headless", repositories: [{
-      repository_key: "primary", source_repository_path: source, remote_name: "origin",
+      repository_key: "primary", source_repository_path: source, source_type: "remote", carry_changes: false, remote_name: "origin",
       base_branch: "main", target_branch: "feature/existing",
     }],
   }), /already exists locally/u);
@@ -216,7 +216,7 @@ test("a multi-repository fetch failure creates no target branch or worktree", as
     await git(source, ["add", "README.md"]);
     await git(source, ["commit", "-m", "base"]);
     await git(source, ["push", "-u", "origin", "main"]);
-    repositories.push({ repository_key: key, source_repository_path: source, remote_name: "origin", base_branch: key === "docs" ? "missing" : "main", target_branch: `feature/${key}` });
+    repositories.push({ repository_key: key, source_repository_path: source, source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: key === "docs" ? "missing" : "main", target_branch: `feature/${key}` });
   }
   const coordinator = createWorkspaceCoordinator({ dataDirectory: data, workspaceRoot: workspace, launchID: () => fixedLaunchID });
   await assert.rejects(coordinator.provision({ request: "Change both repositories.", profile: "headless", repositories }), /no Core Task was created/u);
@@ -249,3 +249,37 @@ function execution(text, arguments_) {
 async function git(cwd, args) {
   return await execFile("git", args, { cwd, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" } });
 }
+
+for (const carry of [false, true]) test(`local coordinator works without a remote and carry_changes=${carry}`, async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-local-dsh-")));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = join(root, "source");
+  const data = join(root, "data");
+  await mkdir(data);
+  await execFile("git", ["init", "--initial-branch=main", source]);
+  await git(source, ["config", "user.name", "Test"]);
+  await git(source, ["config", "user.email", "test@localhost"]);
+  await writeFile(join(source, "file.txt"), "base\n");
+  await git(source, ["add", "."]);
+  await git(source, ["commit", "-m", "base"]);
+  await writeFile(join(source, "file.txt"), "staged\n");
+  await git(source, ["add", "."]);
+  await writeFile(join(source, "file.txt"), "unstaged\n");
+  await writeFile(join(source, "new.bin"), Buffer.from([0, 255, 128, 10]));
+  const before = (await git(source, ["status", "--porcelain=v2"])).stdout;
+  const coordinator = createWorkspaceCoordinator({ dataDirectory: data, workspaceRoot: source, launchID: () => fixedLaunchID });
+  const result = await coordinator.provision({ request: "Local work", profile: "headless", repositories: [{
+    repository_key: "primary", source_repository_path: source, source_type: "local", carry_changes: carry,
+    remote_name: "", base_branch: "main", target_branch: "feature/local",
+  }] });
+  assert.equal((await git(source, ["status", "--porcelain=v2"])).stdout, before);
+  assert.equal(await readFile(join(result.workspace_root, "file.txt"), "utf8"), carry ? "unstaged\n" : "base\n");
+  if (carry) {
+    assert.equal((await git(result.workspace_root, ["show", ":file.txt"])).stdout, "staged\n");
+    assert.deepEqual(await readFile(join(result.workspace_root, "new.bin")), Buffer.from([0, 255, 128, 10]));
+  }
+  const relaunched = createWorkspaceCoordinator({ dataDirectory: data, workspaceRoot: result.workspace_root });
+  const consumed = await relaunched.consume({ launchID: fixedLaunchID });
+  assert.equal(consumed.open_task.workspace_origin.carry_changes, carry);
+  assert.equal(consumed.open_task.workspace_origin.source_type, "local");
+});

@@ -19,7 +19,7 @@ flowchart TB
     H --> A[Read-only change assessment]
     A --> C{Choose Dev Flow?}
     C -->|No| D[Direct work · no Core Task]
-    C -->|Yes| P[Confirm remote/base/target]
+    C -->|Yes| P[Confirm source/base/target/carry]
     P --> W[Host provisioning receipt + dedicated worktree]
     W --> M[Local STDIO MCP · 17 tools]
     M --> S[Application Service]
@@ -58,19 +58,16 @@ reasons
 The assessment binds request, canonical root, HEAD, and status digest. A change while waiting makes it
 stale. Explicit resume is the only route that skips assessment.
 
-After the developer chooses Dev Flow, they confirm `remote_name`, `base_branch`, and a new
-`target_branch` for every repository. The Host runs one exact argv fetch:
-
-```text
-fetch <remote> refs/heads/<base>:refs/remotes/<remote>/<base>
-```
-
-It freezes the commit, creates the dedicated worktree/task branch, then verifies canonical root, Git
-common directory, worktree-specific Git directory, HEAD, branch, clean/submodule state, and Host write
-access. A source checkout may be dirty, but none of its staged, unstaged, or untracked content is copied.
+After selecting Dev Flow, the developer confirms `source_type`, `base_branch`, `carry_changes` and the new
+`target_branch`. Remote sources also require `remote_name` and fetch the exact ref with closed argv.
+Local sources use an empty `remote_name` and resolve `refs/heads/<base>` without network access. The Host
+freezes `base_commit` and retains `snapshot_commit` when carrying local content. After creating and
+verifying the dedicated worktree, branch and HEAD, it applies the snapshot with staging state preserved.
+Core accepts initial changes only for explicitly selected local carry. The source checkout is preserved;
+conflicts stop Task creation and retain the destination. See [worktree sources](WORKTREE-SOURCES_en.md).
 
 Before its first Git write, the Host retains a narrow provisioning receipt with launch/host/request
-digest, `handoff_digest`, source repository identity, repository key, remote/base/target, fetched commit, worktree path,
+digest, `handoff_digest`, source repository identity, repository key, source/base/target/carry, frozen commit, worktree path,
 operation status, and time. It contains no remote URL, credentials, file content, or workflow node.
 Uncertain results read receipt/Host state instead of dispatching again.
 
@@ -130,19 +127,23 @@ and method profile, but accepts no final verification budget. It also accepts a 
 ```json
 {
   "mode": "dedicated_worktree",
+  "source_type": "remote",
+  "carry_changes": false,
   "remote_name": "origin",
   "base_branch": "main",
-  "base_commit": "<fetched SHA>",
+  "base_commit": "<frozen SHA>",
   "task_branch": "feature/example",
   "provisioning_receipt_id": "launch-example"
 }
 ```
 
-Core does not trust this text alone. The Observer verifies local branch, HEAD, remote-tracking ref,
-common directory, worktree-specific Git directory, and clean state, then fills and retains:
+Core does not trust this text alone. The Observer verifies local branch, HEAD, source ref,
+common directory, worktree-specific Git directory, and confirmed content choice, then fills and retains:
 
 ```text
 mode
+source_type
+carry_changes
 remote_name
 base_branch
 base_commit
@@ -286,7 +287,7 @@ Ordinary `dev_flow_cancel_task` still observes the worktree. When the exact inst
 only `dev_flow_abandon_task(host, task_id, revision, reason)` may retain the last known binding, enter
 CANCELLED, and release claims. It never accesses or deletes Git resources.
 
-DONE/CANCELLED end the Task and release claims only. Terminal projection shows remote/base/base commit,
+DONE/CANCELLED end the Task and release claims only. Terminal projection shows source/base/base commit,
 task branch/current HEAD, worktree path, clean/dirty, current paths, and verification. Keep, review,
 handoff, worktree cleanup, and branch cleanup are Host actions; the two cleanup operations require
 separate authorization.

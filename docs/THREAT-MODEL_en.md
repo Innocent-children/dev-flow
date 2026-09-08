@@ -34,7 +34,7 @@ flowchart LR
 
 | Participant | Responsibility |
 | --- | --- |
-| Developer | Chooses whether to enter Dev Flow and confirms remote/base/target, repository and Host permissions, comprehension, handoff, cleanup, and releases |
+| Developer | Chooses whether to enter Dev Flow and confirms source/base/target/carry, repository and Host permissions, comprehension, handoff, cleanup, and releases |
 | Codex / DeepSeek Harness | Actually reads files, changes repositories, and runs commands; uses the elevated permissions granted by the developer |
 | Host Adapter | Assesses requests read-only; after confirmation performs fetch, branch, worktree, relaunch/handoff; judges scope before commands, full suites, test-code changes, and review; calls Core under the Action, Scope, current verification plan, and Recovery contract |
 | Go Core | Observes Git read-only, retains the one process state, derives Task surface, and validates revision, workspace, payload field restrictions, transitions, and persistence |
@@ -54,7 +54,7 @@ Identity or target drift stops cleanup.
 | Risk | Current defense |
 | --- | --- |
 | A small request is captured by the workflow or confirmation causes early Task/Git writes | Every new request stops after a read-only, request/root/HEAD/status-bound assessment; an exact selector cannot skip the developer choice |
-| Wrong remote/base/target or source-checkout content enters a Task worktree | Per-repository confirmation, exact fetch and frozen commit, branch/HEAD/common-dir/git-dir/clean verification, and no copying of source dirtiness |
+| Wrong source/base/target/carry or source-checkout content enters a Task worktree | Per-repository confirmation, exact fetch and frozen commit, branch/HEAD/common-dir/git-dir verification, and explicitly selected local content copying; application failures stop Task creation |
 | An uncertain provisioning or Host dispatch result is executed twice | A narrow provisioning receipt binds one launch and owned resources; uncertainty reads receipt/Host state instead of blindly retrying or force-cleaning |
 | Path traversal, symlinks, or index results expand Repository Scope | Scope is canonicalized and frozen at Task creation; multi-repository paths carry an explicit key; indexes cannot add members |
 | A stale Action, duplicate request, or lost response repeats a state change | complete mutation validation before staging; an independent Action operation record, revision CAS, Action/request identity, repository binding, an atomic applied marker, and read-before-retry |
@@ -86,3 +86,8 @@ Identity or target drift stops cleanup.
 - Unsupported platforms, Host versions, and source-only builds do not have a stable security support claim.
 
 Report security issues privately by following the repository [Security Policy](../SECURITY.md).
+
+
+Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
+`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
+`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).

@@ -37,7 +37,9 @@ type additionalRepositoryWire struct {
 }
 type workspaceOriginWire struct {
 	Mode                  domain.WorkspaceMode `json:"mode"`
-	RemoteName            string               `json:"remote_name"`
+	SourceType            string               `json:"source_type"`
+	CarryChanges          *bool                `json:"carry_changes"`
+	RemoteName            *string              `json:"remote_name"`
 	BaseBranch            string               `json:"base_branch"`
 	BaseCommit            string               `json:"base_commit"`
 	TaskBranch            string               `json:"task_branch"`
@@ -450,10 +452,10 @@ func toProbe(w *operationProbeWire) *application.OperationProbe {
 }
 
 func toWorkspaceOrigin(w workspaceOriginWire) application.WorkspaceOriginInput {
-	return application.WorkspaceOriginInput{Mode: w.Mode, RemoteName: w.RemoteName, BaseBranch: w.BaseBranch, BaseCommit: w.BaseCommit, TaskBranch: w.TaskBranch, ProvisioningReceiptID: w.ProvisioningReceiptID}
+	return application.WorkspaceOriginInput{Mode: w.Mode, SourceType: w.SourceType, CarryChanges: *w.CarryChanges, RemoteName: *w.RemoteName, BaseBranch: w.BaseBranch, BaseCommit: w.BaseCommit, TaskBranch: w.TaskBranch, ProvisioningReceiptID: w.ProvisioningReceiptID}
 }
 func validWorkspaceOriginWire(w workspaceOriginWire) bool {
-	return repository.ValidWorkspaceOriginSelection(repository.WorkspaceOriginSelection{Mode: w.Mode, RemoteName: w.RemoteName, BaseBranch: w.BaseBranch, BaseCommit: w.BaseCommit, TaskBranch: w.TaskBranch, ProvisioningReceiptID: w.ProvisioningReceiptID})
+	return w.CarryChanges != nil && w.RemoteName != nil && repository.ValidWorkspaceOriginSelection(repository.WorkspaceOriginSelection{Mode: w.Mode, SourceType: w.SourceType, CarryChanges: *w.CarryChanges, RemoteName: *w.RemoteName, BaseBranch: w.BaseBranch, BaseCommit: w.BaseCommit, TaskBranch: w.TaskBranch, ProvisioningReceiptID: w.ProvisioningReceiptID})
 }
 func toSubmitAction(w submitActionWire, requestID domain.ID, kind domain.ActionKind) application.SubmitActionRequest {
 	current := make([]application.ArtifactSubmission, len(w.Artifacts.Current))

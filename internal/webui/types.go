@@ -127,6 +127,8 @@ type RepositoryView struct {
 
 type WorkspaceOriginView struct {
 	Mode                  string `json:"mode"`
+	SourceType            string `json:"source_type"`
+	CarryChanges          bool   `json:"carry_changes"`
 	RemoteName            string `json:"remote_name"`
 	BaseBranch            string `json:"base_branch"`
 	BaseCommit            string `json:"base_commit"`

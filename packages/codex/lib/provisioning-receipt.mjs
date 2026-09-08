@@ -11,8 +11,8 @@ const remoteNamePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 
 export const PROVISIONING_PHASES = Object.freeze([
   "confirmed",
-  "fetching",
-  "fetched",
+  "resolving",
+  "prepared",
   "dispatch_prepared",
   "dispatching",
   "provisioning",
@@ -31,9 +31,9 @@ export const PROVISIONING_PHASES = Object.freeze([
 
 const cleanupStates = Object.freeze(["not_requested", "requested", "completed", "failed"]);
 const phaseTransitions = Object.freeze({
-  confirmed: Object.freeze(["confirmed", "fetching", "failed"]),
-  fetching: Object.freeze(["fetching", "fetched", "failed", "uncertain"]),
-  fetched: Object.freeze(["fetched", "dispatch_prepared", "provisioning", "failed", "uncertain"]),
+  confirmed: Object.freeze(["confirmed", "resolving", "failed"]),
+  resolving: Object.freeze(["resolving", "prepared", "failed", "uncertain"]),
+  prepared: Object.freeze(["prepared", "dispatch_prepared", "provisioning", "failed", "uncertain"]),
   dispatch_prepared: Object.freeze(["dispatch_prepared", "dispatching"]),
   dispatching: Object.freeze(["dispatch_prepared", "dispatching", "queued", "dispatched", "provisioning", "failed", "uncertain"]),
   queued: Object.freeze(["queued", "dispatched", "provisioning", "failed", "uncertain"]),
@@ -57,6 +57,8 @@ export function createProvisioningReceipt({
   sourceRepositoryIdentity,
   repositoryKey,
   remoteName,
+  sourceType,
+  carryChanges,
   baseBranch,
   targetBranch,
   worktreePath = null,
@@ -71,9 +73,12 @@ export function createProvisioningReceipt({
     source_repository_identity: sourceRepositoryIdentity,
     repository_key: repositoryKey,
     remote_name: remoteName,
+    source_type: sourceType,
+    carry_changes: carryChanges,
+    snapshot_commit: null,
     base_branch: baseBranch,
     target_branch: targetBranch,
-    fetched_commit: null,
+    base_commit: null,
     worktree_path: worktreePath,
     operation_status: {
       phase: "confirmed",
@@ -101,10 +106,10 @@ export function validateProvisioningReceipt(value) {
     "handoff_digest",
     "source_repository_identity",
     "repository_key",
-    "remote_name",
+    "remote_name", "source_type", "carry_changes", "snapshot_commit",
     "base_branch",
     "target_branch",
-    "fetched_commit",
+    "base_commit",
     "worktree_path",
     "operation_status",
     "created_at",
@@ -117,17 +122,19 @@ export function validateProvisioningReceipt(value) {
     throw new Error("provisioning receipt source_repository_identity is invalid");
   }
   if (!repositoryKeyPattern.test(value.repository_key)) throw new Error("provisioning receipt repository_key is invalid");
-  if (!remoteNamePattern.test(value.remote_name)) throw new Error("provisioning receipt remote_name is invalid");
+  if (!["local", "remote"].includes(value.source_type) || typeof value.carry_changes !== "boolean" || value.source_type === "remote" && value.carry_changes || value.source_type === "local" && value.remote_name !== "") throw new Error("invalid workspace source selection");
+  if (value.snapshot_commit !== null && (!commitPattern.test(value.snapshot_commit) || !value.carry_changes)) throw new Error("invalid snapshot commit");
+  if (value.source_type === "remote" && !remoteNamePattern.test(value.remote_name)) throw new Error("provisioning receipt remote_name is invalid");
   assertBranchText(value.base_branch, "base_branch");
   assertBranchText(value.target_branch, "target_branch");
-  if (value.fetched_commit !== null && !commitPattern.test(value.fetched_commit)) {
-    throw new Error("provisioning receipt fetched_commit is invalid");
+  if (value.base_commit !== null && !commitPattern.test(value.base_commit)) {
+    throw new Error("provisioning receipt base_commit is invalid");
   }
   if (value.worktree_path !== null) assertNormalizedAbsolutePath(value.worktree_path, "worktree_path");
   validateOperationStatus(value.operation_status);
   if (!Number.isFinite(Date.parse(value.created_at))) throw new Error("provisioning receipt created_at is invalid");
-  if (!["confirmed", "fetching", "failed"].includes(value.operation_status.phase) && value.fetched_commit === null) {
-    throw new Error("provisioning receipt phase requires fetched_commit");
+  if (!["confirmed", "resolving", "failed"].includes(value.operation_status.phase) && value.base_commit === null) {
+    throw new Error("provisioning receipt phase requires base_commit");
   }
   if (["provisioning", "provisioned", "handoff_dispatching", "handoff_pending", "handoff_succeeded", "handoff_failed"].includes(value.operation_status.phase) && value.worktree_path === null) {
     throw new Error("provisioning receipt phase requires worktree_path");
@@ -295,7 +302,7 @@ export function updateProvisioningReceipt(receipt, patch) {
     throw new Error("provisioning receipt update values must be an object");
   }
   const allowed = new Set([
-    "fetched_commit", "worktree_path", "dispatch_attempt_id", "host_thread_id",
+    "base_commit", "snapshot_commit", "worktree_path", "dispatch_attempt_id", "host_thread_id",
     "host_client_thread_id", "host_operation_id", "host_operation_revision", "relocation_id",
     "worktree_cleanup", "branch_cleanup", "host_request", "dispatch_recovery_reason",
   ]);
@@ -303,12 +310,12 @@ export function updateProvisioningReceipt(receipt, patch) {
     if (!allowed.has(key)) throw new Error(`provisioning receipt update cannot change ${key}`);
   }
   const next = structuredClone(current);
-  for (const field of ["fetched_commit", "worktree_path"]) {
+  for (const field of ["base_commit", "snapshot_commit", "worktree_path"]) {
     if (Object.hasOwn(patch.values, field)) next[field] = patch.values[field];
   }
   next.operation_status.phase = patch.phase;
   for (const [field, value] of Object.entries(patch.values)) {
-    if (field !== "fetched_commit" && field !== "worktree_path") next.operation_status[field] = value;
+    if (field !== "base_commit" && field !== "snapshot_commit" && field !== "worktree_path") next.operation_status[field] = value;
   }
   return validateProvisioningReceipt(next);
 }

@@ -13,7 +13,7 @@ export function WorkspacePanel({ task }: { task: TaskDetailResponse }) {
     <div className="workspace-repositories">{task.repositories.map((repository) => <article key={repository.key} className="workspace-repository">
       <div className="section-heading"><div><p className="eyebrow">{repository.role}</p><h3>{repository.key}</h3></div><code>{repository.workspace_origin.mode}</code></div>
       <dl className="fact-grid">
-        <div><dt>{t("workspace.remoteBase")}</dt><dd><code>{repository.workspace_origin.remote_name}/{repository.workspace_origin.base_branch}</code></dd></div>
+        <div><dt>{t("workspace.remoteBase")}</dt><dd><code>{repository.workspace_origin.source_type === "local" ? t("workspace.local") : repository.workspace_origin.remote_name}/{repository.workspace_origin.base_branch}</code></dd></div>
         <div><dt>{t("workspace.baseCommit")}</dt><dd><code title={repository.workspace_origin.base_commit}>{short(repository.workspace_origin.base_commit)}</code></dd></div>
         <div><dt>{t("workspace.taskBranch")}</dt><dd><code>{repository.workspace_origin.task_branch}</code><small>{short(repository.workspace_observation.current_head)}</small></dd></div>
         <div><dt>{t("workspace.receipt")}</dt><dd><code>{repository.workspace_origin.provisioning_receipt_id}</code></dd></div>

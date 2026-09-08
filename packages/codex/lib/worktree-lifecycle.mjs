@@ -44,16 +44,19 @@ export async function inspectSourceRepository(repositoryPath, { runGit = default
 export async function preflightWorktreeSelection({
   repositoryPath,
   remoteName,
+  sourceType,
   baseBranch,
   targetBranch,
   runGit = defaultRunGit,
 } = {}) {
   const source = await inspectSourceRepository(repositoryPath, { runGit });
-  assertRemoteName(remoteName);
+  if (!["local", "remote"].includes(sourceType)) throw new Error("source_type must be selected");
+  if (sourceType === "remote") assertRemoteName(remoteName);
+  else if (remoteName !== "") throw new Error("local source requires an empty remote_name");
   await validateBranchName(baseBranch, runGit, source.canonical_root, "base branch");
   await validateBranchName(targetBranch, runGit, source.canonical_root, "target branch");
   const remotes = lines(await runGit(["-C", source.canonical_root, "remote"]));
-  if (!remotes.includes(remoteName)) throw new Error(`remote ${remoteName} does not exist`);
+  if (sourceType === "remote" && !remotes.includes(remoteName)) throw new Error(`remote ${remoteName} does not exist`);
   if (await refExists(source.canonical_root, `refs/heads/${targetBranch}`, runGit)) {
     throw new Error(`target branch ${targetBranch} already exists locally`);
   }
@@ -61,41 +64,45 @@ export async function preflightWorktreeSelection({
   if (worktrees.split("\0").some((entry) => entry === `branch refs/heads/${targetBranch}`)) {
     throw new Error(`target branch ${targetBranch} is already used by a worktree`);
   }
-  if (await remoteBranchExists(source.canonical_root, remoteName, targetBranch, runGit)) {
+  if (sourceType === "remote" && await remoteBranchExists(source.canonical_root, remoteName, targetBranch, runGit)) {
     throw new Error(`target branch ${targetBranch} already exists on remote ${remoteName}`);
   }
+  if (sourceType === "local" && !await refExists(source.canonical_root, `refs/heads/${baseBranch}`, runGit)) throw new Error("local base branch does not exist");
   return source;
 }
 
-export async function fetchFrozenBase({
+export async function resolveFrozenBase({
   repositoryPath,
   remoteName,
+  sourceType,
   baseBranch,
   runGit = defaultRunGit,
 } = {}) {
   const source = await inspectSourceRepository(repositoryPath, { runGit });
-  assertRemoteName(remoteName);
+  if (!["local", "remote"].includes(sourceType)) throw new Error("source_type must be selected");
+  if (sourceType === "remote") assertRemoteName(remoteName);
+  else if (remoteName !== "") throw new Error("local source requires an empty remote_name");
   await validateBranchName(baseBranch, runGit, source.canonical_root, "base branch");
-  const remoteRef = `refs/remotes/${remoteName}/${baseBranch}`;
-  await runGit([
+  const sourceRef = sourceType === "remote" ? `refs/remotes/${remoteName}/${baseBranch}` : `refs/heads/${baseBranch}`;
+  if (sourceType === "remote") await runGit([
     "-C",
     source.canonical_root,
     "fetch",
     "--no-tags",
     remoteName,
-    `refs/heads/${baseBranch}:${remoteRef}`,
+    `refs/heads/${baseBranch}:${sourceRef}`,
   ]);
   const commit = singleLine(await runGit([
-    "-C", source.canonical_root, "rev-parse", "--verify", `${remoteRef}^{commit}`,
+    "-C", source.canonical_root, "rev-parse", "--verify", `${sourceRef}^{commit}`,
   ]));
-  assertCommit(commit, "fetched commit");
-  return Object.freeze({ ...source, remote_ref: remoteRef, fetched_commit: commit });
+  assertCommit(commit, "frozen commit");
+  return Object.freeze({ ...source, source_ref: sourceRef, base_commit: commit });
 }
 
 export async function createCliWorktree({
   repositoryPath,
   worktreePath,
-  fetchedCommit,
+  baseCommit,
   targetBranch,
   sourceRepositoryIdentity,
   runGit = defaultRunGit,
@@ -104,7 +111,7 @@ export async function createCliWorktree({
   if (source.source_repository_identity !== sourceRepositoryIdentity) {
     throw new Error("source repository identity changed before worktree creation");
   }
-  assertCommit(fetchedCommit, "fetched commit");
+  assertCommit(baseCommit, "frozen commit");
   assertAbsolutePath(worktreePath, "worktree_path");
   const worktreeRoot = resolve(worktreePath);
   const offset = relative(source.canonical_root, worktreeRoot);
@@ -116,11 +123,11 @@ export async function createCliWorktree({
   if (await refExists(source.canonical_root, `refs/heads/${targetBranch}`, runGit)) {
     throw new Error(`target branch ${targetBranch} already exists locally`);
   }
-  await runGit(["-C", source.canonical_root, "worktree", "add", "--detach", worktreeRoot, fetchedCommit]);
+  await runGit(["-C", source.canonical_root, "worktree", "add", "--detach", worktreeRoot, baseCommit]);
   return await initializeManagedWorktree({
     sourceRepositoryPath: source.canonical_root,
     worktreePath: worktreeRoot,
-    fetchedCommit,
+    baseCommit,
     targetBranch,
     sourceRepositoryIdentity,
     runGit,
@@ -130,7 +137,7 @@ export async function createCliWorktree({
 export async function initializeManagedWorktree({
   sourceRepositoryPath = null,
   worktreePath,
-  fetchedCommit,
+  baseCommit,
   targetBranch,
   sourceRepositoryIdentity,
   runGit = defaultRunGit,
@@ -139,13 +146,13 @@ export async function initializeManagedWorktree({
   if (source !== null && source.source_repository_identity !== sourceRepositoryIdentity) {
     throw new Error("managed worktree belongs to a different repository group");
   }
-  assertCommit(fetchedCommit, "fetched commit");
+  assertCommit(baseCommit, "frozen commit");
   const validationRoot = source?.canonical_root ?? resolve(worktreePath);
   await validateBranchName(targetBranch, runGit, validationRoot, "target branch");
   const before = await verifyTaskWorktree({
     sourceRepositoryPath: source?.canonical_root ?? null,
     worktreePath,
-    fetchedCommit,
+    baseCommit,
     sourceRepositoryIdentity,
     expectedBranch: null,
     runGit,
@@ -157,7 +164,7 @@ export async function initializeManagedWorktree({
   return await verifyTaskWorktree({
     sourceRepositoryPath: source?.canonical_root ?? null,
     worktreePath: before.canonical_root,
-    fetchedCommit,
+    baseCommit,
     sourceRepositoryIdentity,
     expectedBranch: targetBranch,
     runGit,
@@ -167,7 +174,7 @@ export async function initializeManagedWorktree({
 export async function verifyTaskWorktree({
   sourceRepositoryPath = null,
   worktreePath,
-  fetchedCommit,
+  baseCommit,
   sourceRepositoryIdentity,
   expectedBranch,
   runGit = defaultRunGit,
@@ -181,8 +188,8 @@ export async function verifyTaskWorktree({
   if ((source !== null && source.worktree_git_dir === worktree.worktree_git_dir) || worktree.worktree_git_dir === worktree.git_common_dir) {
     throw new Error("task worktree must have a distinct Git directory");
   }
-  if (worktree.head !== fetchedCommit) throw new Error("task worktree HEAD does not equal the frozen base commit");
-  if (!worktree.clean) throw new Error("task worktree must be clean before Core Task creation");
+  if (worktree.head !== baseCommit) throw new Error("task worktree HEAD does not equal the frozen base commit");
+  if (!worktree.clean) throw new Error("task worktree must be clean before applying selected content");
   if (expectedBranch !== null && worktree.branch !== expectedBranch) {
     throw new Error("task worktree is not on the confirmed target branch");
   }
@@ -303,14 +310,14 @@ async function pathExists(path) {
   }
 }
 
-async function defaultRunGit(arguments_, { encoding = "utf8" } = {}) {
+export async function defaultRunGit(arguments_, { encoding = "utf8", env = {} } = {}) {
   if (!Array.isArray(arguments_) || arguments_.some((entry) => typeof entry !== "string" || entry.includes("\0"))) {
     throw new Error("Git arguments must be a closed string array");
   }
   try {
     const { stdout } = await execFile("git", arguments_, {
       encoding: encoding === "buffer" ? null : encoding,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      env: { ...process.env, ...env, GIT_TERMINAL_PROMPT: "0" },
       maxBuffer: 8 * 1024 * 1024,
       timeout: 60_000,
       windowsHide: true,

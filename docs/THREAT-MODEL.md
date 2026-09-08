@@ -33,7 +33,7 @@ flowchart LR
 
 | 参与者 | 责任 |
 | --- | --- |
-| 开发者 | 选择是否进入 Dev Flow；确认 remote/base/target、仓库和 Host 权限、理解结论、handoff、清理与发布操作 |
+| 开发者 | 选择是否进入 Dev Flow；确认 source/base/target/carry、仓库和 Host 权限、理解结论、handoff、清理与发布操作 |
 | Codex / DeepSeek Harness | 真正读取文件、修改仓库和运行命令，使用开发者授予的较高权限 |
 | Host Adapter | 只读评估请求；在确认后执行 fetch、branch、worktree、relaunch/handoff；在命令、完整套件、测试文件修改和复核前判断范围；按 Action、Scope、当前验证计划和 Recovery 调用 Core |
 | Go Core | 只读观察 Git，保存唯一流程状态，计算 Task surface，并校验 revision、workspace、只允许约定字段的 payload、流转和持久化 |
@@ -52,7 +52,7 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 | 风险 | 当前防护 |
 | --- | --- |
 | 小请求被流程接管，或确认前产生 Task/Git 写入 | 新请求先做只读评估并停止；assessment 绑定 request、root、HEAD 和 status；显式 selector 也不能跳过选择 |
-| 远端基线、目标分支或源 checkout 内容进入错误工作树 | 逐仓确认 remote/base/target；精确 fetch 并冻结 commit；验证 branch、HEAD、common/git-dir 与 clean；不复制源 checkout dirty 内容 |
+| 远端基线、目标分支或源 checkout 内容进入错误工作树 | 逐仓确认来源、分支和携带选择；冻结 commit 与选定快照；验证 branch、HEAD、common/git-dir，应用失败不创建 Task |
 | provisioning 或 Host dispatch 结果不确定而被重复执行 | 窄 provisioning receipt 绑定一次 launch 与资源；不确定时读取 receipt/Host 状态，不盲目重试或 force cleanup |
 | 路径穿越、symlink 或索引结果扩大仓库范围 | Task 创建时规范化并冻结 Scope；多仓库路径显式带 repository key；索引不能增加成员 |
 | 旧 Action、重复请求或丢失响应造成重复状态变化 | 完整 mutation 先校验后暂存；独立 Action 操作记录、revision CAS、Action/request identity、repository binding、原子 applied marker 和 read-before-retry |
@@ -78,3 +78,7 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 - 不受支持的平台、Host 版本和 source-only build 没有稳定安全支持声明。
 
 安全问题请按仓库根目录的 [Security Policy](../SECURITY.md) 私密报告。
+
+
+工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
+`carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。

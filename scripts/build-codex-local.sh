@@ -164,6 +164,7 @@ lib/task-handoff.mjs
 lib/task-launch.mjs
 lib/host-launch-contract.mjs
 lib/worktree-lifecycle.mjs
+lib/worktree-snapshot.mjs
 plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
 plugin/hooks/hooks.json
@@ -233,6 +234,7 @@ const expected = [
   "lib/task-launch.mjs",
   "lib/host-launch-contract.mjs",
   "lib/worktree-lifecycle.mjs",
+  "lib/worktree-snapshot.mjs",
   "package.json",
   "plugin/.codex-plugin/plugin.json",
   "plugin/.mcp.json",

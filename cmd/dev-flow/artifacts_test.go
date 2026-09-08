@@ -59,7 +59,7 @@ func TestArtifactCommandsCollectRealGitFilesAndPrepareWithoutWrites(t *testing.T
 		t.Fatal(err)
 	}
 	opened, err := service.OpenTask(ctx, application.OpenTaskRequest{RequestID: "open-artifacts", Host: domain.HostCodex, RepositoryPath: worktree,
-		WorkspaceOrigin: &application.WorkspaceOriginInput{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: base, TaskBranch: "codex/artifacts", ProvisioningReceiptID: "receipt-artifacts"},
+		WorkspaceOrigin: &application.WorkspaceOriginInput{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: base, TaskBranch: "codex/artifacts", ProvisioningReceiptID: "receipt-artifacts"},
 		NewTask:         &application.NewTaskInput{Request: "Collect OpenSpec files", MethodProfile: domain.MethodOpenSpec}})
 	if err != nil {
 		t.Fatal(err)

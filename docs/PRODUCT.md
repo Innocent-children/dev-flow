@@ -5,7 +5,7 @@
 ## 一句话定位
 
 > Dev Flow 先帮助开发者判断一个请求是否值得进入完整流程；采用 Dev Flow 的新 Task 从用户确认的
-> 远端基线进入独立工作树，并由 Core 持续核对实际改动、分析后形成的验证计划和当前进度。
+> 本地或远端分支进入独立工作树，并由 Core 持续核对实际改动、分析后形成的验证计划和当前进度。
 
 Codex 或 DeepSeek 仍然读代码、改文件和运行命令。Dev Flow 保存唯一 Task 状态；验证投入需要先随
 Task Plan 建立，后续扩大必须记录具体的新影响、风险、失败或缺口。范围扩大、无计划的验证结果、
@@ -20,8 +20,8 @@ Dev Flow 面向把 Codex 或 DeepSeek 用于真实代码库、且一个任务可
 用户可以：
 
 - 在创建 Task 前查看只读改动量评估，并选择直接开发、使用 Dev Flow 或先澄清；
-- 为每个仓库确认 remote、base branch 和新的 target branch；
-- 从 fetch 后冻结的 base commit 创建干净、独立、具名分支的工作树；
+- 为每个仓库确认本地或远端来源、起始分支、新任务分支，以及本地内容是否携带；
+- 从固定的 base commit 创建独立、具名分支的工作树，本地来源按用户选择携带改动；
 - 保留目标、验收条件、范围外事项和预计路径，并在任务分析完成后保存验证计划与初始预算；
 - 在预算不足时保存具体依据、原因、新增检查、增加量和调整后预算，再继续 TEST；
 - 让 Core 从 Git 计算当前改动，而不是依赖 Agent 自报路径；
@@ -40,7 +40,7 @@ Dev Flow 面向把 Codex 或 DeepSeek 用于真实代码库、且一个任务可
 内容变化。
 
 当前流程把工作树作为修改归属边界。新请求先经过只读评估；用户选择 Dev Flow 后，Host 取得明确的
-remote/base/target 确认，精确 fetch 远端分支，冻结 commit，并在独立工作树中创建 Task。源 checkout
+来源、分支及携带选择的确认，解析本地分支或精确 fetch 远端分支，冻结 commit，并在独立工作树中创建 Task。源 checkout
 后续变化与 Task 无关；Task 工作树里的全部 Git 可见变化都属于这个 Task。
 
 Codex 原会话在启动开发会话前整理本次需求的完整相关讨论，保存原始消息、确定要求、术语、范围限制、代码调查、工作要求，以及未采纳建议、假设和待确定问题。桌面任务与 CLI 启动使用同一份保存材料；较长内容通过完整文件传递。用户已有的开发和工作树确认继续有效，不额外要求确认交接摘要。材料整理与发送由 Codex Host 负责，Core 继续决定 Task 状态。
@@ -60,7 +60,7 @@ Codex 原会话在启动开发会话前整理本次需求的完整相关讨论�
 | 用户事件 | 产品行为 |
 | --- | --- |
 | 新请求可能很小 | Host 只读检查影响面并停止等待选择；确认前没有 Core 调用、Task、Git 写入或 child dispatch |
-| 用户选择 Dev Flow | Host 显示并确认 remote/base/target 与源 checkout dirty 状态，随后 fetch、冻结 commit、创建并验证专属工作树 |
+| 用户选择 Dev Flow | Host 显示并确认 来源、分支及携带选择与源 checkout dirty 状态，随后解析来源、冻结 commit、创建并验证专属工作树 |
 | Task 工作树发生变化 | Core 计算 identity、history、content、Action delta 和相对 base 的当前 Task surface |
 | 改动离开计划 | 受支持的结构化写入先询问；其他写入由下一次观察发现，未说明路径不能继续测试或交付 |
 | TASKS 完成分析 | 保存计划检查及理由、初始自动命令预算、完整套件预期和测试代码预期 |
@@ -77,10 +77,10 @@ Codex 原会话在启动开发会话前整理本次需求的完整相关讨论�
 
 当前源码承诺：
 
-- 每个新 Task 只在用户确认后建立在干净、独立、具名任务分支的工作树中；
+- 每个新 Task 只在用户确认后建立在独立、具名任务分支的工作树中；
 - 新请求、显式 selector 和并行批次都先评估并等待用户选择；明确 resume 是唯一跳过评估的路径；
-- 源 checkout 的 staged、unstaged 和 untracked 内容不会进入 Task 工作树；
-- 多仓库 Task 只有在所有仓库都完成 fetch、隔离、授权和验证后才一次创建；
+- 本地来源按用户选择复制 staged、unstaged 和非 ignored 的 untracked 内容，保留源 checkout；
+- 多仓库 Task 只有在所有仓库都完成来源解析、隔离、授权和验证后才一次创建；
 - Core 只读观察 Git，并保存 WorkspaceOrigin、当前观察、Task surface、Action、记录、blocker 和 outcome；
 - Task 创建时不冻结最终测试预算；TASKS 保存初始验证计划，Evidence 按当前 Task Plan revision 计费；
 - TEST 可以通过 `verification_budget_increased` 自循环保存有理由的预算增加，而不是因额度耗尽直接结束；
@@ -100,8 +100,7 @@ Dev Flow 适合跨会话、跨天或 Host 重启后继续的任务；涉及公�
 多个 Host 或复杂恢复的工作；以及需要明确改动范围、按分析结果控制验证投入、工作树隔离或同机交接的任务。少量显式
 仓库可以组成一个 Task，但每个仓库都必须先完成独立 provisioning。
 
-一次性问答、解释、状态查询和不改变公开接口规范的机械小改动通常直接使用 Host 更简单。没有可访问
-remote/base 的本地仓库，以及需要跨机器交接、安全沙箱、远程执行或自动 Git 发布的工作不适用。
+一次性问答、解释、状态查询和不改变公开接口规范的机械小改动通常直接使用 Host 更简单。需要跨机器交接、安全沙箱、远程执行或自动 Git 发布的工作不适用。
 
 ## 与其他工具的关系
 
@@ -115,8 +114,8 @@ remote/base 的本地仓库，以及需要跨机器交接、安全沙箱、远�
 
 1. Host 对新请求做只读评估，给出 `small|standard|large|uncertain`、候选影响面、未知项和建议。评估绑定
    request、canonical root、HEAD 和 status；这些事实变化后必须重新评估。
-2. 用户确认 remote/base/target 后，Host 精确 fetch 并建立专属工作树。Core 核对实际 worktree、branch、
-   HEAD、base 和 clean 状态后才创建 Task。明确 resume 回到原工作树实例。
+2. 用户确认来源、起始分支、携带选择和目标分支后，Host 解析起点并建立专属工作树。Core 核对实际 worktree、branch、
+   HEAD、base 和确认的携带选择后才创建 Task。明确 resume 回到原工作树实例。
 3. Core 从 base commit、commits、index、worktree 和 untracked 文件计算当前 Task surface；ExpectedPaths、
    allow-once 决定和 TASKS 中的 verification plan 控制后续流转。当前预算只统计当前 Task Plan revision，
    每次增加保存具体原因。Test 与 Comprehension 绑定内容摘要。
@@ -132,8 +131,7 @@ WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core �
 ## 明确非目标
 
 Dev Flow 不做通用 Agent 或 workflow DSL；Core 不执行 fetch、branch、worktree、commit、stash、reset、
-merge、rebase、push、tag、PR 或 publish；系统不复制 `.env`、证书、token、ignored/untracked 文件或
-凭据，不自动安装依赖或隔离端口、数据库、Docker volume 和外部服务，也不自动清理 active、dirty、
+merge、rebase、push、tag、PR 或 publish；系统不复制 ignored 文件，不自动安装依赖或隔离端口、数据库、Docker volume 和外部服务，也不自动清理 active、dirty、
 未推送、来源不明或结果不确定的工作树。跨机器 relocation、未经确认自动加入相邻仓库、部分隔离的多仓库
 Task、remote MCP 和云端多用户管理也不在当前范围。
 
@@ -190,7 +188,7 @@ Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-
 
 Codex 可通过 `dev-flow-codex --help` 和工作区操作帮助查询参数 Schema、字段来源及下一步，并从同一批已准备的工作区记录生成完整仓库参数。MCP 提供结果 Schema 和结构化返回；恢复会话先处理 Core 保存的未完成提交，再执行当前节点。创建、取消、放弃和迁移准备分别按自身标识回读结果。
 
-`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `fetched` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
+`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `prepared` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
 
 `host-launch dispatch-result` 接收 Codex 创建任务的完整返回值，包括 `content[].text` 中的 JSON。它将 `clientThreadId` 保存为 `host_client_thread_id`，阶段设为 `queued`；以相同 `launch_id` 和 `repository_key` 重新提交保留的结果，可以恢复 `uncertain` 记录。后续检查继续跟踪同一次创建，不重复派发。
 
@@ -198,3 +196,7 @@ Codex 可通过 `dev-flow-codex --help` 和工作区操作帮助查询参数 Sch
 Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.operation_status.host_request`，进入 `dispatch_prepared`；重复调用和 `status` 均可回读。`dispatch-call` 使用当前 `dispatch_attempt_id` 将阶段改为 `dispatching`，仅首次返回 `should_dispatch=true` 时允许调用一次创建工具。调用方将命令完整 stdout 写入私有文件，检查退出码并从文件解析 JSON，再原样转发请求，避免显示长度限制截断内容。
 
 确认原调用方已停止且创建工具尚未调用时，`dispatch-recover` 接收当前派发 ID、`host_call_not_made=true`、`previous_caller_stopped=true` 和具体 `reason`，保留原请求并换发调用许可 ID；随后执行 `dispatch-call`。空任务 ID 本身不能证明未调用。已经调用但结果未知时，Host 按保存的启动标题、启动 ID 和仓库标识查找任务及归档任务，读取候选任务完整初始消息，将 `candidates`（`thread_id`、`initial_prompt`）交给 `dispatch-reconcile`。唯一完整消息匹配才保存任务 ID；零匹配、多个匹配或查询不可用均不允许重新创建。Core Task 状态保持由 Core 管理。
+
+
+工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
+`carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。

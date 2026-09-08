@@ -43,11 +43,11 @@ test("scope reads one confirmed launch and refuses missing, pending or mixed-req
   for (const key of input.repository_keys) {
     let receipt = createProvisioningReceipt({
       launchId: input.launch_id, repositoryKey: key, requestDigest: "a".repeat(64), handoffDigest: "b".repeat(64),
-      sourceRepositoryIdentity: "c".repeat(64), remoteName: "origin", baseBranch: "main", targetBranch: `codex/${key}`,
+      sourceRepositoryIdentity: "c".repeat(64), sourceType: "remote", carryChanges: false, remoteName: "origin", baseBranch: "main", targetBranch: `codex/${key}`,
       worktreePath: join(root, key), surface: "cli_worktree",
     });
-    receipt = updateProvisioningReceipt(receipt, { phase: "fetching", values: {} });
-    receipt = updateProvisioningReceipt(receipt, { phase: "fetched", values: { fetched_commit: "d".repeat(40) } });
+    receipt = updateProvisioningReceipt(receipt, { phase: "resolving", values: {} });
+    receipt = updateProvisioningReceipt(receipt, { phase: "prepared", values: { base_commit: "d".repeat(40) } });
     receipt = updateProvisioningReceipt(receipt, { phase: "provisioning", values: {} });
     receipt = updateProvisioningReceipt(receipt, { phase: "provisioned", values: {} });
     await writeProvisioningReceiptAtomic(provisioningReceiptPath(root, input.launch_id, key), receipt, options);
@@ -116,7 +116,7 @@ for (const surface of ["managed_worktree", "cli_worktree"]) {
       assessment_anchor: await assessmentAnchor(fixture, request),
       repository_key: "primary",
       repository_path: fixture.source,
-      remote_name: "origin",
+      source_type: "remote", carry_changes: false, remote_name: "origin",
       base_branch: "main",
       target_branch: "codex/generated-launch-id",
       surface,
@@ -125,10 +125,10 @@ for (const surface of ["managed_worktree", "cli_worktree"]) {
     const launch = await prepareTaskLaunch(input, fixture.options);
     assert.match(launch.receipt.launch_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
     assert.equal(Object.hasOwn(input, "launch_id"), false);
-    assert.equal(launch.receipt.operation_status.phase, "fetched");
+    assert.equal(launch.receipt.operation_status.phase, "prepared");
     assert.equal(launch.fetch_performed, true);
     assert.equal(launch.resumed, false);
-    assert.equal(launch.receipt.fetched_commit, await gitOutput(fixture.source, "rev-parse", "refs/remotes/origin/main"));
+    assert.equal(launch.receipt.base_commit, await gitOutput(fixture.source, "rev-parse", "refs/remotes/origin/main"));
     assert.deepEqual(await readProvisioningReceipt(launch.receipt_path, fixture.options), launch.receipt);
 
     const retryInput = { ...input, launch_id: launch.receipt.launch_id };
@@ -180,11 +180,11 @@ test("managed dispatch records complete Codex results and resumes without redisp
       let receipt = createProvisioningReceipt({
         launchId: identity.launch_id, repositoryKey: identity.repository_key,
         requestDigest: "a".repeat(64), handoffDigest: "b".repeat(64), sourceRepositoryIdentity: "c".repeat(64),
-        remoteName: "origin", baseBranch: "main", targetBranch: "codex/result", surface: "managed_worktree",
+        sourceType: "remote", carryChanges: false, remoteName: "origin", baseBranch: "main", targetBranch: "codex/result", surface: "managed_worktree",
       });
-      receipt = updateProvisioningReceipt(receipt, { phase: "fetching", values: {} });
-      receipt = updateProvisioningReceipt(receipt, { phase: "fetched", values: { fetched_commit: "d".repeat(40) } });
-      receipt = updateProvisioningReceipt(receipt, { phase: "dispatch_prepared", values: { dispatch_attempt_id: "e".repeat(64), host_request: { prompt: "saved prompt", title: "saved title", target: { type: "project", projectId: "project-1", environment: { type: "worktree", startingState: { type: "branch", branchName: "refs/remotes/origin/main" } } } } } });
+      receipt = updateProvisioningReceipt(receipt, { phase: "resolving", values: {} });
+      receipt = updateProvisioningReceipt(receipt, { phase: "prepared", values: { base_commit: "d".repeat(40) } });
+      receipt = updateProvisioningReceipt(receipt, { phase: "dispatch_prepared", values: { dispatch_attempt_id: "e".repeat(64), host_request: { prompt: "saved prompt", title: "saved title", target: { type: "project", projectId: "project-1", environment: { type: "worktree", startingState: { type: "branch", branchName: receipt.base_commit } } } } } });
       receipt = updateProvisioningReceipt(receipt, { phase: "dispatching", values: {} });
       await writeProvisioningReceiptAtomic(path, receipt, options);
       let output = "";
@@ -230,7 +230,7 @@ test("interrupted dispatch preserves its request, fences stale claims, and recon
   const launch = await prepareTaskLaunch({
     ...identity, request, handoff_file: await writeHandoffFixture(fixture.root, request),
     assessment_anchor: await assessmentAnchor(fixture, request), repository_path: fixture.source,
-    remote_name: "origin", base_branch: "main", target_branch: "codex/recovery",
+    source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "codex/recovery",
     surface: "managed_worktree", worktree_path: null,
   }, fixture.options);
   const invoke = async (operation, input) => {
@@ -299,18 +299,18 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
     assessment_anchor,
     repository_key: "primary",
     repository_path: fixture.source,
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     target_branch: "codex/managed-task",
     surface: "managed_worktree",
     worktree_path: null,
   }, fixture.options);
-  assert.equal(launch.receipt.operation_status.phase, "fetched");
+  assert.equal(launch.receipt.operation_status.phase, "prepared");
   assert.throws(() => buildOpenTaskRepositoryScope([launch.receipt]), /every repository must be provisioned/u);
   assert.equal(launch.source_dirty, true);
   if (fixture.options.enforcePrivateModes) assert.equal((await stat(launch.receipt_path)).mode & 0o077, 0);
   assert.deepEqual(Object.keys(launch.receipt).sort(), [
-    "base_branch", "created_at", "fetched_commit", "host", "launch_id", "operation_status",
+    "base_branch", "created_at", "base_commit", "source_type", "carry_changes", "snapshot_commit", "host", "launch_id", "operation_status",
     "remote_name", "repository_key", "request_digest", "handoff_digest", "source_repository_identity", "target_branch",
     "worktree_path",
   ].sort());
@@ -330,7 +330,7 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
   assert.equal(dispatched.host_request.title, "Dev Flow launch-managed-0001 primary");
   assert.deepEqual(dispatched.host_request.target.environment.startingState, {
     type: "branch",
-    branchName: "refs/remotes/origin/main",
+    branchName: launch.receipt.base_commit,
   });
   assert.equal(Object.hasOwn(dispatched.host_request.target.environment.startingState, "onMissing"), false);
   assert.equal((await beginManagedTaskDispatch({
@@ -351,7 +351,7 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
   }, fixture.options);
 
   const managedWorktree = join(fixture.root, "managed worktree");
-  await git(fixture.source, "worktree", "add", "--detach", managedWorktree, launch.receipt.fetched_commit);
+  await git(fixture.source, "worktree", "add", "--detach", managedWorktree, launch.receipt.base_commit);
   const bootstrapped = await bootstrapManagedTask({
     launch_id: "launch-managed-0001",
     repository_key: "primary",
@@ -359,9 +359,9 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
   }, fixture.options);
   assert.deepEqual(validateWorkspaceOrigin(bootstrapped.workspace_origin), {
     mode: "dedicated_worktree",
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
-    base_commit: launch.receipt.fetched_commit,
+    base_commit: launch.receipt.base_commit,
     task_branch: "codex/managed-task",
     provisioning_receipt_id: bootstrapped.workspace_origin.provisioning_receipt_id,
   });
@@ -387,7 +387,7 @@ test("CLI launch returns parser-ready argv and retains separate worktree and bra
     assessment_anchor: await assessmentAnchor(fixture, request),
     repository_key: "primary",
     repository_path: fixture.source,
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     target_branch: "codex/cli-task",
     surface: "cli_worktree",
@@ -435,7 +435,7 @@ test("queued dispatch and Handoff persist one-shot state for read-before-retry",
     assessment_anchor: await assessmentAnchor(fixture, request),
     repository_key: "primary",
     repository_path: fixture.source,
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     target_branch: "codex/handoff-task",
     surface: "cli_worktree",
@@ -484,7 +484,7 @@ test("a failed fetch leaves a failed receipt and no target branch or worktree", 
     assessment_anchor: await assessmentAnchor(fixture, request),
     repository_key: "primary",
     repository_path: fixture.source,
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "missing-base",
     target_branch: "codex/not-created",
     surface: "cli_worktree",
@@ -509,7 +509,7 @@ test("provisioning refuses a request, HEAD, or status that changed after assessm
     assessment_anchor,
     repository_key: "primary",
     repository_path: fixture.source,
-    remote_name: "origin",
+    source_type: "remote", carry_changes: false, remote_name: "origin",
     base_branch: "main",
     target_branch: "codex/stale-task",
     surface: "managed_worktree",
@@ -543,7 +543,7 @@ test("managed and CLI send the same saved requirements after the source draft is
       assessment_anchor: anchor,
       repository_key: "primary",
       repository_path: fixture.source,
-      remote_name: "origin",
+      source_type: "remote", carry_changes: false, remote_name: "origin",
       base_branch: "main",
       target_branch: `codex/${surface}`,
       surface,
@@ -577,7 +577,7 @@ test("sender refuses changed handoff files before managed dispatch or CLI worktr
       handoff_file: await writeHandoffFixture(fixture.root, request),
       assessment_anchor: await assessmentAnchor(fixture, request),
       repository_key: "primary", repository_path: fixture.source,
-      remote_name: "origin", base_branch: "main", target_branch: `codex/changed-${surface}`,
+      source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: `codex/changed-${surface}`,
       surface, worktree_path: surface === "managed_worktree" ? null : worktree,
     }, fixture.options);
     await writeFile(taskHandoffPaths(launch.receipt_path).markdown_path, "Only a partial summary");
@@ -586,7 +586,7 @@ test("sender refuses changed handoff files before managed dispatch or CLI worktr
       ? beginManagedTaskDispatch({ ...input, project_id: "project-1" }, fixture.options)
       : provisionCliTask({ ...input, additional_worktree_paths: [] }, { ...fixture.options, sourceRepositoryPath: fixture.source }), /has changed/u);
     const retained = await readProvisioningReceipt(launch.receipt_path, fixture.options);
-    assert.equal(retained.operation_status.phase, "fetched");
+    assert.equal(retained.operation_status.phase, "prepared");
     await assert.rejects(stat(worktree), { code: "ENOENT" });
   }
 });
@@ -630,3 +630,74 @@ async function git(cwd, ...arguments_) {
 async function gitOutput(cwd, ...arguments_) {
   return (await git(cwd, ...arguments_)).stdout.trim();
 }
+
+for (const carry of [false, true]) test(`local CLI launch selects an offline branch and carry_changes=${carry}`, async (t) => {
+  const fixture = await makeRemoteFixture(t, `local-${carry}`);
+  await git(fixture.source, "remote", "remove", "origin");
+  await git(fixture.source, "branch", "local-base");
+  await writeFile(join(fixture.source, ".gitignore"), "ignored.txt\n");
+  await git(fixture.source, "add", ".gitignore");
+  await writeFile(join(fixture.source, "base.txt"), "staged\n");
+  await git(fixture.source, "add", "base.txt");
+  await writeFile(join(fixture.source, "base.txt"), "unstaged\n");
+  await writeFile(join(fixture.source, "新增 file.txt"), "new file\n");
+  await writeFile(join(fixture.source, "ignored.txt"), "ignored\n");
+  const before = await gitOutput(fixture.source, "status", "--porcelain=v2", "--untracked-files=all");
+  const beforeIndex = await gitOutput(fixture.source, "write-tree");
+  const request = "Create local worktree.";
+  const input = {
+    request, assessment_anchor: await assessmentAnchor(fixture, request), launch_id: `local-${carry}`,
+    repository_key: "primary", repository_path: fixture.source, source_type: "local", carry_changes: carry,
+    remote_name: "", base_branch: "local-base", target_branch: "codex/local", surface: "cli_worktree",
+    worktree_path: join(fixture.root, "local-task"), handoff_file: await writeHandoffFixture(fixture.root, request),
+  };
+  const launch = await prepareTaskLaunch(input, fixture.options);
+  assert.equal(launch.fetch_performed, false);
+  // The captured contents stay frozen even when source bytes subsequently change.
+  if (carry) await writeFile(join(fixture.source, "base.txt"), "later edit\n");
+  const result = await provisionCliTask({ launch_id: input.launch_id, repository_key: "primary", additional_worktree_paths: [] }, { ...fixture.options, sourceRepositoryPath: fixture.source });
+  assert.equal(result.workspace_origin.source_type, "local");
+  assert.equal(result.workspace_origin.carry_changes, carry);
+  assert.equal(await gitOutput(fixture.source, "write-tree"), beforeIndex);
+  assert.equal(await gitOutput(fixture.source, "status", "--porcelain=v2", "--untracked-files=all"), before);
+  assert.equal(await readFile(join(input.worktree_path, "base.txt"), "utf8"), carry ? "unstaged\n" : "base\n");
+  if (carry) {
+    assert.equal(await gitOutput(input.worktree_path, "show", ":base.txt"), "staged");
+    assert.equal(await readFile(join(input.worktree_path, "新增 file.txt"), "utf8"), "new file\n");
+  } else await assert.rejects(readFile(join(input.worktree_path, "新增 file.txt")), { code: "ENOENT" });
+  await assert.rejects(readFile(join(input.worktree_path, "ignored.txt")), { code: "ENOENT" });
+  assert.equal(await gitOutput(fixture.source, "stash", "list"), "");
+});
+
+for (const conflict of [false, true]) test(`local managed bootstrap applies the frozen snapshot to another branch; conflict=${conflict}`, async (t) => {
+  const fixture = await makeRemoteFixture(t, `managed-local-${conflict}`);
+  await git(fixture.source, "switch", "-c", "selected");
+  await writeFile(join(fixture.source, conflict ? "base.txt" : "branch.txt"), "selected branch\n");
+  await git(fixture.source, "add", ".");
+  await git(fixture.source, "commit", "-m", "selected branch");
+  await git(fixture.source, "switch", "main");
+  await writeFile(join(fixture.source, "base.txt"), "carried\n");
+  const request = "Managed local work.";
+  const input = { request, assessment_anchor: await assessmentAnchor(fixture, request), launch_id: `managed-local-${conflict}`,
+    repository_key: "primary", repository_path: fixture.source, source_type: "local", carry_changes: true,
+    remote_name: "", base_branch: "selected", target_branch: "codex/local", surface: "managed_worktree", worktree_path: null,
+    handoff_file: await writeHandoffFixture(fixture.root, request) };
+  const launch = await prepareTaskLaunch(input, fixture.options);
+  const dispatch = await beginManagedTaskDispatch({ launch_id: input.launch_id, repository_key: "primary", project_id: "project" }, fixture.options);
+  assert.equal(dispatch.host_request.target.environment.startingState.branchName, launch.receipt.base_commit);
+  await claimManagedTaskDispatch({ launch_id: input.launch_id, repository_key: "primary", dispatch_attempt_id: dispatch.receipt.operation_status.dispatch_attempt_id }, fixture.options);
+  const worktree = join(fixture.root, "managed-local");
+  await git(fixture.source, "worktree", "add", "--detach", worktree, launch.receipt.base_commit);
+  const bootstrap = bootstrapManagedTask({ launch_id: input.launch_id, repository_key: "primary", worktree_path: worktree }, fixture.options);
+  if (conflict) {
+    await assert.rejects(bootstrap, /could not be applied/);
+    const receipt = await readProvisioningReceipt(launch.receipt_path, fixture.options);
+    assert.equal(receipt.operation_status.phase, "failed");
+    assert.match(await gitOutput(worktree, "status", "--porcelain"), /UU/);
+  } else {
+    assert.equal((await bootstrap).workspace_origin.carry_changes, true);
+    assert.equal(await readFile(join(worktree, "base.txt"), "utf8"), "carried\n");
+    assert.equal(await readFile(join(worktree, "branch.txt"), "utf8"), "selected branch\n");
+  }
+  assert.equal(await readFile(join(fixture.source, "base.txt"), "utf8"), "carried\n");
+});

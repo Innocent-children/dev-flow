@@ -29,6 +29,7 @@ const (
 	gitHashObject
 	gitHashObjectStdin
 	gitShowRemoteBase
+	gitShowLocalBase
 	gitShowTaskSurface
 	gitShowWorktreeDelta
 	gitShowIndexEntry
@@ -174,7 +175,11 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 		}
 		baseCommit, taskBranch = selection.BaseCommit, selection.TaskBranch
 		if previous == nil {
-			remote, runErr := o.runner.run(ctx, gitShowRemoteBase, canonicalRoot, selection.RemoteName+"\x00"+selection.BaseBranch)
+			operation, value := gitShowLocalBase, selection.BaseBranch
+			if selection.SourceType == "remote" {
+				operation, value = gitShowRemoteBase, selection.RemoteName+"\x00"+selection.BaseBranch
+			}
+			remote, runErr := o.runner.run(ctx, operation, canonicalRoot, value)
 			if runErr != nil || remote.exitCode != 0 {
 				return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
 			}
@@ -243,13 +248,14 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 
 	instance := digestWorktreeInstance(canonicalRoot, commonDir, commonDirectoryIdentity, gitDir, worktreeGitDirectoryIdentity)
 	origin := domain.WorkspaceOrigin{
-		Mode: selection.Mode, RemoteName: selection.RemoteName, BaseBranch: selection.BaseBranch,
+		Mode: selection.Mode, SourceType: selection.SourceType, CarryChanges: selection.CarryChanges, RemoteName: selection.RemoteName, BaseBranch: selection.BaseBranch,
 		BaseCommit: baseCommit, TaskBranch: taskBranch, SourceRepositoryGroupDigest: digestGitDirectory(commonDir, commonDirectoryIdentity, commonDirectoryDigestDomain),
 		CanonicalWorktreeRoot: canonicalRoot, WorktreeGitDirDigest: digestWorktreeGitDirectory(gitDir, worktreeGitDirectoryIdentity),
 		ProvisioningReceiptID: selection.ProvisioningReceiptID,
 	}
 	if !provisioned {
 		origin.Mode = domain.WorkspaceModeDedicatedWorktree
+		origin.SourceType = "remote"
 		origin.RemoteName, origin.BaseBranch, origin.ProvisioningReceiptID = "observed", taskBranch, "observed-worktree"
 	}
 	identity := digestWorkspaceIdentity(origin, instance)
@@ -276,7 +282,7 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 		if origin.Validate() != nil || gitDir == commonDir || commonDigest != origin.SourceRepositoryGroupDigest || gitDigest != origin.WorktreeGitDirDigest {
 			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
 		}
-		if previous == nil && (detached || branch == nil || *branch != selection.TaskBranch || head != selection.BaseCommit || len(changedEntries) != 0 || len(taskSurface) != 0) {
+		if previous == nil && (detached || branch == nil || *branch != selection.TaskBranch || head != selection.BaseCommit || !selection.CarryChanges && (len(changedEntries) != 0 || len(taskSurface) != 0)) {
 			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
 		}
 	}
@@ -293,7 +299,7 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 }
 
 func ValidWorkspaceOriginSelection(s WorkspaceOriginSelection) bool {
-	return s.Mode == domain.WorkspaceModeDedicatedWorktree && validRemoteRefName(s.RemoteName) && validBranchRefName(s.BaseBranch) &&
+	return s.Mode == domain.WorkspaceModeDedicatedWorktree && domain.ValidWorkspaceSource(s.SourceType, s.RemoteName, s.CarryChanges) && validBranchRefName(s.BaseBranch) &&
 		validBranchRefName(s.TaskBranch) && validGitObjectID(s.BaseCommit) && s.ProvisioningReceiptID.IsValid()
 }
 
@@ -560,6 +566,11 @@ func (command gitReadCommand) arguments(repositoryPath, value string) ([]string,
 			return nil, false
 		}
 		return append(args, "hash-object", "--stdin"), true
+	case gitShowLocalBase:
+		if !validBranchRefName(value) {
+			return nil, false
+		}
+		return append(args, "rev-parse", "--verify", "refs/heads/"+value+"^{commit}"), true
 	case gitShowRemoteBase:
 		remote, branch, ok := pair()
 		if !ok {

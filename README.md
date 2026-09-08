@@ -19,9 +19,11 @@ reconstruct progress from chat history.
 Dev Flow keeps the agreed request, expected paths, post-analysis verification plan, current stage, and results in
 one local task while Codex or DeepSeek does the coding work.
 
-Every new request is assessed read-only before Dev Flow is selected. If you choose it, you confirm a
-remote, base branch, and new task branch; the Host fetches that base and creates a clean dedicated
-worktree before Core creates the Task. Changes in the source checkout are not copied into that worktree.
+Every new request is assessed read-only before Dev Flow is selected. If you choose it, the Host asks
+whether to start from a local or remote branch, which branch to use, and the new task branch name.
+For a local source it also asks whether to copy staged, unstaged and non-ignored untracked content,
+preserving the source checkout and staging state. Local creation works without network access; only
+remote creation fetches. Conflicts stop Task creation and retain the destination for inspection.
 
 Repository discovery and code-index use follow the current user instructions and applicable `AGENTS.md`.
 When those instructions require a project index, the Host inspects candidate repositories read-only
@@ -87,7 +89,7 @@ Or send this in **DeepSeek Harness**:
 These are conversation selectors, not shell commands. Include a concrete goal, acceptance conditions,
 file boundary, and test limit. The first response assesses the likely impact and asks whether to work
 directly or use Dev Flow; even an explicit selector does not skip that choice. If you choose Dev Flow,
-confirm the proposed remote, base, and target branch. Codex then opens a managed worktree when its Host
+confirm the source, branch and content choices described above. Codex then opens a managed worktree when its Host
 supports it; DeepSeek prints a relaunch instruction because its Workspace Root is fixed for the session.
 
 Before starting a new Codex session, the source session saves the complete relevant requirements discussion and a structured handoff, separating confirmed requirements from unaccepted suggestions and open questions. Desktop task creation and CLI relaunch use the same saved material; long content is supplied through complete files without truncation. See [the architecture](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
@@ -172,7 +174,7 @@ dev-flow-codex host-launch prepare --help
 
 See the [command reference](docs/COMMANDS_en.md) for parameter and recovery rules.
 
-`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `fetched` skips fetch. An explicit ID must match the saved receipt.
+`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `prepared` skips fetch. An explicit ID must match the saved receipt.
 
 `host-launch dispatch-result` accepts the complete Codex creation response, including JSON in `content[].text`. It saves `clientThreadId` as `host_client_thread_id` with phase `queued`; resubmitting a retained result with the same `launch_id` and `repository_key` can recover an `uncertain` record. Subsequent inspection follows the same creation, without dispatching again.
 

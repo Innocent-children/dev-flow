@@ -138,3 +138,20 @@ func relocatedWorkspace(task domain.ProcessTask, path, seed string) (domain.Work
 	origin.WorktreeGitDirDigest = digestOf(seed)
 	return origin, binding
 }
+
+func TestOpenLocalTaskRetainsCarriedSurfaceAndRequirementsAction(t *testing.T) {
+	service, memory, observer := phase5Service(t)
+	observer.origin.SourceType, observer.origin.RemoteName, observer.origin.CarryChanges = "local", "", true
+	observer.binding = phase5BindingWithSurface(observer.binding, []string{"src/carried.go"}, "c")
+	task := openPhase5Task(t, service)
+	if task.WorkspaceOrigin.SourceType != "local" || !task.WorkspaceOrigin.CarryChanges || len(task.Repository.TaskSurface) != 1 || task.CurrentNode != domain.NodeRequirements {
+		t.Fatalf("carried task=%+v", task)
+	}
+	if memory.task == nil || !memory.task.WorkspaceOrigin.CarryChanges {
+		t.Fatal("local selection was not persisted")
+	}
+	next, err := service.GetNextAction(context.Background(), GetNextActionRequest{Host: domain.HostCodex, TaskID: task.TaskID})
+	if err != nil || next.CurrentNode != domain.NodeRequirements {
+		t.Fatalf("next=%+v err=%v", next, err)
+	}
+}

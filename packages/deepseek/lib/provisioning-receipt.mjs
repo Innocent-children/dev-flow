@@ -5,8 +5,8 @@ import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { permissionPolicy } from "./platform.mjs";
 
 const MAX_RECEIPT_BYTES = 256 * 1024;
-const receiptStatuses = new Set(["confirmed", "fetching", "fetched", "provisioning", "provisioned", "consumed", "cleaned", "failed", "uncertain"]);
-const repositoryStatuses = new Set(["confirmed", "fetching", "fetched", "provisioning", "provisioned", "consumed", "worktree_removed", "branch_removed", "failed", "uncertain"]);
+const receiptStatuses = new Set(["confirmed", "resolving", "prepared", "provisioning", "provisioned", "consumed", "cleaned", "failed", "uncertain"]);
+const repositoryStatuses = new Set(["confirmed", "resolving", "prepared", "provisioning", "provisioned", "consumed", "worktree_removed", "branch_removed", "failed", "uncertain"]);
 
 // One launch envelope groups the per-repository provisioning facts needed for
 // all-or-nothing Core admission. It is an operation receipt, not a Task cursor.
@@ -98,8 +98,8 @@ export function validateProvisioningReceipt(value) {
 
 function validateRepositoryReceipt(value) {
   assertExactKeys(value, [
-    "source_repository_identity", "repository_key", "remote_name",
-    "base_branch", "target_branch", "fetched_commit", "worktree_path", "operation_status", "created_at",
+    "source_repository_identity", "repository_key", "source_type", "carry_changes", "snapshot_commit", "remote_name",
+    "base_branch", "target_branch", "base_commit", "worktree_path", "operation_status", "created_at",
   ], "provisioning repository receipt");
   assertDigest(value.source_repository_identity, "source repository identity");
   if (typeof value.repository_key !== "string" || !/^[a-z0-9][a-z0-9._-]{0,127}$/u.test(value.repository_key)) {
@@ -108,13 +108,15 @@ function validateRepositoryReceipt(value) {
   for (const field of ["worktree_path"]) {
     if (typeof value[field] !== "string" || !isAbsolute(value[field])) throw new Error(`provisioning ${field} is invalid`);
   }
-  for (const field of ["remote_name", "base_branch", "target_branch"]) {
+  if (!["local", "remote"].includes(value.source_type) || typeof value.carry_changes !== "boolean" || value.source_type === "remote" && value.carry_changes || value.source_type === "local" && value.remote_name !== "") throw new Error("invalid workspace source selection");
+  if (value.snapshot_commit !== null && (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(value.snapshot_commit) || !value.carry_changes)) throw new Error("invalid snapshot commit");
+  for (const field of [...(value.source_type === "remote" ? ["remote_name"] : []), "base_branch", "target_branch"]) {
     if (typeof value[field] !== "string" || value[field] === "" || value[field].length > 255 || /[\0\r\n;=]/u.test(value[field])) {
       throw new Error(`provisioning ${field} is invalid`);
     }
   }
-  if (value.fetched_commit !== null && (typeof value.fetched_commit !== "string" || !/^[0-9a-f]{40,64}$/u.test(value.fetched_commit))) {
-    throw new Error("provisioning fetched commit is invalid");
+  if (value.base_commit !== null && (typeof value.base_commit !== "string" || !/^[0-9a-f]{40,64}$/u.test(value.base_commit))) {
+    throw new Error("provisioning base commit is invalid");
   }
   if (!repositoryStatuses.has(value.operation_status)) throw new Error("provisioning repository status is invalid");
   if (!Number.isFinite(Date.parse(value.created_at))) throw new Error("provisioning repository timestamp is invalid");

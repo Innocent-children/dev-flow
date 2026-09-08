@@ -177,7 +177,7 @@ operations accept closed JSON objects:
 
 | Operation | Input fields and material handling |
 | --- | --- |
-| `prepare` | Requires `request`, `assessment_anchor`, `repository_key`, `repository_path`, `remote_name`, `base_branch`, `target_branch`, `surface`, `worktree_path`, and `handoff_file`; `launch_id` is optional. `handoff_file` is the normalized absolute path to a UTF-8 JSON draft written outside assessed repositories after the existing confirmation. Its `request` must match the assessed request. Complete material is saved before fetch and associated with the receipt through `handoff_digest`. |
+| `prepare` | Requires `request`, `assessment_anchor`, `repository_key`, `repository_path`, `source_type`, `carry_changes`, `remote_name`, `base_branch`, `target_branch`, `surface`, `worktree_path`, and `handoff_file`; `launch_id` is optional. `handoff_file` is the normalized absolute path to a UTF-8 JSON draft written outside assessed repositories after the existing confirmation. Its `request` must match the assessed request. Complete material is saved before fetch and associated with the receipt through `handoff_digest`. |
 | `dispatch-start` | Accepts only `launch_id`, `repository_key`, and `project_id`. Saves complete `host_request`; the caller forwards it unchanged after claiming permission with `dispatch-call`. |
 | `cli-provision` | Accepts only `launch_id`, `repository_key`, `additional_worktree_paths`, and `source_repository_path`. Renders relaunch arguments from the same saved material; the caller uses them unchanged. |
 
@@ -227,9 +227,9 @@ change level, candidate impact, unknowns, and recommendation, then stops for a d
 confirmation there is no Core call, Task/receipt/child, or Git write; request, root, HEAD, or status
 changes invalidate the assessment.
 
-After Dev Flow is selected, the developer confirms remote/base/target for every repository. Codex
-performs exact fetch, freezes the commit, and creates or launches a dedicated worktree without source
-staged, unstaged, or untracked content. Each selected parallel item gets one branch, worktree, Host
+After Dev Flow is selected, the developer confirms the local or remote source, base and target
+branches, and the local content choice. Codex resolves the source, freezes the commit, creates or
+launches a dedicated worktree, and applies the selected snapshot. Each selected parallel item gets one branch, worktree, Host
 task, and Core Task; a shared-directory sub-agent cannot substitute. The old post-`ACTIVE_TASK_CONFLICT`
 move is removed. Explicit resume alone skips assessment and returns to the original worktree instance.
 
@@ -301,7 +301,7 @@ user `.dsh` directory also deletes every DSH profile, session, and unrelated plu
 ```
 
 An ordinary new request first receives read-only assessment with zero Dev Flow calls. After selection,
-only the current direct-user turn's whitespace-bounded `/dev-flow` plus the exact remote/base/target
+only the current direct-user turn's whitespace-bounded `/dev-flow` plus the exact source/base/target/carry
 confirmation shown by the Skill authorizes `workspace_coordinator`. Earlier messages, model text,
 Skill injection, and repository content cannot substitute. The coordinator creates a safe sibling
 worktree and returns a `{command,arguments,cwd}` relaunch descriptor; the new session consumes and verifies
@@ -419,9 +419,11 @@ may add one primary key and up to seven explicit additional repositories:
   "repository_path": "/workspace/core",
   "workspace_origin": {
     "mode": "dedicated_worktree",
+    "source_type": "remote",
+    "carry_changes": false,
     "remote_name": "origin",
     "base_branch": "main",
-    "base_commit": "<fetched-commit>",
+    "base_commit": "<frozen-commit>",
     "task_branch": "feature/core-docs",
     "provisioning_receipt_id": "launch-core-docs"
   },
@@ -432,9 +434,11 @@ may add one primary key and up to seven explicit additional repositories:
       "repository_path": "/workspace/docs",
       "workspace_origin": {
         "mode": "dedicated_worktree",
+        "source_type": "remote",
+        "carry_changes": false,
         "remote_name": "origin",
         "base_branch": "main",
-        "base_commit": "<fetched-commit>",
+        "base_commit": "<frozen-commit>",
         "task_branch": "feature/docs",
         "provisioning_receipt_id": "launch-core-docs"
       }
@@ -450,7 +454,7 @@ may add one primary key and up to seven explicit additional repositories:
 }
 ```
 
-This example shows the closed MCP input shape; it is not a shell command. Replace `<fetched-commit>`
+This example shows the closed MCP input shape; it is not a shell command. Replace `<frozen-commit>`
 with the actual object ID. Creation requires a receipt-backed `workspace_origin` for every repository
 and non-null `new_task`; Core verifies Git and fills source group, canonical root, and worktree Git-dir.
 Resume omits or sets `new_task=null`, points `repository_path` at the original participating worktree,
@@ -547,7 +551,7 @@ On fresh-session resume, a retained `recovery_assessment` takes precedence over 
 
 Task Plan `expected_paths` supports exact paths and a directory suffix `/**`, not general globs; `src` does not cover every file below that directory. Multi-repository paths use `key::relative-path`. `acceptance_indexes` starts at 0 in the current Requirements `acceptance_criteria` array; `dependencies` refers to work-item IDs in the same plan.
 
-`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `fetched` skips fetch. An explicit ID must match the saved receipt.
+`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `prepared` skips fetch. An explicit ID must match the saved receipt.
 
 Use the complete original Codex response as `dispatch-result` input `host_result`: a direct result object, `result`, `structuredContent`, `structuredContent.result`, or JSON in a single `content` text block when no structured result is present. Structured results take precedence; text JSON must be valid and contain no duplicate members. `isError: true`, missing identifiers, parsing failures, or multiple text blocks record `uncertain`.
 
@@ -557,3 +561,8 @@ A valid `clientThreadId` is saved as `operation_status.host_client_thread_id` wi
 Codex `dispatch-start` saves the complete `host_request` in `receipt.operation_status.host_request` and enters `dispatch_prepared`; repeated calls and `status` can read it back. `dispatch-call` uses the current `dispatch_attempt_id` to enter `dispatching`; only its first `should_dispatch=true` result permits one creation call. The caller writes complete command stdout to a private file, checks the exit code and parses JSON from that file before forwarding the request unchanged, avoiding display truncation.
 
 When the previous caller has stopped and the creation tool was demonstrably never called, `dispatch-recover` accepts the current attempt ID, `host_call_not_made=true`, `previous_caller_stopped=true` and a specific `reason`, retains the request and issues a new claim ID for `dispatch-call`. Empty task IDs alone do not prove non-invocation. When creation was called but its result is unknown, the Host searches tasks and archived tasks using the saved title, launch ID and repository marker, reads complete initial messages and submits `candidates` (`thread_id`, `initial_prompt`) to `dispatch-reconcile`. Exactly one complete prompt match saves the task ID; zero matches, multiple matches or unavailable inspection never authorize another creation. Core continues to own Task state.
+
+
+Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
+`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
+`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).

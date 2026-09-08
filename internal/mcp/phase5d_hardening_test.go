@@ -18,8 +18,8 @@ import (
 func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	digest := workflow.StandardProcess().Reference.DefinitionDigest
 	binding := strings.Repeat("a", 64)
-	origin := `{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"feature/task","provisioning_receipt_id":"receipt"}`
-	docsOrigin := `{"mode":"dedicated_worktree","remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"feature/docs","provisioning_receipt_id":"receipt-docs"}`
+	origin := `{"mode":"dedicated_worktree","source_type":"remote","carry_changes":false,"remote_name":"origin","base_branch":"main","base_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","task_branch":"feature/task","provisioning_receipt_id":"receipt"}`
+	docsOrigin := `{"mode":"dedicated_worktree","source_type":"remote","carry_changes":false,"remote_name":"origin","base_branch":"main","base_commit":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","task_branch":"feature/docs","provisioning_receipt_id":"receipt-docs"}`
 	valid := []struct {
 		name string
 		tool string
@@ -65,7 +65,7 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	}
 	additional := make([]map[string]any, 8)
 	for index := range additional {
-		additional[index] = map[string]any{"key": string(rune('a' + index)), "repository_path": fmt.Sprintf("/%c", 'a'+index), "workspace_origin": map[string]any{"mode": "dedicated_worktree", "remote_name": "origin", "base_branch": "main", "base_commit": strings.Repeat("a", 40), "task_branch": fmt.Sprintf("feature/%c", 'a'+index), "provisioning_receipt_id": fmt.Sprintf("receipt-%c", 'a'+index)}}
+		additional[index] = map[string]any{"key": string(rune('a' + index)), "repository_path": fmt.Sprintf("/%c", 'a'+index), "workspace_origin": map[string]any{"mode": "dedicated_worktree", "source_type": "remote", "carry_changes": false, "remote_name": "origin", "base_branch": "main", "base_commit": strings.Repeat("a", 40), "task_branch": fmt.Sprintf("feature/%c", 'a'+index), "provisioning_receipt_id": fmt.Sprintf("receipt-%c", 'a'+index)}}
 	}
 	eighth, _ := json.Marshal(map[string]any{"host": "codex", "repository_path": "/core", "workspace_origin": json.RawMessage(origin), "additional_repositories": additional, "new_task": map[string]any{"request": "Build feature", "initial_scope": []any{}, "initial_out_of_scope": []any{}, "known_acceptance_criteria": []any{}, "method_profile": "plain"}})
 	if err := ValidateToolInput(ToolOpenTask, eighth); err != domain.ErrInvalidArgument {

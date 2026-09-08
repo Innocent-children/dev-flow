@@ -181,7 +181,7 @@ func TestDefinitionDigestPersistedActionWordingIsIdentityStable(t *testing.T) {
 		TaskID: "task", OriginHost: domain.HostCodex,
 		Intent:  domain.TaskIntent{Request: "Build feature", MethodProfile: domain.MethodPlain},
 		Process: definition.Reference, CurrentNode: domain.NodeRequirements, CurrentAction: &action,
-		WorkspaceOrigin: domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: bindingDigest, CanonicalWorktreeRoot: testPath("repo"), WorktreeGitDirDigest: bindingDigest, ProvisioningReceiptID: "receipt"},
+		WorkspaceOrigin: domain.WorkspaceOrigin{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, SourceRepositoryGroupDigest: bindingDigest, CanonicalWorktreeRoot: testPath("repo"), WorktreeGitDirDigest: bindingDigest, ProvisioningReceiptID: "receipt"},
 		Repository:      domain.RepositoryBinding{WorktreeInstanceDigest: bindingDigest, IdentityDigest: bindingDigest, HistoryDigest: bindingDigest, ContentDigest: bindingDigest, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ObservedAt: now, BindingDigest: bindingDigest},
 		Revision:        1, CreatedAt: now, UpdatedAt: now,
 	}

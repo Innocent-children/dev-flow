@@ -29,7 +29,7 @@ test("provisioning receipts use one closed secret-free shape and immutable launc
     handoffDigest: "d".repeat(64),
     sourceRepositoryIdentity: "b".repeat(64),
     repositoryKey: "primary",
-    remoteName: "ssh://private.example/repository",
+    sourceType: "remote", carryChanges: false, remoteName: "ssh://private.example/repository",
     baseBranch: "main",
     targetBranch: "codex/task",
     surface: "managed_worktree",
@@ -42,15 +42,15 @@ test("provisioning receipts use one closed secret-free shape and immutable launc
     writeProvisioningReceiptAtomic(path, receipt, { productSupportRoot: support, createOnly: true }),
     /already exists/u,
   );
-  const fetching = updateProvisioningReceipt(receipt, { phase: "fetching", values: {} });
+  const fetching = updateProvisioningReceipt(receipt, { phase: "resolving", values: {} });
   const fetched = updateProvisioningReceipt(fetching, {
-    phase: "fetched",
-    values: { fetched_commit: "c".repeat(40) },
+    phase: "prepared",
+    values: { base_commit: "c".repeat(40) },
   });
-  assert.equal(fetched.operation_status.phase, "fetched");
-  assert.equal(receipt.fetched_commit, null);
+  assert.equal(fetched.operation_status.phase, "prepared");
+  assert.equal(receipt.base_commit, null);
   assert.throws(
-    () => updateProvisioningReceipt(receipt, { phase: "provisioned", values: { fetched_commit: "c".repeat(40), worktree_path: join(root, "worktree") } }),
+    () => updateProvisioningReceipt(receipt, { phase: "provisioned", values: { base_commit: "c".repeat(40), worktree_path: join(root, "worktree") } }),
     /invalid provisioning phase transition/u,
   );
 
@@ -97,7 +97,7 @@ function fixtureReceipt() {
     handoffDigest: "d".repeat(64),
     sourceRepositoryIdentity: "b".repeat(64),
     repositoryKey: "primary",
-    remoteName: "origin",
+    sourceType: "remote", carryChanges: false, remoteName: "origin",
     baseBranch: "main",
     targetBranch: "codex/task",
     surface: "managed_worktree",

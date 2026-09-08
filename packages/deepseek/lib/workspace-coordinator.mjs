@@ -4,6 +4,7 @@ import { access, lstat, realpath, stat } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
+import { captureWorkspaceChanges, applyWorkspaceChanges } from "./worktree-snapshot.mjs";
 import { currentDirectUserText } from "./authorization.mjs";
 import {
   readProvisioningReceipt,
@@ -17,7 +18,7 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 
 export function workspaceConfirmationText(repositories) {
   const rows = validateRepositoryRequests(repositories).map((repository) =>
-    `repository=${repository.repository_key};remote=${repository.remote_name};base=${repository.base_branch};target=${repository.target_branch}`,
+    `repository=${repository.repository_key};source=${repository.source_type};carry=${repository.carry_changes};remote=${repository.remote_name};base=${repository.base_branch};target=${repository.target_branch}`,
   );
   return ["/dev-flow confirm-worktree", ...rows].join("\n");
 }
@@ -113,10 +114,13 @@ export function createWorkspaceCoordinator({
         repositories: observed.map((repository) => ({
           source_repository_identity: repository.source.identity,
           repository_key: repository.repository_key,
+          source_type: repository.source_type,
+          carry_changes: repository.carry_changes,
           remote_name: repository.remote_name,
           base_branch: repository.base_branch,
           target_branch: repository.target_branch,
-          fetched_commit: null,
+          base_commit: null,
+          snapshot_commit: null,
           worktree_path: repository.worktreePath,
           operation_status: "confirmed",
           created_at: timestamp,
@@ -128,19 +132,20 @@ export function createWorkspaceCoordinator({
 
       const provisioned = [];
       try {
-        receipt = await setLaunchStatus(receipt, "fetching", now, (repository) => ({ ...repository, operation_status: "fetching" }));
+        receipt = await setLaunchStatus(receipt, "resolving", now, (repository) => ({ ...repository, operation_status: "resolving" }));
         await writeProvisioningReceipt(dataDirectory, receipt);
         for (const repository of receipt.repositories) {
           const source = observed.find((entry) => entry.repository_key === repository.repository_key).source.root;
-          await git(source, [
+          if (repository.source_type === "remote") await git(source, [
             "fetch", "--no-tags", repository.remote_name,
             `refs/heads/${repository.base_branch}:refs/remotes/${repository.remote_name}/${repository.base_branch}`,
           ], { command, signal, mutating: true });
-          const fetchedCommit = (await git(source, [
-            "rev-parse", "--verify", `refs/remotes/${repository.remote_name}/${repository.base_branch}^{commit}`,
+          const baseCommit = (await git(source, [
+            "rev-parse", "--verify", repository.source_type === "remote" ? `refs/remotes/${repository.remote_name}/${repository.base_branch}^{commit}` : `refs/heads/${repository.base_branch}^{commit}`,
           ], { command, signal })).stdout.trim();
-          if (!/^[0-9a-f]{40,64}$/u.test(fetchedCommit)) throw new Error(`fetched commit for ${repository.repository_key} is invalid`);
-          receipt = await updateRepositoryStatus(receipt, repository.repository_key, "fetched", now, { fetched_commit: fetchedCommit });
+          if (!/^[0-9a-f]{40,64}$/u.test(baseCommit)) throw new Error(`frozen commit for ${repository.repository_key} is invalid`);
+          const snapshot = repository.carry_changes ? await captureWorkspaceChanges(source, snapshotRunner(command, signal)) : null;
+          receipt = await updateRepositoryStatus(receipt, repository.repository_key, "prepared", now, { base_commit: baseCommit, snapshot_commit: snapshot });
           await writeProvisioningReceipt(dataDirectory, receipt);
         }
 
@@ -150,9 +155,10 @@ export function createWorkspaceCoordinator({
           const source = observed.find((entry) => entry.repository_key === repository.repository_key).source.root;
           await ensureTargetStillAvailable(source, repository, { command, signal });
           await git(source, [
-            "worktree", "add", "-b", repository.target_branch, repository.worktree_path, repository.fetched_commit,
+            "worktree", "add", "-b", repository.target_branch, repository.worktree_path, repository.base_commit,
           ], { command, signal, mutating: true });
-          await verifyProvisionedRepository(repository, { command, signal, sourceRepositoryPath: source });
+          await verifyProvisionedRepository({ ...repository, carry_changes: false }, { command, signal, sourceRepositoryPath: source });
+          await applyWorkspaceChanges(repository.worktree_path, repository.snapshot_commit, snapshotRunner(command, signal));
           provisioned.push(repository.repository_key);
           receipt = await updateRepositoryStatus(receipt, repository.repository_key, "provisioned", now);
           await writeProvisioningReceipt(dataDirectory, receipt);
@@ -170,7 +176,7 @@ export function createWorkspaceCoordinator({
         await writeProvisioningReceipt(dataDirectory, receipt).catch(() => {});
         const failure = new Error(uncertain
           ? "worktree provisioning result is uncertain; inspect the retained receipt and filesystem before retrying"
-          : "worktree provisioning failed; no Core Task was created");
+          : `worktree provisioning failed; no Core Task was created: ${error.message}`, { cause: error });
         failure.code = uncertain ? "WORKTREE_PROVISIONING_UNCERTAIN" : "WORKTREE_PROVISIONING_FAILED";
         throw failure;
       }
@@ -211,9 +217,11 @@ export function createWorkspaceCoordinator({
         repository_path: repository.worktree_path,
         workspace_origin: {
           mode: "dedicated_worktree",
+          source_type: repository.source_type,
+          carry_changes: repository.carry_changes,
           remote_name: repository.remote_name,
           base_branch: repository.base_branch,
-          base_commit: repository.fetched_commit,
+          base_commit: repository.base_commit,
           task_branch: repository.target_branch,
           provisioning_receipt_id: receipt.launch_id,
         },
@@ -310,11 +318,12 @@ async function observeSourceRepository(path, { command, signal }) {
 }
 
 async function validateBranchSelection(root, repository, { command, signal }) {
-  assertRemoteName(repository.remote_name);
+  if (repository.source_type === "remote") assertRemoteName(repository.remote_name);
   for (const branch of [repository.base_branch, repository.target_branch]) {
     await git(root, ["check-ref-format", "--branch", branch], { command, signal });
   }
-  await git(root, ["remote", "get-url", repository.remote_name], { command, signal });
+  if (repository.source_type === "remote") await git(root, ["remote", "get-url", repository.remote_name], { command, signal });
+  else await git(root, ["rev-parse", "--verify", `refs/heads/${repository.base_branch}^{commit}`], { command, signal });
   await ensureTargetStillAvailable(root, repository, { command, signal });
 }
 
@@ -323,10 +332,12 @@ async function ensureTargetStillAvailable(sourceRepositoryPath, repository, { co
     command, signal, allowExitCodes: [0, 1],
   });
   if (local.code === 0) throw new Error(`target branch ${repository.target_branch} already exists locally`);
-  const remote = await git(sourceRepositoryPath, ["ls-remote", "--exit-code", "--heads", repository.remote_name, `refs/heads/${repository.target_branch}`], {
-    command, signal, allowExitCodes: [0, 2],
+  if (repository.source_type === "remote") {
+    const remote = await git(sourceRepositoryPath, ["ls-remote", "--exit-code", "--heads", repository.remote_name, `refs/heads/${repository.target_branch}`], {
+      command, signal, allowExitCodes: [0, 2],
   });
   if (remote.code === 0) throw new Error(`target branch ${repository.target_branch} already exists on ${repository.remote_name}`);
+  }
   const worktrees = (await git(sourceRepositoryPath, ["worktree", "list", "--porcelain"], { command, signal })).stdout;
   if (worktrees.split(/\r?\n/u).some((line) => line === `branch refs/heads/${repository.target_branch}`)) {
     throw new Error(`target branch ${repository.target_branch} is already checked out`);
@@ -346,7 +357,7 @@ async function verifyProvisionedRepository(repository, { command, signal, source
   const head = (await git(root, ["rev-parse", "HEAD"], { command, signal })).stdout.trim();
   const branch = (await git(root, ["branch", "--show-current"], { command, signal })).stdout.trim();
   const status = (await git(root, ["status", "--porcelain=v2", "--untracked-files=all", "--ignore-submodules=none"], { command, signal })).stdout;
-  if (head !== repository.fetched_commit || branch !== repository.target_branch || status !== "") {
+  if (head !== repository.base_commit || branch !== repository.target_branch || !repository.carry_changes && status !== "") {
     throw new Error(`Task worktree ${repository.repository_key} failed branch, HEAD, or clean-state verification`);
   }
   await access(root, fsConstants.R_OK | fsConstants.W_OK);
@@ -408,6 +419,7 @@ async function inspectTerminalWorktree(repository, taskRepository, { command, si
 }
 
 async function assertRemoteHead(root, repository, head, { command, signal }) {
+  if (repository.source_type === "local") throw new Error("local-source task branch is retained; review it before separate manual cleanup");
   const remote = await git(root, ["ls-remote", "--exit-code", "--heads", repository.remote_name, `refs/heads/${repository.target_branch}`], {
     command, signal, allowExitCodes: [0, 2],
   });
@@ -452,7 +464,7 @@ function validateRepositoryRequests(value) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 8) throw new Error("one to eight confirmed repositories are required");
   const keys = new Set();
   return value.map((entry) => {
-    const expected = ["repository_key", "source_repository_path", "remote_name", "base_branch", "target_branch"];
+    const expected = ["repository_key", "source_repository_path", "source_type", "carry_changes", "remote_name", "base_branch", "target_branch"];
     if (entry === null || typeof entry !== "object" || Array.isArray(entry) || JSON.stringify(Object.keys(entry).sort()) !== JSON.stringify(expected.sort())) {
       throw new Error("workspace repository fields are invalid");
     }
@@ -462,7 +474,8 @@ function validateRepositoryRequests(value) {
     if (typeof entry.source_repository_path !== "string" || !isAbsolute(entry.source_repository_path) || entry.source_repository_path.includes("\0")) {
       throw new Error(`repository ${entry.repository_key} source path is invalid`);
     }
-    assertRemoteName(entry.remote_name);
+    if (!["local", "remote"].includes(entry.source_type) || typeof entry.carry_changes !== "boolean" || entry.source_type === "remote" && entry.carry_changes || entry.source_type === "local" && entry.remote_name !== "") throw new Error("invalid workspace source selection");
+    if (entry.source_type === "remote") assertRemoteName(entry.remote_name);
     for (const field of ["base_branch", "target_branch"]) {
       if (typeof entry[field] !== "string" || entry[field] === "" || entry[field].length > 255 || /[\0\r\n;=]/u.test(entry[field])) {
         throw new Error(`repository ${entry.repository_key} ${field} is invalid`);
@@ -561,6 +574,7 @@ async function git(cwd, arguments_, options) {
     maxOutputBytes: MAX_COMMAND_OUTPUT,
     allowExitCodes: options.allowExitCodes ?? [0],
     mutating: options.mutating === true,
+    env: options.env,
   });
 }
 
@@ -571,6 +585,7 @@ export async function runClosedCommand(executable, arguments_, {
   maxOutputBytes = MAX_COMMAND_OUTPUT,
   allowExitCodes = [0],
   mutating = false,
+  env = {},
 } = {}) {
   if (typeof executable !== "string" || executable === "" || executable.includes("\0") || !Array.isArray(arguments_) || arguments_.some((value) => typeof value !== "string" || value.includes("\0"))) {
     throw new Error("command arguments must be closed strings");
@@ -579,7 +594,7 @@ export async function runClosedCommand(executable, arguments_, {
   return await new Promise((resolvePromise, reject) => {
     const child = spawn(executable, arguments_, {
       cwd,
-      env: process.env,
+      env: { ...process.env, ...env, GIT_TERMINAL_PROMPT: "0" },
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
       windowsHide: true,
@@ -622,4 +637,8 @@ export async function runClosedCommand(executable, arguments_, {
       reject(error);
     });
   });
+}
+
+function snapshotRunner(command, signal) {
+  return async (root, args, env) => (await git(root, args, { command, signal, env, mutating: true })).stdout;
 }

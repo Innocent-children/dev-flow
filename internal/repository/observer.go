@@ -15,6 +15,8 @@ type RepositoryObserver interface {
 // WorkspaceOriginSelection is the exact Host-owned portion of WorkspaceOrigin.
 type WorkspaceOriginSelection struct {
 	Mode                  domain.WorkspaceMode
+	SourceType            string
+	CarryChanges          bool
 	RemoteName            string
 	BaseBranch            string
 	BaseCommit            string
