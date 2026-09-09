@@ -1,6 +1,6 @@
 {
   "name": "dev-flow-codex",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "private": false,
   "description": "Worktree-first Dev Flow lifecycle integration for Codex.",
   "license": "Apache-2.0",
