@@ -28,6 +28,14 @@ When Codex starts a new session, it retains relevant requirements discussion and
 
 Explicit resume returns to the original worktree instance and saved state without creating another task or selecting another worktree. The destination of a confirmed launch verifies the retained launch record before continuing initialization. A missing or replaced original worktree pauses progress; the developer can restore that instance or explicitly abandon the Task.
 
+## Planning discussion before implementation
+
+The Host shows the requirements and acceptance criteria, the design and its impact, and the complete work, expected-file and verification plan, then discusses the developer's changes. Separate approval at every stage is unnecessary, but implementation requires explicit approval of the complete plan. Choosing Dev Flow or workspace parameters does not approve an unseen plan.
+
+Core saves the draft and stays in task planning while waiting. Approval references the exact current requirements, design, plan content and planning round. Revisions invalidate earlier approval; a resumed session can continue from the same saved draft. Prefer exact files and explain the purpose and coverage of directory ranges. Expanding scope requires saving and confirming a revised plan.
+
+Codex launch preparation requires the complete impact assessment and the developer's mode choice. Missing data or unresolved unknowns prevent worktree preparation. Still-valid choices, explicit task resume and confirmed launch continuation remain effective. The Host owns actual presentation and user replies; Core cannot authenticate conversation content or intercept editing that never calls Dev Flow.
+
 ## Change and verification rules
 
 | Situation | Current behavior |

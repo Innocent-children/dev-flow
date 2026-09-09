@@ -196,6 +196,9 @@ func (t ProcessTask) Validate() error {
 	if !verificationBudgetAdjustmentsValid(t) {
 		return ErrInvalidArgument
 	}
+	if t.TaskPlan != nil && t.TaskPlan.Confirmation != nil && !t.TaskPlan.Confirmation.Matches(t.Requirements, t.Design, t.TaskPlan) {
+		return ErrInvalidArgument
+	}
 	if t.Implementation != nil && (t.Implementation.Validate() != nil || t.TaskPlan == nil || t.Implementation.TaskPlanRevision != t.TaskPlan.Revision) {
 		return ErrInvalidArgument
 	}
@@ -507,13 +510,16 @@ func authorityMatchesCurrentNode(t ProcessTask) bool {
 		}
 		node = *t.ResumeNode
 	}
+	if node != NodeRequirements && node != NodeDesign && node != NodeTasks && node != NodeCancelled && (t.TaskPlan == nil || t.TaskPlan.Confirmation == nil || !t.TaskPlan.Confirmation.Matches(t.Requirements, t.Design, t.TaskPlan)) {
+		return false
+	}
 	switch node {
 	case NodeRequirements:
 		return t.Design == nil && t.TaskPlan == nil && t.Implementation == nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
 	case NodeDesign:
 		return t.Requirements != nil && t.TaskPlan == nil && t.Implementation == nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
 	case NodeTasks:
-		return t.Requirements != nil && t.Design != nil && t.TaskPlan == nil && t.Implementation == nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
+		return t.Requirements != nil && t.Design != nil && (t.TaskPlan == nil || t.TaskPlan.Confirmation == nil) && t.Implementation == nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
 	case NodeImplement:
 		return t.Requirements != nil && t.Design != nil && t.TaskPlan != nil && t.Test == nil && t.Comprehension == nil && t.Outcome == nil
 	case NodeTest:
@@ -696,6 +702,9 @@ func (t *ProcessTask) InvalidateForDestination(destination NodeID) {
 		t.Test = nil
 		t.Comprehension = nil
 	case NodeTasks:
+		if t.TaskPlan != nil {
+			t.TaskPlan.Confirmation, t.TaskPlan.ConfirmedAt = nil, nil
+		}
 		t.Implementation = nil
 		t.Test = nil
 		t.Comprehension = nil

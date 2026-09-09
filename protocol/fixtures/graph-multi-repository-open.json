@@ -5,7 +5,7 @@
     "task_id": "task-multi-repository",
     "origin_host": "codex",
     "process_id": "standard-development",
-    "process_definition_digest": "44f013fc56810340f5d2f12b56ad041478ba01a5e16757e945f5908868744625",
+    "process_definition_digest": "0ba692471aab33a3bfed9f96d8db7de9752422927d480befb9ef002c5ec439ec",
     "current_cursor": "REQUIREMENTS",
     "revision": 1,
     "primary_repository_key": "core",

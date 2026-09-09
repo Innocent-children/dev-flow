@@ -42,7 +42,7 @@ test("help describes every Host operation without reading stdin or resolving run
       assert.ok(contract.next_step.length > 0);
       if (args[1] === "prepare") {
         assert.ok(contract.input_schema.required.includes("handoff_file"));
-        assert.ok(contract.input_schema.required.includes("assessment_anchor"));
+        assert.ok(contract.input_schema.required.includes("assessment"));
         assert.ok(contract.input_schema.required.includes("worktree_path"));
         assert.ok(!contract.input_schema.required.includes("launch_id"));
         assert.match(contract.input_schema.properties.worktree_path.description, /null.*managed_worktree/);

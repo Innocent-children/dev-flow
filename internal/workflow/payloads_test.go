@@ -154,11 +154,11 @@ func TestCanonicalComprehensionPayloadRetainsRequiredEmptyFindings(t *testing.T)
 
 func TestPhase5BReasonRulesMatchAllStandardTransitions(t *testing.T) {
 	reasonFree := map[domain.TransitionID]bool{
-		"requirements_ready": true, "design_ready": true, "tasks_ready": true,
+		"requirements_ready": true, "design_ready": true, "tasks_ready": true, "tasks_plan_saved": true,
 		"implementation_ready_for_test": true, "tests_passed": true, "comprehension_passed": true,
 		"refactor_ready_for_test": true, "delivery_complete": true,
 	}
-	if len(standardTransitions) != 30 {
+	if len(standardTransitions) != 31 {
 		t.Fatalf("transition count=%d", len(standardTransitions))
 	}
 	for _, transition := range standardTransitions {

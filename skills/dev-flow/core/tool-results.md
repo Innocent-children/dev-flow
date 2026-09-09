@@ -369,7 +369,7 @@ answer for this exact write. The three complete input alternatives are:
 ```
 
 `allow_once` is restricted to the same prepared intent/path set; `expand_scope` returns to TASKS to
-revise expected paths (use its requirements return only for a requirement change); `reject` resumes
+save revised expected paths with tasks_plan_saved and explicitly confirm that current plan before tasks_ready (use its requirements return only for a requirement change); `reject` resumes
 only after actual restoration. None of these expands immutable Repository Scope.
 
 For `repeated_verification_failure`, `unchanged_verification_result` or

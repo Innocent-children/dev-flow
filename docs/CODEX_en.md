@@ -37,6 +37,10 @@ When absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
 `%USERPROFILE%\.dev-flow\config.json` on Windows. Default Task data is
 `$HOME/.dev-flow/data` or `%LOCALAPPDATA%\dev-flow\data`.
 
+## Approve the plan before implementation
+
+Review the requirements and acceptance criteria, design and impact, then discuss the complete work, expected-file and verification plan. Implementation begins after explicit approval; selecting Dev Flow and workspace parameters does not approve the plan. Waiting remains in task planning. Revisions or expanded file scope require approval of the revised plan; resuming the same draft needs no resave. Prefer exact files and explain directory ranges.
+
 ## Assess and start a Task
 
 Codex retains explicit choices and authorizations that remain valid for the current request and assessment. When no decision or required input is outstanding, it continues without an acknowledgment pause for progress updates or Skill-rule explanations. When input is needed, it asks the concrete question in the same response; development mode, worktree parameters, comprehension confirmation, separate operation authorization, and blockers keep their respective rules.

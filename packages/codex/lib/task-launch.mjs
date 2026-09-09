@@ -3,7 +3,7 @@ import { isAbsolute, resolve } from "node:path";
 
 import { captureWorkspaceChanges, applyWorkspaceChanges } from "./worktree-snapshot.mjs";
 import { assertNoDuplicateJSONMembers } from "./json.mjs";
-import { requestDigest, validateAdmissionAnchor } from "./task-admission.mjs";
+import { requestDigest, validateLaunchAdmission } from "./task-admission.mjs";
 import {
   buildManagedBootstrapPrompt,
   readTaskHandoff,
@@ -42,7 +42,8 @@ export async function prepareTaskLaunch(input, {
   const launchId = input.launch_id ?? createLaunchId();
   const receiptInput = { ...input, launch_id: launchId };
   const currentRequestDigest = requestDigest(input.request);
-  const assessmentAnchor = validateAdmissionAnchor(input.assessment_anchor);
+  const admission = validateLaunchAdmission(input.assessment, input.user_choice);
+  const assessmentAnchor = admission.assessment.anchor;
   if (assessmentAnchor.request_digest !== currentRequestDigest) {
     throw new Error("launch request changed after suitability assessment");
   }
@@ -78,6 +79,7 @@ export async function prepareTaskLaunch(input, {
   if (initial === null) {
     initial = createProvisioningReceipt({
       launchId,
+      admission,
       requestDigest: currentRequestDigest,
       handoffDigest,
       sourceRepositoryIdentity: source.source_repository_identity,
@@ -705,7 +707,7 @@ function normalizedStructuredResult(value) {
 
 function validatePrepareInput(value) {
   const keys = [
-    "request", "assessment_anchor", "repository_key", "repository_path", "source_type", "carry_changes", "remote_name", "base_branch", "target_branch",
+    "request", "assessment", "user_choice", "repository_key", "repository_path", "source_type", "carry_changes", "remote_name", "base_branch", "target_branch",
     "surface", "worktree_path", "handoff_file",
   ];
   if (Object.hasOwn(value ?? {}, "launch_id")) keys.push("launch_id");
@@ -729,6 +731,7 @@ function validatePrepareInput(value) {
 function assertInputMatchesReceipt(receipt, input, requestDigest, handoffDigest) {
   const requested = {
     launch_id: input.launch_id,
+    admission: { assessment: input.assessment, user_choice: input.user_choice },
     request_digest: requestDigest,
     handoff_digest: handoffDigest,
     repository_key: input.repository_key,
@@ -742,6 +745,7 @@ function assertInputMatchesReceipt(receipt, input, requestDigest, handoffDigest)
   };
   const retained = {
     launch_id: receipt.launch_id,
+    admission: receipt.admission,
     request_digest: receipt.request_digest,
     handoff_digest: receipt.handoff_digest,
     repository_key: receipt.repository_key,

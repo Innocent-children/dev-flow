@@ -174,7 +174,7 @@ Codex 新会话启动使用原会话保存的完整需求交接材料。以下�
 
 | 操作 | 输入字段与材料处理 |
 | --- | --- |
-| `prepare` | 必填 `request`、`assessment_anchor`、`repository_key`、`repository_path`、`source_type`、`carry_changes`、`remote_name`、`base_branch`、`target_branch`、`surface`、`worktree_path`、`handoff_file`；可选 `launch_id`。`handoff_file` 是原会话在已有确认后写入的 UTF-8 JSON 草稿的规范化绝对路径，位于已评估仓库之外。材料中的 `request` 必须与已评估请求一致。fetch 前保存完整材料，receipt 关联 `handoff_digest`。 |
+| `prepare` | 必填 `request`、`assessment`、`user_choice`、`repository_key`、`repository_path`、`source_type`、`carry_changes`、`remote_name`、`base_branch`、`target_branch`、`surface`、`worktree_path`、`handoff_file`；可选 `launch_id`。`handoff_file` 是原会话在已有确认后写入的 UTF-8 JSON 草稿的规范化绝对路径，位于已评估仓库之外。材料中的 `request` 必须与已评估请求一致。fetch 前保存完整材料，receipt 关联 `handoff_digest`。 |
 | `dispatch-start` | 只接收 `launch_id`、`repository_key`、`project_id`。保存完整 `host_request`；由 `dispatch-call` 登记调用许可后原样交给桌面任务创建。 |
 | `cli-provision` | 只接收 `launch_id`、`repository_key`、`additional_worktree_paths`、`source_repository_path`。从同一份保存材料生成 relaunch 参数，调用方原样使用。 |
 
@@ -337,7 +337,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | `dev_flow_get_next_action` | 观察/可能 mutation | 先观察 workspace；必要时幂等创建 workspace blocker，否则返回当前 Action、`submission_tool` 和全部合法 transition。 |
 | `dev_flow_submit_requirements` | mutation | 提交 REQUIREMENTS 节点结果。 |
 | `dev_flow_submit_design` | mutation | 提交 DESIGN 节点结果。 |
-| `dev_flow_submit_tasks` | mutation | 提交 TASKS 节点结果；baseline 必须包含分析后的 `verification_plan`。 |
+| `dev_flow_submit_tasks` | mutation | `tasks_plan_saved` 保存含 `verification_plan` 的完整 baseline 并停留 TASKS；`tasks_ready` 确认已保存计划后进入开发。 |
 | `dev_flow_submit_implementation` | mutation | 提交 IMPLEMENT 节点结果。 |
 | `dev_flow_submit_test` | mutation | 提交 TEST 节点结果；`verification_budget_increased` 用具体原因增加预算并留在 TEST，普通结果发送 `budget_adjustment=null`；第三次精确重复时暂停。 |
 | `dev_flow_submit_comprehension` | mutation | 提交 COMPREHENSION_REVIEW 节点结果。 |
@@ -367,6 +367,10 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 快照填充这些字段；提交任一字段会返回准确路径的 `unknown_member`。节点提交缺少
 其他必填字段时返回准确的 `required_member_missing` 路径；只有已证明零写入且修正内容来自当前节点
 既有事实时，Host 才能按 `recovery.allowed_paths` 通过同一提交工具修正一次。
+
+`dev_flow_submit_tasks` 的 `node_result` 固定包含 `problem_class`、`baseline`、`findings` 和 `user_confirmation`。保存/修订计划使用 `tasks_plan_saved`：完整 baseline、problem_class=none、空 findings、user_confirmation=null，返回的 Task 仍在 TASKS。确认使用 `tasks_ready`：baseline=null，确认对象为 `{source:"user",status:"passed",summary,requirements_digest,design_digest,task_plan_digest,task_plan_revision}`；四个引用值来自当前 `baselines.requirements.digest`、`baselines.design.digest`、`baselines.task_plan.digest` 和 `baselines.task_plan.revision`。只有用户明确认可这些内容后才能提交。返回 `task_plan.confirmation` 和 Core 记录的 `confirmed_at`。缺失或不匹配的确认拒绝进入开发，等待仍在 TASKS。上游返回边保留原有 findings/reason 要求，并提交 null baseline 和 null confirmation。
+
+`host-launch prepare` 的 `assessment` 包含 `change_level`（small/standard/large/uncertain）、observed_repositories、candidate_components、candidate_paths、public_contract_flags、persistence_or_state_flags、host_or_platform_flags、verification_shape、unknowns、recommendation、reasons 和 anchor。`user_choice` 为 `{source:"user",mode:"dev_flow",summary}`，记录展示评估后的真实选择。缺失输入、未解决未知项、根集合不一致、失效 anchor 或非 Dev Flow 选择在准备前拒绝。回执的 `admission` 保存完整评估和选择；已确认接续读取原回执，不重复选择。
 
 新 Task 的 `new_task` 不包含 `verification_budget`。TASKS 的 `baseline.verification_plan` 包含
 `checks[{name,rationale}]`、`initial_budget`、`full_suite_expected` 和
@@ -447,7 +451,7 @@ Task；同一实例只能持有一个活动 Task。Control Center 的 Task summa
 `worktree_path`，详情中的每个 repository 也公开自己的 `repository_group_id`。
 
 Task result 的 `verification` 同时返回 `plan`、`current_budget`、当前 Task Plan revision 的 `usage` 和
-`adjustments`；在 TASKS 完成前，`plan` 与 `current_budget` 为 `null`。
+`adjustments`；在首次保存 TASKS 计划前，`plan` 与 `current_budget` 为 `null`。
 
 `dev_flow_server_info({})` 的结果包含：
 
@@ -483,7 +487,7 @@ dev-flow-codex host-launch scope --help
 
 所有帮助查询均在读取 stdin、解析安装路径或执行 Core/Git 操作前返回。单个操作帮助是 JSON，包含 `input_schema`、`output_fields` 和 `next_step`；字段说明交代值来自用户确认、前一步结果还是 Host 查询。帮助查询不创建配置、工作区或记录。
 
-`inspect` 返回完整 `assessment_anchor`。`prepare` 接收原样保留的 request、anchor、确认参数和 `handoff_file`；桌面工作区显式传 `worktree_path: null`。首个结果的 `receipt.launch_id` 用于同一 Task 的其余仓库。依次完成受管派发和 `bootstrap`，或 CLI provisioning 后，调用只读汇总命令：
+`inspect` 返回 anchor，放入完整 `assessment.anchor`。`prepare` 接收原样保留的 request、完整评估、`user_choice`、工作树参数和 `handoff_file`；桌面工作区显式传 `worktree_path: null`。首个结果的 `receipt.launch_id` 用于同一 Task 的其余仓库。依次完成受管派发和 `bootstrap`，或 CLI provisioning 后，调用只读汇总命令：
 
 ```text
 dev-flow-codex host-launch scope

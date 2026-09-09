@@ -34,8 +34,8 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
     request: "Prove the deterministic DeepSeek graph loop.",
     profile: "headless",
     repositories: [
-      { repository_key: "core", source_repository_path: sourceRepository, remote_name: "origin", base_branch: "main", target_branch: "feature/core-proof" },
-      { repository_key: "docs", source_repository_path: sourceAdditionalRepository, remote_name: "origin", base_branch: "main", target_branch: "feature/docs-proof" },
+      { repository_key: "core", source_repository_path: sourceRepository, source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/core-proof" },
+      { repository_key: "docs", source_repository_path: sourceAdditionalRepository, source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/docs-proof" },
     ],
   });
   const consumed = await createWorkspaceCoordinator({ dataDirectory, workspaceRoot: provisioned.workspace_root }).consume({ launchID: provisioned.launch_id });
@@ -132,7 +132,8 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(resumedAction.result.action.action_id, task.current_action.action_id);
   task = resumed.result.task;
 
-  task = await apply(core, task, "tasks_ready", tasksResult());
+  task = await apply(core, task, "tasks_plan_saved", {...tasksResult(), user_confirmation:null});
+  task = await apply(core, task, "tasks_ready", {baseline:null, findings:[], user_confirmation:{source:"user", status:"passed", summary:"Fixture developer approved the displayed complete plan.", requirements_digest:task.baselines.requirements.digest, design_digest:task.baselines.design.digest, task_plan_digest:task.baselines.task_plan.digest, task_plan_revision:task.baselines.task_plan.revision}});
   assert.equal(task.baselines.task_plan.design_revision, task.baselines.design.revision);
   await writeFile(join(repository, "feature.txt"), "implementation one\n");
   await writeFile(join(additionalRepository, "feature.txt"), "documentation one\n");
@@ -175,8 +176,8 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(task.current_cursor, "DONE");
   assert.equal(task.current_action, null);
   assert.equal(task.outcome.status, "completed");
-  assert.equal(task.revision, 13);
-  assert.equal(core.calls.filter((name) => name.startsWith("mcp__dev_flow__dev_flow_submit_")).length, 12);
+  assert.equal(task.revision, 14);
+  assert.equal(core.calls.filter((name) => name.startsWith("mcp__dev_flow__dev_flow_submit_")).length, 13);
   assert.equal(task.outcome.final_repository_digest.length, repositoryBindingDigest.length);
 });
 
@@ -323,7 +324,7 @@ function deliveryResult(task) {
 
 function problemClass(transition) {
   return ({
-    requirements_ready: "none", design_ready: "none", tasks_ready: "none",
+    requirements_ready: "none", design_ready: "none", tasks_ready: "none", tasks_plan_saved: "none",
     implementation_ready_for_test: "none", tests_failed_implementation: "implementation_failure",
     tests_passed: "none", code_too_complex: "code_complexity",
     refactor_ready_for_test: "none", comprehension_passed: "none", delivery_complete: "none",

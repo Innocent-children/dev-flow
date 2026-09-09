@@ -243,9 +243,10 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 		"findings": []any{},
 	}
 	tasksWithoutRevision := map[string]any{
-		"problem_class": "none",
-		"baseline":      map[string]any{"work_items": []any{workItemInput("work", []any{0})}, "verification_plan": verificationPlanInput()},
-		"findings":      []any{},
+		"user_confirmation": nil,
+		"problem_class":     "none",
+		"baseline":          map[string]any{"work_items": []any{workItemInput("work", []any{0})}, "verification_plan": verificationPlanInput()},
+		"findings":          []any{},
 	}
 	implementationWithoutRevision := map[string]any{
 		"problem_class": "none", "completed_work_item_ids": []any{},
@@ -344,9 +345,10 @@ func TestSubmissionContractProjectsOnlyHostOwnedMembers(t *testing.T) {
 	})
 	t.Run("nested array member keeps its index", func(t *testing.T) {
 		missingVerification := map[string]any{
-			"problem_class": "none",
-			"baseline":      map[string]any{"work_items": []any{workItemWithoutVerificationSteps("work", []any{0})}, "verification_plan": verificationPlanInput()},
-			"findings":      []any{},
+			"user_confirmation": nil,
+			"problem_class":     "none",
+			"baseline":          map[string]any{"work_items": []any{workItemWithoutVerificationSteps("work", []any{0})}, "verification_plan": verificationPlanInput()},
+			"findings":          []any{},
 		}
 		raw, err := json.Marshal(missingVerification)
 		if err != nil {

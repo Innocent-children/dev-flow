@@ -8,6 +8,8 @@ Read the [common procedure](../node-payloads.md#common-submission-procedure) bef
 
 ## Inputs and prerequisites
 
+Show the developer your understanding of the goal, scope and acceptance criteria, including open questions. Reuse resolved answers; do not hide this phase as internal analysis. A separate approval at every planning node is unnecessary, but the complete plan must later be explicitly approved in TASKS.
+
 Use actual requirement discussion and resolved user answers. `baseline` is required, and
 `acceptance_criteria` must be nonempty. All scope/constraint/assumption members are string arrays.
 Requirements has only the ready transition. If a material question remains, ask it and stay here;

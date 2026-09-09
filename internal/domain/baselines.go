@@ -116,7 +116,32 @@ type WorkItem struct {
 	VerificationSteps []string `json:"verification_steps"`
 	Dependencies      []ID     `json:"dependencies"`
 }
+
+// PlanConfirmation binds the developer's verdict to the complete saved planning content.
+type PlanConfirmation struct {
+	Source             EvidenceSource `json:"source"`
+	Status             EvidenceStatus `json:"status"`
+	Summary            string         `json:"summary"`
+	RequirementsDigest Digest         `json:"requirements_digest"`
+	DesignDigest       Digest         `json:"design_digest"`
+	TaskPlanDigest     Digest         `json:"task_plan_digest"`
+	TaskPlanRevision   uint32         `json:"task_plan_revision"`
+}
+
+func (c PlanConfirmation) Validate() error {
+	if c.Source != EvidenceSourceUser || c.Status != EvidencePassed || requireNormalizedText(c.Summary, MaxEvidenceSummaryBytes, true) != nil || !c.RequirementsDigest.IsValid() || !c.DesignDigest.IsValid() || !c.TaskPlanDigest.IsValid() || c.TaskPlanRevision == 0 {
+		return ErrInvalidArgument
+	}
+	return nil
+}
+
+func (c PlanConfirmation) Matches(requirements *RequirementsBaseline, design *DesignBaseline, plan *TaskPlanBaseline) bool {
+	return c.Validate() == nil && requirements != nil && design != nil && plan != nil && c.RequirementsDigest == requirements.Digest && c.DesignDigest == design.Digest && c.TaskPlanDigest == plan.Digest && c.TaskPlanRevision == plan.Revision
+}
+
 type TaskPlanBaseline struct {
+	Confirmation     *PlanConfirmation   `json:"confirmation"`
+	ConfirmedAt      *time.Time          `json:"confirmed_at"`
 	Revision         uint32              `json:"revision"`
 	Digest           Digest              `json:"digest"`
 	DesignRevision   uint32              `json:"design_revision"`
@@ -127,6 +152,12 @@ type TaskPlanBaseline struct {
 }
 
 func (b TaskPlanBaseline) Validate() error {
+	if (b.Confirmation == nil) != (b.ConfirmedAt == nil) {
+		return ErrInvalidArgument
+	}
+	if b.Confirmation != nil && (b.Confirmation.Validate() != nil || b.Confirmation.TaskPlanDigest != b.Digest || b.Confirmation.TaskPlanRevision != b.Revision || validateUTC(*b.ConfirmedAt) != nil) {
+		return ErrInvalidArgument
+	}
 	if b.Revision == 0 || b.DesignRevision == 0 || !b.Digest.IsValid() || len(b.WorkItems) == 0 || len(b.WorkItems) > MaxWorkItemsPerTaskPlan || b.VerificationPlan.Validate() != nil || validateUTC(b.CreatedAt) != nil || validateArtifacts(b.ArtifactRefs) != nil {
 		return ErrInvalidArgument
 	}

@@ -28,6 +28,16 @@ const anchor = object({
     dirty_paths_truncated: { type: "boolean" },
   }), "Copy the complete repositories array from inspect, including all confirmed repositories."),
 });
+const assessment = object({
+ change_level: { enum: ["small", "standard", "large", "uncertain"] },
+ observed_repositories: array(text("Canonical assessed root.")),
+ candidate_components: array(text("Affected responsibility.")), candidate_paths: array(text("Candidate file.")),
+ public_contract_flags: array(text("Public contract impact.")), persistence_or_state_flags: array(text("State impact.")),
+ host_or_platform_flags: array(text("Host or platform impact.")), verification_shape: array(text("Planned check.")),
+ unknowns: array(text("Unresolved question.")), recommendation: { enum: ["direct", "dev_flow", "clarify"] },
+ reasons: array(text("Reason shown to the user.")), anchor,
+});
+const userChoice = object({source: {const:"user"}, mode: {const:"dev_flow"}, summary: text("Actual user choice after the assessment was displayed; reuse a still-valid answer.")});
 const hostResult = { description: "Complete original Host tool result, including its wrapper if present. Use null when the result was lost; never fabricate an ID." };
 const cleanup = object({ ...identity, source_repository_path: source, terminal: { const: true }, authorized: { const: true } });
 
@@ -35,13 +45,13 @@ const contracts = {
   inspect: {
     description: "Read source repositories and return the assessment anchor without writing Git or a receipt.",
     input_schema: object({ request: text("Exact current request; retain the same string for prepare."), repositories: { ...array(object({ key, repository_path: source }), "All proposed repositories."), minItems: 1, maxItems: 8 } }),
-    output_fields: { request_digest: "Request identity.", repositories: "Canonical roots, HEADs, status digests and bounded dirty paths. Pass this entire result as prepare.assessment_anchor." },
+    output_fields: { request_digest: "Request identity.", repositories: "Canonical roots, HEADs, status digests and bounded dirty paths. Pass this entire result as prepare.assessment.anchor." },
     next_step: "Complete assessment and obtain the user's execution and workspace choices before prepare.",
   },
   prepare: {
     description: "After user confirmation, save the launch material and receipt, resolve the selected local or remote base and freeze its commit and selected workspace contents.",
     input_schema: object({
-      request: text("Same exact request supplied to inspect."), assessment_anchor: anchor,
+      request: text("Same exact request supplied to inspect."), assessment, user_choice: userChoice,
       ...identity, repository_path: source,
       source_type: { enum: ["local", "remote"] }, carry_changes: { type: "boolean", description: "Explicit user choice; only true for local sources." },
       remote_name: { type: "string", description: "Confirmed remote, or empty for local." }, base_branch: text("Confirmed branch name on the selected source."),

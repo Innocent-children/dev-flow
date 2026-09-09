@@ -181,7 +181,7 @@ operations accept closed JSON objects:
 
 | Operation | Input fields and material handling |
 | --- | --- |
-| `prepare` | Requires `request`, `assessment_anchor`, `repository_key`, `repository_path`, `source_type`, `carry_changes`, `remote_name`, `base_branch`, `target_branch`, `surface`, `worktree_path`, and `handoff_file`; `launch_id` is optional. `handoff_file` is the normalized absolute path to a UTF-8 JSON draft written outside assessed repositories after the existing confirmation. Its `request` must match the assessed request. Complete material is saved before fetch and associated with the receipt through `handoff_digest`. |
+| `prepare` | Requires `request`, `assessment`, `user_choice`, `repository_key`, `repository_path`, `source_type`, `carry_changes`, `remote_name`, `base_branch`, `target_branch`, `surface`, `worktree_path`, and `handoff_file`; `launch_id` is optional. `handoff_file` is the normalized absolute path to a UTF-8 JSON draft written outside assessed repositories after the existing confirmation. Its `request` must match the assessed request. Complete material is saved before fetch and associated with the receipt through `handoff_digest`. |
 | `dispatch-start` | Accepts only `launch_id`, `repository_key`, and `project_id`. Saves complete `host_request`; the caller forwards it unchanged after claiming permission with `dispatch-call`. |
 | `cli-provision` | Accepts only `launch_id`, `repository_key`, `additional_worktree_paths`, and `source_repository_path`. Renders relaunch arguments from the same saved material; the caller uses them unchanged. |
 
@@ -355,7 +355,7 @@ terminal shell commands.
 | `dev_flow_get_next_action` | Observe/maybe mutate | Observe the workspace first; idempotently create a workspace blocker when needed, otherwise return the Action, `submission_tool`, and legal transitions. |
 | `dev_flow_submit_requirements` | Mutation | Submit the REQUIREMENTS node result. |
 | `dev_flow_submit_design` | Mutation | Submit the DESIGN node result. |
-| `dev_flow_submit_tasks` | Mutation | Submit the TASKS node result; its baseline includes the analyzed `verification_plan`. |
+| `dev_flow_submit_tasks` | Mutation | Use `tasks_plan_saved` to save the complete baseline including `verification_plan` in TASKS; `tasks_ready` confirms the saved plan before implementation. |
 | `dev_flow_submit_implementation` | Mutation | Submit the IMPLEMENT node result. |
 | `dev_flow_submit_test` | Mutation | Submit the TEST node result. `verification_budget_increased` records a concrete increase and stays in TEST; normal results send `budget_adjustment=null`; a third exact repetition pauses. |
 | `dev_flow_submit_comprehension` | Mutation | Submit the COMPREHENSION_REVIEW node result. |
@@ -390,6 +390,10 @@ missing required members return exact `required_member_missing` paths. The Host 
 same submission tool once only when Core proves zero writes and the value comes from facts already
 established by the current node work, and may change only the exact members listed in
 `recovery.allowed_paths`.
+
+`dev_flow_submit_tasks.node_result` always contains `problem_class`, `baseline`, `findings` and `user_confirmation`. Save or revise with `tasks_plan_saved`: complete baseline, problem_class=none, empty findings and user_confirmation=null; the returned Task stays in TASKS. Confirm with `tasks_ready`: baseline=null and `{source:"user",status:"passed",summary,requirements_digest,design_digest,task_plan_digest,task_plan_revision}`. Copy the four references from current `baselines.requirements.digest`, `baselines.design.digest`, `baselines.task_plan.digest` and `baselines.task_plan.revision`, only after the user explicitly approves that content. Core returns `task_plan.confirmation` and its own `confirmed_at`. Missing or mismatched approval cannot enter implementation; waiting stays in TASKS. Upstream-return edges retain their findings/reason rules with null baseline and confirmation.
+
+`host-launch prepare.assessment` contains `change_level` (small/standard/large/uncertain), observed_repositories, candidate_components, candidate_paths, public_contract_flags, persistence_or_state_flags, host_or_platform_flags, verification_shape, unknowns, recommendation, reasons and anchor. `user_choice` is `{source:"user",mode:"dev_flow",summary}`, recording the actual choice after showing the assessment. Missing inputs, unresolved unknowns, inconsistent roots, stale anchors and other mode choices are rejected before preparation. `receipt.admission` saves both complete objects; confirmed continuation reads the receipt without a repeated choice.
 
 A new Task's `new_task` has no `verification_budget`. TASKS
 `baseline.verification_plan` contains `checks[{name,rationale}]`, `initial_budget`,
@@ -479,7 +483,7 @@ summaries expose read-only `repository_group_id` and `worktree_path` fields, and
 Task detail exposes its own `repository_group_id`.
 
 The Task result's `verification` projection contains `plan`, `current_budget`, usage for the current
-Task Plan revision, and `adjustments`. Before TASKS completes, `plan` and `current_budget` are `null`.
+Task Plan revision, and `adjustments`. Before the first TASKS plan is saved, `plan` and `current_budget` are `null`.
 
 The `dev_flow_server_info({})` result includes:
 
@@ -518,7 +522,7 @@ dev-flow-codex host-launch scope --help
 
 All help queries return before reading stdin, resolving installation paths or executing Core/Git operations. Operation help is JSON containing `input_schema`, `output_fields` and `next_step`; field descriptions identify values supplied by user confirmation, a previous result or a Host query. Help creates no configuration, workspace or receipt.
 
-`inspect` returns the complete `assessment_anchor`. `prepare` accepts the unchanged request and anchor, confirmed workspace parameters and `handoff_file`; managed worktrees explicitly pass `worktree_path: null`. Reuse the first result's `receipt.launch_id` for every additional repository in the same Task. After managed dispatch and `bootstrap`, or CLI provisioning, run the read-only scope assembler:
+`inspect` returns the anchor for the complete `assessment.anchor`. `prepare` accepts the unchanged request, complete assessment, `user_choice`, confirmed workspace parameters and `handoff_file`; managed worktrees explicitly pass `worktree_path: null`. Reuse the first result's `receipt.launch_id` for every additional repository in the same Task. After managed dispatch and `bootstrap`, or CLI provisioning, run the read-only scope assembler:
 
 ```text
 dev-flow-codex host-launch scope

@@ -7,6 +7,17 @@ legal transitions, repository observation, blockers, recovery and terminal outco
 Implementation: `packages/deepseek/lib/index.mjs` — `activateDeepSeekIntegration`;
 `internal/workflow/standard_process.go` — `StandardProcess`.
 
+## Planning discussion and approval
+
+Show the requirements and acceptance criteria, then the design, tradeoffs and impact, then the complete
+work/file/verification plan. Discuss the user's feedback and reuse explicit answers that still cover
+the same content. Selecting Dev Flow and workspace parameters does not approve an unseen plan.
+Save the draft through `tasks_plan_saved`, stay in TASKS while waiting, and use `tasks_ready` only after
+an explicit user approval tied to the saved current content and plan revision. Core owns that guard
+and its persisted confirmation. A changed plan or expanded file scope needs a new saved plan and
+confirmation. Follow [TASKS](references/nodes/tasks.md) for complete inputs. Before any write mechanism,
+compare intended files with the approved scope; directory ranges require a visible purpose and reason.
+
 ## Route the request
 
 | Current request | Read and perform |

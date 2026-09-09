@@ -64,7 +64,15 @@ func applyDesignResult(task *domain.ProcessTask, transition domain.TransitionDef
 }
 
 func applyTaskPlanResult(task *domain.ProcessTask, transition domain.TransitionDefinition, envelope workflow.StandardPayload, result *workflow.TasksResult, now time.Time) error {
-	if transition.TransitionID != "tasks_ready" {
+	if transition.TransitionID == "tasks_ready" {
+		if value := result.UserConfirmation; value == nil || !value.Matches(task.Requirements, task.Design, task.TaskPlan) {
+			return domain.ErrTransitionNotAllowed
+		}
+		confirmation := *result.UserConfirmation
+		task.TaskPlan.Confirmation, task.TaskPlan.ConfirmedAt = &confirmation, &now
+		return nil
+	}
+	if transition.TransitionID != "tasks_plan_saved" {
 		if len(result.Findings) == 0 {
 			return domain.ErrTransitionNotAllowed
 		}

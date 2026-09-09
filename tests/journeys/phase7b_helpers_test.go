@@ -196,7 +196,7 @@ func initializeDedicatedJourneyWorktree(t *testing.T, worktreePath, taskBranch s
 func journeyWorkspaceOriginInput(t *testing.T, worktreePath string, receiptID domain.ID) application.WorkspaceOriginInput {
 	t.Helper()
 	return application.WorkspaceOriginInput{
-		Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main",
+		Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", CarryChanges: false, RemoteName: "origin", BaseBranch: "main",
 		BaseCommit: journeyGitOutput(t, worktreePath, "rev-parse", "refs/remotes/origin/main"),
 		TaskBranch: journeyGitOutput(t, worktreePath, "branch", "--show-current"), ProvisioningReceiptID: receiptID,
 	}

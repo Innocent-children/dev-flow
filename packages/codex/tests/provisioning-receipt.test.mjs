@@ -1,3 +1,4 @@
+import { receiptAdmissionFixture } from "./fixtures/task-handoff.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -5,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
-  createProvisioningReceipt,
+  createProvisioningReceipt as rawCreateProvisioningReceipt,
   provisioningReceiptPath,
   readProvisioningReceipt,
   updateProvisioningReceipt,
@@ -104,3 +105,5 @@ function fixtureReceipt() {
     createdAt: "2026-09-03T00:00:00.000Z",
   });
 }
+
+function createProvisioningReceipt(input) { return rawCreateProvisioningReceipt({...input, admission:receiptAdmissionFixture(input)}); }

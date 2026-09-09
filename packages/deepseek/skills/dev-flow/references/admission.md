@@ -26,7 +26,7 @@ or launch receipt. A direct choice exits Dev Flow without its state or provision
 
 Retain the exact request and observed root/HEAD/status context; reassess a known change before
 confirmation. The coordinator independently observes the source during provisioning; it accepts no
-assessment_anchor field and does not verify a Host assessment object. Status text alone also cannot
+assessment or user_choice fields and does not verify a Host assessment object. Status text alone also cannot
 prove that an already dirty file's contents remained unchanged.
 
 Implementation: `packages/deepseek/lib/workspace-coordinator.mjs` — `observeSourceRepository`, `validateRepositoryRequests`.

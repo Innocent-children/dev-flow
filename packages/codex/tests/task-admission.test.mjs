@@ -66,7 +66,7 @@ test("assessment contract permits only genuinely small direct work", async () =>
   };
   const small = {
     change_level: "small",
-    observed_repositories: ["primary"],
+    observed_repositories: [anchor.repositories[0].canonical_root],
     candidate_components: ["internal formatter"],
     candidate_paths: ["src/format.mjs"],
     public_contract_flags: [],

@@ -42,7 +42,10 @@ func validateActionResultAgainstTask(task domain.ProcessTask, transition domain.
 			}
 		}
 	case *workflow.TasksResult:
-		if transition.TransitionID == "tasks_ready" {
+		if transition.TransitionID == "tasks_ready" && (value.UserConfirmation == nil || !value.UserConfirmation.Matches(task.Requirements, task.Design, task.TaskPlan)) {
+			guard("user_confirmation", domain.GuardUserConfirmationRequired)
+		}
+		if transition.TransitionID == "tasks_plan_saved" {
 			if value.Baseline == nil {
 				add("baseline", domain.RuleRequiredMemberMissing)
 			} else {

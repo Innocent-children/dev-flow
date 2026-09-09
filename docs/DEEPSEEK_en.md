@@ -36,6 +36,10 @@ Default Task data is `$HOME/.dev-flow/data` on macOS and
 `%LOCALAPPDATA%\dev-flow\data` on Windows. An explicit `DEV_FLOW_DATA_DIR` must already be a canonical,
 non-link directory.
 
+## Approve the plan before implementation
+
+Review the requirements and acceptance criteria, design and impact, then discuss the complete work, expected-file and verification plan. Implementation begins after explicit approval; selecting Dev Flow and workspace parameters does not approve the plan. Waiting remains in task planning. Revisions or expanded file scope require approval of the revised plan; resuming the same draft needs no resave. Prefer exact files and explain directory ranges.
+
 ## Assess, confirm, and relaunch
 
 Repository discovery follows current user instructions and applicable `AGENTS.md`. When a project

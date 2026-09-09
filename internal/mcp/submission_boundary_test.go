@@ -63,7 +63,8 @@ func deliverySubmissionNodeResult() map[string]any {
 func TestSubmissionBoundaryAcceptsOmittedSystemStateRevisions(t *testing.T) {
 	design := designNodeResultWithoutRevision()
 	tasks := map[string]any{
-		"problem_class": "none",
+		"user_confirmation": nil,
+		"problem_class":     "none",
 		"baseline": map[string]any{"work_items": []any{map[string]any{
 			"work_item_id": "work", "summary": "Implement", "expected_paths": []any{"internal/file.go"},
 			"acceptance_indexes": []any{0}, "verification_steps": []any{"Run the targeted check"}, "dependencies": []any{},

@@ -253,6 +253,12 @@ A null `pending_action_id` means the current detail read found no unapplied oper
 
 ## Verification plan, budget increases, and review scope
 
+`standard-development` retains its 11 nodes. The Host presents and discusses REQUIREMENTS and DESIGN; their existing forward and return edges remain. TASKS has four outgoing edges: `tasks_plan_saved` → TASKS (complete baseline, empty findings, null confirmation), `tasks_ready` → IMPLEMENT (null baseline, current explicit approval), `tasks_require_design` → DESIGN and `tasks_require_requirements` → REQUIREMENTS (null baseline/confirmation, nonempty findings and a specific reason). Waiting creates no blocker.
+
+`task_plan` stores `confirmation` and `confirmed_at`. Confirmation contains source=user, status=passed, summary, requirements_digest, design_digest, task_plan_digest and task_plan_revision, all matching the saved current content. Core supplies the timestamp. Saving a draft includes expected_paths, work items, acceptance mappings and verification_plan and increments the planning round; confirmation references that draft without replacing it. Resaving, upstream changes or expand_scope make old approval unusable. Execution nodes require valid confirmation; resuming the same draft requires no resave. The SQLite Schema and snapshot follow the current layout without historical readers.
+
+Codex `prepare` accepts the complete `assessment` (including anchor) and `user_choice`, validating the assessment, root set, unknowns and explicit choice before receipt/Git preparation. receipt.admission retains both objects and repeated prepare must match them; status/bootstrap/scope continue the saved receipt. The Host owns actual presentation and user replies; validation does not prove that natural-language requests always trigger the Skill.
+
 The final verification budget is not part of creation-time `TaskIntent`. TASKS runs after
 Requirements, Design, work decomposition, impact discovery, and existing-test inspection, so
 `TaskPlanBaseline.verification_plan` retains:
@@ -264,7 +270,7 @@ full_suite_expected
 test_code_changes_expected
 ```
 
-TASKS also has the required `tasks.plan_verification` method step. An incomplete plan cannot enter
+TASKS also has the required `tasks.plan_verification` method step. An incomplete or unconfirmed plan cannot enter
 IMPLEMENT.
 
 Evidence binds `task_plan_revision`. Automatic-command consumption counts only the current Task Plan

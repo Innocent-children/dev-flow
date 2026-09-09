@@ -68,6 +68,8 @@ Die Arbeit läuft anschließend in einem eigenen Git-Worktree, einem separaten V
 Aufgabe. Codex öffnet ihn, wenn der Host dies unterstützt; DeepSeek zeigt einen Befehl zum Neustart
 im neuen Verzeichnis.
 
+Besprich vor der Implementierung die Anforderungen, den Entwurf, die Arbeitsschritte, die vorgesehenen Dateien und den Prüfplan. Die Entwicklung beginnt erst nach deiner ausdrücklichen Zustimmung zum gesamten Plan. Änderungen am Plan oder ein erweiterter Dateiumfang erfordern eine erneute Zustimmung. Die Wahl von Dev Flow oder eines Worktrees ersetzt diese Zustimmung nicht.
+
 ### 3. Fortsetzen und Fortschritt ansehen
 
 Kehre nach einem Sitzungsneustart zum ursprünglichen Worktree zurück und bitte darum, die Aufgabe

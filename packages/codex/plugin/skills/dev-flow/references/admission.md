@@ -76,7 +76,7 @@ Output example (complete helper result):
 }
 ```
 
-Keep this entire object as `assessment.anchor` and later `prepare.assessment_anchor`. The helper
+Keep this entire object as `assessment.anchor` and later `prepare.assessment.anchor`. The helper
 hashes HEAD/status observations, not working-file contents. Equal status digests do not prove an
 already dirty file is unchanged. Report this limit if source content changes while awaiting a choice;
 reassess known changed requirements/code rather than claiming that the anchor proves content identity.
@@ -138,6 +138,8 @@ a changed anchor requires reassessment and a current choice.
 Implementation: `packages/codex/lib/task-launch.mjs` — `validatePrepareInput, prepareTaskLaunch`.
 Implementation: `packages/codex/lib/worktree-lifecycle.mjs` — `preflightWorktreeSelection, resolveFrozenBase`.
 
+`prepare` requires the complete `assessment` and `user_choice:{source:"user",mode:"dev_flow",summary}`. It validates the assessment, exact assessed root set, resolved unknowns, current anchor and explicit choice before saving a receipt or preparing Git. The receipt retains both under `admission`; a conflicting resubmission is rejected. A valid small-change recommendation may still be followed by the user choosing Dev Flow. Display the assessment before receiving the choice; validation cannot authenticate the conversation itself.
+
 After the Dev Flow choice, obtain each missing selection: repository key; `source_type` local/remote;
 `base_branch`; `remote_name` for remote; `carry_changes` for local; new `target_branch`. Show the
 source checkout/dirty paths and the complete selection. Example: “Use local main, create
@@ -163,19 +165,6 @@ on the first prepare. For additional repositories reuse its returned launch ID a
 ```json
 {
   "request": "Return the requested field from the endpoint.",
-  "assessment_anchor": {
-    "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
-    "repositories": [
-      {
-        "repository_key": "primary",
-        "canonical_root": "/work/project",
-        "head": "1111111111111111111111111111111111111111",
-        "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
-        "dirty_paths": [],
-        "dirty_paths_truncated": false
-      }
-    ]
-  },
   "repository_key": "primary",
   "repository_path": "/work/project",
   "source_type": "local",
@@ -185,7 +174,50 @@ on the first prepare. For additional repositories reuse its returned launch ID a
   "target_branch": "codex/endpoint-field",
   "surface": "managed_worktree",
   "worktree_path": null,
-  "handoff_file": "/private/tmp/dev-flow-handoff.json"
+  "handoff_file": "/private/tmp/dev-flow-handoff.json",
+  "assessment": {
+    "change_level": "standard",
+    "observed_repositories": [
+      "/work/project"
+    ],
+    "candidate_components": [
+      "Endpoint response"
+    ],
+    "candidate_paths": [
+      "src/endpoint.js"
+    ],
+    "public_contract_flags": [
+      "Response field changes"
+    ],
+    "persistence_or_state_flags": [],
+    "host_or_platform_flags": [],
+    "verification_shape": [
+      "Endpoint response check"
+    ],
+    "unknowns": [],
+    "recommendation": "dev_flow",
+    "reasons": [
+      "The response is a public contract."
+    ],
+    "anchor": {
+      "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
+      "repositories": [
+        {
+          "repository_key": "primary",
+          "canonical_root": "/work/project",
+          "head": "1111111111111111111111111111111111111111",
+          "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "dirty_paths": [],
+          "dirty_paths_truncated": false
+        }
+      ]
+    }
+  },
+  "user_choice": {
+    "source": "user",
+    "mode": "dev_flow",
+    "summary": "The user selected Dev Flow after reading the assessment."
+  }
 }
 ```
 
@@ -195,19 +227,6 @@ For a remote CLI launch, the complete input is:
 ```json
 {
   "request": "Return the requested field from the endpoint.",
-  "assessment_anchor": {
-    "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
-    "repositories": [
-      {
-        "repository_key": "primary",
-        "canonical_root": "/work/project",
-        "head": "1111111111111111111111111111111111111111",
-        "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
-        "dirty_paths": [],
-        "dirty_paths_truncated": false
-      }
-    ]
-  },
   "repository_key": "primary",
   "repository_path": "/work/project",
   "source_type": "remote",
@@ -217,7 +236,50 @@ For a remote CLI launch, the complete input is:
   "target_branch": "codex/endpoint-field",
   "surface": "cli_worktree",
   "worktree_path": "/work/tasks/endpoint-field",
-  "handoff_file": "/private/tmp/dev-flow-handoff.json"
+  "handoff_file": "/private/tmp/dev-flow-handoff.json",
+  "assessment": {
+    "change_level": "standard",
+    "observed_repositories": [
+      "/work/project"
+    ],
+    "candidate_components": [
+      "Endpoint response"
+    ],
+    "candidate_paths": [
+      "src/endpoint.js"
+    ],
+    "public_contract_flags": [
+      "Response field changes"
+    ],
+    "persistence_or_state_flags": [],
+    "host_or_platform_flags": [],
+    "verification_shape": [
+      "Endpoint response check"
+    ],
+    "unknowns": [],
+    "recommendation": "dev_flow",
+    "reasons": [
+      "The response is a public contract."
+    ],
+    "anchor": {
+      "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
+      "repositories": [
+        {
+          "repository_key": "primary",
+          "canonical_root": "/work/project",
+          "head": "1111111111111111111111111111111111111111",
+          "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "dirty_paths": [],
+          "dirty_paths_truncated": false
+        }
+      ]
+    }
+  },
+  "user_choice": {
+    "source": "user",
+    "mode": "dev_flow",
+    "summary": "The user selected Dev Flow after reading the assessment."
+  }
 }
 ```
 

@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("44f013fc56810340f5d2f12b56ad041478ba01a5e16757e945f5908868744625"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("0ba692471aab33a3bfed9f96d8db7de9752422927d480befb9ef002c5ec439ec"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -27,7 +27,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 			t.Fatalf("node %d=%s", i, definition.Nodes[i].NodeID)
 		}
 	}
-	if len(definition.Transitions) != 30 {
+	if len(definition.Transitions) != 31 {
 		t.Fatalf("transitions=%d", len(definition.Transitions))
 	}
 	for _, node := range definition.Nodes {

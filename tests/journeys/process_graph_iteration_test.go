@@ -320,7 +320,7 @@ func TestProcessGraphReworkRequirementsAndDesign(t *testing.T) {
 		}
 		j.assertRejected(domain.ErrInvalidArgument, "design_ready", "", designJourneyResult(1, "Stale design"))
 		j.apply("design_ready", "", designJourneyResult(2, "Rebound design"))
-		j.assertRejected(domain.ErrInvalidArgument, "tasks_ready", "", tasksJourneyResult(1, j.allowManualHandoff))
+		j.assertRejected(domain.ErrInvalidArgument, "tasks_plan_saved", "", tasksJourneyResult(1, j.allowManualHandoff))
 		j.apply("tasks_ready", "", tasksJourneyResult(2, j.allowManualHandoff))
 	})
 
@@ -337,7 +337,7 @@ func TestProcessGraphReworkRequirementsAndDesign(t *testing.T) {
 		if j.task.Design.Revision != 2 || !journeyHasHistory(j.task, domain.BaselineDesign, 1) {
 			t.Fatal("design revision/history did not advance")
 		}
-		j.assertRejected(domain.ErrInvalidArgument, "tasks_ready", "", tasksJourneyResult(1, j.allowManualHandoff))
+		j.assertRejected(domain.ErrInvalidArgument, "tasks_plan_saved", "", tasksJourneyResult(1, j.allowManualHandoff))
 		j.apply("tasks_ready", "", tasksJourneyResult(2, j.allowManualHandoff))
 	})
 }
@@ -442,6 +442,13 @@ func (j *iterationJourney) writeRepository(content string) {
 
 func (j *iterationJourney) apply(transition domain.TransitionID, reason string, node any) {
 	j.t.Helper()
+	if transition == "tasks_ready" {
+		if fields, ok := node.(map[string]any); ok && fields["baseline"] != nil {
+			j.apply("tasks_plan_saved", reason, node)
+			node = map[string]any{"baseline": nil, "findings": []string{}, "user_confirmation": domain.PlanConfirmation{Source: domain.EvidenceSourceUser, Status: domain.EvidencePassed, Summary: "Fixture developer approved the displayed complete plan.", RequirementsDigest: j.task.Requirements.Digest, DesignDigest: j.task.Design.Digest, TaskPlanDigest: j.task.TaskPlan.Digest, TaskPlanRevision: j.task.TaskPlan.Revision}}
+		}
+	}
+
 	before := j.state()
 	requestID := domain.ID(fmt.Sprintf("request-%02d-%s", j.task.Revision, transition))
 	result, err := j.service.ApplyAction(context.Background(), journeyApplyRequest(j.task, requestID, journeyPayload(j.t, j.task, transition, reason, node)))
@@ -599,6 +606,11 @@ func journeyPayload(t *testing.T, task domain.ProcessTask, transition domain.Tra
 	t.Helper()
 	if fields, ok := node.(map[string]any); ok {
 		fields["problem_class"] = journeyProblemClass(transition)
+		if task.CurrentNode == domain.NodeTasks {
+			if _, exists := fields["user_confirmation"]; !exists {
+				fields["user_confirmation"] = nil
+			}
+		}
 	}
 	methodEvidence := []map[string]any{}
 	if task.CurrentAction != nil {
@@ -616,7 +628,7 @@ func journeyProblemClass(transition domain.TransitionID) string {
 	classes := map[domain.TransitionID]string{
 		"requirements_ready": "none",
 		"design_ready":       "none", "design_requires_requirements": "requirement_gap",
-		"tasks_ready": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
+		"tasks_ready": "none", "tasks_plan_saved": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
 		"implementation_ready_for_test": "none", "implementation_requires_design": "design_gap", "implementation_requires_requirements": "requirement_gap", "implementation_needs_refactor": "code_complexity",
 		"tests_passed": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
 		"comprehension_passed": "none", "implementation_defect": "implementation_defect", "code_too_complex": "code_complexity", "design_too_complex": "design_complexity", "evidence_insufficient": "verification_gap", "requirement_unclear": "requirement_gap",

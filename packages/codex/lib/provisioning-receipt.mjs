@@ -1,3 +1,4 @@
+import { validateLaunchAdmission } from "./task-admission.mjs";
 import { randomBytes } from "node:crypto";
 import { chmod, lstat, mkdir, open, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -52,6 +53,7 @@ const phaseTransitions = Object.freeze({
 
 export function createProvisioningReceipt({
   launchId,
+  admission,
   requestDigest,
   handoffDigest,
   sourceRepositoryIdentity,
@@ -67,6 +69,7 @@ export function createProvisioningReceipt({
 } = {}) {
   return validateProvisioningReceipt({
     launch_id: launchId,
+    admission,
     host: "codex",
     request_digest: requestDigest,
     handoff_digest: handoffDigest,
@@ -101,6 +104,7 @@ export function createProvisioningReceipt({
 export function validateProvisioningReceipt(value) {
   assertExactKeys(value, [
     "launch_id",
+    "admission",
     "host",
     "request_digest",
     "handoff_digest",
@@ -114,6 +118,11 @@ export function validateProvisioningReceipt(value) {
     "operation_status",
     "created_at",
   ], "provisioning receipt");
+  assertExactKeys(value.admission, ["assessment", "user_choice"], "receipt admission");
+  validateLaunchAdmission(value.admission.assessment, value.admission.user_choice);
+  if (value.admission.assessment.anchor.request_digest !== value.request_digest || !value.admission.assessment.anchor.repositories.some((entry) => entry.repository_key === value.repository_key)) {
+    throw new Error("receipt admission does not match the request and repository");
+  }
   assertLaunchID(value.launch_id);
   if (value.host !== "codex") throw new Error("provisioning receipt host must equal codex");
   if (!digestPattern.test(value.request_digest)) throw new Error("provisioning receipt request_digest is invalid");

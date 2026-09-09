@@ -92,6 +92,13 @@ export function validateSuitabilityAssessment(value) {
   }
   if (value.reasons.length === 0) throw new Error("assessment reasons must not be empty");
   validateAdmissionAnchor(value.anchor);
+  const roots = value.anchor.repositories.map((entry) => entry.canonical_root).sort();
+  if (stableJSON([...value.observed_repositories].sort()) !== stableJSON(roots)) {
+    throw new Error("assessment observed_repositories must match the complete anchor roots");
+  }
+  if (value.change_level !== "uncertain" && [value.candidate_components, value.candidate_paths, value.verification_shape].some((items) => items.length === 0)) {
+    throw new Error("resolved assessment requires components, candidate paths and verification");
+  }
   if (value.change_level === "small") {
     const flags = [
       ...value.public_contract_flags,
@@ -242,4 +249,17 @@ function stableJSON(value) {
     return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJSON(value[key])}`).join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+// The launch decision records the user's choice after the complete assessment was shown.
+export function validateLaunchAdmission(assessment, choice) {
+  const checked = validateSuitabilityAssessment(assessment);
+  assertExactKeys(choice, ["source", "mode", "summary"], "launch user choice");
+  if (choice.source !== "user" || choice.mode !== "dev_flow" || typeof choice.summary !== "string" || choice.summary.trim() === "") {
+    throw new Error("launch requires an explicit user dev_flow choice");
+  }
+  if (checked.change_level === "uncertain" || checked.recommendation === "clarify" || checked.unknowns.length !== 0) {
+    throw new Error("resolve assessment unknowns before provisioning");
+  }
+  return { assessment: checked, user_choice: structuredClone(choice) };
 }

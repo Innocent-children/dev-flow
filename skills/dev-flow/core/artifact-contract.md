@@ -129,6 +129,10 @@ those paths as other_process does not bypass the content guard; perform any appr
 write before final verification. A linear commit preserving the same content is distinct from a
 content change; the existing workspace guard handles both.
 
+## Planning files and confirmation
+
+Finalize requirements, design and plan documents before saving the TASKS draft. Show exact expected files and the reasons for directory ranges. After tasks_plan_saved, retain the complete saved plan and its returned content identifiers. Any revision requires another plan save and current user confirmation; submitting a verdict is not an opportunity to edit the plan being approved.
+
 ## Confirmed carried content
 
 

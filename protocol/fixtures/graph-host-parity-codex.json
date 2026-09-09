@@ -4,7 +4,7 @@
   "origin_host": "codex",
   "request_id": "fixture-codex-host-parity",
   "process_id": "standard-development",
-  "definition_digest": "44f013fc56810340f5d2f12b56ad041478ba01a5e16757e945f5908868744625",
+  "definition_digest": "0ba692471aab33a3bfed9f96d8db7de9752422927d480befb9ef002c5ec439ec",
   "current_node": "REQUIREMENTS",
   "action_kind": "COMPLETE_REQUIREMENTS",
   "submission_tool": "dev_flow_submit_requirements",

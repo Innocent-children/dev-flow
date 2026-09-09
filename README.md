@@ -66,6 +66,8 @@ to carry existing local changes.
 Work then proceeds in a dedicated Git worktree, a separate directory for the task. Codex opens it
 when the Host supports that operation; DeepSeek provides a command to restart from the new directory.
 
+Before implementation, review and discuss the requirements, design, work items, expected files and verification plan. Development starts after you explicitly approve the complete plan. Revisions or expanded file scope require approval again; choosing Dev Flow or a worktree does not replace plan approval.
+
 ### 3. Resume and view progress
 
 After a session restart, return to the task's original worktree and ask to continue it. Dev Flow

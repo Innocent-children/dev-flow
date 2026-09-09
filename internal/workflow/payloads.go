@@ -68,9 +68,10 @@ type DesignBaselineInput struct {
 	Risks                   []string `json:"risks"`
 }
 type TasksResult struct {
-	ProblemClass ProblemClass        `json:"problem_class"`
-	Baseline     *TasksBaselineInput `json:"baseline"`
-	Findings     []string            `json:"findings"`
+	UserConfirmation *domain.PlanConfirmation `json:"user_confirmation"`
+	ProblemClass     ProblemClass             `json:"problem_class"`
+	Baseline         *TasksBaselineInput      `json:"baseline"`
+	Findings         []string                 `json:"findings"`
 }
 type TasksBaselineInput struct {
 	DesignRevision   uint32                  `json:"design_revision"`
@@ -524,7 +525,13 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			return domain.InvalidArgumentViolations(violations...)
 		}
 	case *TasksResult:
-		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_ready") != (value.Baseline != nil)) {
+		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_plan_saved") != (value.Baseline != nil)) {
+			return domain.ErrInvalidArgument
+		}
+		if envelope.TransitionID != "tasks_ready" && value.UserConfirmation != nil {
+			return domain.ErrInvalidArgument
+		}
+		if value.UserConfirmation != nil && value.UserConfirmation.Validate() != nil {
 			return domain.ErrInvalidArgument
 		}
 		violations := stringListViolations(map[string][]string{"findings": value.Findings})
@@ -781,6 +788,7 @@ var problemClassByTransition = map[domain.TransitionID]ProblemClass{
 	"design_ready":                         ProblemNone,
 	"design_requires_requirements":         ProblemRequirementGap,
 	"tasks_ready":                          ProblemNone,
+	"tasks_plan_saved":                     ProblemNone,
 	"tasks_require_design":                 ProblemDesignGap,
 	"tasks_require_requirements":           ProblemRequirementGap,
 	"implementation_ready_for_test":        ProblemNone,

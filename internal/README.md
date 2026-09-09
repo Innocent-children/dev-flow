@@ -10,7 +10,7 @@
 | Package | 职责 |
 | --- | --- |
 | `domain` | `ProcessTask`、工作树来源与绑定、需求/设计/任务计划基线、操作和验证记录、阻塞、结果及数量限制 |
-| `workflow` | `standard-development` 的节点规则、30 条转换、TASKS 验证计划、提交字段和旧结果失效规则 |
+| `workflow` | `standard-development` 的节点规则、31 条转换、TASKS 计划与用户确认、提交字段和旧结果失效规则 |
 | `application` | 创建、恢复、读取、提交、迁移、取消和放弃任务，并协调各组件 |
 | `store` | SQLite 初始化、快照校验、CAS 并发更新、事件、工作树占用和只读预检查 |
 | `repository` | 只读查询专属工作树的身份、历史、内容和任务改动，并限制查询范围 |

@@ -1,3 +1,4 @@
+import { admissionFixture, receiptAdmissionFixture } from "./fixtures/task-handoff.mjs";
 import assert from "node:assert/strict";
 import { execFile as execFileCallback, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -96,7 +97,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
     launch_id: "retention-launch",
     request: taskRequest,
     handoff_file: await writeHandoffFixture(root, taskRequest),
-    assessment_anchor: assessmentAnchor,
+    ...admissionFixture(assessmentAnchor),
     repository_key: "primary",
     repository_path: targetRepository,
     source_type: "remote", carry_changes: false, remote_name: "origin",

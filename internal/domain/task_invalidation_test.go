@@ -191,6 +191,8 @@ func invalidationMatrixTask(t *testing.T) ProcessTask {
 	task.Requirements = &RequirementsBaseline{Revision: 2, Digest: digest, Goal: "Current goal", AcceptanceCriteria: []string{"accepted"}, CreatedAt: now}
 	task.Design = &DesignBaseline{Revision: 1, Digest: digest, RequirementsRevision: 2, Approach: "Direct design", Decisions: []string{"Reuse the boundary"}, CreatedAt: now}
 	task.TaskPlan = &TaskPlanBaseline{Revision: 1, Digest: digest, DesignRevision: 1, WorkItems: []WorkItem{{WorkItemID: "work", Summary: "Implement work", ExpectedPaths: []string{"internal/work.go"}, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run targeted tests"}}}, VerificationPlan: validDomainVerificationPlan(), CreatedAt: now}
+	task.TaskPlan.Confirmation = &PlanConfirmation{Source: EvidenceSourceUser, Status: EvidencePassed, Summary: "Fixture user approved the complete plan.", RequirementsDigest: task.Requirements.Digest, DesignDigest: task.Design.Digest, TaskPlanDigest: task.TaskPlan.Digest, TaskPlanRevision: task.TaskPlan.Revision}
+	task.TaskPlan.ConfirmedAt = &now
 	task.Implementation = &ImplementationRecord{Revision: 1, TaskPlanRevision: 1, ContentDigest: digest, CompletedWorkItemIDs: []ID{"work"}, Summary: "Implemented work", CreatedAt: now}
 	automated := EvidenceSummary{EvidenceID: "automated", TaskPlanRevision: 1, Source: EvidenceSourceAutomated, Name: "targeted", Status: EvidencePassed, Summary: "Targeted tests passed", Digest: digest, CommandCount: 1, RecordedAt: now}
 	user := EvidenceSummary{EvidenceID: "user", TaskPlanRevision: 1, Source: EvidenceSourceUser, Name: "confirmation", Status: EvidencePassed, Summary: "User confirmed understanding", Digest: digest, RecordedAt: now}

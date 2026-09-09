@@ -39,7 +39,7 @@ func TestControlCenterProjectionCP1(t *testing.T) {
 				transition(3, "design_ready", domain.NodeDesign, domain.NodeTasks)},
 			wantSafe: true,
 			assertions: func(t *testing.T, graph ControlCenterGraph) {
-				if len(graph.Nodes) != len(definition.Nodes) || len(graph.Transitions) != len(definition.Transitions) || len(graph.CurrentLegalTransitionIDs) != 3 {
+				if len(graph.Nodes) != len(definition.Nodes) || len(graph.Transitions) != len(definition.Transitions) || len(graph.CurrentLegalTransitionIDs) != 4 {
 					t.Fatalf("incomplete projection: %#v", graph)
 				}
 			},

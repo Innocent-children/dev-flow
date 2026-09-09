@@ -110,7 +110,7 @@ that the user accepted the referenced suggestion.
 Assemble the material during read-only assessment. After the existing provisioning confirmation,
 write the JSON draft outside all assessed repositories, using private file permissions. Supply its
 normalized absolute path as the required `handoff_file` member of `host-launch prepare`, beside the
-existing `request`, `assessment_anchor`, repository selection, and worktree fields. Using a file
+existing `request`, `assessment`, `user_choice`, repository selection, and worktree fields. Using a file
 keeps long discussions outside the command's 1 MiB stdin envelope.
 
 Before fetch, `prepare` saves the normalized material and its complete Markdown rendering in the

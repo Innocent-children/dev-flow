@@ -52,8 +52,11 @@ func ActionPayloadSchemas() []ActionPayloadSchema {
 		"checks": map[string]any{"type": "array", "minItems": 1, "maxItems": domain.MaxBoundedStringListItems, "items": verificationCheck}, "initial_budget": verificationBudget, "full_suite_expected": map[string]any{"type": "boolean"}, "test_code_changes_expected": map[string]any{"type": "boolean"},
 	})
 	tasksBaseline := schemaObject([]string{"design_revision", "work_items", "verification_plan"}, map[string]any{"design_revision": map[string]any{"type": "integer", "minimum": 1}, "work_items": map[string]any{"type": "array", "maxItems": 64, "items": workItem}, "verification_plan": verificationPlan})
-	tasks := standardPayloadSchema(schemaObject([]string{"problem_class", "baseline", "findings"}, map[string]any{
-		"problem_class": schemaEnum("none", "design_gap", "requirement_gap"), "baseline": nullableSchema(tasksBaseline), "findings": schemaList(),
+	planConfirmation := schemaObject([]string{"source", "status", "summary", "requirements_digest", "design_digest", "task_plan_digest", "task_plan_revision"}, map[string]any{
+		"source": map[string]any{"const": "user"}, "status": map[string]any{"const": "passed"}, "summary": schemaString(), "requirements_digest": schemaDigest(), "design_digest": schemaDigest(), "task_plan_digest": schemaDigest(), "task_plan_revision": map[string]any{"type": "integer", "minimum": 1},
+	})
+	tasks := standardPayloadSchema(schemaObject([]string{"problem_class", "baseline", "findings", "user_confirmation"}, map[string]any{
+		"problem_class": schemaEnum("none", "design_gap", "requirement_gap"), "baseline": nullableSchema(tasksBaseline), "findings": schemaList(), "user_confirmation": nullableSchema(planConfirmation),
 	}))
 	implementation := standardPayloadSchema(schemaObject([]string{"problem_class", "task_plan_revision", "completed_work_item_ids", "deviations", "findings"}, map[string]any{
 		"problem_class": schemaEnum("none", "design_gap", "requirement_gap", "code_complexity"), "task_plan_revision": map[string]any{"type": "integer", "minimum": 1}, "completed_work_item_ids": map[string]any{"type": "array", "items": schemaID()}, "deviations": schemaList(), "findings": schemaList(),

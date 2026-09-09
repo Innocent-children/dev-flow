@@ -75,7 +75,7 @@ func TestSubmitTasksFillsDesignRevisionFromCurrentTask(t *testing.T) {
 	task := openPhase5Task(t, service)
 	task = applyPhase5(t, service, task, "requirements_ready", "", requirementsNodeResult("Goal", []string{"criterion"}))
 	task = applyPhase5(t, service, task, "design_ready", "", designNodeResult(1, "Direct design"))
-	next, err := submitNodeResult(t, service, task, "submit-tasks-no-revision", "tasks_ready", tasksResultWithoutRevision([]map[string]any{workItem("work-a", []uint32{0}, nil)}))
+	next, err := submitNodeResult(t, service, task, "submit-tasks-no-revision", "tasks_plan_saved", tasksResultWithoutRevision([]map[string]any{workItem("work-a", []uint32{0}, nil)}))
 	if err != nil {
 		t.Fatalf("the Tasks submission without design_revision was refused: %v", err)
 	}

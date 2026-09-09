@@ -26,11 +26,11 @@ type finalLocalPayloadEntry struct {
 func TestFinalLocalJourneyPayloadMatrixUsesCurrentGraphContract(t *testing.T) {
 	t.Parallel()
 	matrix := readFinalLocalPayloadMatrix(t)
-	if matrix.FixtureKind != "feature_008_final_local_payload_matrix" || len(matrix.Entries) != 10 {
+	if matrix.FixtureKind != "feature_008_final_local_payload_matrix" || len(matrix.Entries) != 11 {
 		t.Fatalf("unexpected final-local payload matrix identity: %q/%d", matrix.FixtureKind, len(matrix.Entries))
 	}
 	expected := []string{
-		"requirements_ready", "design_ready", "tasks_ready", "implementation_ready_for_test",
+		"requirements_ready", "design_ready", "tasks_plan_saved", "tasks_ready", "implementation_ready_for_test",
 		"tests_passed_initial", "code_too_complex", "refactor_ready_for_test",
 		"tests_passed_after_refactor", "comprehension_passed", "delivery_complete",
 	}

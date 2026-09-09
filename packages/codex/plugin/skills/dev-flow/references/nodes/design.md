@@ -10,6 +10,8 @@ Read the [common procedure](../node-payloads.md#common-submission-procedure) bef
 
 ## Inputs and prerequisites
 
+Show the proposed approach, affected components, decisions, alternatives and risks to the developer and discuss requested changes. This presentation is part of the planning work, not a silent internal step. The final TASKS confirmation covers this exact design together with requirements and the complete work/file/verification plan.
+
 Read current requirements and the actual affected code. A ready result supplies the complete
 baseline; a requirement return supplies `baseline:null` and findings. `complexity_justification`
 is a string array. Core fills `requirements_revision`; the Host omits it.

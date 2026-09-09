@@ -64,6 +64,8 @@ func TestProcessTaskWorkspaceEvidenceUsesContentDigest(t *testing.T) {
 	task.Requirements = &RequirementsBaseline{Revision: 1, Digest: matrixDigest('1'), Goal: "Goal", AcceptanceCriteria: []string{"Accepted"}, CreatedAt: now}
 	task.Design = &DesignBaseline{Revision: 1, Digest: matrixDigest('2'), RequirementsRevision: 1, Approach: "Direct", Decisions: []string{"Direct"}, CreatedAt: now}
 	task.TaskPlan = &TaskPlanBaseline{Revision: 1, Digest: matrixDigest('3'), DesignRevision: 1, WorkItems: []WorkItem{{WorkItemID: "work", Summary: "Work", ExpectedPaths: []string{"src/main.go"}, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Test"}}}, VerificationPlan: validDomainVerificationPlan(), CreatedAt: now}
+	task.TaskPlan.Confirmation = &PlanConfirmation{Source: EvidenceSourceUser, Status: EvidencePassed, Summary: "Fixture user approved the complete plan.", RequirementsDigest: task.Requirements.Digest, DesignDigest: task.Design.Digest, TaskPlanDigest: task.TaskPlan.Digest, TaskPlanRevision: task.TaskPlan.Revision}
+	task.TaskPlan.ConfirmedAt = &now
 	task.Implementation = &ImplementationRecord{Revision: 1, TaskPlanRevision: 1, ContentDigest: task.Repository.ContentDigest, CompletedWorkItemIDs: []ID{"work"}, ActionChangedPaths: []string{"src/main.go"}, Summary: "Implemented.", CreatedAt: now}
 	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: task.Repository.ContentDigest, EvidenceIDs: []ID{"automated"}, PassedAt: now}
 	task.Evidence = []EvidenceSummary{{EvidenceID: "automated", TaskPlanRevision: 1, Source: EvidenceSourceAutomated, Name: "test", Status: EvidencePassed, Summary: "Passed.", Digest: matrixDigest('4'), CommandCount: 1, RecordedAt: now}}

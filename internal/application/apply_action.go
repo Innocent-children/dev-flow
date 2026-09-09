@@ -198,6 +198,17 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 	if err := workflow.ValidatePayload(definition, task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps); err != nil {
 		return store.TaskMutation{}, domain.WithoutZeroWriteProof(err)
 	}
+	// Confirm the saved planning content before accepting a user verdict. A planning
+	// file edit belongs to another draft save, which issues its own confirmation Action.
+	if transition.TransitionID == "tasks_ready" {
+		current, digestErr := scopeWorkspaceDigests(task, fresh)
+		if digestErr != nil {
+			return store.TaskMutation{}, domain.ErrInternal
+		}
+		if current.Content != task.CurrentAction.IssuanceContentDigest {
+			return store.TaskMutation{}, domain.ErrTransitionNotAllowed
+		}
+	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
 	if err != nil {
 		return store.TaskMutation{}, domain.WithoutZeroWriteProof(err)

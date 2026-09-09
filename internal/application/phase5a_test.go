@@ -88,13 +88,13 @@ func TestDesignAndTaskPlanRevisionBindingValidationAndInvalidation(t *testing.T)
 	for _, tc := range invalidPlans {
 		t.Run(tc.name, func(t *testing.T) {
 			before := ms.commits
-			assertApplyFails(t, s, task, "tasks_ready", "", tasksNodeResult(1, tc.items), domain.ErrInvalidArgument)
+			assertApplyFails(t, s, task, "tasks_plan_saved", "", tasksNodeResult(1, tc.items), domain.ErrInvalidArgument)
 			if ms.commits != before {
 				t.Fatal("invalid task plan wrote state")
 			}
 		})
 	}
-	assertApplyFails(t, s, task, "tasks_ready", "", tasksNodeResult(99, []map[string]any{workItem("work-a", []uint32{0, 1}, nil)}), domain.ErrInvalidArgument)
+	assertApplyFails(t, s, task, "tasks_plan_saved", "", tasksNodeResult(99, []map[string]any{workItem("work-a", []uint32{0, 1}, nil)}), domain.ErrInvalidArgument)
 	task = applyPhase5(t, s, task, "tasks_ready", "", tasksNodeResult(1, []map[string]any{workItem("work-a", []uint32{0, 1}, nil)}))
 	if task.TaskPlan.Revision != 1 || task.TaskPlan.DesignRevision != 1 {
 		t.Fatal("first task plan revision/binding invalid")
@@ -292,6 +292,13 @@ func phase5TaskAtImplement(t *testing.T, s *Service) domain.ProcessTask {
 }
 func applyPhase5(t *testing.T, s *Service, task domain.ProcessTask, transition, reason string, nodeResult any) domain.ProcessTask {
 	t.Helper()
+	if transition == "tasks_ready" {
+		if fields, ok := nodeResult.(map[string]any); ok && fields["baseline"] != nil {
+			task = applyPhase5(t, s, task, "tasks_plan_saved", reason, nodeResult)
+			nodeResult = confirmedPlanResult(task)
+		}
+	}
+
 	raw := phase5Payload(t, task, transition, reason, nodeResult)
 	a := task.CurrentAction
 	result, err := s.ApplyAction(context.Background(), ApplyActionRequest{RequestID: domain.ID(fmt.Sprintf("apply-%d", task.Revision)), Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, ActionID: a.ActionID, ActionKind: a.Kind, ProcessID: task.Process.ID, ProcessDefinitionDigest: task.Process.DefinitionDigest, SourceCursor: task.CurrentNode, RepositoryBindingDigest: a.RepositoryBindingDigest, IssuanceIdentityDigest: a.IssuanceIdentityDigest, IssuanceHistoryDigest: a.IssuanceHistoryDigest, IssuanceContentDigest: a.IssuanceContentDigest, Payload: raw})
@@ -319,6 +326,11 @@ func phase5Payload(t *testing.T, task domain.ProcessTask, transition, reason str
 	t.Helper()
 	if fields, ok := nodeResult.(map[string]any); ok {
 		fields["problem_class"] = phase5ProblemClass(transition)
+		if task.CurrentNode == domain.NodeTasks {
+			if _, exists := fields["user_confirmation"]; !exists {
+				fields["user_confirmation"] = nil
+			}
+		}
 	}
 	raw, err := json.Marshal(map[string]any{"transition_id": transition, "summary": "Result recorded.", "reason": reason, "artifacts": []any{}, "method_evidence": methodEvidenceForCurrentAction(task, domain.MethodStepPlainFallback, ""), "node_result": nodeResult})
 	if err != nil {
@@ -343,7 +355,7 @@ func phase5ProblemClass(transition string) string {
 	classes := map[string]string{
 		"requirements_ready": "none",
 		"design_ready":       "none", "design_requires_requirements": "requirement_gap",
-		"tasks_ready": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
+		"tasks_ready": "none", "tasks_plan_saved": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
 		"implementation_ready_for_test": "none", "implementation_requires_design": "design_gap", "implementation_requires_requirements": "requirement_gap", "implementation_needs_refactor": "code_complexity",
 		"tests_passed": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
 		"verification_budget_increased": "none",
@@ -366,7 +378,7 @@ func workItem(id string, acceptance []uint32, dependencies []string) map[string]
 	return map[string]any{"work_item_id": id, "summary": "Implement work", "expected_paths": []string{"internal/file.go"}, "acceptance_indexes": acceptance, "verification_steps": []string{"Run targeted test"}, "dependencies": dependencies}
 }
 func tasksNodeResult(revision uint32, items []map[string]any) map[string]any {
-	return map[string]any{"baseline": map[string]any{"design_revision": revision, "work_items": items, "verification_plan": phase5VerificationPlan()}, "findings": []string{}}
+	return map[string]any{"user_confirmation": nil, "baseline": map[string]any{"design_revision": revision, "work_items": items, "verification_plan": phase5VerificationPlan()}, "findings": []string{}}
 }
 func phase5VerificationPlan() map[string]any {
 	return map[string]any{"checks": []map[string]any{{"name": "targeted-test", "rationale": "The check covers the current work items."}}, "initial_budget": map[string]any{"level": "targeted", "max_automatic_commands": 4, "allow_full_suite": false, "allow_manual_handoff": true}, "full_suite_expected": false, "test_code_changes_expected": true}
@@ -430,4 +442,8 @@ func workflowRequirements(t *testing.T, value map[string]any) workflow.Requireme
 		t.Fatal(err)
 	}
 	return result
+}
+
+func confirmedPlanResult(task domain.ProcessTask) map[string]any {
+	return map[string]any{"problem_class": "none", "baseline": nil, "findings": []string{}, "user_confirmation": domain.PlanConfirmation{Source: domain.EvidenceSourceUser, Status: domain.EvidencePassed, Summary: "Fixture user approved the displayed requirements, design, work items, file scope and verification.", RequirementsDigest: task.Requirements.Digest, DesignDigest: task.Design.Digest, TaskPlanDigest: task.TaskPlan.Digest, TaskPlanRevision: task.TaskPlan.Revision}}
 }

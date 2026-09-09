@@ -68,6 +68,8 @@ Le travail se déroule ensuite dans un worktree Git dédié, un répertoire dist
 Codex l’ouvre si l’application hôte le permet ; DeepSeek fournit une commande pour redémarrer depuis
 le nouveau répertoire.
 
+Avant l’implémentation, examinez et discutez les exigences, la conception, les tâches, les fichiers prévus et le plan de vérification. Le développement commence après votre accord explicite sur le plan complet. Toute révision du plan ou extension du périmètre des fichiers demande un nouvel accord. Choisir Dev Flow ou un worktree ne remplace pas cet accord.
+
 ### 3. Reprendre et consulter l’avancement
 
 Après un redémarrage de session, revenez au worktree d’origine et demandez de poursuivre la tâche.

@@ -7,8 +7,8 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
 
-func TestProblemClassMappingsCoverAll30Transitions(t *testing.T) {
-	if len(standardTransitions) != 30 || len(problemClassByTransition) != 30 {
+func TestProblemClassMappingsCoverAllCurrentTransitions(t *testing.T) {
+	if len(standardTransitions) != 31 || len(problemClassByTransition) != 31 {
 		t.Fatalf("transitions=%d mappings=%d", len(standardTransitions), len(problemClassByTransition))
 	}
 	for _, transition := range standardTransitions {

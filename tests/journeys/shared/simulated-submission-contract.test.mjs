@@ -87,7 +87,8 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
     findings: [],
   };
   assert.equal(Object.hasOwn(tasks.baseline, "design_revision"), false);
-  task = await submit(core, task, "tasks_ready", tasks);
+  task = await submit(core, task, "tasks_plan_saved", {...tasks, user_confirmation:null});
+  task = await submit(core, task, "tasks_ready", {baseline:null, findings:[], user_confirmation:{source:"user", status:"passed", summary:"Fixture developer approved the displayed complete plan.", requirements_digest:task.baselines.requirements.digest, design_digest:task.baselines.design.digest, task_plan_digest:task.baselines.task_plan.digest, task_plan_revision:task.baselines.task_plan.revision}});
   assert.equal(task.baselines.task_plan.design_revision, task.baselines.design.revision);
 
   const implementation = {
@@ -146,6 +147,8 @@ async function initializeGit(root, repository) {
   const baseCommit = (await execFile("git", ["rev-parse", "refs/remotes/origin/main"], { cwd: repository, env, encoding: "utf8" })).stdout.trim();
   return {
     mode: "dedicated_worktree",
+    source_type: "remote",
+    carry_changes: false,
     remote_name: "origin",
     base_branch: "main",
     base_commit: baseCommit,

@@ -146,6 +146,8 @@ func fileScopeTaskWithBinding(t *testing.T, now time.Time, binding domain.Reposi
 		TaskPlan:     &domain.TaskPlanBaseline{Revision: 1, Digest: testDigest('6'), DesignRevision: 1, WorkItems: []domain.WorkItem{{WorkItemID: "work", Summary: "Implement scope checks.", ExpectedPaths: expected, AcceptanceIndexes: []uint32{0}, VerificationSteps: []string{"Run focused tests."}}}, VerificationPlan: domain.VerificationPlan{Checks: []domain.VerificationPlanCheck{{Name: "focused-test", Rationale: "The check covers the scoped write."}}, InitialBudget: domain.VerificationBudget{Level: domain.VerificationTargeted, MaxAutomaticCommands: 4}}, CreatedAt: now},
 		Revision:     4, CreatedAt: now, UpdatedAt: now,
 	}
+	task.TaskPlan.Confirmation = &domain.PlanConfirmation{Source: domain.EvidenceSourceUser, Status: domain.EvidencePassed, Summary: "Fixture user approved the scope.", RequirementsDigest: task.Requirements.Digest, DesignDigest: task.Design.Digest, TaskPlanDigest: task.TaskPlan.Digest, TaskPlanRevision: task.TaskPlan.Revision}
+	task.TaskPlan.ConfirmedAt = &now
 	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
 		t.Fatal(err)

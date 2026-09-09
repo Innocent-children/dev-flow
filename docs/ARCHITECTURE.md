@@ -229,6 +229,12 @@ IMPLEMENT→TEST、REFACTOR→TEST 要求 `completed_work_item_ids` 覆盖当前
 
 ## 验证计划、预算增加和复核范围
 
+`standard-development` 保留现有 11 个节点。REQUIREMENTS 和 DESIGN 由 Host 展示并讨论，既有前进与返回边保持。TASKS 的完整出边为：`tasks_plan_saved` → TASKS（完整 baseline、空 findings、null confirmation），`tasks_ready` → IMPLEMENT（baseline 为 null，当前计划已明确确认），`tasks_require_design` → DESIGN 和 `tasks_require_requirements` → REQUIREMENTS（null baseline/confirmation、非空 findings 和具体 reason）。等待确认不建立 blocker。
+
+`task_plan` 保存 `confirmation` 和 `confirmed_at`。确认包含 source=user、status=passed、summary、requirements_digest、design_digest、task_plan_digest 和 task_plan_revision，必须全部匹配当前保存内容。Core 自行记录确认时间。保存草案包含 expected_paths、工作项、验收映射和 verification_plan，并递增计划轮次；确认只引用该草案，不同时替换内容。重新保存、上游修订或 expand_scope 后旧确认不能用于开发。每次进入执行节点都要求有效确认；恢复读取同一草案无需重复保存。当前 SQLite Schema 与快照同步更新，不读取历史布局。
+
+Codex `prepare` 接收完整 `assessment`（含 anchor）与 `user_choice`，先校验评估、根集合、未知项和明确选择，再执行 receipt/Git 准备。receipt.admission 保存这两个对象，重复 prepare 须与记录匹配；status/bootstrap/scope 接续已有回执。真实会话展示和用户回答由 Host 负责，校验不能证明自然语言请求必然触发 Skill。
+
 最终验证预算不属于创建时的 `TaskIntent`。TASKS 已经完成 Requirements、Design、工作拆分、影响面和
 现有测试结构分析，因此 `TaskPlanBaseline.verification_plan` 在这里保存：
 
@@ -239,7 +245,7 @@ full_suite_expected
 test_code_changes_expected
 ```
 
-TASKS 还包含必需 method step `tasks.plan_verification`。没有完整计划不能进入 IMPLEMENT。
+TASKS 还包含必需 method step `tasks.plan_verification`。没有完整计划及当前用户确认不能进入 IMPLEMENT。
 
 Evidence 绑定 `task_plan_revision`。自动命令消耗只统计当前 Task Plan revision；计划被正式重建后使用
 新计划的初始预算，旧 Evidence 和调整仍保留为历史。当前容量不足时，Host 在运行额外命令前提交

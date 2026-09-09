@@ -67,6 +67,8 @@ e se deseja trazer as alterações locais existentes.
 O trabalho segue em um worktree Git dedicado, um diretório separado para a tarefa. O Codex o abre
 quando o ambiente hospedeiro oferece suporte; o DeepSeek fornece um comando para reiniciar no novo diretório.
 
+Antes da implementação, revise e discuta os requisitos, o projeto, as tarefas, os arquivos previstos e o plano de verificação. O desenvolvimento começa após sua aprovação explícita do plano completo. Alterações no plano ou ampliação do conjunto de arquivos exigem nova aprovação. Escolher Dev Flow ou um worktree não substitui essa aprovação.
+
 ### 3. Retome e acompanhe o progresso
 
 Depois de reiniciar a sessão, volte ao worktree original e peça para continuar a tarefa. O Dev Flow
