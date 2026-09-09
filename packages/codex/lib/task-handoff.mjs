@@ -108,7 +108,7 @@ export function buildManagedBootstrapPrompt({ launchId, repositoryKey, handoff }
   const identity = [
     "$dev-flow-codex:dev-flow",
     `Resume the confirmed Dev Flow launch ${launchId} for repository ${repositoryKey}.`,
-    "Before any Core call, consume the provisioning receipt, verify the frozen commit and task worktree, create the confirmed target branch when needed, and apply the receipt snapshot only when carry_changes is true. Use the returned workspace_origin unchanged.",
+    "Before any Core call, read the saved material and every confirmed repository receipt. Follow the Skill bootstrap route for each receipt surface/phase: first managed initialization verifies the frozen commit and clean destination and applies the selected snapshot through the helper; provisioned worktrees retain carried content and subsequent work without repeating initialization. Inspect current worktree identity and permissions separately from saved receipt data. Then follow the Skill creation/resume rules for the actual Core state, using workspace_origin unchanged only for creation.",
   ];
   const locations = [
     `Complete handoff and original discussion: ${JSON.stringify(handoff.markdown_path)}`,

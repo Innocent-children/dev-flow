@@ -98,9 +98,35 @@ and filesystem for inspection, without another provision. There is no status/rec
 the five-operation tool; report that limit rather than calling Codex helpers or guessing a new launch.
 A failed repository prevents a partial multi-repository Core open.
 
+## First launch or Task recovery
+
+Before choosing `consume`, read the retained launch/open results and relevant session history. The
+`resume-worktree` text identifies a launch; reusing it does not establish that Core has no Task.
+The receipt's `consumed` status records workspace checks, not successful Core creation. Use the
+following route while preserving the confirmed request and repository choices:
+
+| Actual state | Next operation |
+| --- | --- |
+| First destination launch, with no prior Core open attempt | With the exact current-turn launch message, call `consume` below. After `consumed` and a successful server handshake, create once using its complete repository descriptor and actual `new_task` facts. |
+| Core Task already exists | Start in the original worktree with every participating repository inside the authorized DSH Workspace Root. Perform the server handshake, then call Core open with only `host:"deepseek"` and the original primary `repository_path`. Handle recovery/blocker before the returned Action. |
+| A Core open call may have occurred, but its result is missing or uncertain | Perform the handshake and the same Core resume call on the original primary worktree. Compare the returned intent, origins and full repository scope with the confirmed launch. Follow the shared uncertain-creation rule; `TASK_NOT_FOUND`, mismatch or another uncertain result stops for inspection, not another creation attempt. |
+| Provisioning itself is incomplete or uncertain | Preserve its receipt and destinations and follow the provisioning failure rule above. Core resume cannot substitute for unfinished workspace preparation. |
+
+The Core calls require `/dev-flow` in the current direct user turn. An existing Task resume does not
+require a new `confirm-worktree` or `resume-worktree` confirmation. The exact consume confirmation
+applies only when that operation is needed. Use the complete [Core creation/resume inputs and
+uncertain-creation rules](tool-results.md#open-or-resume-a-task).
+
+Existing or uncertain Core Tasks bypass `consume`: that operation checks the original frozen HEAD
+even for a previously consumed receipt. Normal later commits can fail that initial-state check.
+Preserve current work and let Core validate the existing Task's workspace; resetting HEAD, cleaning
+changes, reapplying the snapshot or repeating `provision` is not a recovery step. A previous session
+still performing the work must be resolved before another session continues it.
+
 ## consume
 
-In the destination session, the exact current user message includes the returned launch identity:
+For first launch selected above, the destination's exact current user message includes the returned
+launch identity:
 
 <!-- workspace-confirmation:consume -->
 ```text
@@ -115,9 +141,11 @@ In the destination session, the exact current user message includes the returned
 }
 ```
 
-The coordinator verifies the receipt Workspace Root, all worktrees, repository groups, target branches,
-frozen commit/snapshot and visible changes. Only status consumed proceeds. Copy its complete open_task
-object directly into the Core open's repository fields; add host deepseek and actual new_task facts:
+The coordinator checks the receipt Workspace Root, every worktree's repository group, target branch,
+HEAD equal to the frozen base commit, and read/write access. It requires a clean worktree when
+carry_changes is false; with carry_changes true, a successful consume is not a byte-for-byte snapshot
+comparison. Only status consumed proceeds. For first creation, copy its complete open_task object
+directly into the Core open's repository fields; add host deepseek and actual new_task facts:
 
 ```text
 tool: mcp__dev_flow__dev_flow_open_task
@@ -130,4 +158,4 @@ remote_name, base_branch, base_commit, task_branch and provisioning_receipt_id. 
 including the primary_repository_key and additional_repositories array returned for this launch.
 First call the [Core server handshake](tool-results.md#server-handshake) with the current user selector.
 A consumed bootstrap does not repeat assessment. Missing/mismatched receipts or roots stop before Core.
-An existing Core Task resume instead returns to its exact worktree and omits all creation fields.
+For existing or uncertain Core Tasks, use the recovery routes above instead of this creation sketch.

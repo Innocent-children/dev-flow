@@ -110,6 +110,12 @@ remains in the files in both cases, without truncation. Missing or altered mater
 refusal before a desktop dispatch is recorded or a CLI worktree is created. The Core state graph and
 worktree initialization retain their existing responsibilities.
 
+The bootstrap prompt routes by receipt surface/phase, distinguishing first managed initialization
+from continuation in provisioned worktrees. First initialization checks the frozen base and clean
+destination; provisioned worktrees retain carried content and subsequent work without reapplying the
+snapshot. The Host separately inspects current worktree identity and permissions, then chooses
+creation or resume from actual Core state. Reading a receipt does not recheck Git.
+
 Format checks establish fields and message references; the source session judges discussion coverage
 and actual user acceptance from the conversation. It uses accessible original messages and records
 unavailable history in `open_questions`, rather than reconstructing originals from summaries.

@@ -17,7 +17,7 @@ Implementation: `internal/workflow/standard_process.go` — `StandardProcess`;
 | Current request | Read and perform |
 | --- | --- |
 | New development request, including the exact selector | [Assessment and launch](references/admission.md). Assess read-only, retain valid user choices, then prepare the confirmed worktrees. |
-| Bootstrap carrying a saved launch/repository identity | [Receipt bootstrap](references/admission.md#bootstrap). Verify the existing receipt and worktree before Core. |
+| Bootstrap carrying a saved launch/repository identity | [Receipt bootstrap](references/admission.md#bootstrap). Read surface/phase, distinguish first initialization from provisioned-worktree continuation, then determine whether Core creation or resume applies. |
 | Explicit resume identifying an existing Task | [Core connection and reads](references/tool-results.md#open-or-resume-a-task). Return to the original worktree instance and resume without creation fields. |
 | Current Action work | [Action submissions](references/node-payloads.md). Read only the current node section and the common submission procedure. |
 | Missing result, rejection or blocker | [Result handling and recovery](references/tool-results.md). Resolve the returned condition before more work. |

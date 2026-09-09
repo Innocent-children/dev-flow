@@ -12,8 +12,8 @@ Implementation: `packages/deepseek/lib/index.mjs` — `activateDeepSeekIntegrati
 | Current request | Read and perform |
 | --- | --- |
 | New development request, including /dev-flow | [Assessment and launch](references/admission.md). Assess read-only before a Dev Flow choice and the exact worktree confirmation. |
-| Exact resume-worktree launch message | [Consume the launch](references/admission.md#consume). Verify the existing receipt and root before Core. |
-| Explicit existing Task resume | Start in the original worktree instance, include /dev-flow in the current direct user turn, and [resume Core](references/tool-results.md#open-or-resume-a-task) without creation fields. |
+| Exact resume-worktree launch message | [Choose first launch or recovery](references/admission.md#first-launch-or-task-recovery). Use consume for first launch; an existing or uncertain Core Task takes the resume path even when the old launch message is reused. |
+| Explicit existing Task resume or uncertain Core creation | Start in the original worktree instance, include /dev-flow in the current direct user turn, and [resume Core](references/admission.md#first-launch-or-task-recovery) without consume or creation fields. |
 | Current Action | [Common submissions](references/node-payloads.md) and only the current node reference. |
 | Rejection, lost result or blocker | [Core results and recovery](references/tool-results.md) before more repository work. |
 | Cancel, abandon or clean up | [Host lifecycle](references/host-lifecycle.md), with each operation's current identity and authorization. |
