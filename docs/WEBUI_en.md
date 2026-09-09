@@ -150,3 +150,7 @@ Missing process files return `artifact_manifest_incomplete` and `error.repositor
 Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
 `source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
 `carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).
+
+## Verification capacity for existing checks
+
+When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.

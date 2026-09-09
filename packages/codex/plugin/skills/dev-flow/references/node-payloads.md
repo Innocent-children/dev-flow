@@ -91,12 +91,20 @@ The Tasks baseline contains `work_items` plus `verification_plan`. The plan cont
 `name` and `rationale`, `initial_budget`, `full_suite_expected`, and
 `test_code_changes_expected`. Core fills only `design_revision`.
 
+Plan paths cover the complete Core `current_changed_paths`, including confirmed local carried content,
+except paths already retained as process artifacts. Preservation work uses concrete `expected_paths`,
+maps to the current preservation acceptance criterion, and records a read-only snapshot comparison.
+The current Action's artifact collection alone cannot establish complete Task path coverage.
+
 Every Test submission includes `budget_adjustment`. Normal pass/failure transitions send `null`.
 `verification_budget_increased` sends a closed adjustment with `basis`, `additional_checks`,
 `additional_automatic_commands`, `allow_full_suite`, and `allow_manual_handoff`; all check and result
 lists stay empty and the transition reason gives the concrete need. Every check includes
 `full_suite_reason`: it is empty unless `full_suite=true`, in which case it records the current
 suite-specific risk.
+
+The adjustment's `additional_checks` can refer to existing planned checks or introduce new ones.
+Names remain unique within one adjustment, and each rationale explains the additional work or retry.
 
 Completed developer-run verification is a `source="user"` check with `command_count=0`,
 `full_suite=false`, and `full_suite_reason=""`. Put only work nobody has run yet in `manual_handoff_items`.

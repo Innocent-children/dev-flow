@@ -231,3 +231,7 @@ Worktree creation first confirms a local or remote source, base and target branc
 
 
 Assisted cleanup retains local-source task branches for separate user inspection and handling.
+
+## Verification capacity for existing checks
+
+When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.

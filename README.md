@@ -186,3 +186,11 @@ See the [command reference](docs/COMMANDS_en.md) for parameter and recovery rule
 `host-launch dispatch-result` accepts the complete Codex creation response, including JSON in `content[].text`. It saves `clientThreadId` as `host_client_thread_id` with phase `queued`; resubmitting a retained result with the same `launch_id` and `repository_key` can recover an `uncertain` record. Subsequent inspection follows the same creation, without dispatching again.
 
 Codex retains complete workspace creation requests for readback. `dispatch-start` prepares, `dispatch-call` grants one call, `dispatch-recover` resumes a proven uncalled operation, and `dispatch-reconcile` matches an existing task after an unknown result. Callers parse complete JSON files; missing results never authorize duplicate creation.
+
+## Planning carried files in Codex
+
+When Codex carries local changes, it records their preservation in REQUIREMENTS and reconciles the complete `current_changed_paths` with `expected_paths` and retained process artifacts in TASKS. New development and preservation receive separate work and checks; an empty current-Action file collection cannot replace the complete Task path comparison. Preservation checks compare the launch snapshot and do not certify existing behavior as tested. Existing file-scope blockers continue through the current Core choices and transitions.
+
+## More capacity for planned checks
+
+When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.

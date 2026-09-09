@@ -190,3 +190,11 @@ Consulta los parámetros y las reglas de recuperación en la [referencia de coma
 `host-launch dispatch-result` acepta la respuesta completa de creación de Codex, incluido el JSON de `content[].text`. Guarda `clientThreadId` como `host_client_thread_id` con la fase `queued`; reenviar un resultado conservado con los mismos `launch_id` y `repository_key` permite recuperar un registro `uncertain`. Las comprobaciones posteriores siguen la misma creación, sin volver a despacharla.
 
 Codex conserva las solicitudes completas de creación de espacios de trabajo para volver a leerlas. `dispatch-start` prepara, `dispatch-call` permite una llamada, `dispatch-recover` reanuda una operación cuya llamada no se realizó y `dispatch-reconcile` identifica una tarea existente cuando el resultado es desconocido. El llamador analiza archivos JSON completos; la falta de resultados no autoriza una creación duplicada.
+
+## Planificación de los archivos copiados en Codex
+
+Cuando Codex copia cambios locales, registra su conservación en REQUIREMENTS y compara todos los `current_changed_paths` con `expected_paths` y los artefactos de proceso conservados en TASKS. El desarrollo nuevo y la conservación tienen tareas y comprobaciones separadas; una lista vacía de archivos del Action actual no sustituye la comparación de todas las rutas del Task. Las comprobaciones de conservación comparan la instantánea de inicio y no certifican que el comportamiento existente se haya probado. Los bloqueos de alcance ya presentes siguen las opciones y transiciones actuales del Core.
+
+## Más capacidad para comprobaciones planificadas
+
+Al aumentar la capacidad de verificación, `additional_checks` puede referirse a nombres de comprobaciones del plan actual o de ajustes anteriores; `rationale` explica el trabajo pendiente o la repetición. Los nombres deben ser únicos dentro de cada envío y se siguen exigiendo motivos concretos, un aumento real y los límites existentes. Aumentar la capacidad no crea resultados aprobados.

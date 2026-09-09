@@ -225,3 +225,11 @@ Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before start
 Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
 `source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
 `carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).
+
+## Planning and checking carried content
+
+When Codex carries local changes, it records their preservation in REQUIREMENTS and reconciles the complete `current_changed_paths` with `expected_paths` and retained process artifacts in TASKS. New development and preservation receive separate work and checks; an empty current-Action file collection cannot replace the complete Task path comparison. Preservation checks compare the launch snapshot and do not certify existing behavior as tested. Existing file-scope blockers continue through the current Core choices and transitions.
+
+## Verification capacity for existing checks
+
+When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.

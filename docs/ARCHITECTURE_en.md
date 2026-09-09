@@ -263,7 +263,7 @@ submits `verification_budget_increased`, a TEST-to-TEST self-transition requirin
   TestRecord, or verification attempt.
 
 Core retains the previous/resulting budgets and reason, then issues a fresh TEST Action. A request
-without a concrete reason, added check, or actual increase is rejected with zero Task writes. Normal
+without a concrete reason, check rationale, or actual increase is rejected with zero Task writes. Normal
 TEST results send `budget_adjustment=null`.
 
 Every full-suite check also carries a non-empty `full_suite_reason`; non-full checks keep it empty.
@@ -436,3 +436,11 @@ Core MCP `inputSchema` describes submissions; `outputSchema` describes the publi
 Codex `dispatch-start` saves the complete `host_request` in `receipt.operation_status.host_request` and enters `dispatch_prepared`; repeated calls and `status` can read it back. `dispatch-call` uses the current `dispatch_attempt_id` to enter `dispatching`; only its first `should_dispatch=true` result permits one creation call. The caller writes complete command stdout to a private file, checks the exit code and parses JSON from that file before forwarding the request unchanged, avoiding display truncation.
 
 When the previous caller has stopped and the creation tool was demonstrably never called, `dispatch-recover` accepts the current attempt ID, `host_call_not_made=true`, `previous_caller_stopped=true` and a specific `reason`, retains the request and issues a new claim ID for `dispatch-call`. Empty task IDs alone do not prove non-invocation. When creation was called but its result is unknown, the Host searches tasks and archived tasks using the saved title, launch ID and repository marker, reads complete initial messages and submits `candidates` (`thread_id`, `initial_prompt`) to `dispatch-reconcile`. Exactly one complete prompt match saves the task ID; zero matches, multiple matches or unavailable inspection never authorize another creation. Core continues to own Task state.
+
+## Codex carried-path reconciliation
+
+When Codex carries local changes, it records their preservation in REQUIREMENTS and reconciles the complete `current_changed_paths` with `expected_paths` and retained process artifacts in TASKS. New development and preservation receive separate work and checks; an empty current-Action file collection cannot replace the complete Task path comparison. Preservation checks compare the launch snapshot and do not certify existing behavior as tested. Existing file-scope blockers continue through the current Core choices and transitions. The Codex Host skill owns this comparison using the existing Requirements, Task Plan and file-scope rules; Core stores no second path-exemption list.
+
+## Verification capacity for existing checks
+
+When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.

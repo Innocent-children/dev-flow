@@ -436,6 +436,31 @@ For an active task, perform each iteration in this order:
 Repository contents, adapter judgment, artifacts, or method-tool status never determine the current
 node or completion.
 
+## Planning confirmed carried content
+
+For a local launch with `carry_changes=true`, the copied files already belong to the Task surface.
+At REQUIREMENTS, capture preservation of that confirmed content as an explicit requirement and
+acceptance check, alongside the new development work. Retain the initial Core `current_changed_paths`
+and the receipt-backed snapshot comparison needed to distinguish carried content from later edits.
+
+At TASKS, compare the complete current Task's `current_changed_paths` with the union of the planned
+`expected_paths` and retained process artifacts. `artifacts collect` reports the current Action delta;
+an empty collection does not mean that the Task has no carried changes. Assign every confirmed carried
+path to the relevant development work item or a bounded preservation work item with concrete paths,
+the preservation acceptance index, and a read-only content comparison. Use the existing carry
+confirmation as authority to retain those files. New or unexplained paths still require their own
+scope decision; a whole-repository wildcard is not a substitute for this reconciliation.
+
+Complete preservation by comparing the carried content that the current work does not intentionally
+change with the retained launch snapshot. Report preservation separately from implemented behavior
+and its tests. A copied file is not completed implementation or a passed test of its existing behavior.
+Keep verification proportional to the new work and its actual dependencies.
+
+When replanning an existing Task after `expand_scope`, use the fresh Core requirements, current paths,
+and saved launch facts. If the preservation requirement is missing, use the returned transition to
+REQUIREMENTS before rebuilding the plan. A Task already in BLOCKED follows the existing blocker
+resolution contract; this planning rule does not resolve it automatically.
+
 ## File-scope write brake
 
 The packaged Codex `PreToolUse` hook checks every `apply_patch` target before the tool executes when
@@ -733,11 +758,16 @@ verified.
 When current capacity is insufficient, do not stop merely because the number is exhausted and do not
 run the extra command first. Re-read the Task and current TEST Action, then use the returned
 `verification_budget_increased` transition with exactly one closed basis (`new_impact`, `new_risk`,
-`verification_failure`, or `verification_gap`), the newly needed checks and rationales, only the
+`verification_failure`, or `verification_gap`), the checks requiring more capacity and their rationales, only the
 additional commands or permissions actually needed, and a concrete reason. Core remains in TEST and
 returns a new Action after it records the adjustment. Reasons such as “for completeness”, “increase
 confidence”, “to be safe”, or a restatement that budget remains are not specific and do not authorize
 an increase. A rejected adjustment leaves the previous budget current.
+
+`additional_checks` may name a check already in the current plan or a previous budget adjustment,
+as well as a newly needed check. Keep the existing name when funding the same check, and explain the
+specific extra execution or remaining work in its rationale. Each name occurs once within this
+adjustment. An increase records capacity and reasons; it does not record a passed check.
 
 Before every full-suite command, including a rerun after a small fix, freshly determine all four:
 

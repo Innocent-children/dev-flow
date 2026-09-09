@@ -88,6 +88,38 @@ func TestVerificationBudgetIncreaseStaysInTestAndRecordsSpecificReason(t *testin
 	}
 }
 
+func TestVerificationBudgetIncreaseFundsAnAlreadyPlannedCheck(t *testing.T) {
+	s, ms, _ := phase5Service(t)
+	task := phase5TaskAtTest(t, s)
+	check := task.TaskPlan.VerificationPlan.Checks[0]
+	planDigest := task.TaskPlan.Digest
+	adjustment := map[string]any{
+		"basis": "verification_failure", "additional_checks": []map[string]any{{"name": check.Name, "rationale": "A failed build and its corrected rerun used the capacity needed for this planned check."}},
+		"additional_automatic_commands": 1, "allow_full_suite": false, "allow_manual_handoff": false,
+	}
+	for i := 0; i < 2; i++ {
+		before := ms.commits
+		actionID := task.CurrentAction.ActionID
+		task = applyPhase5(t, s, task, "verification_budget_increased", "A build failure requires one more command to finish the planned check.", budgetAdjustmentNodeResult(adjustment))
+		budget, ok := task.CurrentVerificationBudget()
+		if !ok || budget.MaxAutomaticCommands != 5+i || task.CurrentNode != domain.NodeTest || task.CurrentAction.ActionID == actionID || ms.commits != before+1 {
+			t.Fatalf("planned check increase failed: budget=%#v task=%#v", budget, task)
+		}
+		if task.TaskPlan.Digest != planDigest || task.TaskPlan.VerificationPlan.Checks[0] != check || len(task.Evidence) != 0 || len(task.VerificationAttempts) != 0 {
+			t.Fatal("budget adjustment changed the plan or invented verification results")
+		}
+		if len(task.VerificationBudgetAdjustments) != i+1 || task.VerificationBudgetAdjustments[i].AdditionalChecks[0].Name != check.Name {
+			t.Fatal("the requested planned check was not retained in the adjustment")
+		}
+	}
+	before := ms.commits
+	adjustment["additional_checks"] = []map[string]any{{"name": check.Name, "rationale": "First entry."}, {"name": check.Name, "rationale": "Duplicate entry."}}
+	assertApplyFails(t, s, task, "verification_budget_increased", "Duplicate input must remain invalid.", budgetAdjustmentNodeResult(adjustment), domain.ErrInvalidArgument)
+	if ms.commits != before {
+		t.Fatal("duplicate names in one adjustment wrote state")
+	}
+}
+
 func TestTestRejectsStaleAuthorityAndRepository(t *testing.T) {
 	s, ms, observer := phase5Service(t)
 	task := phase5TaskAtTest(t, s)

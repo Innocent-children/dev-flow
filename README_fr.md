@@ -191,3 +191,11 @@ Les paramètres et les règles de reprise figurent dans la [référence des comm
 `host-launch dispatch-result` accepte la réponse complète de création de Codex, y compris le JSON dans `content[].text`. Il enregistre `clientThreadId` dans `host_client_thread_id` avec la phase `queued` ; renvoyer un résultat conservé avec les mêmes `launch_id` et `repository_key` permet de récupérer un enregistrement `uncertain`. Les vérifications suivantes suivent la même création, sans nouvelle demande de création.
 
 Codex conserve les requêtes complètes de création d’espaces de travail pour les relire. `dispatch-start` prépare, `dispatch-call` autorise un appel, `dispatch-recover` reprend une opération dont l’appel n’a pas eu lieu et `dispatch-reconcile` retrouve une tâche existante lorsque le résultat est inconnu. L’appelant analyse des fichiers JSON complets ; un résultat manquant n’autorise pas une création en double.
+
+## Planification des fichiers repris dans Codex
+
+Lorsque Codex reprend des modifications locales, il inscrit leur conservation dans REQUIREMENTS et compare tous les `current_changed_paths` aux `expected_paths` et aux artefacts de processus conservés dans TASKS. Le nouveau développement et la conservation disposent de travaux et de vérifications distincts ; une liste de fichiers vide pour l’Action courant ne remplace pas la comparaison de tous les chemins du Task. Les vérifications de conservation comparent l’instantané de départ et ne certifient pas que le comportement existant a été testé. Les blocages de périmètre déjà présents suivent les choix et transitions actuels du Core.
+
+## Capacité supplémentaire pour les vérifications prévues
+
+Lors d’une augmentation de la capacité de vérification, `additional_checks` peut reprendre les noms de vérifications du plan courant ou d’ajustements précédents ; `rationale` explique le travail restant ou la réexécution. Les noms restent uniques dans chaque envoi ; des motifs précis, une augmentation réelle et les limites existantes restent obligatoires. L’augmentation de capacité ne crée aucun résultat réussi.

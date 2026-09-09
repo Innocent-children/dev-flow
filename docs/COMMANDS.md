@@ -375,7 +375,7 @@ step identity/order/status 与内部 payload envelope。`get_next_action` 的 `s
 `test_code_changes_expected`。TEST 容量不足时可以选择同一 Action 返回的
 `verification_budget_increased`，提交 `budget_adjustment`：`basis`、`additional_checks`、
 `additional_automatic_commands`、`allow_full_suite`、`allow_manual_handoff`；transition `reason`
-说明具体的新影响、风险、失败或验证缺口。没有实际增加、没有新增检查或没有具体原因会被拒绝。
+说明具体的新影响、风险、失败或验证缺口。没有实际增加、没有需要补充额度的检查说明或没有具体原因会被拒绝。
 
 每个 TEST check 还必须提交 `full_suite_reason`。`full_suite=false` 时它是空字符串；完整套件则记录本次
 运行补足的具体风险。Core 保存该结果，但 Host 仍需在命令执行前判断本次完整套件是否必要。
@@ -536,3 +536,7 @@ Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.
 
 工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
 `carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。
+
+## 已有检查的验证额度
+
+增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。

@@ -205,24 +205,8 @@ func applyVerificationBudgetAdjustment(task *domain.ProcessTask, reason string, 
 	if !ok || previous.MaxAutomaticCommands > domain.MaxTotalAutomaticVerificationCommands-input.AdditionalAutomaticCommands {
 		return domain.ErrInvalidArgument
 	}
-	knownChecks := make(map[string]bool)
-	for _, check := range task.TaskPlan.VerificationPlan.Checks {
-		knownChecks[check.Name] = true
-	}
-	for _, adjustment := range task.VerificationBudgetAdjustments {
-		if adjustment.TaskPlanRevision != task.TaskPlan.Revision {
-			continue
-		}
-		for _, check := range adjustment.AdditionalChecks {
-			knownChecks[check.Name] = true
-		}
-	}
-	for _, check := range input.AdditionalChecks {
-		if knownChecks[check.Name] {
-			return domain.ErrInvalidArgument
-		}
-		knownChecks[check.Name] = true
-	}
+	// The adjustment records why existing or new checks need more capacity.
+	// Input validation owns name uniqueness within this adjustment.
 	current := previous
 	current.MaxAutomaticCommands += input.AdditionalAutomaticCommands
 	if input.AllowFullSuite {

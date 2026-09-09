@@ -189,3 +189,11 @@ Parameter und Regeln zur Wiederaufnahme stehen in der [Befehlsreferenz](docs/COM
 `host-launch dispatch-result` akzeptiert die vollständige Codex-Antwort zur Aufgabenerstellung, einschließlich JSON in `content[].text`. Es speichert `clientThreadId` als `host_client_thread_id` mit der Phase `queued`; ein gespeichertes Ergebnis kann mit derselben `launch_id` und demselben `repository_key` erneut übermittelt werden, um einen `uncertain`-Datensatz wiederherzustellen. Weitere Prüfungen verfolgen dieselbe Erstellung, ohne sie erneut auszulösen.
 
 Codex speichert vollständige Anfragen zur Erstellung von Arbeitsbereichen zum erneuten Lesen. `dispatch-start` bereitet vor, `dispatch-call` erlaubt einen Aufruf, `dispatch-recover` setzt einen nachweislich noch nicht aufgerufenen Vorgang fort und `dispatch-reconcile` gleicht bei unbekanntem Ergebnis vorhandene Aufgaben ab. Der Aufrufer liest vollständige JSON-Dateien; fehlende Ergebnisse erlauben keine doppelte Erstellung.
+
+## Planung übernommener Dateien in Codex
+
+Wenn Codex lokale Änderungen übernimmt, erfasst es deren Erhalt in REQUIREMENTS und gleicht in TASKS die vollständigen `current_changed_paths` mit den `expected_paths` und den gespeicherten Prozessartefakten ab. Neue Entwicklung und Erhalt erhalten getrennte Arbeitsschritte und Prüfungen; eine leere Dateiliste der aktuellen Action ersetzt nicht den Abgleich aller Task-Pfade. Erhaltungsprüfungen vergleichen den Snapshot vom Start und bestätigen keinen Test des vorhandenen Verhaltens. Bereits bestehende Dateiumfang-Blocker werden weiterhin über die aktuellen Entscheidungen und Übergänge des Core behandelt.
+
+## Zusätzliche Kapazität für geplante Prüfungen
+
+Beim Erhöhen der Prüfkapazität darf `additional_checks` auf Prüfnamen im aktuellen Plan oder in früheren Anpassungen verweisen; `rationale` erklärt die verbleibende Arbeit oder Wiederholung. Innerhalb einer Einreichung bleiben die Namen eindeutig. Konkrete Gründe, eine tatsächliche Erhöhung und die bisherigen Obergrenzen sind weiterhin erforderlich. Eine Kapazitätserhöhung erzeugt keine bestandenen Prüfergebnisse.

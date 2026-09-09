@@ -185,3 +185,11 @@ dev-flow-codex artifacts prepare --help
 `host-launch dispatch-result`는 `content[].text`의 JSON을 포함한 Codex 작업 생성 응답 전체를 받습니다. `clientThreadId`를 `host_client_thread_id`로 저장하고 단계를 `queued`로 설정합니다. 같은 `launch_id`와 `repository_key`로 보관한 결과를 다시 제출하면 `uncertain` 기록을 복구할 수 있습니다. 이후 확인은 같은 생성 작업을 추적하며 다시 디스패치하지 않습니다.
 
 Codex는 작업 공간 생성 요청 전체를 저장하여 다시 읽을 수 있게 합니다. `dispatch-start`는 요청을 준비하고, `dispatch-call`은 한 번의 호출을 허용하며, `dispatch-recover`는 호출하지 않았음이 확인된 작업을 복구합니다. 결과가 불명확하면 `dispatch-reconcile`로 기존 작업을 확인합니다. 호출자는 완전한 JSON 파일을 파싱하며, 결과 누락을 이유로 중복 생성하지 않습니다.
+
+## Codex에서 가져온 파일의 작업 계획
+
+Codex가 로컬 변경을 가져오면 REQUIREMENTS에 내용 보존 요구 사항을 기록하고, TASKS에서 전체 `current_changed_paths`를 `expected_paths` 및 보존된 프로세스 산출물과 대조합니다. 새 개발 작업과 기존 내용 보존에는 각각 작업 항목과 확인 절차를 지정합니다. 현재 Action의 파일 목록이 비어 있어도 전체 Task 경로 확인을 대신할 수 없습니다. 보존 확인은 시작 시점의 스냅샷과 비교하는 것이며 기존 기능의 테스트 완료를 뜻하지 않습니다. 이미 발생한 파일 범위 차단은 기존 Core 선택지와 전이로 처리합니다.
+
+## 계획된 확인 작업의 실행 한도 추가
+
+검증 실행 한도를 늘릴 때 `additional_checks`는 현재 계획이나 이전 증가 기록의 확인 작업 이름을 참조할 수 있으며, `rationale`에는 남은 작업이나 재실행 이유를 적습니다. 한 번의 제출 안에서 이름은 고유해야 하며 구체적인 이유, 실제 증가량, 기존 상한은 계속 확인합니다. 실행 한도 증가 자체가 통과 결과를 만들지는 않습니다.

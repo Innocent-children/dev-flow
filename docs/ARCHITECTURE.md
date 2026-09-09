@@ -232,11 +232,11 @@ Evidence 绑定 `task_plan_revision`。自动命令消耗只统计当前 Task Pl
 `verification_budget_increased`。这是 TEST→TEST 自循环，要求：
 
 - `basis` 只能是 `new_impact`、`new_risk`、`verification_failure` 或 `verification_gap`；
-- transition reason 具体说明新事实，`additional_checks` 记录新增检查与理由；
+- transition reason 具体说明新事实，`additional_checks` 记录需要补充额度的检查与理由；
 - 自动命令数量和 full-suite/manual-handoff 权限只能单调增加，并且只增加当前所需部分；
 - checks、失败、未验证、handoff 和 findings 列表为空；本次调整不生成 Evidence、TestRecord 或验证尝试。
 
-Core 保存调整前后预算和原因，并签发新的 TEST Action。无具体原因、无新增检查或没有实际增加的提交
+Core 保存调整前后预算和原因，并签发新的 TEST Action。无具体原因、无检查说明或没有实际增加的提交
 零写入拒绝。普通 TEST 结果必须发送 `budget_adjustment=null`。
 
 完整套件结果的每个 check 还带非空 `full_suite_reason`；非完整套件该字段必须为空。这个字段保存本次
@@ -394,3 +394,11 @@ Core MCP 的 `inputSchema` 描述提交参数，`outputSchema` 描述公开结�
 Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.operation_status.host_request`，进入 `dispatch_prepared`；重复调用和 `status` 均可回读。`dispatch-call` 使用当前 `dispatch_attempt_id` 将阶段改为 `dispatching`，仅首次返回 `should_dispatch=true` 时允许调用一次创建工具。调用方将命令完整 stdout 写入私有文件，检查退出码并从文件解析 JSON，再原样转发请求，避免显示长度限制截断内容。
 
 确认原调用方已停止且创建工具尚未调用时，`dispatch-recover` 接收当前派发 ID、`host_call_not_made=true`、`previous_caller_stopped=true` 和具体 `reason`，保留原请求并换发调用许可 ID；随后执行 `dispatch-call`。空任务 ID 本身不能证明未调用。已经调用但结果未知时，Host 按保存的启动标题、启动 ID 和仓库标识查找任务及归档任务，读取候选任务完整初始消息，将 `candidates`（`thread_id`、`initial_prompt`）交给 `dispatch-reconcile`。唯一完整消息匹配才保存任务 ID；零匹配、多个匹配或查询不可用均不允许重新创建。Core Task 状态保持由 Core 管理。
+
+## Codex 携带路径核对
+
+Codex 携带本地改动时，会在 REQUIREMENTS 中记录保留要求，在 TASKS 中将完整的 `current_changed_paths` 与 `expected_paths` 及已保留的流程文件逐项核对。新开发工作和已有内容保留分别安排工作项与检查；当前 Action 的空文件清单不能代替完整 Task 路径核对。保留检查比较启动快照，不代表已有业务功能已经验证。已发生的文件范围阻塞仍通过现有 Core 选择与转移处理。 该核对由 Codex Host 的 skill 负责，继续使用现有 Requirements、Task Plan 和文件范围规则；Core 不保存第二份路径豁免列表。
+
+## 已有检查的验证额度
+
+增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。

@@ -185,3 +185,11 @@ dev-flow-codex artifacts prepare --help
 `host-launch dispatch-result` は、`content[].text` 内の JSON を含む Codex のタスク作成応答全体を受け取ります。`clientThreadId` を `host_client_thread_id` として保存し、段階を `queued` に設定します。同じ `launch_id` と `repository_key` で保持済みの結果を再送すると、`uncertain` の記録を復旧できます。その後の確認は同じ作成処理を追跡し、再ディスパッチしません。
 
 Codex はワークスペース作成リクエスト全体を保存し、再読み取りできます。`dispatch-start` で準備し、`dispatch-call` で一度だけ呼び出しを許可し、`dispatch-recover` で未呼び出しと確認できた操作を再開します。結果が不明な場合は `dispatch-reconcile` で既存タスクと照合します。呼び出し側は完全な JSON ファイルを解析し、結果がないことを理由に再作成しません。
+
+## Codex で引き継いだファイルの計画
+
+Codex がローカルの変更を引き継ぐ場合、REQUIREMENTS に内容の保持要件を記録し、TASKS で完全な `current_changed_paths` を `expected_paths` および保持済みのプロセス成果物と照合します。新しい開発と既存内容の保持には、それぞれ作業と確認を割り当てます。現在の Action のファイル一覧が空でも、Task 全体のパス確認は必要です。保持の確認は起動時のスナップショットとの比較であり、既存機能のテスト完了を意味しません。すでに発生したファイル範囲のブロッカーは、既存の Core の選択肢と遷移で処理します。
+
+## 計画済みの確認への実行枠追加
+
+検証の実行枠を増やす際、`additional_checks` は現在の計画や以前の追加記録にある確認項目名を参照できます。`rationale` には残っている作業や再実行の理由を記載します。1 回の送信内では名前が重複してはならず、具体的な理由、実際の増加量、既存の上限の確認は引き続き必要です。実行枠の追加だけで合格結果が作成されることはありません。

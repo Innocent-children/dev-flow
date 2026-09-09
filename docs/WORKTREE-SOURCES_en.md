@@ -78,3 +78,7 @@ not extend support claims for other platforms.
 
 This change adds no Core Git writes, automatic commits or publication, historical-data compatibility,
 cross-machine copying, ignored-file copying or submodule-content copying.
+
+## Codex planning and preservation checks
+
+When Codex carries local changes, it records their preservation in REQUIREMENTS and reconciles the complete `current_changed_paths` with `expected_paths` and retained process artifacts in TASKS. New development and preservation receive separate work and checks; an empty current-Action file collection cannot replace the complete Task path comparison. Preservation checks compare the launch snapshot and do not certify existing behavior as tested. Existing file-scope blockers continue through the current Core choices and transitions.

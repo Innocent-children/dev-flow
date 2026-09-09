@@ -176,3 +176,11 @@ dev-flow-codex artifacts prepare --help
 `host-launch dispatch-result` 接收 Codex 创建任务的完整返回值，包括 `content[].text` 中的 JSON。它将 `clientThreadId` 保存为 `host_client_thread_id`，阶段设为 `queued`；以相同 `launch_id` 和 `repository_key` 重新提交保留的结果，可以恢复 `uncertain` 记录。后续检查继续跟踪同一次创建，不重复派发。
 
 Codex 保存完整工作区创建请求供回读。`dispatch-start` 准备请求，`dispatch-call` 允许一次调用，`dispatch-recover` 恢复确认尚未调用的操作，`dispatch-reconcile` 在结果未知时匹配已有任务。调用方从完整 JSON 文件解析；缺少结果不能作为重复创建的理由。
+
+## Codex 携带文件的任务规划
+
+Codex 携带本地改动时，会在 REQUIREMENTS 中记录保留要求，在 TASKS 中将完整的 `current_changed_paths` 与 `expected_paths` 及已保留的流程文件逐项核对。新开发工作和已有内容保留分别安排工作项与检查；当前 Action 的空文件清单不能代替完整 Task 路径核对。保留检查比较启动快照，不代表已有业务功能已经验证。已发生的文件范围阻塞仍通过现有 Core 选择与转移处理。
+
+## 为已有检查补充额度
+
+增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。
