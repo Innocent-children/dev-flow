@@ -20,13 +20,13 @@
 
 ## I18n
 
-<!-- 列出本 PR 同步的 locale。规则见 docs/I18N.md。 -->
+<!-- 列出受影响文档族及同步的语言；README 内容变化时同步 9 种语言。文档职责见 AGENTS.md，语言范围见 docs/I18N.md。 -->
 
 ## Checklist
 
 - [ ] 变更基于最新 `main`，范围可独立审查。
-- [ ] 用户可见行为变化已同步全部根 README locale、`docs/PRODUCT*` 和受影响的技术文档，或本项不适用。
-- [ ] 文档内容已同步到对应的所有维护语言，没有占位翻译或过期版本说明。
+- [ ] 已按职责更新受影响的使用说明、产品定义或技术参考；README 仅在项目介绍、安装、常用操作或必要限制变化时更新，并同步 9 种语言。
+- [ ] 受影响文档族已同步对应的维护语言；README 中没有仓库 AI 工作规则或本次实现、验证记录。
 - [ ] 面向用户的 npm 安装示例使用 `@latest`，Support Matrix 与 Release 验证记录继续保留精确版本。
 - [ ] 新增或修改的命令已对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`。
 - [ ] 检查范围与实际改动、验收条件或已知风险直接相关。

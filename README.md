@@ -10,45 +10,25 @@
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## Keep long tasks from drifting
+## What Dev Flow helps you do
 
-A long coding task can gradually change shape: more files enter the change, targeted checks grow into
-open-ended testing, the same failure triggers another similar attempt, or a restarted session has to
-reconstruct progress from chat history.
+Dev Flow helps you manage long AI coding tasks in Codex or DeepSeek. It saves the agreed requirements,
+file scope, verification plan, progress, and results locally so you can continue after a session ends.
 
-Dev Flow keeps the agreed request, expected paths, post-analysis verification plan, current stage, and results in
-one local task while Codex or DeepSeek does the coding work.
+- **Keep scope clear:** record the intended files and check the actual changes against the plan.
+- **Plan testing:** choose relevant checks and set limits on verification effort.
+- **Resume work:** continue the same task and remaining work from its original worktree.
+- **Inspect results:** view progress, checks, and reasons a task needs attention.
 
-Every new request is assessed read-only before Dev Flow is selected. If you choose it, the Host asks
-whether to start from a local or remote branch, which branch to use, and the new task branch name.
-For a local source it also asks whether to copy staged, unstaged and non-ignored untracked content,
-preserving the source checkout and staging state. Local creation works without network access; only
-remote creation fetches. Conflicts stop Task creation and retain the destination for inspection.
-
-Repository discovery and code-index use follow the current user instructions and applicable `AGENTS.md`.
-When those instructions require a project index, the Host inspects candidate repositories read-only
-before confirmation, then fixes the confirmed scope in the Task. Those instructions take precedence
-over the plugin's code-index preference.
-
-- **Scope stays explicit.** Expected paths are recorded, supported structured writes outside the plan
-  ask first, and actual changes are checked again before testing and delivery.
-- **The workspace has one owner.** Core derives the Task's actual changes from Git inside the dedicated
-  worktree; normal linear commits preserve those changes, while branch rewrites and replacement worktrees stop.
-- **Testing matches the task.** TASKS records checks, rationales, initial effort, and full-suite/test-code
-  expectations. Concrete new impact, risk, failure, or gaps can increase the budget; spare capacity alone cannot.
-- **Review stops at the change.** Post-change review covers the diff, causal impact, and acceptance needs;
-  fixing a finding triggers only related rechecks, while explicit code review remains read-only.
-- **Progress survives restarts.** A new session can resume the same task, remaining checks, and current
-  decision instead of rebuilding them from the conversation.
-- **Results stay current.** Changes to the request, plan, implementation, or repository retire stale
-  checks; the developer reviews the actual result before delivery.
-- **Completion and recovery stay verifiable.** Core requires all planned work items and links every acceptance criterion to current checks. WebUI recovers retained submissions from Core after an interruption. Codex preserves complete rejection responses and follows Core’s instructions before continuing.
+It suits repository work that spans sessions or needs explicit scope and testing limits. For one-off
+questions, code explanations, and small edits that need no saved progress, using Codex or DeepSeek
+directly is usually simpler.
 
 ## Quick start
 
-> Stable npm `@latest` is currently verified on macOS arm64. Use Node.js `>=24` and an installed,
-> supported Codex or DeepSeek Harness. See the [Support Matrix](docs/SUPPORT-MATRIX_en.md) for exact
-> Host versions and other environments.
+> Stable npm `@latest` is currently verified on macOS arm64. Use Node.js `>=24` and install a supported
+> Codex or DeepSeek Harness first. See the [Support Matrix](docs/SUPPORT-MATRIX_en.md) for Host versions
+> and other environments.
 
 ### 1. Install Dev Flow
 
@@ -57,47 +37,42 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Choose Codex, DeepSeek, or both in the interactive setup. Before starting the first task, complete the
-Host-specific step printed by the installer:
+Choose Codex, DeepSeek, or both in the interactive setup, then complete the installer's instructions:
 
-- **Codex:** open `/hooks`, review the packaged Dev Flow hook, and trust it. The supported
-  `apply_patch` pre-write check is inactive until the hook is trusted.
+- **Codex:** open `/hooks`, review the Dev Flow hook, and trust it to enable supported pre-write checks.
 - **DeepSeek Harness:** restart the selected DSH Profile after installation.
-
-The current source Adapter requires DSH `>=0.1.2-rc.1`; each Dev Flow operation must be authorized by the current direct user turn.
 
 ### 2. Start a task
 
-Send this as a user message in **Codex**:
+Send this message in **Codex**:
 
 ```text
 $dev-flow-codex:dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
-Codex continues with existing valid choices and authorization, without extra “confirm to continue” pauses. It still asks concrete questions for unresolved decisions or required input.
-
-Or send this in **DeepSeek Harness**:
+Or in **DeepSeek Harness**:
 
 ```text
 /dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
-These are conversation selectors, not shell commands. Include a concrete goal, acceptance conditions,
-file boundary, and test limit. The first response assesses the likely impact and asks whether to work
-directly or use Dev Flow; even an explicit selector does not skip that choice. If you choose Dev Flow,
-confirm the source, branch and content choices described above. Codex then opens a managed worktree when its Host
-supports it; DeepSeek prints a relaunch instruction because its Workspace Root is fixed for the session.
+Send these in the conversation, not a terminal. Describe your goal, acceptance conditions, file
+scope, and testing limit.
 
-Before starting a new Codex session, the source session saves the complete relevant requirements discussion and a structured handoff, separating confirmed requirements from unaccepted suggestions and open questions. Desktop task creation and CLI relaunch use the same saved material; long content is supplied through complete files without truncation. See [the architecture](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
+The first reply assesses the request and asks whether to work directly or use Dev Flow. If you
+choose Dev Flow, confirm the local or remote source, starting branch, new task branch, and whether
+to carry existing local changes.
 
-The handoff preserves session-specific instructions and authorizations; Codex loads applicable global and repository `AGENTS.md` files normally, without duplicating their contents in the handoff. Necessary supplements for rules unavailable through destination discovery identify their source and scope.
+Work then proceeds in a dedicated Git worktree, a separate directory for the task. Codex opens it
+when the Host supports that operation; DeepSeek provides a command to restart from the new directory.
 
-### 3. Resume and inspect
+### 3. Resume and view progress
 
-After a session restart, explicitly ask to continue the Task in its original bound worktree. The
-system checks that worktree and continues from the saved task state. It does not reassess the request
-or ask you to choose Dev Flow again. If the original worktree is missing or replaced, the Task pauses
-until you restore it or explicitly abandon the Task; the system does not switch to another worktree.
+After a session restart, return to the task's original worktree and ask to continue it. Dev Flow
+resumes from the saved progress. If that worktree is missing or replaced, the task pauses until you
+restore it or explicitly abandon the task.
+
+In DeepSeek Harness, include `/dev-flow` in the message asking to resume.
 
 ```bash
 # Inspect installed integrations
@@ -110,35 +85,35 @@ dev-flow webui start
 For non-interactive installation, custom DSH Profiles, upgrades, repair, and removal, see the
 [Command Reference](docs/COMMANDS_en.md).
 
-## Suitable tasks
+## Desktop pet
 
-Dev Flow is useful for repository work that spans sessions, needs a real file boundary, limits test
-effort, or may require rework without reusing stale results.
-
-For one-off questions, code explanations, status checks, and small mechanical edits that need no saved
-progress, using Codex or DeepSeek directly is usually simpler.
-
-## Desktop task entry
-
-The `@imotong/dev-flow` npm package includes the desktop pet for macOS arm64 and Windows 10/11 x64, with nine default actions and 312 SVG frames. It shows one selected Task’s saved state and opens its WebUI; it supports task selection, custom appearances, animation controls, resizing and independent start/stop. A configured Codex or DeepSeek Adapter supplies Core.
-
-After installing the npm package, run `dev-flow install` to configure an Adapter. `install`, `upgrade`, `repair` and `reinstall` refresh the app copy while preserving settings and appearances. See the [desktop pet guide](docs/DESKTOP-PETS_en.md). macOS uses ad-hoc signing; Developer ID, notarization and Windows distribution signing remain unverified. Local checks do not expand [stable support](docs/SUPPORT-MATRIX_en.md).
+The desktop pet shows a selected task's saved state and opens its WebUI. You can choose tasks,
+customize its appearance, control animations, resize it, and start or stop it independently. Complete
+the installation and Codex or DeepSeek setup above before using it.
 
 ```bash
 dev-flow pet start
 dev-flow pet stop
 ```
 
+Desktop applications target macOS arm64 and Windows 10/11 x64. See the
+[pet guide](docs/DESKTOP-PETS_en.md) for installation and controls, and the
+[Support Matrix](docs/SUPPORT-MATRIX_en.md) for verified availability.
+
+## Usage limits
+
+A dedicated worktree separates code changes. Processes, network access, credentials, and external
+services remain shared with your environment.
+
+Completing a task does not automatically commit, push, or delete its worktree. Those operations
+require your separate authorization.
+
 ## Documentation
 
-- **Use Dev Flow:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
-- **Project:** [Product](docs/PRODUCT_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+- **Usage:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Project:** [Product](docs/PRODUCT_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md) · [Security](SECURITY.md)
+- **Development and contributions:** [Documentation index](MANIFEST_en.md) · [Contributing](CONTRIBUTING.md)
 
 ## License
 
 [Apache License 2.0](LICENSE)
-
-
-## Host interaction references
-
-The [Codex Skill](packages/codex/plugin/skills/dev-flow/SKILL.md) and [DeepSeek Skill](packages/deepseek/skills/dev-flow/SKILL.md) use Core rules and examples generated from one shared source. Each package keeps its actual authorization, workspace and tool interfaces. Both cover current node transitions, result handling and recovery; repository process files are updated before final verification, and a shortened display does not invalidate a fully retained response.

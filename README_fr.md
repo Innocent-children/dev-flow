@@ -10,47 +10,26 @@
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## Empêcher les longues tâches de dériver
+## Ce que Dev Flow vous permet de faire
 
-Plus une tâche de programmation dure, plus elle risque de changer progressivement de forme : des fichiers
-s'ajoutent, un contrôle ciblé devient une campagne de tests sans limite, le même échec provoque un nouvel
-essai similaire ou une session redémarrée doit reconstituer l'avancement depuis la conversation.
+Dev Flow vous aide à gérer de longues tâches de programmation avec IA dans Codex ou DeepSeek.
+Il enregistre localement les exigences convenues, le périmètre des fichiers, le plan de vérification,
+l’avancement et les résultats pour poursuivre le travail après la fin d’une session.
 
-Dev Flow conserve dans une seule tâche locale la demande convenue, les chemins prévus, le plan de
-vérification établi après analyse, l'étape actuelle et les résultats. Codex ou DeepSeek continue à modifier le code.
+- **Clarifier le périmètre :** enregistrez les fichiers prévus et comparez les modifications réelles au plan.
+- **Planifier les tests :** choisissez les contrôles utiles et fixez une limite à l’effort de vérification.
+- **Reprendre le travail :** poursuivez la même tâche et le travail restant depuis son worktree d’origine.
+- **Consulter les résultats :** suivez l’avancement, les contrôles et les problèmes à traiter.
 
-Chaque nouvelle demande est évaluée en lecture seule avant de choisir Dev Flow. Le Host demande ensuite
-si la source est locale ou distante, quelle branche utiliser et comment nommer la nouvelle branche de tâche.
-Pour une source locale, il demande aussi s’il faut copier les modifications indexées, non indexées et les fichiers
-non suivis que Git n’ignore pas, en conservant le répertoire source et l’état de l’index. La création locale fonctionne
-sans réseau ; seule la création distante exécute fetch. Un conflit arrête la création du Task et conserve la destination pour examen.
-
-La recherche de dépôts et l'utilisation de l'index de code suivent les instructions actuelles de
-l'utilisateur et le fichier `AGENTS.md` applicable. Si ces instructions imposent un index de projets,
-le Host examine les dépôts candidats en lecture seule avant confirmation, puis fixe le périmètre
-confirmé dans la Task. Ces instructions priment sur la préférence du plugin pour l'index de code.
-
-- **Le périmètre reste clair.** Les chemins prévus sont enregistrés, les outils structurés pris en charge
-  demandent confirmation avant d'écrire hors du plan et les changements réels sont revérifiés avant les
-  tests et la livraison.
-- **Chaque worktree a un seul propriétaire des modifications.** Core calcule les modifications actuelles de la
-  Task depuis Git ; les commits linéaires normaux continuent, tandis qu'une réécriture de branche ou le
-  remplacement du worktree arrête la tâche.
-- **La vérification suit la tâche.** TASKS conserve contrôles, raisons, effort initial et attentes de suite
-  complète/code de test. Seuls un impact, un risque, un échec ou un manque concret augmentent le budget.
-- **La revue s'arrête au changement courant.** Après modification, elle couvre le diff, l'impact causal et
-  l'acceptation ; une correction ne relance que les contrôles liés et une code review explicite reste en lecture seule.
-- **Le travail reprend après un redémarrage.** Une nouvelle session retrouve la même tâche, les contrôles
-  restants et la décision en cours sans les reconstruire depuis la conversation.
-- **Seuls les résultats encore valides sont réutilisés.** Toute modification de la demande, du plan, de
-  l'implémentation ou du dépôt invalide les anciens contrôles ; le développeur examine le résultat avant livraison.
-- **La finalisation et la reprise restent vérifiables.** Core exige que tous les éléments du plan soient terminés et relie chaque critère d’acceptation à des vérifications valides pour l’état actuel. Après une interruption, WebUI reprend les soumissions conservées par Core. Codex conserve les réponses de refus complètes et suit les instructions de Core avant de poursuivre.
+Il convient aux travaux sur un dépôt qui s’étendent sur plusieurs sessions ou nécessitent des limites
+claires de fichiers et de tests. Pour les questions ponctuelles, les explications de code et les petites
+modifications sans suivi persistant, utiliser directement Codex ou DeepSeek est généralement plus simple.
 
 ## Démarrage rapide
 
-> La version stable publiée sur npm sous `@latest` est actuellement vérifiée sur macOS arm64. Installez d'abord Node.js `>=24`
-> et une version compatible de Codex ou de DeepSeek Harness. Consultez les versions exactes et les autres
-> environnements dans la [Support Matrix](docs/SUPPORT-MATRIX_en.md).
+> La version stable npm `@latest` est actuellement vérifiée sur macOS arm64. Utilisez Node.js `>=24`
+> et installez d’abord une version compatible de Codex ou DeepSeek Harness. Consultez les versions des
+> applications hôtes et les autres environnements dans la [matrice de support](docs/SUPPORT-MATRIX_en.md).
 
 ### 1. Installer Dev Flow
 
@@ -59,49 +38,43 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Choisissez Codex, DeepSeek ou les deux dans la configuration interactive. Avant de lancer la première
-tâche, effectuez également la dernière opération indiquée par l'installateur :
+Choisissez Codex, DeepSeek ou les deux dans la configuration interactive, puis suivez les instructions de l’installateur :
 
-- **Codex :** ouvrez `/hooks`, examinez le hook fourni avec Dev Flow et marquez-le comme fiable. Le contrôle
-  préalable pris en charge pour `apply_patch` ne fonctionne pas tant que le hook n'est pas approuvé.
-- **DeepSeek Harness :** redémarrez le Profile DSH choisi après l'installation.
-
-L’Adapter du code source actuel nécessite DSH `>=0.1.2-rc.1` ; chaque opération Dev Flow vérifie l’autorisation saisie directement par l’utilisateur dans le tour actuel.
+- **Codex:** ouvrez `/hooks`, examinez le hook Dev Flow et approuvez-le pour activer les contrôles avant écriture pris en charge.
+- **DeepSeek Harness:** redémarrez le Profile DSH sélectionné après l’installation.
 
 ### 2. Démarrer une tâche
 
-Envoyez ce message utilisateur dans **Codex** :
+Envoyez ce message dans **Codex** :
 
 ```text
 $dev-flow-codex:dev-flow Ajoutez une limitation de fréquence aux échecs de connexion. Modifiez uniquement les fichiers d'authentification et exécutez au plus 4 contrôles ciblés.
 ```
 
-Codex conserve les choix et autorisations encore valides, sans pause supplémentaire pour « confirmer et continuer ». Si une décision reste à prendre ou si une information nécessaire manque, il pose une question précise.
-
-Ou envoyez ce message dans **DeepSeek Harness** :
+Ou dans **DeepSeek Harness** :
 
 ```text
 /dev-flow Ajoutez une limitation de fréquence aux échecs de connexion. Modifiez uniquement les fichiers d'authentification et exécutez au plus 4 contrôles ciblés.
 ```
 
-Ce sont des sélecteurs de conversation, pas des commandes shell. Indiquez un objectif concret, les
-conditions d'acceptation, le périmètre des fichiers et la limite de tests. La première réponse évalue
-l'impact et demande de travailler directement ou avec Dev Flow ; même un sélecteur explicite ne saute
-pas ce choix. Si vous choisissez Dev Flow, confirmez la source, les branches et la copie des modifications décrites ci-dessus. Codex ouvre
-un worktree géré lorsque le Host le permet ; DeepSeek indique comment redémarrer depuis le nouveau
-worktree, car le Workspace Root de la session est fixe.
+Envoyez ces messages dans la conversation, pas dans un terminal. Précisez l’objectif, les critères
+d’acceptation, le périmètre des fichiers et la limite de tests.
 
-Avant de démarrer une nouvelle session Codex, la session source enregistre la discussion originale pertinente et un document structuré, en distinguant les exigences confirmées des suggestions non acceptées et des questions ouvertes. La création de tâches sur le bureau et le redémarrage via la CLI utilisent les mêmes éléments enregistrés ; les contenus longs sont transmis dans des fichiers complets, sans troncature. Voir l’[architecture](docs/ARCHITECTURE_en.md#codex-requirements-handoff).
+La première réponse évalue la demande et propose de travailler directement ou avec Dev Flow.
+Si vous choisissez Dev Flow, confirmez la source locale ou distante, la branche de départ, la nouvelle
+branche de tâche et la reprise éventuelle des modifications locales existantes.
 
-Le document conserve les instructions et autorisations propres à la session ; Codex charge normalement les fichiers `AGENTS.md` globaux et du dépôt applicables, sans en dupliquer le contenu dans la transmission. Les compléments nécessaires aux règles que la session destinataire ne peut pas détecter précisent leur origine et leur champ d’application.
+Le travail se déroule ensuite dans un worktree Git dédié, un répertoire distinct pour la tâche.
+Codex l’ouvre si l’application hôte le permet ; DeepSeek fournit une commande pour redémarrer depuis
+le nouveau répertoire.
 
-### 3. Reprendre et consulter l'avancement
+### 3. Reprendre et consulter l’avancement
 
-Après un redémarrage de la session, demandez explicitement de poursuivre la Task dans son worktree
-d'origine. Le système vérifie ce worktree et reprend à partir de l'état enregistré, sans réévaluer
-la demande ni vous demander de choisir à nouveau Dev Flow. Si le worktree d'origine a disparu ou a
-été remplacé, la Task reste en pause jusqu'à sa restauration ou à l'abandon explicite de la tâche
-(abandon). Le système ne passe pas à un autre worktree.
+Après un redémarrage de session, revenez au worktree d’origine et demandez de poursuivre la tâche.
+Dev Flow reprend l’avancement enregistré. Si ce worktree a disparu ou a été remplacé, la tâche reste
+en pause jusqu’à sa restauration ou jusqu’à ce que vous l’abandonniez explicitement.
+
+Dans DeepSeek Harness, incluez `/dev-flow` dans le message demandant de reprendre la tâche.
 
 ```bash
 # Consulter les intégrations installées
@@ -111,39 +84,39 @@ dev-flow status --host all
 dev-flow webui start
 ```
 
-Pour l'installation non interactive, les Profiles DSH personnalisés, les mises à niveau, la réparation
-et la suppression, consultez la [Command Reference](docs/COMMANDS_en.md).
+Pour l’installation non interactive, les Profiles DSH personnalisés, les mises à jour, la réparation
+et la suppression, consultez la [référence des commandes](docs/COMMANDS_en.md).
 
-## Quand l'utiliser
+## Mascotte de bureau
 
-Dev Flow convient aux travaux de dépôt qui s'étendent sur plusieurs sessions, nécessitent un véritable
-périmètre de fichiers, limitent l'effort de test ou peuvent demander des reprises sans réutiliser de
-résultats obsolètes.
-
-Pour une question ponctuelle, une explication de code, une consultation d'état ou une petite modification
-mécanique sans progression à conserver, Codex ou DeepSeek seul est généralement plus simple.
-
-## Accéder aux tâches depuis le bureau
-
-Le paquet npm `@imotong/dev-flow` contient la mascotte de bureau pour macOS arm64 et Windows 10/11 x64, avec neuf actions et 312 images SVG par défaut. Elle affiche l’état enregistré de la Task sélectionnée et ouvre sa WebUI ; elle permet de choisir une tâche, importer une apparence, contrôler les animations, modifier la taille et démarrer ou arrêter séparément la mascotte. Un Adapter Codex ou DeepSeek configuré fournit Core.
-
-Après l’installation du paquet npm, exécutez `dev-flow install` pour configurer un Adapter. `install`, `upgrade`, `repair` et `reinstall` actualisent la copie de l’application en conservant les réglages et les apparences. Consultez le [guide de la mascotte](docs/DESKTOP-PETS_en.md). macOS utilise une signature ad-hoc ; Developer ID, notarisation et signature de distribution Windows restent non vérifiés. Les contrôles locaux n’étendent pas le [support stable](docs/SUPPORT-MATRIX_en.md).
+La mascotte de bureau affiche l’état enregistré d’une tâche sélectionnée et ouvre sa WebUI. Vous
+pouvez choisir la tâche, personnaliser l’apparence, contrôler les animations, modifier la taille et
+la démarrer ou l’arrêter indépendamment. Terminez d’abord l’installation et la configuration de
+Codex ou DeepSeek décrites ci-dessus.
 
 ```bash
 dev-flow pet start
 dev-flow pet stop
 ```
 
+Les applications de bureau ciblent macOS arm64 et Windows 10/11 x64. Consultez le
+[guide de la mascotte](docs/DESKTOP-PETS_en.md) pour l’installation et les commandes, et la
+[matrice de support](docs/SUPPORT-MATRIX_en.md) pour les environnements vérifiés.
+
+## Limites d’utilisation
+
+Un worktree dédié sépare les modifications de code. Les processus, le réseau, les identifiants et
+les services externes restent partagés avec votre environnement.
+
+Terminer une tâche ne crée pas automatiquement de commit, n’effectue pas de push et ne supprime pas
+son worktree. Ces opérations nécessitent une autorisation distincte de votre part.
+
 ## Documentation
 
-- **Utilisation :** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
-- **Projet :** [Product](docs/PRODUCT_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+- **Utilisation :** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commandes](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Projet :** [Définition du produit](docs/PRODUCT_en.md) · [Matrice de support](docs/SUPPORT-MATRIX_en.md) · [Sécurité](SECURITY.md)
+- **Développement et contributions :** [Index de documentation](MANIFEST_en.md) · [Guide de contribution](CONTRIBUTING.md)
 
 ## Licence
 
 [Apache License 2.0](LICENSE)
-
-
-## Références des interactions du Host
-
-La [Skill Codex](packages/codex/plugin/skills/dev-flow/SKILL.md) et la [Skill DeepSeek](packages/deepseek/skills/dev-flow/SKILL.md) génèrent les règles et exemples de Core à partir d’une source commune unique. Chaque paquet conserve ses interfaces réelles d’autorisation, d’espaces de travail et d’outils. Les deux couvrent les transitions actuelles, les réponses et la récupération. Les documents du processus sont mis à jour avant la vérification finale ; un affichage tronqué ne rend pas incertaine une réponse conservée intégralement.

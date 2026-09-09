@@ -10,16 +10,16 @@ still define runtime behavior.
 
 ## Maintained languages
 
-All nine root README locales are continuously synchronized. Detailed technical documentation keeps
-paired English and Simplified Chinese files, including:
+When root README content changes, all nine languages are updated together. Detailed documentation
+keeps paired English and Simplified Chinese files, including:
 
 - `docs/PRODUCT*`, `docs/DEMO*`, `docs/ROADMAP*`, and `docs/PROJECT-STATUS*`;
 - `docs/ARCHITECTURE*`, `docs/COMMANDS*`, `docs/WEBUI*`, and `docs/SUPPORT-MATRIX*`;
 - `MANIFEST*`, `CONTRIBUTING*`, and this I18n policy;
 - the existing Chinese and English Codex and DeepSeek Host guides.
 
-The English and Simplified Chinese technical documents synchronize product position, current
-capability, future direction, commands, platforms, Hosts, and security boundaries.
+Paired English and Simplified Chinese documents preserve the same meaning within each document
+family's subject matter.
 
 Desktop usage and toolchain policy also maintain paired Chinese/English files. Synchronization preserves product meaning within each page’s responsibility; technical-reference links supply detailed fields.
 
@@ -39,19 +39,26 @@ The root README family retains these nine locales:
 | `de` | German | `README_de.md` | Continuously synchronized root README |
 | `pt-BR` | Brazilian Portuguese | `README_pt-BR.md` | Continuously synchronized root README |
 
-## Synchronization rules
+## Synchronization scope
 
-When user-visible behavior or product position changes:
+Select the document family by its responsibility before translating. Root READMEs introduce the
+project and explain everyday use; PRODUCT describes product scope and behavior rules; technical
+references explain interfaces and implementation. See the [documentation index](../MANIFEST_en.md).
+Repository AI instructions and the rules for selecting documentation updates live in
+[AGENTS.md](../AGENTS.md).
 
-1. synchronize all nine root README locales when product position, capability, commands, selectors,
-   platforms, support, or security boundaries change;
-2. synchronize the affected paired English and Simplified Chinese technical-document family;
-3. update every affected technical reference and Host guide;
-4. list every updated locale and technical-document path in the pull-request validation summary.
+1. Update root READMEs when project purpose, main capabilities, prerequisites, installation, common
+   operations, or necessary usage limits change. Then synchronize the affected content in all nine
+   languages.
+2. Internal implementation, protocol, test, build, or agent-rule changes do not by themselves
+   require README edits. Translate changes in the document family that owns those details.
+3. A changed PRODUCT or technical-reference statement is synchronized with its maintained
+   Chinese/English counterpart. Do not copy it into other families simply to synchronize documents.
+4. List the document paths and languages actually updated in the pull-request validation summary.
 
-Other languages cannot add capabilities, platforms, or support claims absent from the current Chinese
-and English documents. Commands, selectors, package names, paths, version identities, and Support
-Matrix facts do not change in translation.
+Translations preserve capabilities, commands, selectors, package names, paths, version identities,
+and support claims. They do not add capabilities or platform promises absent from the corresponding
+English or Simplified Chinese content.
 
 ## Installation commands and version identities
 
@@ -92,11 +99,12 @@ in English; translations do not invent additional product terminology or commitm
 
 ## Review requirements
 
-Documentation changes must at least confirm that:
+Check the affected document family:
 
 - every file in the language navigation exists;
-- all nine root README files express the same position, capability, commands, support, and boundaries;
+- when README changes, all nine languages align on the introduction, installation, operations,
+  necessary limits, and documentation links;
 - paired Chinese and English technical-document families express the same product facts;
 - ordinary installation examples use `@latest`;
 - non-English files contain no placeholder translation or whole-section English fallback;
-- `docs/COMMANDS*` matches current parsers, lifecycle tests, and the MCP catalog.
+- changed command documentation matches current parsers, lifecycle tests, and the MCP catalog.

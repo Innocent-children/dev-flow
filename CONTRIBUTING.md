@@ -9,7 +9,7 @@ final-package test results, and clearly scoped product improvements that solve r
 
 | Change | Requirement |
 | --- | --- |
-| Spelling, links, translation, or correction of existing behavior documentation | Open a bounded pull request directly and synchronize the affected document family and root README locales according to the [I18n policy](docs/I18N_en.md) |
+| Spelling, links, translation, or correction of existing behavior documentation | Open a bounded pull request directly and synchronize the maintained languages of the affected document family according to the [I18n policy](docs/I18N_en.md) |
 | Template or documentation-maintenance rule change | Explain the affected surface; do not change product versions or perform a release |
 | Implementation defect that does not change public semantics | Identify the gap between the approved contract and actual behavior, then fix only that gap |
 | User-visible behavior, Core/MCP contract, persistence, process graph, or host-adapter contract change | Explain the user problem, scope, acceptance criteria, and approach, synchronize implementation/tests/docs/i18n, and update `CORE_VERSION` when shipped Core changes |
@@ -89,9 +89,11 @@ move directly into implementation.
 
 ## Documentation style
 
-Use formal, precise technical prose to describe current behavior, component responsibilities,
-change locations, and verification methods. Prefer concise headings such as “Acceptance checks,”
-“Responsibilities,” and “Verification scope” over conversational questions or unexplained abstractions.
+Write for the document's reader and purpose. Root READMEs introduce the project and explain use in
+ordinary developer language: purpose, installation, operations, and necessary limitations. Technical
+references explain component responsibilities, interfaces, implementation, and verification. Use
+concise headings and explain unfamiliar terms when needed. See the [documentation index](MANIFEST_en.md)
+for reading paths; repository AI working rules are maintained in [AGENTS.md](AGENTS.md).
 
 - Use “Acceptance checks” to list steps or tests, the environment, and expected results.
 - Describe actual test results, run records, and saved results, including checks that were not run.
@@ -131,10 +133,15 @@ Before editing, read the [I18n policy](docs/I18N_en.md), the
 - Keep Core's Git observation read-only; do not add shell, commit, push, merge, tag, or publication
   capability.
 - Run only validation directly connected to the changed surface, acceptance criteria, or known risk.
-- A user-visible behavior change must synchronize all nine root README files, `docs/PRODUCT*`, and
-  affected technical documentation.
-- A documentation correction must synchronize the paired Chinese/English technical family and every
-  affected root README locale.
+- Update affected explanations by document responsibility: README covers the project and everyday
+  use, `docs/PRODUCT*` covers product scope and behavior rules, and technical references cover
+  interfaces and implementation details.
+- Code changes alone do not require README edits. Update root READMEs when purpose, main capabilities,
+  installation, common operations, or necessary limitations change, then synchronize all nine
+  languages. Internal refactoring, fixes restoring documented behavior, and test changes do not
+  trigger README updates.
+- A documentation correction synchronizes the maintained languages of its affected document family;
+  it does not copy change summaries into other documents.
 - When adding or changing a command, verify it against the package manifest, CLI parser, DSH lifecycle,
   Core parser, or MCP catalog and synchronize `docs/COMMANDS*`.
 - Public npm installation examples use `@latest`; human-readable documentation contains no exact
@@ -144,17 +151,17 @@ Before editing, read the [I18n policy](docs/I18N_en.md), the
 
 ## Validation
 
-At minimum, documentation changes should confirm that:
+For documentation changes, check the affected scope:
 
 - Markdown, tables, code fences, and Mermaid render correctly on GitHub;
 - every file in the language navigation exists and links back to the other locales;
 - section structure, commands, platforms, and support claims are aligned in paired Chinese/English
   document families;
-- all nine root README files keep position, capability, commands, platforms, stable support, and
-  boundaries aligned;
+- when README changes, all nine languages keep the introduction, installation, operations, necessary
+  limits, and documentation links aligned;
 - every ordinary installation example uses `@latest`, while exact product versions remain in
   machine-readable files and release records;
-- `docs/COMMANDS*` matches the executable command and tool catalog;
+- changed command documentation matches the executable command and tool catalog;
 - non-English files contain no placeholder translation or whole-section English fallback;
 - the change does not broaden claims in the current
   [Support Matrix](docs/SUPPORT-MATRIX_en.md).

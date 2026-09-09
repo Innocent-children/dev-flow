@@ -11,8 +11,9 @@ executable tests decide current behavior, and the documentation must be correcte
 
 | Document | Primary question it answers |
 | --- | --- |
-| `README.md` | What Dev Flow is, its current core capabilities, shortest start, support, and safety boundaries |
-| `docs/PRODUCT_en.md` | Target users, failure scenarios, current commitments, non-goals, and product decision principles |
+| Root `README*.md` | Project introduction and user manual: purpose, suitable tasks, installation, starting, resuming, common operations, and necessary limits |
+| `AGENTS.md` | Instructions, responsibility boundaries, change constraints, validation, and documentation-update rules for AI agents working in this repository |
+| `docs/PRODUCT_en.md` | Target users, problems, user-visible behavior rules, product scope, and non-goals |
 | `docs/DEMO_en.md` | How one long-running task continues from the same Task after interruption |
 | `docs/ROADMAP_en.md` | Future user outcomes and priorities; not a current capability inventory |
 | `docs/PROJECT-STATUS_en.md` | Delivered capability, stable/source/unverified status, existing records, and product gaps |
@@ -20,15 +21,21 @@ executable tests decide current behavior, and the documentation must be correcte
 | `docs/COMMANDS_en.md` | Complete lifecycle, Host, Core, selector, and MCP entrypoint reference |
 | `docs/WEBUI_en.md` | Local visualization, diagnostics, supported page operations and security boundaries |
 | `docs/SUPPORT-MATRIX_en.md` | Verified package, platform, and Host coverage |
-| `CONTRIBUTING.md` | Rules for issues, product proposals, documentation, and code contributions |
+| `CONTRIBUTING.md` | Human contributor guidance for issues, product proposals, development setup, validation, and pull requests |
+| `MANIFEST_en.md`, `docs/I18N_en.md` | Documentation and source navigation; maintained languages, document pairs, and translation consistency |
 | `docs/DESKTOP-PETS_en.md` | Desktop installation, controls, artwork formats and repeatable check methods |
 | `docs/WINDOWS-ADAPTATION_en.md` | Recorded checks, actual results and unverified scope for specific artifacts and environments |
 | `docs/TOOLCHAIN-BASELINES_en.md` | Current development/build toolchain ranges, responsibilities and revalidation requirements |
-| Host README | Installation, startup, recovery, status, removal, and Host-specific behavior |
+| Package READMEs and Host guides | Package or Host installation, operations, recovery, troubleshooting, maintenance, removal, and specific limitations |
+| `docs/ARTIFACTS*`, `docs/WORKTREE-SOURCES*`, `docs/THREAT-MODEL*` | Detailed design of process files, worktree sources, and trust boundaries |
+| `internal/README*`, `scripts/README*`, `tests/**/README.md`, `protocol/fixtures/README.md` | Directory structure, development commands, test procedures, and fixture usage |
+| `release/**/README.md`, `docs/RELEASE-STRATEGY.md`, `docs/VERSIONING.md` | Maintainer procedures for versions, artifact checks, and publication |
+| `skills/dev-flow/core/` and Host Skill directories | Core interaction instructions and Host operations used by agents running the installed product |
+| `SECURITY.md` | Vulnerability reporting and the security reporting policy |
 
-README, PRODUCT, and Host README files do not repeat protocol fields, the complete MCP catalog, or
-Store implementation. Precise details belong in Architecture, the Command Reference, and linked
-advanced Host sections.
+Root READMEs follow user operations and link to dedicated references for technical detail.
+Directory-local maintainer READMEs describe their directory's technical purpose. [AGENTS.md](AGENTS.md)
+governs AI maintenance of this repository; Skills govern agent use of the installed product.
 
 ## Runtime and release scope
 
@@ -56,4 +63,7 @@ Historical design and implementation records remain in Git history. README files
 Markdown, and other human-readable documents do not decide runtime behavior, package contents,
 versions, or release results.
 
-Synchronize statements according to each page’s responsibility rather than copying whole change summaries. Retire superseded proposals from current documentation and retrieve historical design through Git. Validation records retain artifacts, environments, results and limits; they do not establish that later artifacts passed.
+See [AGENTS.md](AGENTS.md) for documentation-update scope and AI maintenance instructions, and the
+[I18n policy](docs/I18N_en.md) for maintained languages and translation pairs. Current documentation
+explains current behavior; Git retains historical design, and verification records describe their
+specific artifacts, environments, results, and limits.

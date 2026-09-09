@@ -1,5 +1,10 @@
 # Dev Flow Repository Instructions
 
+This file defines how AI agents maintain this repository. Put repository-specific AI instructions,
+implementation constraints, and documentation-update rules here. `CONTRIBUTING*` guides human
+contributors; product README files guide users. The shipped Dev Flow Skills govern Host interaction
+with the product and remain in the locations listed under Skill Maintenance.
+
 ## Authority
 
 Before implementation work, read in this order:
@@ -20,6 +25,102 @@ Before a version-only release, read in this order:
 When documentation and executable behavior disagree, use the executable implementation to determine
 current behavior and update the affected documentation in the same change. Do not infer requirements
 from branch names, directory names, chat history, or historical design documents.
+
+## Documentation Responsibilities
+
+Choose a document by its reader and purpose before editing it. A code change does not automatically
+require a README or PRODUCT change. Keep detailed explanations in their owning reference and link
+to them from user guides when needed.
+
+| Document | Reader and responsibility |
+| --- | --- |
+| `AGENTS.md` | Repository AI agents: instruction priority, scope, architecture constraints, implementation, review, validation, documentation maintenance, and release boundaries. |
+| Root `README*.md` | End users: what Dev Flow does, suitable tasks, prerequisites, installation, starting and resuming work, common operations, necessary usage limits, and links to further help. |
+| `packages/*/README.md`, `docs/CODEX_en.md`, `docs/DEEPSEEK_en.md` | Users of that package or Host: setup, supported operations, troubleshooting, maintenance, removal, and Host-specific limitations. |
+| `docs/PRODUCT*` | Product readers: target users, problems, user-visible behavior rules, product scope, and non-goals. |
+| `docs/DEMO*`, `docs/WEBUI*`, `docs/DESKTOP-PETS*` | Users following a walkthrough or operating a specific interface; detailed interface and artwork guidance stays here. |
+| `docs/ARCHITECTURE*`, `docs/ARTIFACTS*`, `docs/WORKTREE-SOURCES*`, `docs/THREAT-MODEL*` | Developers and integrators: component responsibilities, protocols, state and data rules, implementation design, and trust boundaries. |
+| `docs/COMMANDS*` | Users and integrators needing exact commands, options, selectors, environment variables, and MCP inputs and results. |
+| `docs/SUPPORT-MATRIX*`, `docs/PROJECT-STATUS*`, `docs/WINDOWS-ADAPTATION*` | Readers checking supported environments, delivered capability, recorded verification, and remaining limitations. |
+| `docs/ROADMAP*` | Product readers: future outcomes and priorities, clearly distinguished from delivered capability. |
+| `CONTRIBUTING*` | Human contributors: issues, proposals, development setup, validation, and pull requests. |
+| `MANIFEST*`, `docs/I18N*` | Readers navigating documentation and source locations; translators checking maintained languages, document families, and translation consistency. |
+| `internal/README*`, `scripts/README*`, `tests/**/README.md`, `protocol/fixtures/README.md` | Maintainers of those directories: local structure, development commands, test procedures, and fixture usage. |
+| `release/**/README.md`, `docs/RELEASE-STRATEGY.md`, `docs/VERSIONING.md`, `docs/TOOLCHAIN-BASELINES*` | Maintainers: build environments, version policy, artifact preparation, verification, and publication procedures. |
+| `SECURITY.md` | Users and researchers reporting vulnerabilities and checking the security reporting policy. |
+| `skills/dev-flow/core/` and Host Skill directories | Agents using the installed product: maintained Core interaction instructions and Host-specific authorization, workspace, and tool operations. |
+
+### README content
+
+- Write root READMEs as a project introduction and user manual. Explain what the user can do, how to
+  do it, and the result they should expect, using ordinary developer language.
+- Keep setup steps and limitations that affect successful or safe use. Link to exact support
+  coverage, advanced commands, troubleshooting, and technical explanations.
+- Keep repository AI instructions in `AGENTS.md`. Do not put instruction priority, code-search
+  preferences, review discipline, test-budget rules for repository development, documentation
+  synchronization rules, or release approval rules in a product README.
+- Explain product capabilities such as scope control and verification limits through user outcomes.
+  Keep their internal algorithms, node transitions, payloads, storage fields, response transport,
+  handoff formats, and Skill generation procedures in technical references or maintained Skills.
+- Rewrite the relevant user section when its meaning changes. Do not append per-change summaries,
+  implementation notes, regression stories, validation logs, or internal changelog sections.
+- Root README rules do not remove the technical purpose of directory-local maintainer READMEs.
+
+### Selecting documentation updates
+
+1. Identify which existing statements or user instructions the change makes inaccurate or incomplete.
+   Update those documents and any reference that owns the changed behavior in the same change.
+2. Update root READMEs only when the project introduction, main capabilities, prerequisites,
+   installation, common usage, or necessary usage limits change. Internal refactoring, bug fixes
+   that restore documented behavior, tests, build details, and agent-maintenance rules do not by
+   themselves require README edits.
+3. Update `docs/PRODUCT.md` and `docs/PRODUCT_en.md` when product scope or user-visible behavior rules
+   change. Technical details belong in the affected technical reference. Update ROADMAP only when
+   the approved future direction or priorities change.
+4. A changed command, selector, environment variable, lifecycle operation, or MCP tool requires an
+   update to `docs/COMMANDS.md` and `docs/COMMANDS_en.md` and guides that expose that entry. Change
+   README examples only when the entry is part of README-level usage or an existing example changes.
+5. When README content changes, synchronize its meaning across all nine root README locales.
+   For other maintained document families, update each counterpart containing the affected
+   statement. Translation synchronization keeps the selected document family consistent; it does
+   not expand that family's subject matter or require unrelated documents to change.
+6. Remove superseded statements from affected documents. Put historical design in Git history and
+   validation results in the relevant verification record or pull request.
+7. Report the exact changed documentation paths and checks. If README or PRODUCT remains unchanged
+   for a behavior change, briefly explain the applicable document responsibility in the handoff
+   or pull request; do not add that explanation to README.
+
+### Language, commands, and verification
+
+Use clear prose appropriate to the reader. User guides describe operations and results; technical
+references describe component responsibilities, fields, failure behavior, and verification. Keep
+identifiers, commands, and paths unchanged and explain unfamiliar terms when first needed.
+Acceptance sections name the steps or tests, environment, expected result, and actual scope checked.
+
+The maintained languages and document families are listed in `docs/I18N.md` and `docs/I18N_en.md`.
+Preserve command syntax, identifiers, support claims, and product meaning across translations.
+Translate narrative text and example task descriptions naturally. Do not leave placeholder
+translations, untranslated sections, or whole-section English fallbacks. Incomplete required
+translations mean the change is not ready to merge.
+
+Public npm installation examples use `@imotong/dev-flow@latest`, `dev-flow-codex@latest`, or
+`dev-flow-deepseek@latest` as appropriate. Exact Core, Codex, DeepSeek, and Dev Flow CLI release
+versions belong in machine-readable version files, package metadata, Release Tags, artifact digests,
+and release records. A version-only release updates those records rather than README prose.
+
+Check documented commands against their executable implementation:
+
+- package names, `bin` entries, and platform constraints: the relevant `package.json`;
+- unified lifecycle commands: `packages/dev-flow/lib/cli.mjs` and `packages/dev-flow/bin/dev-flow.mjs`;
+- Codex commands: `packages/codex/bin/dev-flow-codex.mjs`;
+- DeepSeek installation, inspection, and removal: lifecycle and final-artifact end-to-end tests;
+- packaged Core commands: `cmd/dev-flow/main.go`;
+- MCP tools: the fixed tool list under `internal/mcp/`.
+
+For documentation-only changes, check affected links, Markdown structure, retained command
+examples, translation consistency, and agreement between maintenance rules. Run additional tests
+only when required by an affected executable contract; do not run the full product suite solely
+because Markdown changed.
 
 ## Requirement Scope
 
@@ -115,113 +216,11 @@ Core contracts for both Hosts, and Host-specific examples against their actual a
 
 ## Product Feature Proposals
 
-Before implementation, structure a product feature proposal with this template:
-
-```markdown
-## Problem
-
-What actually happened?
-
-## Current approach
-
-How does the user handle it without Dev Flow?
-
-## Available data
-
-What can the Task, Action, repository, and saved results tell us?
-
-## Behavior rules
-
-Should the system continue, review, retry, block, or ask the user to decide?
-
-## Expected result
-
-What change will the user ultimately see?
-
-## Risks and impact
-
-What are the consequences of a false allow and a false block?
-
-## Acceptance checks
-
-How will we test this, in which environment, and what result should we see?
-
-## Non-goals
-
-Which capabilities will this change not expand?
-```
-
-Answer these questions before product implementation:
-
-1. Does the proposal help a long-running task resume from the correct state?
-2. Is the decision based on Task, Action, repository observation, or retained records rather than
-   only an agent narrative?
-3. Does it reduce the user's effort to understand current state and next step?
-4. Can we repeat the full workflow in an actual Codex or DeepSeek session?
-5. Does Core remain the only component that decides Task state?
-6. Does it add unnecessary process steps?
-7. Does it solve a task problem, or only add another platform, Host, or interface?
-
-Do not move a proposal directly into implementation when it cannot state the user problem,
-user-visible result, and acceptance method clearly.
-
-## Documentation and Internationalization
-
-Write documentation in clear, formal technical language. Explain current behavior, component
-responsibilities, verification methods, and the impact of failure. Use concise technical headings
-rather than conversational questions. Use concrete descriptions such as test results, saved records, allowed fields, and the component that owns a decision. Keep actual
-code identifiers, field names, commands, and paths unchanged; explain them when first introduced.
-Retain established technical terms such as code baseline, interface specification, state machine, and
-idempotency when they express the intended meaning accurately. Revise wording in context rather
-than applying a word blacklist.
-Acceptance sections must name the steps or tests, expected results, and actual verification scope.
-
-Human-readable documentation describes only delivered current product behavior; it is not runtime,
-build, release, or test authority. The maintained locale set and document-family coverage are defined
-by `docs/I18N.md` and `docs/I18N_en.md`.
-
-Every change to user-visible behavior must update documentation in the same pull request:
-
-1. update all nine root README locale files defined by `docs/I18N.md`;
-2. update both `docs/PRODUCT.md` and `docs/PRODUCT_en.md`;
-3. update each affected technical reference, including `docs/ARCHITECTURE*`,
-   `docs/SUPPORT-MATRIX*`, `docs/COMMANDS*`, `docs/ROADMAP*`, host package READMEs, installation
-   instructions, or invocation documentation;
-4. list the exact documentation paths in the pull-request validation summary.
-
-A version-only release updates machine-readable version files and release records. Human-readable
-documentation must not contain exact Core, Codex, DeepSeek, or Dev Flow CLI release versions.
-
-Public end-user installation examples must select the current npm stable channel with
-`dev-flow-codex@latest` or `dev-flow-deepseek@latest`. Exact product versions remain only in
-machine-readable authorities, package metadata, Release Tags, artifact digests, and release records.
-
-Every documented command must be checked against its executable implementation before merge:
-
-- npm package names, `bin` entries, and platform constraints come from the relevant `package.json`;
-- Codex subcommands and argument forms come from `packages/codex/bin/dev-flow-codex.mjs`;
-- DeepSeek install, inspection, and removal forms come from lifecycle tests and final-artifact
-  end-to-end tests;
-- packaged Core commands come from `cmd/dev-flow/main.go`;
-- MCP tool names, annotations, and purposes come from the fixed tool list under `internal/mcp/`.
-
-A change that adds, removes, or changes a CLI command, selector, environment variable, lifecycle
-command, or MCP tool must update `docs/COMMANDS.md`, `docs/COMMANDS_en.md`, every affected package
-README, and all affected root README locale snippets.
-
-- Do not update only one side of a maintained Chinese/English document family.
-- All nine root README locale files are maintained. Keep their core position, capability, boundaries,
-  commands, support facts, and detailed-document links synchronized.
-- Do not leave placeholder translations, stale version numbers, untranslated new sections, or an
-  English fallback copied into another locale file.
-- Remove superseded compatibility descriptions, historical Schema and path rules, migration
-  instructions, reset guidance, and historical-data incompatibility notes from every maintained
-  document in the same change that removes the behavior.
-- Preserve commands, identifiers, paths, versions, digests, code blocks, tables, Mermaid graphs, and
-  support claims exactly across translations; translate prose, not product facts.
-- If synchronized translation cannot be completed, do not report the change as merge-ready.
-- A documentation-only correction must update both Chinese and English technical files containing the
-  same statement and every affected root README locale.
+Before product implementation, use the product feature proposal template and assessment in
+`CONTRIBUTING_zh-CN.md` or `CONTRIBUTING.md`. Cover the user problem, current approach, available
+data, behavior rules, expected result, risks, acceptance checks, and non-goals. Answer the assessment
+questions before implementing. A proposal must state a concrete user result and a repeatable
+acceptance method while keeping Core responsible for Task state.
 
 ## Product Boundary
 
@@ -347,7 +346,7 @@ When approved behavior changes:
 3. update the implementation and direct consumers;
 4. update targeted tests for the current success path, main current failure paths, and regressions
    that remain relevant;
-5. update affected documentation and maintained locales so they describe only current behavior;
+5. select documentation by the responsibilities above and synchronize affected maintained locales;
 6. run checks proportional to the changed surface;
 7. report exact changed paths, verification results, and remaining current-design risks.
 
