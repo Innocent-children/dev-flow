@@ -50,6 +50,8 @@ Essas instruções têm prioridade sobre a preferência do plugin para o índice
 
 Antes do envio, o Codex executa `dev-flow-codex artifacts collect` e `dev-flow-codex artifacts prepare`. O Core enumera todas as alterações da Action atual; o Codex classifica cada arquivo e o comando gera as listas de artefatos. As omissões recebem os caminhos exatos e uma instrução de correção limitada. As verificações da árvore de trabalho, do histórico e das permissões do nó continuam em vigor. Consulte [coleta e envio de arquivos](docs/ARTIFACTS_en.md).
 
+Antes de iniciar o Codex, defina `DEV_FLOW_DATA_DIR` com o caminho absoluto canônico de um diretório existente. O servidor MCP, o hook e os comandos de preparação de arquivos usam o mesmo diretório. `dev-flow-codex artifacts <collect|prepare> --help` retorna exemplos JSON, descrições dos campos, saídas e a próxima etapa sem iniciar o Core.
+
 ## Início rápido
 
 > A versão estável publicada no npm sob `@latest` está atualmente verificada no macOS arm64. Instale
@@ -176,6 +178,9 @@ A ajuda do Codex descreve os parâmetros das operações na árvore de trabalho,
 ```bash
 dev-flow-codex --help
 dev-flow-codex host-launch prepare --help
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
 ```
 
 Consulte os parâmetros e as regras de recuperação na [referência de comandos](docs/COMMANDS_en.md).

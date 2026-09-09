@@ -213,6 +213,8 @@ The public `dev-flow` manages Adapter installation and maintenance. Its menu sho
 
 Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
 
+Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before starting Codex. The MCP server, hook and artifact commands use that same directory. `dev-flow-codex artifacts <collect|prepare> --help` returns JSON examples, field descriptions, outputs and the next step without starting Core.
+
 Codex can query parameter Schemas, field sources and next steps through `dev-flow-codex --help` and operation help, and assemble repository arguments from the same set of provisioned workspace records. MCP provides result Schemas and structured responses. Resumed sessions handle Core-retained pending submissions before performing the current node; creation, cancellation, abandonment and relocation preparation use their own readback identities.
 
 `host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `prepared` skips fetch. An explicit ID must match the saved receipt.

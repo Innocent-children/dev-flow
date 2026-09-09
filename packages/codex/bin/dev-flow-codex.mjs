@@ -29,6 +29,7 @@ import { runHook } from "../plugin/hooks/pre-tool-use.mjs";
 import { assertNoDuplicateJSONMembers } from "../lib/json.mjs";
 import { inspectAdmissionAnchor } from "../lib/task-admission.mjs";
 import { HOST_LAUNCH_OPERATIONS, hostLaunchHelp } from "../lib/host-launch-contract.mjs";
+import { ARTIFACT_OPERATIONS, artifactsHelp } from "../lib/artifacts-help.mjs";
 import {
   beginManagedTaskDispatch,
   claimManagedTaskDispatch,
@@ -68,7 +69,7 @@ export async function runCLI(arguments_, dependencies = {}) {
   let setupAttempted = false;
 
   if (Array.isArray(arguments_) && arguments_.length === 1 && arguments_[0] === "--help") {
-    stdout.write("Usage: dev-flow-codex status|setup|remove [--json]\n       dev-flow-codex --version\n       dev-flow-codex mcp\n       dev-flow-codex artifacts <collect|prepare>\n       dev-flow-codex hook pre-tool-use\n       dev-flow-codex host-check pre-file-write\n\n" + hostLaunchHelp());
+    stdout.write("Usage: dev-flow-codex status|setup|remove [--json]\n       dev-flow-codex --version\n       dev-flow-codex mcp\n       dev-flow-codex artifacts <collect|prepare> [--help]\n       dev-flow-codex hook pre-tool-use\n       dev-flow-codex host-check pre-file-write\n\n" + artifactsHelp() + "\n" + hostLaunchHelp());
     return { code: 0, signal: null };
   }
   if (Array.isArray(arguments_) && arguments_[0] === "host-launch" && (
@@ -76,6 +77,13 @@ export async function runCLI(arguments_, dependencies = {}) {
     arguments_.length === 3 && HOST_LAUNCH_OPERATIONS.includes(arguments_[1]) && arguments_[2] === "--help"
   )) {
     stdout.write(hostLaunchHelp(arguments_.length === 3 ? arguments_[1] : undefined));
+    return { code: 0, signal: null };
+  }
+  if (Array.isArray(arguments_) && arguments_[0] === "artifacts" && (
+    arguments_.length === 2 && arguments_[1] === "--help" ||
+    arguments_.length === 3 && ARTIFACT_OPERATIONS.includes(arguments_[1]) && arguments_[2] === "--help"
+  )) {
+    stdout.write(artifactsHelp(arguments_.length === 3 ? arguments_[1] : undefined));
     return { code: 0, signal: null };
   }
 

@@ -43,6 +43,8 @@ Host 在确认前只读调查候选仓库，再将确认后的范围固定到 Ta
 
 Codex 提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`。Core 完整枚举当前 Action 的改动，Codex 逐项分类后由命令生成 artifact 数组。漏报时返回准确路径和受限纠正指示，工作树、历史及节点权限检查继续执行。详见[文件收集与提交](docs/ARTIFACTS.md)。
 
+在启动 Codex 前，将 `DEV_FLOW_DATA_DIR` 设为已存在的规范化绝对目录，MCP、hook 和文件准备命令使用同一数据目录。`dev-flow-codex artifacts <collect|prepare> --help` 返回 JSON 示例、字段说明、输出和下一步，查询时不启动 Core。
+
 ## 快速开始
 
 > 稳定 npm `@latest` 目前已验证 macOS arm64。请使用 Node.js `>=24`，并提前安装受支持的 Codex
@@ -162,6 +164,9 @@ Codex 的命令帮助提供工作区操作参数、返回字段和下一步。�
 ```bash
 dev-flow-codex --help
 dev-flow-codex host-launch prepare --help
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
 ```
 
 参数和恢复规则见[命令参考](docs/COMMANDS.md)。

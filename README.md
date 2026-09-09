@@ -48,6 +48,8 @@ over the plugin's code-index preference.
 
 Before submitting, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`. Core enumerates the current Action changes; Codex classifies every file and the command generates the artifact arrays. Omitted files receive exact paths and a bounded correction instruction. Workspace, history and node permissions remain enforced. See [artifact collection and submission](docs/ARTIFACTS_en.md).
 
+Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before starting Codex. The MCP server, hook and artifact commands use that same directory. `dev-flow-codex artifacts <collect|prepare> --help` returns JSON examples, field descriptions, outputs and the next step without starting Core.
+
 ## Quick start
 
 > Stable npm `@latest` is currently verified on macOS arm64. Use Node.js `>=24` and an installed,
@@ -172,6 +174,9 @@ Codex exposes workspace operation parameters, result fields and next steps throu
 ```bash
 dev-flow-codex --help
 dev-flow-codex host-launch prepare --help
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
 ```
 
 See the [command reference](docs/COMMANDS_en.md) for parameter and recovery rules.

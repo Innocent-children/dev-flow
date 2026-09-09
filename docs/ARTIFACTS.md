@@ -14,6 +14,19 @@ Core 的 Git 可见范围。
 
 ## 命令
 
+构造输入前可查询已安装命令的帮助：
+
+```bash
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
+```
+
+总帮助列出两个操作；操作帮助返回 JSON，包含 `operation`、`description`、`transport`、`input_example`、`input_fields`、`output_fields` 和 `next_step`。示例中的身份及观察字段必须替换为当前 Action 或完整 collection 的实际值。帮助查询不读取 stdin、安装路径或 Task 数据，也不启动 Core；实际命令输入由 Core 校验。
+
+使用自定义数据目录时，在启动 Codex 前设置 `DEV_FLOW_DATA_DIR`。Plugin 显式将其转发给 MCP，hook 和文件准备命令沿用同一 Host 环境。目录必须已存在并使用规范化绝对路径；省略变量时使用默认数据目录。启动环境的变化需要在新的 Codex 会话中生效。
+
+
 `dev-flow-codex artifacts collect` 转发到包内的 `dev-flow artifacts collect`；
 `dev-flow-codex artifacts prepare` 转发到包内的 `dev-flow artifacts prepare`。
 两个命令均从 stdin 读取一个不超过 1 MiB 的 UTF-8 JSON 对象，拒绝未知字段、重复字段、尾随 JSON

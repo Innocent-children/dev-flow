@@ -50,6 +50,8 @@ en la Task. Estas instrucciones tienen prioridad sobre la preferencia del plugin
 
 Antes de enviar, Codex ejecuta `dev-flow-codex artifacts collect` y `dev-flow-codex artifacts prepare`. Core enumera todos los cambios de la Action actual; Codex clasifica cada archivo y el comando genera las listas de artefactos. Las omisiones reciben rutas exactas e instrucciones de corrección limitada. Se mantienen las comprobaciones del árbol de trabajo, el historial y los permisos del nodo. Consulte [recopilación y envío de archivos](docs/ARTIFACTS_en.md).
 
+Antes de iniciar Codex, establece `DEV_FLOW_DATA_DIR` con la ruta absoluta canónica de un directorio existente. El servidor MCP, el hook y los comandos de preparación de archivos usan el mismo directorio. `dev-flow-codex artifacts <collect|prepare> --help` devuelve ejemplos JSON, descripciones de campos, salidas y el siguiente paso sin iniciar Core.
+
 ## Inicio rápido
 
 > La versión estable publicada en npm bajo `@latest` está verificada actualmente en macOS arm64. Instala primero Node.js `>=24`
@@ -176,6 +178,9 @@ La ayuda de Codex describe los parámetros de las operaciones del árbol de trab
 ```bash
 dev-flow-codex --help
 dev-flow-codex host-launch prepare --help
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
 ```
 
 Consulta los parámetros y las reglas de recuperación en la [referencia de comandos](docs/COMMANDS_en.md).

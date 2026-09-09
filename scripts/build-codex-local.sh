@@ -148,6 +148,7 @@ README.md
 .agents/plugins/marketplace.json
 bin/dev-flow-codex.mjs
 lib/command.mjs
+lib/artifacts-help.mjs
 lib/install-experience.mjs
 lib/json.mjs
 lib/lifecycle.mjs
@@ -218,6 +219,7 @@ const expected = [
   "README.md",
   "bin/dev-flow-codex.mjs",
   "lib/command.mjs",
+  "lib/artifacts-help.mjs",
   "lib/install-experience.mjs",
   "lib/json.mjs",
   "lib/lifecycle.mjs",

@@ -268,6 +268,19 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   await assert.rejects(stat(nonExecutable.statePath), { code: "ENOENT" });
 });
 
+test("setup requires the data-directory environment variable in the MCP forwarding list", async (t) => {
+  for (const envVars of [undefined, []]) {
+    const fixture = await makeSetupFixture(t, envVars === undefined ? "missing-data-forwarding" : "empty-data-forwarding");
+    const file = join(fixture.paths.pluginRoot, ".mcp.json");
+    const configuration = JSON.parse(await readFile(file, "utf8"));
+    if (envVars === undefined) delete configuration.mcpServers["dev-flow"].env_vars;
+    else configuration.mcpServers["dev-flow"].env_vars = envVars;
+    await writeFile(file, JSON.stringify(configuration));
+    await assert.rejects(setupRegistration(fixture.options), /missing field env_vars|must forward exactly DEV_FLOW_DATA_DIR/);
+    await assert.rejects(stat(fixture.statePath), { code: "ENOENT" });
+  }
+});
+
 test("setup rejects every mismatched public package identity before registration writes", async (t) => {
   const cases = [
     { name: "wrong-name", mutate: (manifest) => { manifest.name = "other-product"; }, error: /public package contract/ },
@@ -790,7 +803,7 @@ async function makeSetupFixture(t, name) {
     `${JSON.stringify({
       $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
       mcpServers: {
-        "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"] },
+        "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"], env_vars: ["DEV_FLOW_DATA_DIR"] },
       },
     })}\n`,
   );

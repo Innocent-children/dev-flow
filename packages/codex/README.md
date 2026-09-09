@@ -265,6 +265,8 @@ WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core �
 
 Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`，复用 Core 对当前 Action 的完整 Git 观察。Codex 只补充文件用途和说明，准备命令检查清单与当前观察一致后生成 artifact 数组。流程文件漏报返回具体路径和仅修改 artifact 字段的一次纠正指示；实际仓库异常继续按原有恢复规则处理。详见[文件收集与提交](../../docs/ARTIFACTS.md)。
 
+在启动 Codex 前，将 `DEV_FLOW_DATA_DIR` 设为已存在的规范化绝对目录，MCP、hook 和文件准备命令使用同一数据目录。`dev-flow-codex artifacts <collect|prepare> --help` 返回 JSON 示例、字段说明、输出和下一步，查询时不启动 Core。
+
 ## 调用说明与结果恢复
 
 `dev-flow-codex --help` 列出命令；`dev-flow-codex host-launch <operation> --help` 返回该操作的完整输入 Schema、字段来源、输出字段和下一步。帮助查询不读取 stdin 或执行工作区操作。所有仓库准备完成后，`host-launch scope` 汇总同一 launch 的创建记录供 Core 使用。

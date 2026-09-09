@@ -44,6 +44,8 @@ Dev Flow 把已同意的請求、預期路徑、分析後形成的驗證計畫�
 
 Codex 提交前執行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`。Core 完整列出目前 Action 的變更，Codex 逐項分類後由命令產生 artifact 陣列。漏報時回傳確切路徑和受限修正指示，工作樹、歷史及節點權限檢查持續執行。詳見[檔案收集與提交](docs/ARTIFACTS.md)。
 
+啟動 Codex 前，將 `DEV_FLOW_DATA_DIR` 設為已存在的規範化絕對目錄，MCP、hook 與檔案準備命令使用同一資料目錄。`dev-flow-codex artifacts <collect|prepare> --help` 會傳回 JSON 範例、欄位說明、輸出與下一步，查詢時不啟動 Core。
+
 ## 快速開始
 
 > 穩定 npm `@latest` 目前已在 macOS arm64 驗證。請使用 Node.js `>=24`，並先安裝受支援的 Codex
@@ -164,6 +166,9 @@ Codex 的命令說明提供工作區操作參數、回傳欄位及下一步。�
 ```bash
 dev-flow-codex --help
 dev-flow-codex host-launch prepare --help
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
 ```
 
 參數及恢復規則請見[命令參考](docs/COMMANDS.md)。

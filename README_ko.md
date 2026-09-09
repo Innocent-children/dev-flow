@@ -47,6 +47,8 @@ Task 생성을 중지하고 확인할 수 있도록 대상 작업 트리를 보�
 
 Codex는 제출 전에 `dev-flow-codex artifacts collect`와 `dev-flow-codex artifacts prepare`를 실행합니다. Core가 현재 Action의 모든 변경을 수집하고 Codex가 각 파일을 분류하면 명령이 artifact 배열을 생성합니다. 누락된 파일에는 정확한 경로와 허용 범위가 제한된 수정 지침을 반환합니다. 작업 트리, 이력 및 노드 권한 검사는 계속 적용됩니다. [파일 수집 및 제출](docs/ARTIFACTS_en.md)을 참고하세요.
 
+Codex를 시작하기 전에 `DEV_FLOW_DATA_DIR`에 기존 디렉터리의 정규화된 절대 경로를 설정합니다. MCP 서버, hook, 파일 준비 명령은 같은 데이터 디렉터리를 사용합니다. `dev-flow-codex artifacts <collect|prepare> --help`는 Core를 시작하지 않고 JSON 예제, 필드 설명, 출력과 다음 단계를 반환합니다.
+
 ## 빠른 시작
 
 > npm의 `@latest`로 공개된 안정 버전은 현재 macOS arm64에서 검증되었습니다. Node.js `>=24`와 지원되는 Codex 또는
@@ -171,6 +173,9 @@ Codex 명령어 도움말에서 작업 트리 작업의 매개변수, 반환 필
 ```bash
 dev-flow-codex --help
 dev-flow-codex host-launch prepare --help
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
 ```
 
 매개변수와 복구 규칙은 [명령어 참조](docs/COMMANDS_en.md)를 확인하세요.

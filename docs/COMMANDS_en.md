@@ -152,6 +152,8 @@ configuration is absent, setup first creates `$HOME/.dev-flow/config.json` on ma
 actual configuration/receipt file changes and one next step. `--version`
 reports both the host package and bundled Core identities.
 
+Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before starting Codex. The MCP server, hook and artifact commands use that same directory. `dev-flow-codex artifacts <collect|prepare> --help` returns JSON examples, field descriptions, outputs and the next step without starting Core. The Plugin forwards exactly this variable through `env_vars`; a new Codex session picks up a changed launch environment.
+
 ### Supported Codex commands
 
 | Command | Purpose |
@@ -165,6 +167,9 @@ reports both the host package and bundled Core identities.
 | `dev-flow-codex remove` | Validate the runtime receipt and stop the matching WebUI before removing the package-owned Codex Plugin, marketplace registration, and receipt. A stop failure leaves registration intact; Task data and the target Git repository are retained. |
 | `dev-flow-codex remove --json` | Perform the same operation as `remove` and emit machine-readable JSON. Its `next_step` points to the separate global npm uninstall. |
 | `npm uninstall -g dev-flow-codex` | Uninstall the global npm package after `remove` completes. Running it alone does not deregister the Codex integration first. |
+| `dev-flow-codex artifacts <collect\|prepare>` | Read a closed JSON object from stdin and ask packaged Core to collect or prepare the current Action files. See [artifact collection and submission](ARTIFACTS_en.md). |
+| `dev-flow-codex artifacts --help` | List the artifact operations and their help entry points without reading stdin or starting Core. |
+| `dev-flow-codex artifacts <collect\|prepare> --help` | Return JSON examples, field sources, output fields and the next step. Help resolves no installation or data paths; Core owns input validation. |
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to establish the data directory and Codex admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |
 | `dev-flow-codex hook pre-tool-use` | **Managed host command.** The packaged Codex hook invokes it through the package-owned launcher on `PATH`; it reads one hook event, extracts `apply_patch` targets, and performs the prewrite check. Normal users should not start it manually. |
 | `dev-flow-codex host-check pre-file-write` | **Managed host command.** The `hook pre-tool-use` implementation invokes it so the launcher resolves the package-local Core and forwards stdin/stdout with the exact `host-check pre-file-write` arguments. Normal users should not start it manually. |

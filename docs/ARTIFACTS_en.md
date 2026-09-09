@@ -15,6 +15,19 @@ JSON files belong outside Task worktrees. Ignored files are outside Core's Git-v
 
 ## Commands
 
+Read the installed command help before building an input object:
+
+```bash
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
+```
+
+The group help lists both operations. Operation help returns a JSON object containing `operation`, `description`, `transport`, `input_example`, `input_fields`, `output_fields` and `next_step`. Replace example identities and observations with the complete values from the current Action or collection. Help reads no stdin, installation path or Task data and starts no Core process. Core validates actual command inputs.
+
+For a custom data directory, set `DEV_FLOW_DATA_DIR` before starting Codex. The Plugin explicitly forwards it to MCP; the hook and artifact commands inherit the same Host environment. The directory must already exist and have a canonical absolute path. Omit the variable to use the default data directory. Launch environment changes require a new Codex session.
+
+
 `dev-flow-codex artifacts collect` forwards to the packaged `dev-flow artifacts collect`.
 `dev-flow-codex artifacts prepare` forwards to the packaged `dev-flow artifacts prepare`.
 Both read one closed UTF-8 JSON object from stdin, bounded to 1 MiB. Unknown or duplicate members,

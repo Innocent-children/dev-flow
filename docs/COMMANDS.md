@@ -146,6 +146,8 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 `%USERPROFILE%\.dev-flow\config.json`；成功后显示配置/receipt 的
 实际文件变化和一个下一步。`--version` 同时报告 Host package 与 bundled Core 版本。
 
+在启动 Codex 前，将 `DEV_FLOW_DATA_DIR` 设为已存在的规范化绝对目录，MCP、hook 和文件准备命令使用同一数据目录。`dev-flow-codex artifacts <collect|prepare> --help` 返回 JSON 示例、字段说明、输出和下一步，查询时不启动 Core。 Plugin 通过 `env_vars` 只显式转发此变量；启动环境变化在新 Codex 会话中生效。
+
 ### 支持的 Codex 命令
 
 | 命令 | 作用 |
@@ -159,6 +161,9 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `dev-flow-codex remove` | 先按 runtime receipt 停止对应 WebUI，再删除由该 package 拥有的 Codex Plugin、marketplace 注册与 receipt。停止失败时不注销；Task data 和目标 Git 仓库保持不变。 |
 | `dev-flow-codex remove --json` | 执行与 `remove` 相同的操作，并输出机器可读 JSON；返回的 `next_step` 指向单独的全局 npm 卸载。 |
 | `npm uninstall -g dev-flow-codex` | 在完成 `remove` 后卸载全局 npm package。单独运行它不会先清理 Codex 注册。 |
+| `dev-flow-codex artifacts <collect\|prepare>` | 从 stdin 读取 closed JSON 对象，由 packaged Core 收集或准备当前 Action 文件，见[文件收集与提交](ARTIFACTS.md)。 |
+| `dev-flow-codex artifacts --help` | 列出文件收集准备操作及帮助入口，不读取 stdin 或启动 Core。 |
+| `dev-flow-codex artifacts <collect\|prepare> --help` | 返回 JSON 示例、字段来源、输出字段和下一步。帮助不解析安装或数据路径，实际输入由 Core 校验。 |
 | `dev-flow-codex mcp` | **内部 Host 命令。** 由 Plugin 的 MCP 配置调用；它设置数据目录和 Codex admission instructions，然后启动 packaged Core 的 `mcp --stdio`。正常用户不应手工启动它。 |
 | `dev-flow-codex hook pre-tool-use` | **内部 Host 命令。** Codex packaged hook 通过 `PATH` 中 package-owned launcher 调用它；该命令读取一个 Hook 事件，提取 `apply_patch` 目标并执行写前检查。正常用户不应手工启动它。 |
 | `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** `hook pre-tool-use` 的实现调用它；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |

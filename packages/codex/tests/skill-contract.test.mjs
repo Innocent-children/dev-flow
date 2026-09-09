@@ -38,7 +38,7 @@ test("plugin metadata and MCP registration use resolvable product identities", a
   const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
   assert.deepEqual(plugin.interface.defaultPrompt, ["$dev-flow-codex:dev-flow assess the requested change in this repository before starting Dev Flow."]);
   assert.equal(JSON.stringify(plugin.interface).includes("$dev-flow "), false);
-  assert.deepEqual(mcp.mcpServers, { "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"] } });
+  assert.deepEqual(mcp.mcpServers, { "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"], env_vars: ["DEV_FLOW_DATA_DIR"] } });
 });
 
 test("Skill contains required operational sections and the complete Core tool catalog", async () => {

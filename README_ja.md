@@ -47,6 +47,8 @@ Dev Flow は、合意した依頼、予定パス、分析後に作成した検�
 
 Codex は提出前に `dev-flow-codex artifacts collect` と `dev-flow-codex artifacts prepare` を実行します。Core が現在の Action の変更をすべて列挙し、Codex が各ファイルを分類すると、コマンドが artifact 配列を生成します。申告漏れには正確なパスと範囲を限定した修正手順を返します。作業ツリー、履歴、ノードの権限チェックは維持されます。[ファイルの収集と提出](docs/ARTIFACTS_en.md)を参照してください。
 
+Codex を起動する前に、`DEV_FLOW_DATA_DIR` に既存ディレクトリの正規化された絶対パスを設定します。MCP サーバー、hook、ファイル準備コマンドは同じデータディレクトリを使用します。`dev-flow-codex artifacts <collect|prepare> --help` は Core を起動せずに、JSON の例、フィールドの説明、出力、次の手順を返します。
+
 ## クイックスタート
 
 > npm の `@latest` で公開されている安定版は、現在 macOS arm64 で検証済みです。Node.js `>=24` と、対応する Codex
@@ -171,6 +173,9 @@ Codex のコマンドヘルプでは、作業ツリー操作の引数、戻り�
 ```bash
 dev-flow-codex --help
 dev-flow-codex host-launch prepare --help
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
 ```
 
 引数と復旧手順は[コマンドリファレンス](docs/COMMANDS_en.md)を参照してください。

@@ -484,13 +484,16 @@ async function assertPackageResources(paths, packageVersion) {
   assertExactKeys(mcpConfiguration.mcpServers, ["dev-flow"], "MCP servers");
   const server = mcpConfiguration.mcpServers["dev-flow"];
   assertObject(server, "Dev Flow MCP server");
-  assertExactKeys(server, ["type", "command", "args"], "Dev Flow MCP server");
+  assertExactKeys(server, ["type", "command", "args", "env_vars"], "Dev Flow MCP server");
   if (
     server.type !== "stdio" ||
     server.command !== "dev-flow-codex" ||
     stableJSON(server.args) !== stableJSON(["mcp"])
   ) {
     throw new Error("Dev Flow MCP server must invoke exactly dev-flow-codex mcp");
+  }
+  if (stableJSON(server.env_vars) !== stableJSON(["DEV_FLOW_DATA_DIR"])) {
+    throw new Error("Dev Flow MCP server must forward exactly DEV_FLOW_DATA_DIR");
   }
 
   const skillPath = join(paths.pluginRoot, "skills", "dev-flow", "SKILL.md");

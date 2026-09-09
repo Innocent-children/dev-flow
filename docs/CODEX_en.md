@@ -219,6 +219,8 @@ WebUI and MCP share Core semantic submission, operation retention and recovery. 
 
 Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
 
+Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before starting Codex. The MCP server, hook and artifact commands use that same directory. `dev-flow-codex artifacts <collect|prepare> --help` returns JSON examples, field descriptions, outputs and the next step without starting Core.
+
 
 Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
 `source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use

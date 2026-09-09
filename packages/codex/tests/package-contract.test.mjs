@@ -24,6 +24,7 @@ const expectedPackageFiles = [
   "LICENSE",
   "bin/dev-flow-codex.mjs",
   "lib/command.mjs",
+  "lib/artifacts-help.mjs",
   "lib/install-experience.mjs",
   "lib/json.mjs",
   "lib/lifecycle.mjs",
@@ -61,6 +62,7 @@ const expectedPackedFiles = [
   "README.md",
   "bin/dev-flow-codex.mjs",
   "lib/command.mjs",
+  "lib/artifacts-help.mjs",
   "lib/install-experience.mjs",
   "lib/json.mjs",
   "lib/lifecycle.mjs",
@@ -145,6 +147,7 @@ test("source package declares one public macOS arm64 and Windows x64 Codex produ
       type: "stdio",
       command: "dev-flow-codex",
       args: ["mcp"],
+      env_vars: ["DEV_FLOW_DATA_DIR"],
     },
   });
   assert.equal(

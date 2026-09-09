@@ -50,6 +50,8 @@ Diese Anweisungen haben Vorrang vor der Code-Index-Einstellung des Plugins.
 
 Vor der Übermittlung führt Codex `dev-flow-codex artifacts collect` und `dev-flow-codex artifacts prepare` aus. Core erfasst sämtliche Änderungen der aktuellen Action; Codex ordnet jede Datei ein und der Befehl erzeugt die Artefaktlisten. Bei Auslassungen werden die genauen Pfade und eine begrenzte Korrekturanweisung zurückgegeben. Prüfungen des Arbeitsbaums, des Verlaufs und der Knotenberechtigungen bleiben bestehen. Siehe [Dateien erfassen und übermitteln](docs/ARTIFACTS_en.md).
 
+Setzen Sie `DEV_FLOW_DATA_DIR` vor dem Start von Codex auf den kanonischen absoluten Pfad eines vorhandenen Verzeichnisses. MCP-Server, Hook und Befehle zur Dateivorbereitung verwenden dasselbe Datenverzeichnis. `dev-flow-codex artifacts <collect|prepare> --help` liefert JSON-Beispiele, Feldbeschreibungen, Ausgaben und den nächsten Schritt, ohne Core zu starten.
+
 ## Schnellstart
 
 > Die unter `@latest` auf npm veröffentlichte stabile Version ist derzeit auf macOS arm64 verifiziert. Installiere zuerst Node.js `>=24`
@@ -175,6 +177,9 @@ Die Befehlshilfe von Codex beschreibt Parameter für Arbeitsbaumoperationen, Rü
 ```bash
 dev-flow-codex --help
 dev-flow-codex host-launch prepare --help
+dev-flow-codex artifacts --help
+dev-flow-codex artifacts collect --help
+dev-flow-codex artifacts prepare --help
 ```
 
 Parameter und Regeln zur Wiederaufnahme stehen in der [Befehlsreferenz](docs/COMMANDS_en.md).

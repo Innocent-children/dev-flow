@@ -6,6 +6,9 @@
       "command": "dev-flow-codex",
       "args": [
         "mcp"
+      ],
+      "env_vars": [
+        "DEV_FLOW_DATA_DIR"
       ]
     }
   }

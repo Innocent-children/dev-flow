@@ -115,6 +115,16 @@ no Git, receipt or Core data. Use this installed contract before constructing he
 source inspection is not part of ordinary Task creation. `host-launch inspect` returns the complete
 `assessment_anchor`; preserve its exact request string and all repository entries for `prepare`.
 
+Use `dev-flow-codex artifacts --help` for file-collection command discovery and
+`dev-flow-codex artifacts collect --help` or `dev-flow-codex artifacts prepare --help` for JSON
+examples, field sources, outputs and the next step. Help returns before reading stdin or opening
+the runtime. Copy actual Task/Action identities and the complete collected values into the request.
+
+Set a custom `DEV_FLOW_DATA_DIR` in the environment that starts Codex. The Plugin forwards that
+variable to its MCP server; artifact commands and the hook use the same Host environment.
+The directory must already exist and use a canonical absolute path. A changed launch environment
+takes effect in a new Codex session.
+
 ## Provisioning confirmation
 
 After a still-current Dev Flow choice, ask for each repository, in this order:

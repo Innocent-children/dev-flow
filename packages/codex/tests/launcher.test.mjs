@@ -53,6 +53,41 @@ test("help describes every Host operation without reading stdin or resolving run
   }
 });
 
+test("artifact help describes the current input and next step without opening runtime or stdin", async () => {
+  for (const args of [["artifacts", "--help"], ["artifacts", "collect", "--help"], ["artifacts", "prepare", "--help"]]) {
+    const stdout = captureStream();
+    const stderr = captureStream();
+    const result = await runCLI(args, {
+      stdout, stderr, environment: { DEV_FLOW_DATA_DIR: "not-an-absolute-directory" },
+      resolvePaths: () => assert.fail("help must not inspect the installation or data path"),
+      readInput: () => assert.fail("help must not consume stdin"),
+      spawnImpl: () => assert.fail("help must not launch Core"),
+    });
+    assert.equal(result.code, 0);
+    assert.equal(stderr.text, "");
+    if (args.length === 2) {
+      assert.match(stdout.text, /artifacts <collect\|prepare> --help/);
+      assert.match(stdout.text, /DEV_FLOW_DATA_DIR/);
+    } else {
+      const help = JSON.parse(stdout.text);
+      assert.equal(help.operation, args[1]);
+      assert.match(help.transport, /stdin/);
+      assert.ok(help.next_step.length > 0);
+      assert.ok(Object.keys(help.output_fields).length > 0);
+      if (args[1] === "collect") {
+        assert.deepEqual(Object.keys(help.input_example).sort(), ["action_id", "host", "task_id"]);
+        assert.match(help.input_fields.action_id, /same current Core Action/);
+        assert.match(help.next_step, /only.*slot and summary/);
+      } else {
+        assert.deepEqual(Object.keys(help.input_example).sort(), ["collection", "host"]);
+        assert.deepEqual(Object.keys(help.input_example.collection).sort(), ["action_id", "files", "observation_digest", "revision", "task_id"]);
+        assert.deepEqual(Object.keys(help.input_example.collection.files[0]).sort(), ["change_type", "digest", "path", "slot", "summary"]);
+        assert.match(help.input_fields["collection.files[].slot"], /IMPLEMENT or REFACTOR/);
+      }
+    }
+  }
+});
+
 test("artifact commands forward exact argv and stdin without creating storage", async (t) => {
   const paths = await makePaths(t, { usesDefaultDataDirectory: false });
   for (const operation of ["collect", "prepare"]) {
