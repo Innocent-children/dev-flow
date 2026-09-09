@@ -542,3 +542,12 @@ node release/dev-flow/prepare.mjs --output "/absolute/pet-release"
 ```
 
 使用仓库工具链与 Swift >=6.0，在 macOS arm64 执行。此命令装配两个平台应用并验证最终 tarball，不执行发布；输出目录必须在仓库外。
+
+
+## Host 调用示例
+
+Codex 与 DeepSeek 的 Core 交互说明和完整示例统一维护于 `skills/dev-flow/core/`，由构建脚本生成各包内的引用文件。各 Host 的授权、工作树准备和工具调用分别说明；实际执行使用当前 Action、已安装接口和真实用户决定。节点提交、返回处理、阻塞恢复与验证规则使用相同内容，并对两边生成的示例运行同一套 Core 校验。
+
+[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
+
+DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill 目录>/scripts/artifacts.mjs collect` 或 `prepare` 调用同一套 Core 只读文件准备命令。输入与返回结构与本文相同，`host` 使用 `deepseek`；脚本复用 Adapter 的运行时和数据目录解析，不创建存储。通过实际 DSH Skill 的 `resourceBase` 取得脚本路径。`--help` 不读取 stdin 或解析运行时。该脚本不是独立的 `dev-flow-deepseek` CLI，也不增加 `workspace_coordinator` 操作。

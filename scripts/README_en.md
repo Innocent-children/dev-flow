@@ -149,3 +149,7 @@ Build the Windows desktop package with `build-desktop-pet-windows.mjs`. From the
 The Windows desktop development distribution now carries complete Codex and DeepSeek packages through buildCoreRuntimes and stageAndPack. It does not create special Adapter archives missing the other Core runtime. After launcher bootstrap, dev-flow install --host all --yes installs both Adapters and the desktop app.
 
 WebUI semantic submission and recovery regressions run with `pnpm --dir packages/webui test`. They exercise current components and the HTTP client with simulated hooks and HTTP, covering transport failure, reopening pending Actions and recovery by Action ID. These are not native browser checks.
+
+## Shared Skill references
+
+Edit common Core instructions and examples only in `skills/dev-flow/core/`. Run `node scripts/sync-skill-references.mjs` to generate the Codex and DeepSeek package copies, whose headers identify the source. These copies support source browsing and local loading. `node scripts/sync-skill-references.mjs --check` detects stale copies. The Codex local builder and `stageAndPack` also render references in temporary staging, so installed packages do not depend on a shared directory outside the package. Shared text substitutes only the Host value; Host operations remain separately authored. Validation covers both MCP schemas, current transitions, DSH confirmation text and actual packaged files.

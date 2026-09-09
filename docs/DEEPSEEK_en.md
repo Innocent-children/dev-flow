@@ -169,3 +169,11 @@ Every planned work item must be complete before testing. Delivery links each acc
 ## Missing files
 
 The Adapter reports omitted files and follows Core’s permitted correction once. Workspace and history failures retain their recovery rules. Local-source task branches are preserved by assisted cleanup for separate inspection. See [artifact collection and submission](ARTIFACTS_en.md).
+
+## Skill interaction reference
+
+Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
+
+[DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
+
+The DeepSeek Skill packages `scripts/artifacts.mjs`. Invoke the same read-only Core preparation commands with `node <actual Skill directory>/scripts/artifacts.mjs collect` or `prepare`. Inputs and results use the shapes in this document with `host="deepseek"`. The script reuses the Adapter runtime/data-directory resolution and creates no store. Resolve its path from the actual DSH Skill resourceBase. `--help` reads no stdin and resolves no runtime. It is not a standalone dev-flow-deepseek CLI or an additional workspace_coordinator operation.

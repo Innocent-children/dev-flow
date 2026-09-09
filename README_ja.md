@@ -136,3 +136,8 @@ dev-flow pet stop
 ## ライセンス
 
 [Apache License 2.0](LICENSE)
+
+
+## Host の操作リファレンス
+
+[Codex Skill](packages/codex/plugin/skills/dev-flow/SKILL.md) と [DeepSeek Skill](packages/deepseek/skills/dev-flow/SKILL.md) の Core ルールと例は、単一の共有ソースから生成されます。各パッケージは実際の承認、ワークツリー、ツールのインターフェースを個別に保持します。両方とも現在のノード遷移、応答処理、復旧を扱います。プロセス文書の更新は最終検証前に完了し、表示の省略によって保存済みの完全な応答が不確実になることはありません。

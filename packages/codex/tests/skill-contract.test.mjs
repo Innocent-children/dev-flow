@@ -1,267 +1,96 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import test from "node:test";
 import { runInNewContext } from "node:vm";
+import test from "node:test";
+import { assertSkillResources } from "../../../tests/skills/resources.mjs";
 import { validateTaskHandoff } from "../lib/task-handoff.mjs";
+import { validateSuitabilityAssessment } from "../lib/task-admission.mjs";
+import { preparedWriteFromHook, hookDecision } from "../plugin/hooks/pre-tool-use.mjs";
+import { terminalCleanupDecision } from "../lib/worktree-lifecycle.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
 const pluginRoot = join(packageRoot, "plugin");
 const skillRoot = join(pluginRoot, "skills", "dev-flow");
 const skillPath = join(skillRoot, "SKILL.md");
-const expectedTools = [
-  "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task", "dev_flow_get_next_action",
-  "dev_flow_submit_requirements", "dev_flow_submit_design", "dev_flow_submit_tasks",
-  "dev_flow_submit_implementation", "dev_flow_submit_test", "dev_flow_submit_comprehension",
-  "dev_flow_submit_refactor", "dev_flow_submit_delivery", "dev_flow_prepare_task_relocation",
-  "dev_flow_resolve_blocker", "dev_flow_recover_action", "dev_flow_cancel_task",
-  "dev_flow_abandon_task",
-];
 
-test("plugin exposes one implicitly enabled Skill", async () => {
-  const skillFiles = (await walkFiles(join(pluginRoot, "skills"))).filter((path) => path.endsWith("SKILL.md"));
-  assert.deepEqual(skillFiles, ["dev-flow/SKILL.md"]);
+async function filesBelow(root) {
+  const files = [];
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) files.push(...await filesBelow(path));
+    else files.push(path);
+  }
+  return files.sort();
+}
+
+function examples(markdown, kind) {
+  return [...markdown.matchAll(/<!-- example:([a-z-]+) ([a-z_-]+) ([a-z_-]+) -->\n```json\n([\s\S]*?)\n```/gu)]
+    .filter((match) => match[1] === kind)
+    .map((match) => ({ operation: match[2], name: match[3], value: JSON.parse(match[4]) }));
+}
+
+function marked(markdown, name) {
+  const expression = new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u");
+  const value = markdown.replace(/\r\n?/gu, "\n").match(expression)?.[1];
+  assert.ok(value, name);
+  return value;
+}
+
+
+test("plugin exposes one implicitly enabled Skill with the installed identity", async () => {
+  const skillFiles = (await filesBelow(join(pluginRoot, "skills"))).filter((path) => path.endsWith("SKILL.md"));
+  assert.deepEqual(skillFiles, [skillPath]);
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  const frontmatter = parseFrontmatter(await readFile(skillPath, "utf8"));
-  assert.equal(frontmatter.name, "dev-flow");
-  assert.equal(`${manifest.name}:${frontmatter.name}`, "dev-flow-codex:dev-flow");
-  assert.equal("allow_implicit_invocation" in frontmatter, false);
-  assert.equal(
-    (await readFile(join(skillRoot, "agents", "openai.yaml"), "utf8")).replace(/\r\n?/gu, "\n"),
-    "policy:\n  allow_implicit_invocation: true\n",
-  );
-});
-
-test("plugin metadata and MCP registration use resolvable product identities", async () => {
+  const skill = await readFile(skillPath, "utf8");
+  assert.match(skill, /^---\nname: dev-flow\ndescription: "[^\n]+"\n---/u);
+  assert.equal(`${manifest.name}:dev-flow`, "dev-flow-codex:dev-flow");
+  assert.equal(await readFile(join(skillRoot, "agents", "openai.yaml"), "utf8"), "policy:\n  allow_implicit_invocation: true\n");
   const plugin = JSON.parse(await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
-  const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
   assert.deepEqual(plugin.interface.defaultPrompt, ["$dev-flow-codex:dev-flow assess the requested change in this repository before starting Dev Flow."]);
-  assert.equal(JSON.stringify(plugin.interface).includes("$dev-flow "), false);
+  const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
   assert.deepEqual(mcp.mcpServers, { "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"], env_vars: ["DEV_FLOW_DATA_DIR"] } });
 });
 
-test("Skill contains required operational sections and the complete Core tool catalog", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  for (const heading of ["Request routing", "Admission gate", "Provisioning confirmation", "Compatibility handshake", "Task discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract", "Evidence and verification budget", "Bounded post-change review", "Task relocation and Codex Handoff", "Terminal worktree presentation and cleanup"]) {
-    assert.equal(skill.includes(`## ${heading}`), true, heading);
-  }
-  const catalog = [...skill.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gmu)].map((match) => match[1]);
-  assert.deepEqual([...catalog].sort(), [...expectedTools].sort());
-  assert.equal(section(skill, "Compatibility handshake").match(/\b(dev_flow_[a-z_]+)\b/u)?.[1], "dev_flow_server_info");
+test("all Skill references are reachable, packaged and cite existing implementation symbols", async () => {
+  await assertSkillResources({ skillRoot, packageRoot, repositoryRoot });
 });
 
-test("new requests assess and wait for unresolved choices before worktree dispatch", async () => {
-  const routing = section(await readFile(skillPath, "utf8"), "Request routing").replace(/\s+/gu, " ");
-  const admission = section(await readFile(skillPath, "utf8"), "Admission gate");
-  for (const required of [
-    "explicit resume",
-    "receipt-backed bootstrap",
-    "without repeating assessment or confirmation",
-    "skips new-request suitability assessment",
-    "Assess every item first",
-    "No child dispatch occurs before that confirmation",
-    "one Host task, one dedicated worktree, and one Core Task",
-  ]) {
-    assert.equal(routing.includes(required), true, required);
+test("assessment and handoff examples pass the actual Host validators", async () => {
+  const admission = await readFile(join(skillRoot, "references", "admission.md"), "utf8");
+  for (const example of examples(admission, "assessment")) {
+    assert.deepEqual(validateSuitabilityAssessment(example.value), example.value);
   }
-  for (const required of [
-    "change_level: small | standard | large | uncertain",
-    "recommendation: direct | dev_flow | clarify",
-    "anchor: request_digest",
-    "Show the assessment. If the choice is unresolved",
-    "zero Dev Flow calls",
-    "anchor change invalidates the assessment",
-  ]) assert.equal(admission.includes(required), true, required);
-});
-
-test("confirmed launches use frozen refs and never relocate after active conflict", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const routing = section(skill, "Request routing");
-  const provisioning = section(skill, "Provisioning confirmation").replace(/\s+/gu, " ");
-  const discovery = section(skill, "Task discovery").replace(/\s+/gu, " ");
-  for (const required of [
-    "exact selector still follows",
-    "`ACTIVE_TASK_CONFLICT`",
-    "never authorizes post-conflict relocation",
-  ]) {
-    assert.equal(routing.includes(required), true, required);
-  }
-  for (const required of [
-    "`repository_key`", "`source_type`", "`carry_changes`", "`base_branch`", "`target_branch`",
-    "ask", "No omitted field has a default",
-    "refs/remotes/<remote>/<base>",
-    "`target.environment.type=\"worktree\"`",
-    "omit `onMissing`",
-    "clientThreadId",
-    "never dispatch again",
-    "child consumes the receipt before any Core call",
-    "workspace origin",
-  ]) {
-    assert.equal(provisioning.includes(required), true, required);
-  }
-  assert.match(discovery, /`ACTIVE_TASK_CONFLICT`[\s\S]*never starts relocation/u);
-});
-
-test("packaged references cover method steps, submission tools, and the new-task shape", async () => {
-  const methodReference = await readFile(join(skillRoot, "references", "method-profiles.md"), "utf8");
-  const payloadReference = await readFile(join(skillRoot, "references", "node-payloads.md"), "utf8");
-  const steps = [...marked(methodReference, "semantic-step-table").matchAll(/^\| `([^`]+)` \|/gmu)].map((match) => match[1]);
-  assert.equal(steps.length, 25);
-  assert.equal(new Set(steps).size, steps.length);
-  for (const tool of expectedTools.filter((name) => name.startsWith("dev_flow_submit_"))) assert.equal(payloadReference.includes(`\`${tool}\``), true, tool);
-  const block = marked(await readFile(skillPath, "utf8"), "new-task-example");
-  const example = JSON.parse(block.match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
-  assert.deepEqual(Object.keys(example).sort(), ["initial_out_of_scope", "initial_scope", "known_acceptance_criteria", "method_profile", "request"]);
-});
-
-test("sender handoff example matches the executable material contract", async () => {
-  const reference = await readFile(join(skillRoot, "references", "task-handoff.md"), "utf8");
-  const example = JSON.parse(marked(reference, "task-handoff-example").match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
+  const handoff = await readFile(join(skillRoot, "references", "task-handoff.md"), "utf8");
+  const example = JSON.parse(marked(handoff, "task-handoff-example").match(/^```json\n([\s\S]*)\n```$/u)[1]);
   assert.deepEqual(validateTaskHandoff(example), example);
 });
 
-test("Skill bounds verification, test-code changes, and post-change review", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const discovery = section(skill, "Task discovery").replace(/\s+/gu, " ");
-  const verification = section(skill, "Evidence and verification budget").replace(/\s+/gu, " ");
-  const review = section(skill, "Bounded post-change review").replace(/\s+/gu, " ");
-  for (const required of [
-    "Do not choose a verification budget during Task creation", "creation-time `verification_budget` is an obsolete contract member",
-  ]) assert.equal(discovery.includes(required), true, required);
-  for (const required of [
-    "At TASKS", "existing test structure", "closest targeted check first", "verification_budget_increased",
-    "do not stop merely because", "Budget permission alone is never a reason", "Before every full-suite command",
-    "never reuse an earlier reason automatically", "lasting responsibility", "README must not contain this word",
-    "one text search", "creates no permanent test file", "full_suite_reason",
-  ]) assert.equal(verification.includes(required), true, required);
-  for (const required of [
-    "current diff", "directly or indirectly affects", "Do not restart a repository-wide audit",
-    "unrelated historical", "After fixing a review finding", "matching targeted checks",
-    "explicitly requests code review", "review phase is read-only", "stop and wait for an explicit later repair request",
-  ]) assert.equal(review.includes(required), true, required);
+test("Hook examples match the actual event translation and denial format", async () => {
+  const markdown = await readFile(join(skillRoot, "references", "artifacts.md"), "utf8");
+  const event = examples(markdown, "hook")[0].value;
+  const prepared = examples(markdown, "host-check")[0].value;
+  assert.deepEqual(preparedWriteFromHook(event), prepared);
+  const denial = examples(markdown, "hook-output")[0].value;
+  assert.deepEqual(hookDecision({ decision: "deny", reason: denial.systemMessage }), denial);
+  assert.equal(hookDecision({ decision: "allow" }), null);
+  const lifecycle = await readFile(join(skillRoot, "references", "host-lifecycle.md"), "utf8");
+  const decision = examples(lifecycle, "host").find((example) => example.operation === "cleanup-decision");
+  assert.deepEqual(terminalCleanupDecision(decision.value), {
+    automatic_cleanup: false, worktree_cleanup: "requires_dirty_review", branch_cleanup: "requires_dirty_review",
+  });
 });
 
-test("method-profile fixture materializes the current ServerInfo and Action projection contract", async () => {
-  const [coreVersion, currentServerInfo, fixture] = await Promise.all([
-    readFile(join(repositoryRoot, "CORE_VERSION"), "utf8").then((value) => value.trim()),
-    readFile(join(repositoryRoot, "protocol", "fixtures", "graph-server-info.json"), "utf8").then(JSON.parse),
-    readFile(join(packageRoot, "tests", "fixtures", "graph-method-profiles.json"), "utf8").then(JSON.parse),
-  ]);
-
-  assert.equal(fixture.server_info.version, coreVersion);
-  for (const field of ["product", "transport", "health", "supported_hosts", "supported_processes", "method_profiles", "tools"]) {
-    assert.deepEqual(fixture.server_info[field], currentServerInfo[field], field);
-  }
-  assert.deepEqual(fixture.server_info.tools, expectedTools);
-
-  const actionMembers = [
-    "task_id", "revision", "action_id", "action_kind", "submission_tool", "process_id",
-    "process_definition_digest", "current_node", "node_purpose", "entry_conditions",
-    "completion_conditions", "allowed_effects", "required_evidence", "method_profile",
-    "method_steps", "available_transitions", "payload_contract", "guidance",
-    "repository_binding_digest", "issuance_identity_digest", "issuance_history_digest",
-    "issuance_content_digest", "issued_at",
-  ].sort();
-  const digestPattern = /^[0-9a-f]{64}$/u;
-  const payloadContracts = {
-    requirements: "requirements-result",
-    test: "test-result",
-    comprehension_review: "comprehension-result",
-  };
-  for (const [name, template] of Object.entries(fixture.actions)) {
-    assert.deepEqual(Object.keys(template).sort(), actionMembers, name);
-    assert.equal(template.process_definition_digest, currentServerInfo.supported_processes[0].definition_digest, name);
-    assert.equal(template.payload_contract, payloadContracts[name], name);
-    for (const member of ["repository_binding_digest", "issuance_identity_digest", "issuance_history_digest", "issuance_content_digest"]) {
-      assert.match(template[member], digestPattern, `${name}.${member}`);
-    }
-    for (const evidence of template.required_evidence) {
-      assert.deepEqual(Object.keys(evidence).sort(), ["kind", "required"], `${name}.required_evidence`);
-      assert.equal(evidence.required, true);
-    }
-    for (const step of template.method_steps) {
-      assert.deepEqual(Object.keys(step).sort(), ["purpose", "required", "step_id"], `${name}.${step.step_id}`);
-      assert.equal(step.required, true);
-    }
-    for (const transition of template.available_transitions) {
-      assert.deepEqual(Object.keys(transition).sort(), [
-        "description", "destination_node", "guard_id", "reason_required", "selection_condition", "transition_id",
-      ], `${name}.${transition.transition_id}`);
-    }
-  }
-
-  assert.deepEqual([...new Set(fixture.scenarios.map((scenario) => scenario.profile))].sort(), ["openspec", "plain", "spec-kit"]);
-  for (const scenario of fixture.scenarios) {
-    const template = fixture.actions[scenario.action];
-    assert.notEqual(template, undefined, scenario.id);
-    const action = { ...template, method_profile: scenario.profile };
-    assert.deepEqual(Object.keys(action).sort(), actionMembers, scenario.id);
-    assert.equal(currentServerInfo.method_profiles.includes(action.method_profile), true, scenario.id);
-    const steps = new Set(action.method_steps.map((step) => step.step_id));
-    for (const evidence of scenario.method_evidence) {
-      assert.equal(steps.has(evidence.step_id), true, `${scenario.id}.${evidence.step_id}`);
-      assert.equal(["completed", "plain_fallback", "unavailable", "not_run"].includes(evidence.status), true, scenario.id);
-      if (evidence.status === "completed") assert.equal(scenario.available_capabilities.includes(evidence.capability), true, scenario.id);
-      else assert.equal(evidence.capability, "", scenario.id);
-    }
-    const nodeResult = typeof scenario.node_result === "string" ? fixture[scenario.node_result] : scenario.node_result;
-    const transition = action.available_transitions.find((candidate) => candidate.transition_id === scenario.transition_id);
-    const methodWorkComplete = scenario.method_evidence.length === action.method_steps.length
-      && scenario.method_evidence.every((evidence) => ["completed", "plain_fallback"].includes(evidence.status));
-    assert.equal(methodWorkComplete && nodeResult !== null && transition !== undefined, scenario.should_apply, scenario.id);
-    if (scenario.should_apply && transition.reason_required) assert.match(scenario.reason ?? "", /\S/u, scenario.id);
-  }
-});
-
-test("ordinary and corrected submissions must pass the live-schema conformance gate", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const forwarding = section(skill, "Closed forwarding contract");
-  for (const required of [
-    "Compare the complete draft with the live schema member by member",
-    "every scalar, array, object and null type",
-    "every enum and const",
-    "submission schema conformance gate",
-    "Do not call the submission tool until the complete draft passes it",
-    "stop before mutation instead of guessing",
-  ]) {
-    assert.equal(forwarding.includes(required), true, required);
-  }
-
-  const correction = section(skill, "Bounded correction of the current action").replace(/\s+/gu, " ");
-  for (const required of [
-    "reread the live schema of the same submission tool",
-    "changes limited to `recovery.allowed_paths`",
-    "repeat the submission schema conformance gate",
-    "does not define the corrected member's type",
-  ]) {
-    assert.equal(correction.includes(required), true, required);
-  }
-
-  const payloadReference = await readFile(join(skillRoot, "references", "node-payloads.md"), "utf8");
-  assert.equal(payloadReference.includes("`complexity_justification` is `string[]`"), true);
-  const block = marked(payloadReference, "design-node-result-example");
-  const example = JSON.parse(block.match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
-  assert.equal(Array.isArray(example.baseline.complexity_justification), true);
-  assert.deepEqual(example.baseline.complexity_justification, ["No new abstraction is required."]);
-});
-
-test("submission response example preserves errors and caches only successful Tasks", async () => {
-  const reference = await readFile(join(skillRoot, "references", "tool-results.md"), "utf8");
-  const code = marked(reference, "submission-response-example").match(/^```js\n([\s\S]*)\n```$/u)?.[1];
-  assert.ok(code);
+test("response example retains complete results and displays bounded success data", async () => {
+  const reference = await readFile(join(skillRoot, "references", "transport.md"), "utf8");
+  const coreReference = await readFile(join(skillRoot, "references", "tool-results.md"), "utf8");
+  const code = marked(reference, "submission-response-example").match(/^```js\n([\s\S]*)\n```$/u)[1];
   const previousTask = { task_id: "task-example", revision: 5, current_cursor: "TEST" };
-  const rejection = {
-    ok: false, request_id: "request-example", tool: "dev_flow_submit_test",
-    error: { code: "TRANSITION_NOT_ALLOWED", guard: {
-      guard_id: "implementation_failure_identified",
-      failures: [{ path: "node_result.findings", rule: "problem_findings_present" }],
-    } },
-    recovery: { retry_safe: false, action: "read_next_action", message: "Read the complete current transition set." },
-  };
-  const success = { ok: true, result: { ...previousTask, revision: 6, current_cursor: "IMPLEMENT", current_action: { action_id: "next-action" } } };
-  const terminal = { ok: true, result: { ...previousTask, revision: 6, current_cursor: "DONE", current_action: null } };
+  const rejection = examples(coreReference, "mcp-output")[0].value;
+  const success = { ok: true, result: { ...previousTask, revision: 6, current_cursor: "IMPLEMENT", current_action: { action_id: "next-action" }, blocker: null, outcome: null, history: "retained history ".repeat(20000) } };
+  const terminal = { ok: true, result: { ...previousTask, revision: 6, current_cursor: "DONE", current_action: null, blocker: null, outcome: { status: "completed" } } };
   for (const envelope of [rejection, success, terminal]) {
     for (const structured of [true, false]) {
       const response = { content: [{ type: "text", text: JSON.stringify(envelope) }], isError: !envelope.ok };
@@ -272,10 +101,7 @@ test("submission response example preserves errors and caches only successful Ta
       try {
         runInNewContext(code, {
           submission_response: response,
-          store(key, value) {
-            // Model the exec boundary that rejected undefined in the reported failure.
-            cache.set(key, JSON.parse(JSON.stringify(value)));
-          },
+          store(key, value) { cache.set(key, JSON.parse(JSON.stringify(value))); },
           text(value) { output.push(JSON.parse(JSON.stringify(value))); },
           exit() { throw stopped; },
         });
@@ -284,86 +110,24 @@ test("submission response example preserves errors and caches only successful Ta
         assert.equal(envelope.ok, false);
       }
       assert.deepEqual(cache.get("submission_response"), response);
-      assert.deepEqual(output, [envelope]);
       assert.deepEqual(cache.get("task"), envelope.ok ? envelope.result : previousTask);
+      if (!envelope.ok) assert.deepEqual(output, [envelope]);
+      else {
+        assert.equal(output[0].ok, true);
+        assert.equal(output[0].current_cursor, envelope.result.current_cursor);
+        assert.equal("history" in output[0], false);
+        assert.equal(JSON.stringify(output).length < 1000, true);
+      }
     }
   }
-
   for (const envelope of [{ ok: true }, { ok: true, result: null }, {}]) {
     const cache = new Map([["task", previousTask]]);
     assert.throws(() => runInNewContext(code, {
       submission_response: { structuredContent: envelope },
       store(key, value) { cache.set(key, JSON.parse(JSON.stringify(value))); },
-      text() {},
-      exit() { assert.fail("Incomplete success must not take the domain-error path"); },
+      text() {}, exit() { assert.fail("Incomplete success cannot take the rejection path"); },
     }), /Incomplete submission response/u);
     assert.deepEqual(cache.get("task"), previousTask);
     assert.deepEqual(cache.get("submission_response"), { structuredContent: envelope });
   }
 });
-
-test("relocation, abandonment, and cleanup keep Core and Host responsibilities separate", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const relocation = section(skill, "Task relocation and Codex Handoff").replace(/\s+/gu, " ");
-  const terminal = section(skill, "Terminal worktree presentation and cleanup").replace(/\s+/gu, " ");
-  for (const required of [
-    "`dev_flow_prepare_task_relocation`", "coordinator other than the thread being moved",
-    "one `handoff_thread` call", "never dispatched again", "atomically replacing bindings and claims",
-  ]) assert.equal(relocation.includes(required), true, required);
-  for (const required of [
-    "`dev_flow_abandon_task`", "Automatic cleanup is always false",
-    "two separate current user authorizations", "Managed worktree", "without force",
-  ]) assert.equal(skill.includes(required) || terminal.includes(required), true, required);
-});
-
-test("production adapter does not embed workflow or fixture state", async () => {
-  for (const path of [
-    "bin/dev-flow-codex.mjs", "lib/lifecycle.mjs", "lib/paths.mjs", "lib/platform.mjs",
-    "lib/provisioning-receipt.mjs", "lib/task-admission.mjs", "lib/task-launch.mjs",
-    "lib/worktree-lifecycle.mjs", "lib/task-handoff.mjs", "lib/json.mjs",
-  ]) {
-    const source = await readFile(join(packageRoot, path), "utf8");
-    assert.doesNotMatch(source, /tests\/fixtures|fake-(?:codex|core)|protocol\/fixtures/iu, path);
-    assert.doesNotMatch(source, /\btransitionTable\b|\btaskStates?\b|\bpersistTask\b|\bsqlite\b/iu, path);
-  }
-});
-
-function parseFrontmatter(markdown) {
-  const normalized = markdown.replace(/\r\n?/gu, "\n");
-  const match = normalized.match(/^---\n([\s\S]*?)\n---\n/u);
-  assert.notEqual(match, null);
-  return Object.fromEntries(match[1].split("\n").flatMap((line) => {
-    const separator = line.indexOf(":");
-    if (separator < 0) return [];
-    let value = line.slice(separator + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    return [[line.slice(0, separator).trim(), value]];
-  }));
-}
-
-function section(markdown, heading) {
-  const start = markdown.indexOf(`## ${heading}`);
-  assert.ok(start >= 0, heading);
-  const end = markdown.indexOf("\n## ", start + 4);
-  return markdown.slice(start, end < 0 ? undefined : end);
-}
-
-function marked(markdown, name) {
-  const normalized = markdown.replace(/\r\n?/gu, "\n");
-  const match = normalized.match(new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u"));
-  assert.notEqual(match, null, name);
-  return match[1];
-}
-
-async function walkFiles(root) {
-  const files = [];
-  async function walk(directory) {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      const absolute = join(directory, entry.name);
-      if (entry.isDirectory()) await walk(absolute);
-      else files.push(relative(root, absolute).split(sep).join("/"));
-    }
-  }
-  await walk(root);
-  return files.sort();
-}

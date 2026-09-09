@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { writeSharedSkillReferences } from "./sync-skill-references.mjs";
 import { desktopSourceFiles } from "./desktop-pet-package.mjs";
 
 import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
@@ -93,6 +94,10 @@ export async function stageAndPack(product, { root, stageRoot, outputRoot, coreA
       });
     }
     else await copyFile(join(packageRoot, relativePath), target);
+  }
+  if (product === "codex" || product === "deepseek") {
+    const skillPath = product === "codex" ? "plugin/skills/dev-flow" : "skills/dev-flow";
+    await writeSharedSkillReferences({ root, host: product, destination: join(destination, skillPath) });
   }
   let artifactPath;
   if (coreArtifacts) {

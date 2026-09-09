@@ -136,3 +136,8 @@ dev-flow pet stop
 ## 라이선스
 
 [Apache License 2.0](LICENSE)
+
+
+## Host 상호작용 안내
+
+[Codex Skill](packages/codex/plugin/skills/dev-flow/SKILL.md)과 [DeepSeek Skill](packages/deepseek/skills/dev-flow/SKILL.md)의 Core 규칙과 예제는 하나의 공유 소스에서 생성됩니다. 각 패키지는 실제 권한 확인, 작업 트리와 도구 인터페이스를 따로 유지합니다. 양쪽 모두 현재 노드 전환, 응답 처리와 복구를 다룹니다. 프로세스 문서는 최종 검증 전에 업데이트하며, 화면 표시가 잘려도 보관된 전체 응답의 결과는 바뀌지 않습니다.

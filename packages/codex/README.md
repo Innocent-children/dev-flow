@@ -219,3 +219,10 @@ Adapter 在提交节点结果前收集并分类改动文件。文件漏报按返
 ## 携带内容
 
 已确认携带的本地内容计入 Task 范围。Codex 将内容保留检查与新开发分别安排，并与启动快照比较；保留文件不代表已有业务行为已验证。未说明的路径仍需处理范围决定。详见[工作树来源](../../docs/WORKTREE-SOURCES.md)。
+
+
+## Skill 交互参考
+
+Codex 与 DeepSeek 的 Core 交互说明和完整示例统一维护于 `skills/dev-flow/core/`，由构建脚本生成各包内的引用文件。各 Host 的授权、工作树准备和工具调用分别说明；实际执行使用当前 Action、已安装接口和真实用户决定。节点提交、返回处理、阻塞恢复与验证规则使用相同内容，并对两边生成的示例运行同一套 Core 校验。
+
+[Codex Skill](plugin/skills/dev-flow/SKILL.md)

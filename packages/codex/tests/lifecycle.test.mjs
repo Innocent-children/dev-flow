@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, copyFile, link, lstat, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, cp, link, lstat, mkdir, readFile, readdir, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -204,34 +204,21 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   const wrongSkillDescription = await makeSetupFixture(t, "wrong-skill-description");
   await writeFile(
     join(wrongSkillDescription.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    "---\nname: dev-flow\ndescription: \"Only explain repositories.\"\n---\n\nShow the assessment. If the choice is unresolved. An explicit resume uses zero Dev Flow calls before discovery.\n",
+    "---\nname: dev-flow\ndescription: \"\"\n---\n\nRead the routed interaction reference.\n",
   );
-  await assert.rejects(setupRegistration(wrongSkillDescription.options), /description is missing activation boundary/);
+  await assert.rejects(setupRegistration(wrongSkillDescription.options), /non-empty description/);
   await assert.rejects(stat(wrongSkillDescription.statePath), { code: "ENOENT" });
 
-  const wrongSkillAdmission = await makeSetupFixture(t, "wrong-skill-admission");
-  const validSkill = await readFile(
-    join(wrongSkillAdmission.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    "utf8",
-  );
-  await writeFile(
-    join(wrongSkillAdmission.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    validSkill.replace("Show the assessment. If the choice is unresolved", "Continue immediately"),
-  );
-  await assert.rejects(setupRegistration(wrongSkillAdmission.options), /admission does not require assessment/);
-  await assert.rejects(stat(wrongSkillAdmission.statePath), { code: "ENOENT" });
+  const wrongSkillName = await makeSetupFixture(t, "wrong-skill-name");
+  const invalidNamePath = join(wrongSkillName.paths.pluginRoot, "skills", "dev-flow", "SKILL.md");
+  await writeFile(invalidNamePath, (await readFile(invalidNamePath, "utf8")).replace("name: dev-flow", "name: different-skill"));
+  await assert.rejects(setupRegistration(wrongSkillName.options), /name dev-flow/);
+  await assert.rejects(stat(wrongSkillName.statePath), { code: "ENOENT" });
 
-  const wrongConflictRelocation = await makeSetupFixture(t, "wrong-worktree-first-lifecycle");
-  const conflictSkill = await readFile(
-    join(wrongConflictRelocation.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    "utf8",
-  );
-  await writeFile(
-    join(wrongConflictRelocation.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    conflictSkill.replace("clientThreadId", "queued identifier"),
-  );
-  await assert.rejects(setupRegistration(wrongConflictRelocation.options), /worktree-first lifecycle is missing/);
-  await assert.rejects(stat(wrongConflictRelocation.statePath), { code: "ENOENT" });
+  const missingReference = await makeSetupFixture(t, "missing-skill-reference");
+  await rm(join(missingReference.paths.pluginRoot, "skills", "dev-flow", "references", "nodes", "test.md"));
+  await assert.rejects(setupRegistration(missingReference.options), /Skill reference must exist and be readable/);
+  await assert.rejects(stat(missingReference.statePath), { code: "ENOENT" });
 
   const wrongMcp = await makeSetupFixture(t, "wrong-mcp-shape");
   await writeFile(
@@ -815,6 +802,11 @@ async function makeSetupFixture(t, name) {
   await writeFile(
     join(pluginRoot, "skills", "dev-flow", "SKILL.md"),
     await readFile(join(repositoryRoot, "packages", "codex", "plugin", "skills", "dev-flow", "SKILL.md"), "utf8"),
+  );
+  await cp(
+    join(repositoryRoot, "packages", "codex", "plugin", "skills", "dev-flow", "references"),
+    join(pluginRoot, "skills", "dev-flow", "references"),
+    { recursive: true },
   );
   await writeFile(
     join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),

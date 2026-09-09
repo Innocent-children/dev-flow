@@ -168,3 +168,10 @@ The Adapter collects and classifies changed files before submitting node results
 ## Carried content
 
 Confirmed local content belongs to the Task scope. Codex plans preservation checks separately from new development and compares preserved contents with the launch snapshot. Preserving a file does not certify its existing business behavior. Unexplained paths still require a scope decision. See [worktree sources](WORKTREE-SOURCES_en.md).
+
+
+## Skill interaction reference
+
+Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
+
+[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md)

@@ -4,6 +4,12 @@ The original Codex session collects the complete relevant requirements discussio
 UTF-8 JSON file to `dev-flow-codex host-launch prepare`. This reference describes the sender's input
 and rendering contract. Core continues to own Task state and semantic submissions.
 
+Implementation: `packages/codex/lib/task-handoff.mjs` — `validateTaskHandoff`, `writeTaskHandoff`, `buildManagedBootstrapPrompt`.
+
+The helper checks structure/references and renders supplied content. The collection and provenance
+policies below are Host responsibilities; validation does not prove the user accepted a statement.
+The complete `prepare` input and result handling are in [admission](admission.md#prepare).
+
 ## Collection and classification
 
 Read the discussion from the first relevant request through the final additions before launch.

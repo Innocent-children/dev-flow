@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm } from "node:fs/promises";
 import { arch, platform, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 import { gunzipSync } from "node:zlib";
 
 import { execPortableCommand } from "../../dev-flow/lib/command.mjs";
+import { sharedSkillReferences } from "../../../scripts/sync-skill-references.mjs";
 import { ustarEntryModes } from "../../../scripts/dev-flow-local.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -41,8 +42,24 @@ const expectedPackageFiles = [
   "lib/worktree-snapshot.mjs",
   ...runtimePaths,
   "skills/dev-flow/SKILL.md",
+  "skills/dev-flow/references/admission.md",
+  "skills/dev-flow/references/artifact-contract.md",
+  "skills/dev-flow/references/artifacts.md",
+  "skills/dev-flow/references/host-lifecycle.md",
   "skills/dev-flow/references/method-profiles.md",
   "skills/dev-flow/references/node-payloads.md",
+  "skills/dev-flow/references/nodes/comprehension.md",
+  "skills/dev-flow/references/nodes/delivery.md",
+  "skills/dev-flow/references/nodes/design.md",
+  "skills/dev-flow/references/nodes/implementation.md",
+  "skills/dev-flow/references/nodes/refactor.md",
+  "skills/dev-flow/references/nodes/requirements.md",
+  "skills/dev-flow/references/nodes/tasks.md",
+  "skills/dev-flow/references/nodes/test.md",
+  "skills/dev-flow/references/tool-results.md",
+  "skills/dev-flow/references/transport.md",
+  "skills/dev-flow/references/verification.md",
+  "skills/dev-flow/scripts/artifacts.mjs",
 ];
 const expectedSourcePackedFiles = [
   "package.json",
@@ -126,11 +143,6 @@ test("manifest closes final package, dependency, and lifecycle surfaces", async 
   for (const hook of lifecycleHooks) assert.equal(Object.hasOwn(manifest.scripts, hook), false, hook);
 });
 
-test("packaged node-payload reference closes completed user evidence semantics", async () => {
-  const reference = await readFile(join(packageRoot, "skills", "dev-flow", "references", "node-payloads.md"), "utf8");
-  assert.match(reference, /Completed developer-run verification is a `source="user"` check with `command_count=0`/u);
-  assert.match(reference, /only work nobody has run yet in `manual_handoff_items`/u);
-});
 
 test("source checkout omits precompiled Core while preserving the final manifest contract", async () => {
   for (const runtimePath of runtimePaths) {
@@ -182,6 +194,14 @@ test("staged tarball contains and starts the current dual-platform Core", async 
   assert.equal(modes.get("package/runtime/darwin-arm64/dev-flow"), 0o755);
   assert.equal(modes.get("package/runtime/win32-x64/dev-flow.exe"), 0o644);
   await execFile("tar", ["-xzf", report.artifact_path, "-C", extractDirectory]);
+  const installedSkill = join(extractDirectory, "package", "skills", "dev-flow");
+  for (const [path, expected] of await sharedSkillReferences({ root: repositoryRoot, host: "deepseek" })) {
+    assert.equal(await readFile(join(installedSkill, path), "utf8"), expected, path);
+  }
+  const helper = join(installedSkill, "scripts", "artifacts.mjs");
+  const helperHelp = await execFile(process.execPath, [helper, "--help"], { encoding: "utf8" });
+  assert.match(helperHelp.stdout, /collect\|prepare/u);
+
 
   const runtimes = [
     { path: "runtime/darwin-arm64/dev-flow", goos: "darwin", goarch: "arm64" },
@@ -217,6 +237,15 @@ test("staged tarball contains and starts the current dual-platform Core", async 
   } else {
     environment.HOME = outputDirectory;
   }
+  const helperFailure = await runWithClosedInput(
+    process.execPath, [helper, "collect"], { cwd: outputDirectory, env: environment },
+    JSON.stringify({ host: "deepseek", task_id: "task-example", action_id: "action-example" }) + "\n", 1,
+  );
+  const envelope = JSON.parse(helperFailure.stdout);
+  assert.equal(envelope.ok, false);
+  assert.equal(envelope.error.code, "STORAGE_UNAVAILABLE");
+  assert.equal(helperFailure.stderr, "");
+  assert.deepEqual(await readdir(dataDirectory), []);
   const { stdout: mcpStdout, stderr: mcpStderr } = await runWithClosedInput(
     runtimePath,
     ["mcp", "--stdio"],
@@ -234,7 +263,7 @@ test("release preparation builds both frozen artifacts through the staging build
   assert.doesNotMatch(release, /packages\/deepseek\/tests\/build-artifact\.mjs/u);
 });
 
-async function runWithClosedInput(command, args, options) {
+async function runWithClosedInput(command, args, options, input = "", expectedExit = 0) {
   return await new Promise((resolve, reject) => {
     const child = spawn(command, args, { ...options, stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
     let stdout = "";
@@ -244,11 +273,11 @@ async function runWithClosedInput(command, args, options) {
     child.stdout.on("data", (chunk) => { stdout += chunk; });
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.once("error", reject);
-    child.once("exit", (code, signal) => {
-      if (code === 0) resolve({ stdout, stderr });
+    child.once("close", (code, signal) => {
+      if (code === expectedExit) resolve({ stdout, stderr });
       else reject(new Error(`packaged Core exited with code ${code} and signal ${signal ?? "none"}: ${stderr}`));
     });
-    child.stdin.end();
+    child.stdin.end(input);
   });
 }
 

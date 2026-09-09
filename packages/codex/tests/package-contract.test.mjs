@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import { promisify } from "node:util";
 
+import { sharedSkillReferences } from "../../../scripts/sync-skill-references.mjs";
 import { releaseOutputNames } from "../../../release/prepare.mjs";
 import { execPortableCommand, findCommandPath } from "../lib/command.mjs";
 
@@ -47,11 +48,25 @@ const expectedPackageFiles = [
   "plugin/hooks/hooks.json",
   "plugin/hooks/pre-tool-use.mjs",
   "plugin/skills/dev-flow/SKILL.md",
-  "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/admission.md",
+  "plugin/skills/dev-flow/references/artifact-contract.md",
+  "plugin/skills/dev-flow/references/artifacts.md",
+  "plugin/skills/dev-flow/references/host-lifecycle.md",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
-  "plugin/skills/dev-flow/references/tool-results.md",
+  "plugin/skills/dev-flow/references/nodes/comprehension.md",
+  "plugin/skills/dev-flow/references/nodes/delivery.md",
+  "plugin/skills/dev-flow/references/nodes/design.md",
+  "plugin/skills/dev-flow/references/nodes/implementation.md",
+  "plugin/skills/dev-flow/references/nodes/refactor.md",
+  "plugin/skills/dev-flow/references/nodes/requirements.md",
+  "plugin/skills/dev-flow/references/nodes/tasks.md",
+  "plugin/skills/dev-flow/references/nodes/test.md",
   "plugin/skills/dev-flow/references/task-handoff.md",
+  "plugin/skills/dev-flow/references/tool-results.md",
+  "plugin/skills/dev-flow/references/transport.md",
+  "plugin/skills/dev-flow/references/verification.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ];
@@ -86,11 +101,25 @@ const expectedPackedFiles = [
   "plugin/hooks/hooks.json",
   "plugin/hooks/pre-tool-use.mjs",
   "plugin/skills/dev-flow/SKILL.md",
-  "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/admission.md",
+  "plugin/skills/dev-flow/references/artifact-contract.md",
+  "plugin/skills/dev-flow/references/artifacts.md",
+  "plugin/skills/dev-flow/references/host-lifecycle.md",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
-  "plugin/skills/dev-flow/references/tool-results.md",
+  "plugin/skills/dev-flow/references/nodes/comprehension.md",
+  "plugin/skills/dev-flow/references/nodes/delivery.md",
+  "plugin/skills/dev-flow/references/nodes/design.md",
+  "plugin/skills/dev-flow/references/nodes/implementation.md",
+  "plugin/skills/dev-flow/references/nodes/refactor.md",
+  "plugin/skills/dev-flow/references/nodes/requirements.md",
+  "plugin/skills/dev-flow/references/nodes/tasks.md",
+  "plugin/skills/dev-flow/references/nodes/test.md",
   "plugin/skills/dev-flow/references/task-handoff.md",
+  "plugin/skills/dev-flow/references/tool-results.md",
+  "plugin/skills/dev-flow/references/transport.md",
+  "plugin/skills/dev-flow/references/verification.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ].sort();
@@ -218,12 +247,12 @@ test("node-payload reference is one explicit closed packaged resource", async ()
   const reference = await readFile(join(packageRoot, referencePath), "utf8");
   assert.equal(manifest.files.filter((path) => path === referencePath).length, 1);
   assert.equal((await stat(join(packageRoot, referencePath))).isFile(), true);
-  assert.match(reference, /`dev_flow_submit_requirements`/u);
-  assert.match(reference, /`dev_flow_resolve_blocker`/u);
-  assert.match(reference, /Core fills revision[\s\S]*Action kind[\s\S]*payload envelope/u);
-  assert.match(reference, /Do not send `request_id`[\s\S]*`method_evidence`[\s\S]*artifact `role`/u);
-  assert.match(reference, /Completed developer-run verification is a `source="user"` check with `command_count=0`/u);
-  assert.match(reference, /only work nobody has run yet in `manual_handoff_items`/u);
+  const links = [...reference.matchAll(/\]\((nodes\/[^)]+\.md)\)/gu)].map((match) => match[1]);
+  assert.equal(new Set(links).size, 8);
+  for (const link of links) {
+    assert.ok((await stat(join(packageRoot, "plugin/skills/dev-flow/references", link))).isFile());
+    assert.ok(manifest.files.includes(`plugin/skills/dev-flow/references/${link}`));
+  }
   assert.doesNotMatch(reference, /(?:^|\s)(?:\/Users\/|\/home\/|[A-Za-z]:\\\\)/u);
   assert.doesNotMatch(reference, /(?:node_modules|tests?\/fixtures?|\.tmp|\.sqlite|\.db)(?:\/|\b)/iu);
 });
@@ -275,26 +304,6 @@ test("packaged resources contain no copied fixtures or workflow engine", async (
   }
 });
 
-test("packaged Skill publishes the exact current Core contract new-task value types and vocabulary", async () => {
-  const skill = normalizeNewlines(await readFile(join(pluginRoot, "skills", "dev-flow", "SKILL.md"), "utf8"));
-
-  assert.match(
-    skill,
-    /`initial_scope`,\s+`initial_out_of_scope`, and\s+`known_acceptance_criteria` are JSON arrays of strings/u,
-  );
-  assert.match(skill, /creation-time `verification_budget` is an obsolete contract member/u);
-
-  const example = skill.match(/<!-- new-task-example:start -->\n```json\n([\s\S]*?)\n```\n<!-- new-task-example:end -->/u);
-  assert.notEqual(example, null);
-  assert.deepEqual(JSON.parse(example[1]), {
-    request: "Return the requested field from the bounded endpoint.",
-    initial_scope: ["Update the endpoint response"],
-    initial_out_of_scope: ["Change unrelated endpoints"],
-    known_acceptance_criteria: ["The response contains the requested field"],
-    method_profile: "plain",
-  });
-});
-
 test("release output names derive from Codex and Core versions", () => {
   assert.deepEqual(releaseOutputNames("codex", currentVersion, currentVersion), [
     "SHA256SUMS",
@@ -342,6 +351,10 @@ test("local package builder stages one exact non-final artifact in a temporary d
 
   const extractDirectory = await mkdtemp(join(tmpdir(), "dev-flow-codex-package-extract-"));
   await execFile("tar", ["-xzf", report.artifact_path, "-C", extractDirectory]);
+  for (const [path, expected] of await sharedSkillReferences({ root: repositoryRoot, host: "codex" })) {
+    assert.equal(await readFile(join(extractDirectory, "package", "plugin", "skills", "dev-flow", path), "utf8"), expected, path);
+  }
+
   const handoff = await import(pathToFileURL(join(extractDirectory, "package", "lib", "task-handoff.mjs")));
   const reference = await readFile(join(extractDirectory, "package", "plugin", "skills", "dev-flow", "references", "task-handoff.md"), "utf8");
   const example = JSON.parse(reference.match(/<!-- task-handoff-example:start -->\n```json\n([\s\S]*?)\n```/u)[1]);

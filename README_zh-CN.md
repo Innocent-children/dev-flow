@@ -127,3 +127,8 @@ dev-flow pet stop
 ## 许可证
 
 [Apache License 2.0](LICENSE)
+
+
+## Host 交互说明
+
+[Codex Skill](packages/codex/plugin/skills/dev-flow/SKILL.md) 与 [DeepSeek Skill](packages/deepseek/skills/dev-flow/SKILL.md) 的 Core 规则和示例由同一份共享源生成，各自保留实际的授权、工作树和工具接口。两边均覆盖当前节点转移、返回处理与恢复；仓库内流程文件在最终验证前完成更新，显示截断不改变已完整保留的响应结果。

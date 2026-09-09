@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, copyFile, link, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, cp, link, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -287,11 +287,8 @@ async function temporaryPackage(t, name) {
     version: currentVersion,
   })}\n`);
   await copyFile(join(sourcePackageRoot, "skills", "dev-flow", "SKILL.md"), join(skillRoot, "SKILL.md"));
-  for (const reference of ["method-profiles.md", "node-payloads.md"]) {
-    await copyFile(
-      join(sourcePackageRoot, "skills", "dev-flow", "references", reference),
-      join(skillRoot, "references", reference),
-    );
+  for (const directory of ["references", "scripts"]) {
+    await cp(join(sourcePackageRoot, "skills", "dev-flow", directory), join(skillRoot, directory), { recursive: true });
   }
   if (fixturePlatform === "win32") {
     try {

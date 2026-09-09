@@ -4,6 +4,7 @@ set -eu
 
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repository_root"
+node scripts/sync-skill-references.mjs --check
 
 run_step() {
   step_name=$1
@@ -95,11 +96,25 @@ const codexFinalStagingFiles = [
   "plugin/hooks/hooks.json",
   "plugin/hooks/pre-tool-use.mjs",
   "plugin/skills/dev-flow/SKILL.md",
-  "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/admission.md",
+  "plugin/skills/dev-flow/references/artifact-contract.md",
+  "plugin/skills/dev-flow/references/artifacts.md",
+  "plugin/skills/dev-flow/references/host-lifecycle.md",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
-  "plugin/skills/dev-flow/references/tool-results.md",
+  "plugin/skills/dev-flow/references/nodes/comprehension.md",
+  "plugin/skills/dev-flow/references/nodes/delivery.md",
+  "plugin/skills/dev-flow/references/nodes/design.md",
+  "plugin/skills/dev-flow/references/nodes/implementation.md",
+  "plugin/skills/dev-flow/references/nodes/refactor.md",
+  "plugin/skills/dev-flow/references/nodes/requirements.md",
+  "plugin/skills/dev-flow/references/nodes/tasks.md",
+  "plugin/skills/dev-flow/references/nodes/test.md",
   "plugin/skills/dev-flow/references/task-handoff.md",
+  "plugin/skills/dev-flow/references/tool-results.md",
+  "plugin/skills/dev-flow/references/transport.md",
+  "plugin/skills/dev-flow/references/verification.md",
+  "plugin/skills/dev-flow/agents/openai.yaml",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
 ].sort();
@@ -124,8 +139,24 @@ const deepseekFinalStagingFiles = [
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe",
   "skills/dev-flow/SKILL.md",
+  "skills/dev-flow/references/admission.md",
+  "skills/dev-flow/references/artifact-contract.md",
+  "skills/dev-flow/references/artifacts.md",
+  "skills/dev-flow/references/host-lifecycle.md",
   "skills/dev-flow/references/method-profiles.md",
   "skills/dev-flow/references/node-payloads.md",
+  "skills/dev-flow/references/nodes/comprehension.md",
+  "skills/dev-flow/references/nodes/delivery.md",
+  "skills/dev-flow/references/nodes/design.md",
+  "skills/dev-flow/references/nodes/implementation.md",
+  "skills/dev-flow/references/nodes/refactor.md",
+  "skills/dev-flow/references/nodes/requirements.md",
+  "skills/dev-flow/references/nodes/tasks.md",
+  "skills/dev-flow/references/nodes/test.md",
+  "skills/dev-flow/references/tool-results.md",
+  "skills/dev-flow/references/transport.md",
+  "skills/dev-flow/references/verification.md",
+  "skills/dev-flow/scripts/artifacts.mjs",
 ].sort();
 const expectedByProfile = {
   "codex-source": codexFinalStagingFiles.filter((file) => !file.startsWith("runtime/")),
@@ -181,6 +212,7 @@ run_step "DeepSeek release prepare syntax" bash -n scripts/build-deepseek-releas
 run_step "Cross-platform WebUI build syntax" node --check scripts/build-webui.mjs
 run_step "Cross-platform Core runtime build syntax" node --check scripts/build-core-runtimes.mjs
 run_step "Cross-platform local package syntax" node --check scripts/dev-flow-local.mjs
+run_step "Shared Skill reference generation" node --test scripts/sync-skill-references.test.mjs
 run_step "Cross-platform build contracts" node --test scripts/build-core-runtimes.test.mjs scripts/dev-flow-local.test.mjs
 run_step "Desktop pet artwork staging syntax" node --check scripts/desktop-pet-artwork.mjs
 run_step "Desktop pet artwork package contracts" node --test scripts/desktop-pet-artwork.test.mjs

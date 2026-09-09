@@ -130,3 +130,7 @@ Windows 桌面包由 `build-desktop-pet-windows.mjs` 构建；在仓库根目录
 Windows 桌面开发包现在同时携带完整的 Codex 与 DeepSeek 安装包；构建复用 buildCoreRuntimes 和 stageAndPack，不生成缺少另一平台 Core 的临时特制 Adapter 包。安装统一入口后，两个插件与桌面应用由 dev-flow install --host all --yes 完成。
 
 WebUI 的语义提交和恢复回归使用 `pnpm --dir packages/webui test`，运行当前组件与 HTTP 客户端的模拟检查，覆盖网络异常、待恢复页面重开和仅按 Action ID 恢复。这不是原生浏览器验证。
+
+## 共享 Skill 引用
+
+Core 通用说明和示例只在 `skills/dev-flow/core/` 编辑。执行 `node scripts/sync-skill-references.mjs` 生成 Codex 与 DeepSeek 包内副本；副本供源码阅读和本地加载，文件头标明来源。`node scripts/sync-skill-references.mjs --check` 检查副本是否与共享源一致。Codex 本地构建和 `stageAndPack` 都在临时 staging 中重新生成引用，安装包不依赖仓库外的共享目录。共享说明只替换 `host` 值，Host 操作说明分别维护。校验还覆盖两边 MCP Schema、当前节点转移、DSH 确认文本及实际包内文件。

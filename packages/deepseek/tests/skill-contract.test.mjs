@@ -1,89 +1,90 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { assertSkillResources, examples, filesBelow } from "../../../tests/skills/resources.mjs";
+import { checkSharedSkillReferences } from "../../../scripts/sync-skill-references.mjs";
+import { authorizeDevFlowExecution } from "../lib/authorization.mjs";
+import { DEV_FLOW_QUALIFIED_TOOL_NAMES } from "../lib/tool-names.mjs";
+import { WORKSPACE_COORDINATOR_TOOL, authorizeWorkspaceExecution, workspaceConfirmationText, workspaceResumeText, workspaceCleanupText } from "../lib/workspace-coordinator.mjs";
+import { registerWorkspaceCoordinator } from "../lib/workspace-tool.mjs";
+import { preparedWrite } from "../lib/file-scope.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const repositoryRoot = dirname(dirname(packageRoot));
 const skillRoot = join(packageRoot, "skills", "dev-flow");
-const skillPath = join(skillRoot, "SKILL.md");
-const rawTools = [
-  "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task", "dev_flow_get_next_action",
-  "dev_flow_submit_requirements", "dev_flow_submit_design", "dev_flow_submit_tasks",
-  "dev_flow_submit_implementation", "dev_flow_submit_test", "dev_flow_submit_comprehension",
-  "dev_flow_submit_refactor", "dev_flow_submit_delivery", "dev_flow_prepare_task_relocation",
-  "dev_flow_resolve_blocker", "dev_flow_recover_action", "dev_flow_cancel_task",
-  "dev_flow_abandon_task",
-];
 
-test("Skill declares explicit activation and the complete qualified tool catalog", async () => {
-  const skill = (await readFile(skillPath, "utf8")).replace(/\r\n?/gu, "\n");
-  assert.equal(skill.startsWith("# Dev Flow\n"), true);
-  const handshake = section(skill, "Compatibility handshake");
-  const catalog = [...handshake.matchAll(/^\d+\. `(dev_flow_[a-z_]+)`$/gmu)].map((match) => match[1]);
-  assert.deepEqual(catalog, rawTools);
-  assert.equal(handshake.match(/`(mcp__dev_flow__dev_flow_[a-z_]+)/u)?.[1], "mcp__dev_flow__dev_flow_server_info");
+function execution(text, name, arguments_) {
+  return { name, callId: "call-example", arguments: arguments_, agent: {
+    status: "running", session: { snapshotEvents: () => [
+      { seq: 0, type: "turn/start", data: { turn: 1 } },
+      { seq: 1, type: "user/message", data: { id: "user", source: { kind: "user" }, content: [{ type: "text", text }] } },
+      { seq: 2, type: "tool/call", data: { turn: 1, callId: "call-example", name } },
+    ] },
+  } };
+}
+
+test("both packaged Core references match the one shared source", async () => {
+  await checkSharedSkillReferences({ root: repositoryRoot });
 });
 
-test("Skill contains the required operational sections", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  for (const heading of ["Suitability assessment", "Explicit worktree confirmation", "Compatibility handshake", "Task discovery", "Optional code discovery", "Governed action loop", "Method operation rendering", "Transition selection", "Closed forwarding contract", "Recovery-before-retry contract", "Evidence and verification budget", "Bounded post-change review"]) {
-    assert.equal(skill.includes(`## ${heading}`), true, heading);
+test("DeepSeek references are reachable, packaged and cite existing implementation symbols", async () => {
+  await assertSkillResources({ skillRoot, packageRoot, repositoryRoot });
+});
+
+test("every shared Core example uses the actual DeepSeek namespace and Host value", async () => {
+  const names = new Set();
+  for (const path of await filesBelow(skillRoot)) {
+    if (!path.endsWith(".md")) continue;
+    for (const example of examples(await readFile(path, "utf8"), "mcp")) {
+      const name = `mcp__dev_flow__${example.operation}`;
+      assert.ok(DEV_FLOW_QUALIFIED_TOOL_NAMES.includes(name), name);
+      names.add(name);
+      if (example.operation !== "dev_flow_server_info") assert.equal(example.value.host, "deepseek");
+    }
   }
-  const assessment = section(skill, "Suitability assessment");
-  assert.match(assessment, /Do not edit files, run tests or builds, install dependencies, call any Dev Flow/u);
-  assert.match(assessment, /change_level: small \| standard \| large \| uncertain/u);
-  assert.match(assessment, /recommendation: direct \| dev_flow \| clarify/u);
-  const confirmation = section(skill, "Explicit worktree confirmation");
-  assert.match(confirmation, /\/dev-flow confirm-worktree/u);
-  assert.match(confirmation, /workspace_coordinator/u);
-  assert.match(confirmation, /operation=consume/u);
+  assert.deepEqual([...names].sort(), [...DEV_FLOW_QUALIFIED_TOOL_NAMES].sort());
+  const name = "mcp__dev_flow__dev_flow_get_task";
+  const args = { host: "deepseek", task_id: "task-example" };
+  assert.equal(authorizeDevFlowExecution(execution("/dev-flow continue", name, args)), undefined);
+  assert.match(authorizeDevFlowExecution(execution("continue", name, args)), /SELECTOR_REQUIRED/u);
 });
 
-test("all explicit DeepSeek tool calls use qualified DSH names", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const withoutCatalog = skill.replace(/^\d+\. `dev_flow_[a-z_]+`$/gmu, "");
-  assert.equal(/`dev_flow_[a-z_]+/.test(withoutCatalog), false);
-  for (const name of [rawTools[0], rawTools[1], rawTools[2], rawTools[3], rawTools[12], rawTools[13], rawTools[14], rawTools[15], rawTools[16]]) assert.equal(skill.includes(`mcp__dev_flow__${name}`), true, name);
+test("all workspace examples match registered operations and exact current-turn confirmations", async () => {
+  let registered;
+  registerWorkspaceCoordinator({ tools: {
+    guard() { return () => {}; }, register(definition) { registered = definition; return () => {}; },
+  } }, { dataDirectory: "/private/tmp/dev-flow-schema", workspaceRoot: "/work/project" });
+  const seen = new Set();
+  for (const path of ["admission.md", "host-lifecycle.md"]) {
+    const text = await readFile(join(skillRoot, "references", path), "utf8");
+    for (const example of examples(text, "workspace")) {
+      const args = example.value;
+      assert.equal(example.operation, WORKSPACE_COORDINATOR_TOOL);
+      assert.ok(registered.parameters.properties.operation.enum.includes(args.operation));
+      for (const key of Object.keys(args)) assert.ok(Object.hasOwn(registered.parameters.properties, key), key);
+      const message = text.match(new RegExp(`<!-- workspace-confirmation:${args.operation} -->\\n\x60\x60\x60text\\n([\\s\\S]*?)\\n\x60\x60\x60`, "u"))?.[1];
+      assert.ok(message, args.operation);
+      const expected = args.operation === "provision" ? workspaceConfirmationText(args.repositories)
+        : args.operation === "consume" ? workspaceResumeText(args.launch_id)
+          : workspaceCleanupText(args.operation, { launchID: args.launch_id, repositoryKey: args.repository_key, taskID: args.task_id, revision: args.revision });
+      assert.equal(message, expected);
+      assert.doesNotThrow(() => authorizeWorkspaceExecution(execution(message, WORKSPACE_COORDINATOR_TOOL, args)));
+      assert.throws(() => authorizeWorkspaceExecution(execution("/dev-flow continue", WORKSPACE_COORDINATOR_TOOL, args)), /REQUIRED/u);
+      seen.add(args.operation);
+    }
+  }
+  assert.deepEqual([...seen].sort(), [...registered.parameters.properties.operation.enum].sort());
 });
 
-test("packaged references cover method steps and every submission tool", async () => {
-  const methodReference = await readFile(join(skillRoot, "references", "method-profiles.md"), "utf8");
-  const payloadReference = await readFile(join(skillRoot, "references", "node-payloads.md"), "utf8");
-  const steps = [...marked(methodReference, "semantic-step-table").matchAll(/^\| `([^`]+)` \|/gmu)].map((match) => match[1]);
-  assert.equal(steps.length, 25);
-  assert.equal(new Set(steps).size, steps.length);
-  for (const tool of rawTools.filter((name) => name.startsWith("dev_flow_submit_"))) assert.equal(payloadReference.includes(`\`${tool}\``), true, tool);
+test("DSH write example uses the actual prepared-write path and Host contract", async () => {
+  const text = await readFile(join(skillRoot, "references", "artifacts.md"), "utf8");
+  const example = examples(text, "dsh-write")[0].value;
+  const prepared = preparedWrite(example, resolve("/work/tasks/project"));
+  assert.equal(prepared.host, "deepseek");
+  assert.equal(prepared.tool_name, "edit");
+  assert.deepEqual(prepared.paths, [resolve("/work/tasks/project/src/endpoint.js")]);
+  assert.equal(prepared.path_parse_complete, true);
+  assert.match(prepared.intent_digest, /^[0-9a-f]{64}$/u);
 });
-
-test("Skill defers the budget and bounds checks, test files, and review", async () => {
-  const skill = await readFile(skillPath, "utf8");
-  const discovery = section(skill, "Task discovery").replace(/\s+/gu, " ");
-  const verification = section(skill, "Evidence and verification budget").replace(/\s+/gu, " ");
-  const review = section(skill, "Bounded post-change review").replace(/\s+/gu, " ");
-  for (const required of ["Do not send a creation-time `verification_budget`", "existing test structure"]) assert.equal(discovery.includes(required), true, required);
-  for (const required of [
-    "At TASKS", "closest targeted check first", "verification_budget_increased", "do not stop merely because",
-    "Budget permission alone is never a reason", "Before every full-suite command", "never automatically reuse an earlier reason",
-    "lasting value", "forbidden README word", "one text search", "creates no permanent test file", "full_suite_reason",
-  ]) assert.equal(verification.includes(required), true, required);
-  for (const required of [
-    "current diff", "directly or indirectly affected", "Do not restart a repository-wide audit",
-    "Unrelated historical", "After fixing a review finding", "matching targeted checks",
-    "explicit code review", "is read-only", "stop for a later explicit repair request",
-  ]) assert.equal(review.includes(required), true, required);
-});
-
-function section(markdown, heading) {
-  const start = markdown.indexOf(`## ${heading}`);
-  assert.ok(start >= 0, heading);
-  const end = markdown.indexOf("\n## ", start + 4);
-  return markdown.slice(start, end < 0 ? undefined : end);
-}
-
-function marked(markdown, name) {
-  const normalized = markdown.replace(/\r\n?/gu, "\n");
-  const match = normalized.match(new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u"));
-  assert.notEqual(match, null, name);
-  return match[1];
-}

@@ -1,8 +1,18 @@
-# Codex Method Profile Rendering Reference
+<!-- Generated from skills/dev-flow/core/method-profiles.md; edit the shared source and run node scripts/sync-skill-references.mjs. -->
 
-This is the closed Codex Host-rendering reference for current Core contract semantic method steps. Read
-it only after Core returns a complete current Action. It explains how Codex may perform the work; it
+# Host Method Profile Rendering Reference
+
+This is the closed Host-rendering reference for current Core contract semantic method steps. Read
+it only after Core returns a complete current Action. It explains how Host may perform the work; it
 is not a process definition or a second task cursor.
+
+Implementation: `internal/workflow/standard_process.go` — `StandardProcess`, `standardMethodStepPurposes`;
+`internal/workflow/submission_schema.go` — `ActionSubmissionSchema`;
+`internal/domain/method.go` — `ValidateMethodEvidence`.
+
+Core defines the steps and validates results. Capability names in this reference are Host rendering
+guidance; their actual invocation syntax comes from the visible installed capability, not from Core.
+The examples in [node submissions](node-payloads.md) include every current method-result key.
 
 ## Authority boundary
 
@@ -90,7 +100,7 @@ only when actually visible and appropriate to the current authorized artifacts.
 | `refactor.reconcile_artifacts` | Reconcile affected process artifacts with the simplification. | Amend only artifacts affected by the simplification. | Use visible `speckit-clarify`, `speckit-plan`, `speckit-tasks`, or `speckit-analyze` only as needed. | Revise proposal/design/spec/task artifacts through visible `openspec-propose` as needed. | Current affected artifacts. |
 | `refactor.record_surface` | Record exact simplifications while Core observes the resulting file surface. | Record simplifications and behavior intent. | Direct refactor result; no mandatory capability. | Direct apply result; no mandatory capability. | Refactor summary and Core-observed surface. |
 | `delivery.reconcile_acceptance` | Explicitly link every current acceptance criterion to completed work items and passed current Test evidence. | Link each criterion to matching completed work and passed current Test checks. | `speckit-analyze` or direct final consistency review. | Use visible `openspec-verify` and/or `openspec-validate` as appropriate. | Explicit criterion/work/evidence links. |
-| `delivery.reconcile_method_artifacts` | Reconcile method artifacts with delivered behavior. | Ensure current process artifacts describe the delivered behavior. | Direct status reconciliation; `speckit-converge` may be used only when available and appropriate. | Use visible `openspec-sync` and/or `openspec-archive` only when appropriate. | Current reconciled or archived change artifacts. |
+| `delivery.reconcile_method_artifacts` | Reconcile method artifacts with delivered behavior. | Ensure current process artifacts describe the delivered behavior. | Direct status reconciliation; `speckit-converge` may be used only when available and appropriate. | Read-only reconciliation. Complete any appropriate `openspec-sync`/`openspec-archive` writes before final verification; see [artifact timing](artifacts.md#content-after-implementation). | Current reconciled artifacts; any archive must precede final verification. |
 | `delivery.prepare_summary` | Prepare a bounded delivery summary and remaining risks. | Write the final bounded summary and risks. | Direct summary; no mandatory capability. | Direct summary; no mandatory capability. | Delivery summary and remaining risks. |
 <!-- semantic-step-table:end -->
 
@@ -154,7 +164,9 @@ are reviewer evidence, not implementation progress. Analyze findings become type
 implement work produces repository changes, but neither selects a Core transition.
 
 For OpenSpec, propose, apply, verify, sync, and archive results remain method evidence only. Archive
-cannot replace DELIVERY acceptance, current test, comprehension, or evidence gates.
+cannot replace DELIVERY acceptance, current test, comprehension, or evidence gates. Core content guards
+include process files (`internal/application/artifacts.go`, `collectArtifacts`); execute repository
+writes before final verification and reconcile read-only in DELIVERY.
 
 ## Comprehension verdict
 

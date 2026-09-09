@@ -1,8 +1,18 @@
+<!-- Generated from skills/dev-flow/core/method-profiles.md; edit the shared source and run node scripts/sync-skill-references.mjs. -->
+
 # Host Method Profile Rendering Reference
 
-This is the closed Host-rendering reference for current Core contract semantic method steps. Read it only
-after Core returns a complete current Action. It explains how the Host may perform the work; it
+This is the closed Host-rendering reference for current Core contract semantic method steps. Read
+it only after Core returns a complete current Action. It explains how Host may perform the work; it
 is not a process definition or a second task cursor.
+
+Implementation: `internal/workflow/standard_process.go` — `StandardProcess`, `standardMethodStepPurposes`;
+`internal/workflow/submission_schema.go` — `ActionSubmissionSchema`;
+`internal/domain/method.go` — `ValidateMethodEvidence`.
+
+Core defines the steps and validates results. Capability names in this reference are Host rendering
+guidance; their actual invocation syntax comes from the visible installed capability, not from Core.
+The examples in [node submissions](node-payloads.md) include every current method-result key.
 
 ## Authority boundary
 
@@ -28,7 +38,8 @@ The immutable task profile is exactly one of `plain`, `spec-kit`, or `openspec`.
 external method capability. The other profiles map only capabilities actually visible in the
 current Host; listing a capability here does not prove that it is installed.
 
-Present each Core-returned step with this closed shape:
+Build each Core-returned step internally with this closed shape. Present only a concise current-node
+status during normal work; show a step when it requires a user decision or explains unavailable tooling:
 
 <!-- rendered-operation-example:start -->
 ```json
@@ -74,10 +85,10 @@ only when actually visible and appropriate to the current authorized artifacts.
 | `design.record_decisions` | Record components, decisions, rejected alternatives, and risks. | Record the current decisions and affected components. | `speckit-plan` artifact updates. | Update the proposal/design through visible `openspec-propose`. | Current decisions, risks, and design references. |
 | `tasks.decompose` | Decompose the current design into bounded, ordered work items. | Create bounded items with dependencies and expected paths. | `speckit-tasks`. | Revise proposal task artifacts through visible `openspec-propose`. | Current bounded task plan. |
 | `tasks.map_acceptance` | Map every current acceptance criterion to work and verification. | Record acceptance-to-work and verification traceability. | `speckit-tasks`. | Review delta specifications and tasks through visible `openspec-propose`. | Acceptance traceability. |
-| `tasks.analyze_consistency` | Check requirements, design, and tasks for gaps or contradictions. | Perform a direct cross-artifact consistency review. | `speckit-analyze`. | `openspec-validate` plus direct consistency review. | No unresolved blocking consistency gap, or exact findings. |
+| `tasks.analyze_consistency` | Check requirements, design, and tasks for gaps or contradictions. | Compare the complete Core `current_changed_paths` with planned paths and retained process artifacts, including confirmed carried content and its preservation check. | `speckit-analyze` plus the same complete-path comparison. | `openspec-validate` plus the same complete-path comparison. | No unresolved blocking consistency or path-coverage gap, or exact findings. |
 | `tasks.plan_verification` | Set initial verification effort after scope, impact, work, and existing tests are understood. | Record intended checks and rationales, expected automatic commands, full-suite expectation, and test-code expectation. | Direct Task Plan work after `speckit-tasks`; no separate capability. | Revise proposal task artifacts through visible `openspec-propose`. | Current `verification_plan` inside the Task Plan baseline. |
 | `implementation.execute_plan` | Complete every work item authorized by the current task plan before entering TEST. | Complete every work item in the current plan. | `speckit-implement`. | `openspec-apply`. | Completed IDs covering the current plan. |
-| `implementation.record_surface` | Reconcile the implementation summary with Core's observed Task surface. | Review the actual worktree state and summarize deviations; Core computes paths. | Direct implementation result; no mandatory capability. | Direct apply result; no mandatory capability. | Implementation summary aligned with the observed Task surface. |
+| `implementation.record_surface` | Reconcile completed work and deviations with Core-observed repository effects. | Describe completed work and deviations while Core computes the file surface. | Direct implementation result; no mandatory capability. | Direct apply result; no mandatory capability. | Completed work and deviation summary; Core-observed surface. |
 | `implementation.classify_deviations` | Classify deviations as requirement, design, or complexity concerns. | Record the exact concern and route it through Core facts. | Direct classification; amend active artifacts before continuing when semantics change. | Direct classification and current change-artifact update. | Exact deviations and findings. |
 | `test.run_budgeted_checks` | Choose the closest necessary checks and adjust insufficient capacity before extra commands run. | Recheck scope before every command; use a justified TEST self-transition before exceeding budget and reassess every full suite. | Direct plan-defined checks; no mandatory Spec Kit capability. | Use `openspec-verify` only when visible and justified; otherwise run plan-defined checks. | Actual bounded result or a recorded pre-run budget increase. |
 | `test.record_evidence` | Record actual evidence or the exact pre-run budget adjustment. | Record actual sources and statuses; full suites include the current reason, while an adjustment records its basis, checks, increment, and reason. | Direct evidence recording; no mandatory capability. | Direct evidence recording; no mandatory capability. | Current evidence summary or budget-adjustment record. |
@@ -87,9 +98,9 @@ only when actually visible and appropriate to the current authorized artifacts.
 | `comprehension.obtain_user_verdict` | Obtain the developer's explicit understanding or remediation verdict. | Ask the developer and wait for an explicit answer. | Direct user interaction; no Spec Kit capability can answer. | Direct user interaction; no OpenSpec capability can answer. | Explicit current user verdict. |
 | `refactor.simplify` | Remove unnecessary complexity within the approved behavior boundary. | Perform the bounded simplification. | `speckit-implement` only after affected artifacts and tasks are current. | Update change artifacts as needed, then use visible `openspec-apply`. | Bounded simplification. |
 | `refactor.reconcile_artifacts` | Reconcile affected process artifacts with the simplification. | Amend only artifacts affected by the simplification. | Use visible `speckit-clarify`, `speckit-plan`, `speckit-tasks`, or `speckit-analyze` only as needed. | Revise proposal/design/spec/task artifacts through visible `openspec-propose` as needed. | Current affected artifacts. |
-| `refactor.record_surface` | Reconcile simplifications with Core's observed Task surface. | Record simplifications and deviations; Core computes paths. | Direct refactor result; no mandatory capability. | Direct apply result; no mandatory capability. | Refactor summary aligned with the observed Task surface. |
+| `refactor.record_surface` | Record exact simplifications while Core observes the resulting file surface. | Record simplifications and behavior intent. | Direct refactor result; no mandatory capability. | Direct apply result; no mandatory capability. | Refactor summary and Core-observed surface. |
 | `delivery.reconcile_acceptance` | Explicitly link every current acceptance criterion to completed work items and passed current Test evidence. | Link each criterion to matching completed work and passed current Test checks. | `speckit-analyze` or direct final consistency review. | Use visible `openspec-verify` and/or `openspec-validate` as appropriate. | Explicit criterion/work/evidence links. |
-| `delivery.reconcile_method_artifacts` | Reconcile method artifacts with delivered behavior. | Ensure current process artifacts describe the delivered behavior. | Direct status reconciliation; `speckit-converge` may be used only when available and appropriate. | Use visible `openspec-sync` and/or `openspec-archive` only when appropriate. | Current reconciled or archived change artifacts. |
+| `delivery.reconcile_method_artifacts` | Reconcile method artifacts with delivered behavior. | Ensure current process artifacts describe the delivered behavior. | Direct status reconciliation; `speckit-converge` may be used only when available and appropriate. | Read-only reconciliation. Complete any appropriate `openspec-sync`/`openspec-archive` writes before final verification; see [artifact timing](artifacts.md#content-after-implementation). | Current reconciled artifacts; any archive must precede final verification. |
 | `delivery.prepare_summary` | Prepare a bounded delivery summary and remaining risks. | Write the final bounded summary and risks. | Direct summary; no mandatory capability. | Direct summary; no mandatory capability. | Delivery summary and remaining risks. |
 <!-- semantic-step-table:end -->
 
@@ -110,7 +121,7 @@ For each step returned by Core:
 1. Check only the Host's actual capability surface.
 2. When the preferred capability is visible and appropriate, render its exact ID and expected result.
 3. When visibility is absent or cannot be confirmed, report `unavailable` or `unknown` honestly.
-4. Always show the catalog's plain-equivalent work.
+4. Use the catalog's plain-equivalent work; explain it to the user when tooling is unavailable or a decision is needed.
 5. Do not automatically install a tool, silently run another tool, or treat invocation as completion.
 6. Record completion only after the semantic work actually completes.
 
@@ -153,7 +164,9 @@ are reviewer evidence, not implementation progress. Analyze findings become type
 implement work produces repository changes, but neither selects a Core transition.
 
 For OpenSpec, propose, apply, verify, sync, and archive results remain method evidence only. Archive
-cannot replace DELIVERY acceptance, current test, comprehension, or evidence gates.
+cannot replace DELIVERY acceptance, current test, comprehension, or evidence gates. Core content guards
+include process files (`internal/application/artifacts.go`, `collectArtifacts`); execute repository
+writes before final verification and reconcile read-only in DELIVERY.
 
 ## Comprehension verdict
 

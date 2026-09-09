@@ -86,3 +86,10 @@ Improvements should address actual task problems, help resume from the right sta
 Source capability does not establish stable-package support. Results apply only to the actual artifacts, platforms and steps tested; simulations and static checks cannot replace real Host workflows. The project does not yet have enough external data to demonstrate lower defect rates, verification cost or recovery time.
 
 See the [Support Matrix](SUPPORT-MATRIX_en.md) for stable support and unverified scope, and [Project Status](PROJECT-STATUS_en.md) for delivered capabilities and gaps. Protocols and implementation belong in [Architecture](ARCHITECTURE_en.md), and operation parameters in the [Command Reference](COMMANDS_en.md).
+
+
+## Host interaction references
+
+Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
+
+[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)

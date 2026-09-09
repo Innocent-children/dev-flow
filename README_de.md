@@ -140,3 +140,8 @@ dev-flow pet stop
 ## Lizenz
 
 [Apache License 2.0](LICENSE)
+
+
+## Host-Interaktionsreferenzen
+
+Der [Codex Skill](packages/codex/plugin/skills/dev-flow/SKILL.md) und der [DeepSeek Skill](packages/deepseek/skills/dev-flow/SKILL.md) erhalten Core-Regeln und Beispiele aus einer gemeinsamen Quelle. Jedes Paket behält seine tatsächlichen Schnittstellen für Autorisierung, Arbeitsverzeichnisse und Werkzeuge. Beide behandeln die aktuellen Knotenübergänge, Antworten und Wiederherstellung. Prozessdokumente werden vor der abschließenden Prüfung aktualisiert; eine gekürzte Anzeige macht eine vollständig gespeicherte Antwort nicht ungewiss.

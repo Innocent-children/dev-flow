@@ -151,6 +151,7 @@ lib/command.mjs
 lib/artifacts-help.mjs
 lib/install-experience.mjs
 lib/json.mjs
+lib/host-launch-contract.mjs
 lib/lifecycle.mjs
 lib/paths.mjs
 lib/platform.mjs
@@ -163,19 +164,32 @@ lib/provisioning-receipt.mjs
 lib/task-admission.mjs
 lib/task-handoff.mjs
 lib/task-launch.mjs
-lib/host-launch-contract.mjs
 lib/worktree-lifecycle.mjs
-lib/worktree-snapshot.mjs
 plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
 plugin/hooks/hooks.json
 plugin/hooks/pre-tool-use.mjs
 plugin/skills/dev-flow/SKILL.md
 plugin/skills/dev-flow/agents/openai.yaml
+plugin/skills/dev-flow/references/admission.md
+plugin/skills/dev-flow/references/artifact-contract.md
+plugin/skills/dev-flow/references/artifacts.md
+plugin/skills/dev-flow/references/host-lifecycle.md
 plugin/skills/dev-flow/references/method-profiles.md
 plugin/skills/dev-flow/references/node-payloads.md
+plugin/skills/dev-flow/references/nodes/comprehension.md
+plugin/skills/dev-flow/references/nodes/delivery.md
+plugin/skills/dev-flow/references/nodes/design.md
+plugin/skills/dev-flow/references/nodes/implementation.md
+plugin/skills/dev-flow/references/nodes/refactor.md
+plugin/skills/dev-flow/references/nodes/requirements.md
+plugin/skills/dev-flow/references/nodes/tasks.md
+plugin/skills/dev-flow/references/nodes/test.md
+plugin/skills/dev-flow/references/task-handoff.md
 plugin/skills/dev-flow/references/tool-results.md
-plugin/skills/dev-flow/references/task-handoff.md'
+plugin/skills/dev-flow/references/transport.md
+plugin/skills/dev-flow/references/verification.md
+lib/worktree-snapshot.mjs'
 
 printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
   [ -n "$relative_path" ] || continue
@@ -206,6 +220,8 @@ else
   go version -m "$stage_root/runtime/darwin-arm64/dev-flow" >/dev/null
 fi
 
+node "$repository_root/scripts/sync-skill-references.mjs" --host codex --output "$stage_root/plugin/skills/dev-flow"
+
 pack_report=$(pnpm --config.ignore-scripts=true --dir "$stage_root" pack --dry-run --json)
 PACK_REPORT=$pack_report node <<'NODE'
 const packed = JSON.parse(process.env.PACK_REPORT);
@@ -218,23 +234,23 @@ const expected = [
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
-  "lib/command.mjs",
   "lib/artifacts-help.mjs",
+  "lib/command.mjs",
+  "lib/host-launch-contract.mjs",
   "lib/install-experience.mjs",
   "lib/json.mjs",
   "lib/lifecycle.mjs",
   "lib/paths.mjs",
   "lib/platform.mjs",
-  "lib/platform/macos/policies.mjs",
-  "lib/platform/windows/policies.mjs",
   "lib/platform/macos/command.mjs",
-  "lib/platform/windows/command.mjs",
   "lib/platform/macos/pet-installer.mjs",
+  "lib/platform/macos/policies.mjs",
+  "lib/platform/windows/command.mjs",
+  "lib/platform/windows/policies.mjs",
   "lib/provisioning-receipt.mjs",
   "lib/task-admission.mjs",
   "lib/task-handoff.mjs",
   "lib/task-launch.mjs",
-  "lib/host-launch-contract.mjs",
   "lib/worktree-lifecycle.mjs",
   "lib/worktree-snapshot.mjs",
   "package.json",
@@ -244,12 +260,26 @@ const expected = [
   "plugin/hooks/pre-tool-use.mjs",
   "plugin/skills/dev-flow/SKILL.md",
   "plugin/skills/dev-flow/agents/openai.yaml",
+  "plugin/skills/dev-flow/references/admission.md",
+  "plugin/skills/dev-flow/references/artifact-contract.md",
+  "plugin/skills/dev-flow/references/artifacts.md",
+  "plugin/skills/dev-flow/references/host-lifecycle.md",
   "plugin/skills/dev-flow/references/method-profiles.md",
   "plugin/skills/dev-flow/references/node-payloads.md",
-  "plugin/skills/dev-flow/references/tool-results.md",
+  "plugin/skills/dev-flow/references/nodes/comprehension.md",
+  "plugin/skills/dev-flow/references/nodes/delivery.md",
+  "plugin/skills/dev-flow/references/nodes/design.md",
+  "plugin/skills/dev-flow/references/nodes/implementation.md",
+  "plugin/skills/dev-flow/references/nodes/refactor.md",
+  "plugin/skills/dev-flow/references/nodes/requirements.md",
+  "plugin/skills/dev-flow/references/nodes/tasks.md",
+  "plugin/skills/dev-flow/references/nodes/test.md",
   "plugin/skills/dev-flow/references/task-handoff.md",
+  "plugin/skills/dev-flow/references/tool-results.md",
+  "plugin/skills/dev-flow/references/transport.md",
+  "plugin/skills/dev-flow/references/verification.md",
   "runtime/darwin-arm64/dev-flow",
-  "runtime/win32-x64/dev-flow.exe",
+  "runtime/win32-x64/dev-flow.exe"
 ].sort();
 if (report.name !== "dev-flow-codex" || JSON.stringify(actual) !== JSON.stringify(expected)) {
   throw new Error(`unexpected staged pack contents: ${JSON.stringify(actual)}`);

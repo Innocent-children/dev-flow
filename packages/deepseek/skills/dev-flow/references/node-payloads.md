@@ -1,141 +1,61 @@
-# Action submission reference
+<!-- Generated from skills/dev-flow/core/node-payloads.md; edit the shared source and run node scripts/sync-skill-references.mjs. -->
 
-The current Action's `submission_tool` is the only mutation tool for that Action. Its live schema
-is the exact input contract. The Host sends current work results; Core fills revision, Action kind,
-process identity, source cursor, repository binding, artifact roles, method step identity/order/status
-and the internal payload envelope.
+# Action submissions
 
-Core also fills the system-state members `requirements_revision` (Design baseline),
-`design_revision` (Tasks baseline) and `task_plan_revision` (Implementation) from the current Task
-snapshot after it verifies the current Action. Node templates omit them. A client that sends
-one of these Core-owned members violates the closed submission contract.
+Implementation: `internal/mcp/schemas.go` — `actionSubmissionSchema`;
+`internal/workflow/submission_schema.go` — `ActionSubmissionSchema`;
+`internal/workflow/action_schema.go` — `SubmissionNodeResultSchema`;
+`internal/application/submit_action.go` — `SubmitAction`.
 
-## Common input
+## Common submission procedure
 
-Every ordinary submission contains exactly:
+1. Start from the complete fresh Action after handling recovery/blocker/outcome. Use its
+   `submission_tool`, `task_id`, `action_id`, method steps and returned transitions.
+2. Perform the current node work under its allowed effects. Record actual facts and user decisions.
+   Required method steps must be completed by the selected capability or ordinary equivalent work.
+3. [Collect and prepare artifacts](artifacts.md) for this Action. Keep every collected entry,
+   classify purpose, and use the prepared result directly. Make no further repository writes before
+   submission; recollect after a change.
+4. Read the live input schema for that exact tool. Select a returned transition matching actual facts
+   and its reason rule. Check all required/allowed members, types, arrays, enums and method-step keys.
+5. Submit the complete JSON input once. Use [response handling](tool-results.md#submission-response-handling)
+   to retain the full response and inspect `ok` before accessing success fields.
 
-- `host`, `task_id`, and `action_id`;
-- one `transition_id` returned by the current Action;
-- normalized `summary` and the transition's required or empty `reason`;
-- `artifacts`, split into the live schema's optional `current` slot and required
-  `other_process` slot;
-- `method_results`, keyed by every current `method_steps[].step_id`;
-- the action-specific `node_result`.
+The common top-level members are exactly `host`, `task_id`, `action_id`, `transition_id`, `summary`,
+`reason`, `artifacts`, `method_results`, `node_result`. `host` is deepseek. Artifacts have required
+`other_process` and a required `current` only when the tool exposes it. Entries have only path/digest/
+summary. Method results have exactly the returned step IDs, each with capability/summary; empty
+capability denotes completed ordinary work. Core fills roles, method order/status, revisions,
+process/issuance identity and its normalized internal payload. These are absent from Host input.
 
-Artifact entries contain only `path`, `digest`, and `summary`. Core assigns the role. Method
-result entries contain only `capability` and `summary`. Use the actual capability ID when one
-completed the step, otherwise use an empty capability after completed ordinary work.
+The examples below use one illustrative endpoint task and show every current ordinary transition.
+They are alternatives selected from an actual Action, not an execution script or permission to take
+an edge. Empty artifact arrays mean preparation found no process files for that sample. Replace them
+with the complete actual prepared output. Findings are empty for problem_class none and concrete for
+problem edges. Example identities, checks and verdicts cannot be reused as real results.
 
-Do not send `request_id`, revision, Action kind, process identity, source cursor, repository binding,
-`payload`, `method_evidence`, artifact `role`, destination, or recovery fields.
+## Node references
 
-## Tool mapping
-
-| Action kind | Submission tool |
+| Current node | Tool and examples |
 | --- | --- |
-| `COMPLETE_REQUIREMENTS` | `dev_flow_submit_requirements` |
-| `COMPLETE_DESIGN` | `dev_flow_submit_design` |
-| `COMPLETE_TASKS` | `dev_flow_submit_tasks` |
-| `COMPLETE_IMPLEMENTATION` | `dev_flow_submit_implementation` |
-| `COMPLETE_TEST` | `dev_flow_submit_test` |
-| `COMPLETE_COMPREHENSION_REVIEW` | `dev_flow_submit_comprehension` |
-| `COMPLETE_REFACTOR` | `dev_flow_submit_refactor` |
-| `COMPLETE_DELIVERY` | `dev_flow_submit_delivery` |
-| `RESOLVE_BLOCKER` | `dev_flow_resolve_blocker` |
+| `REQUIREMENTS` | [`dev_flow_submit_requirements`](nodes/requirements.md) |
+| `DESIGN` | [`dev_flow_submit_design`](nodes/design.md) |
+| `TASKS` | [`dev_flow_submit_tasks`](nodes/tasks.md) |
+| `IMPLEMENT` | [`dev_flow_submit_implementation`](nodes/implementation.md) |
+| `TEST` | [`dev_flow_submit_test`](nodes/test.md) |
+| `COMPREHENSION_REVIEW` | [`dev_flow_submit_comprehension`](nodes/comprehension.md) |
+| `REFACTOR` | [`dev_flow_submit_refactor`](nodes/refactor.md) |
+| `DELIVERY` | [`dev_flow_submit_delivery`](nodes/delivery.md) |
 
-For a file-scope blocker, `dev_flow_resolve_blocker` also requires `choice` (`allow_once`,
-`expand_scope`, or `reject`) and a non-empty `reason`. Omit both members for repository-recovery and
-automatic-verification blockers.
+## Success and failure result formats
 
-For `task_relocation_pending`, provide the retained `relocation_id` and every
-`relocation_destinations[{key,repository_path}]`. For `workspace_history_conflict`, provide
-`history_resolution` with exactly `choice="accept_current_history"` and a non-empty `reason` after
-explicit review. File-scope, relocation, and history members are mutually exclusive; use only the
-branch selected by the current blocker and live schema.
+Every ordinary success uses `{"ok":true,"request_id":"…","tool":"…","result":<complete Task>}`.
+The next Action is `result.current_action`, not `result.task.current_action`. A terminal success has
+`result.current_action:null`. After TEST, a repetition blocker can replace the expected destination;
+read the actual result. The [result reference](tool-results.md) defines complete-error and uncertain-
+operation handling. Examples in each node state their expected next node, and Core decides whether
+its current guards allow it.
 
-## Node-result members
-
-Use the live tool schema for types and nested members. These are the closed top-level members:
-
-| Submission tool | Required `node_result` members |
-| --- | --- |
-| Requirements | `problem_class`, `baseline`, `unresolved_questions` |
-| Design | `problem_class`, `baseline`, `findings` |
-| Tasks | `problem_class`, `baseline`, `findings` |
-| Implementation | `problem_class`, `completed_work_item_ids`, `deviations`, `findings` |
-| Test | `problem_class`, `checks`, `failed_items`, `unverified_items`, `manual_handoff_items`, `findings`, `budget_adjustment` |
-| Comprehension | `problem_class`, `explained_components`, `unresolved_questions`, `unnecessary_abstractions`, `maintenance_risks`, `user_confirmation`, `findings` |
-| Refactor | `problem_class`, `simplifications`, `behavior_change_intended`, `findings` |
-| Delivery | `problem_class`, `acceptance`, `unverified_items`, `risks`, `findings` |
-
-The Host never submits file-effect fields. Core observes the dedicated worktree before applying an
-Action and computes the Action delta and current Task surface from Git facts.
-
-Before `implementation_ready_for_test` or `refactor_ready_for_test`, every work item in the current plan must be completed.
-
-Delivery submissions explicitly send `acceptance` in current Requirements order. Each item contains
-`criterion`, `status="satisfied"`, nonempty unique `work_item_ids`, and nonempty unique `evidence_ids`.
-Work items must be completed and mapped to that criterion; evidence must be passed and belong to the
-current Test and Task Plan revision. A passed manual Test check can be linked. Comprehension confirmation
-is checked separately. Remediation transitions send `acceptance=[]`.
-
-`automated_evidence_ids`, `manual_evidence_ids`, `test_record_id`, and `comprehension_record_id` are
-filled by Core and are absent from the submission contract. Core retains the exact explicit acceptance
-links with the canonical operation and completed outcome.
-
-Use the current `dev_flow_get_task` result when these records are not already available: criteria are
-`task.baselines.requirements.acceptance_criteria`, work items are `task.baselines.task_plan.work_items`,
-and eligible evidence IDs are `task.test.evidence_ids`. `task.evidence` supplies the corresponding
-check names, sources and results. Select the checks that establish each criterion; do not attach
-unrelated checks merely because they passed.
-
-The Tasks baseline contains `work_items` plus `verification_plan`. The plan contains `checks[]` with
-`name` and `rationale`, `initial_budget`, `full_suite_expected`, and
-`test_code_changes_expected`. Core fills only `design_revision`.
-
-Every Test submission includes `budget_adjustment`. Normal pass/failure transitions send `null`.
-`verification_budget_increased` sends a closed adjustment with `basis`, `additional_checks`,
-`additional_automatic_commands`, `allow_full_suite`, and `allow_manual_handoff`; all check and result
-lists stay empty and the transition reason gives the concrete need. Every check includes
-`full_suite_reason`: it is empty unless `full_suite=true`, in which case it records the current
-suite-specific risk.
-
-Completed developer-run verification is a `source="user"` check with `command_count=0`,
-`full_suite=false`, and `full_suite_reason=""`. Put only work nobody has run yet in `manual_handoff_items`.
-
-## Requirements example
-
-```json
-{
-  "host": "codex",
-  "task_id": "task-current",
-  "action_id": "action-current",
-  "transition_id": "requirements_ready",
-  "summary": "Requirements completed.",
-  "reason": "",
-  "artifacts": {
-    "current": [],
-    "other_process": []
-  },
-  "method_results": {
-    "requirements.capture": {"capability": "", "summary": "Captured the bounded requirements."},
-    "requirements.clarify": {"capability": "", "summary": "Resolved material questions."},
-    "requirements.validate": {"capability": "", "summary": "Validated scope and acceptance."}
-  },
-  "node_result": {
-    "problem_class": "none",
-    "baseline": {
-      "goal": "Current goal",
-      "scope": [],
-      "out_of_scope": [],
-      "acceptance_criteria": ["Current criterion"],
-      "constraints": [],
-      "assumptions": []
-    },
-    "unresolved_questions": []
-  }
-}
-```
-
-For DeepSeek, use `host="deepseek"` and the qualified tool name
-`mcp__dev_flow__<submission_tool>`. All other fields remain the same.
+The checkable examples enumerate existing contracts for maintenance; the runtime always selects from
+the fresh Action. No example adds a transition, changes Scope, grants Git authority or supplies a human
+verdict. Source contracts and examples are checked together by `internal/mcp/skill_examples_test.go`.

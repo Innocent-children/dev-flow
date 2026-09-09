@@ -1,105 +1,505 @@
-# Tool results and operation recovery
+<!-- Generated from skills/dev-flow/core/tool-results.md; edit the shared source and run node scripts/sync-skill-references.mjs. -->
 
-MCP returns an envelope in `structuredContent` and the same JSON in the text content. Read the
-complete envelope once. `ok=true` carries `result`; `ok=false` carries `error` and `recovery`.
-The tool's output Schema describes the envelope and the paths used below. Retained record contents
-remain Core-owned. A missing/truncated envelope is an uncertain result, not an empty Task.
+# Core calls, result handling and recovery
+
+Implementation: `internal/mcp/schemas.go` — `buildCatalog`;
+`internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `Envelope`, `EncodeSuccess`, `EncodeError`;
+`internal/mcp/output_schemas.go` — `toolOutputSchema`.
+
+## MCP transport and value sources
+
+Use the actual tool name and result retention procedure in [Host transport](transport.md).
+Names in this reference and example markers are Core raw names. The complete example arguments use
+`host="codex"`; the Host adapter determines the callable name, wrapper and current-turn permission.
+Inputs are closed JSON objects. Success envelopes have ok/request_id/tool/result; error envelopes
+have ok/request_id/tool/error/recovery and no successful result. The output tool field remains the
+Core raw name even when the Host calls a qualified name.
+
+`request_id` in an envelope is Core's response identity; the cancellation input supplies its own
+request_id. `result.recovery_assessment` concerns retained Action operations and is distinct from
+error-envelope `recovery`. Output examples labeled projection show only the fields being discussed;
+retain the complete real Task/Action before choosing another operation.
+
+## Server handshake
+
+Implementation: `internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `ServerInfoResult`;
+`internal/mcp/schemas.go` — `ToolNames`.
+
+After admission/provisioning or on explicit resume, the first Core call is `dev_flow_server_info`:
+
+<!-- example:mcp dev_flow_server_info handshake -->
+```json
+{}
+```
+
+Read `result.product`, `version`, `transport`, `health`, `supported_hosts`, `supported_processes`,
+`method_profiles`, `tools`, and `host_preferences.codex.codebase_memory`. Require product `dev-flow`,
+canonical version, stdio/ready, codex support, one supported `standard-development` process with a
+canonical definition digest and `new_task_supported:true`, profiles plain/spec-kit/openspec, and a
+boolean codebase-memory preference. Core/package versions are independent.
+
+The complete tool-name set is:
+
+- `dev_flow_server_info`
+- `dev_flow_open_task`
+- `dev_flow_get_task`
+- `dev_flow_get_next_action`
+- `dev_flow_submit_requirements`
+- `dev_flow_submit_design`
+- `dev_flow_submit_tasks`
+- `dev_flow_submit_implementation`
+- `dev_flow_submit_test`
+- `dev_flow_submit_comprehension`
+- `dev_flow_submit_refactor`
+- `dev_flow_submit_delivery`
+- `dev_flow_prepare_task_relocation`
+- `dev_flow_resolve_blocker`
+- `dev_flow_recover_action`
+- `dev_flow_cancel_task`
+- `dev_flow_abandon_task`
+
+On success proceed without a handshake approval question. On absent/truncated original data, unhealthy
+or incompatible identity/catalog, stop before opening a Task and report the exact failed condition.
+Installation repair follows [Host diagnosis](host-lifecycle.md#installation-and-diagnosis-commands)
+after appropriate user authority; do not start another
+MCP server or inspect binaries to bypass the result. Setup owns installed-resource/version checks.
+
+## Open or resume a Task
+
+Implementation: `internal/application/open_task.go` — `OpenTask`.
+
+For new creation, all receipts/worktrees must be verified first. Copy the complete verified repository descriptor from [Host admission](admission.md)
+into the repository members. `new_task.request` is the admitted request string; scope/exclusions/
+known acceptance are arrays derived from the actual request. Profile follows explicit plain, Spec Kit
+or OpenSpec intent, otherwise plain. No verification budget is selected at creation.
+
+<!-- example:mcp dev_flow_open_task create -->
+```json
+{
+  "host": "codex",
+  "repository_path": "/work/tasks/endpoint-field",
+  "workspace_origin": {
+    "mode": "dedicated_worktree",
+    "source_type": "local",
+    "carry_changes": false,
+    "remote_name": "",
+    "base_branch": "main",
+    "base_commit": "1111111111111111111111111111111111111111",
+    "task_branch": "task/endpoint-field",
+    "provisioning_receipt_id": "receipt-example"
+  },
+  "new_task": {
+    "request": "Return the requested field from the endpoint.",
+    "initial_scope": [
+      "Endpoint response"
+    ],
+    "initial_out_of_scope": [
+      "Other endpoints"
+    ],
+    "known_acceptance_criteria": [
+      "The response contains the requested field."
+    ],
+    "method_profile": "plain"
+  }
+}
+```
+
+For a complete confirmed multi-repository Scope, the call includes both origins. These fields come
+from one verified Host launch descriptor after both worktrees are provisioned and writable:
+
+<!-- example:mcp dev_flow_open_task multiple -->
+```json
+{
+  "host": "codex",
+  "repository_path": "/work/tasks/api",
+  "primary_repository_key": "api",
+  "workspace_origin": {
+    "mode": "dedicated_worktree",
+    "source_type": "local",
+    "carry_changes": false,
+    "remote_name": "",
+    "base_branch": "main",
+    "base_commit": "1111111111111111111111111111111111111111",
+    "task_branch": "task/endpoint-field",
+    "provisioning_receipt_id": "receipt-api"
+  },
+  "additional_repositories": [
+    {
+      "key": "web",
+      "repository_path": "/work/tasks/web",
+      "workspace_origin": {
+        "mode": "dedicated_worktree",
+        "source_type": "local",
+        "carry_changes": false,
+        "remote_name": "",
+        "base_branch": "main",
+        "base_commit": "1111111111111111111111111111111111111111",
+        "task_branch": "task/endpoint-field",
+        "provisioning_receipt_id": "receipt-web"
+      }
+    }
+  ],
+  "new_task": {
+    "request": "Return the field and show it in the client.",
+    "initial_scope": [
+      "API response",
+      "Client rendering"
+    ],
+    "initial_out_of_scope": [
+      "Other endpoints"
+    ],
+    "known_acceptance_criteria": [
+      "The client shows the response field."
+    ],
+    "method_profile": "plain"
+  }
+}
+```
+
+For an existing Task, return to its original worktree instance, preserve its immutable Scope/profile,
+and omit all creation members:
+
+<!-- example:mcp dev_flow_open_task resume -->
+```json
+{
+  "host": "codex",
+  "repository_path": "/work/tasks/endpoint-field"
+}
+```
+
+Success projection: `{"ok":true,"result":{"created":false,"task":{"task_id":"task-example",
+"revision":4,"current_cursor":"IMPLEMENT","current_action":{"action_id":"action-example"}},
+"recovery_assessment":null}}`. Handle recovery before `result.task.current_action`. `created:true`
+identifies creation; neither value permits another Task for the same launch.
+
+Creation errors such as `ACTIVE_TASK_CONFLICT`, `WORKTREE_PROVISIONING_REQUIRED`, ownership failure or
+unavailable workspace stop. After an uncertain creation, call the resume example on the same worktree;
+compare returned intent/origin/scope with the confirmed launch. `TASK_NOT_FOUND`, mismatch or another
+uncertain result stops for inspection. A recreated directory is not the original worktree instance.
+
+## Read saved state and the next Action
+
+Implementation: `internal/application/next_action.go` — `GetNextAction`.
+Implementation: `internal/mcp/server.go` — `dispatch`.
+
+`dev_flow_get_task` reads saved records. Use the Task ID from a complete earlier result:
+
+<!-- example:mcp dev_flow_get_task read -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example"
+}
+```
+
+Success projection: `{"ok":true,"result":{"task":{"task_id":"task-example","revision":4},
+"recovery_assessment":null}}`. Read the full `result.task`, including baselines, verification,
+`test.evidence_ids`, evidence, blocker, outcome and last_operation. Do not fabricate `operation_probe`;
+ordinary reads automatically return the retained assessment.
+
+Before new repository work following a saved-state read, obtain the guarded Action:
+
+<!-- example:mcp dev_flow_get_next_action guarded-read -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example"
+}
+```
+
+Success projection: `{"ok":true,"result":{"action":{"action_id":"action-example"},
+"blocker":null,"outcome":null,"recovery_assessment":null}}`. This operation observes Git and may
+persist a workspace blocker or invalidate old verification; it is not a pure saved-state read.
+Handle recovery, blocker and outcome before action. If the returned assessment says `read_next_action`,
+consume this complete guarded Action once; do not keep querying because the completed assessment remains.
 
 ## Submission response handling
 
-In Codex `functions.exec`, retain the complete tool response before reading success-only fields.
-`store` accepts JSON-serializable values: saving `undefined` throws before the error can be displayed.
-The session Task cache is a convenience; Core remains the owner of Task state.
+Implementation: `internal/mcp/results.go` — `EncodeSuccess`, `EncodeError`;
+`internal/mcp/output_schemas.go` — `outputDescription`.
 
-For the eight submission tools, use the following block immediately after assigning the awaited
-response to `submission_response`. This example only records and presents the response; select the
-next operation from the complete Core result after the script returns.
+All eight submit tools, resolve_blocker and recover_action return the Task directly in result.
+Retain the complete original response using [Host transport](transport.md), then check ok before
+reading success fields. An error has no successful Task. A committed terminal Task has current_action
+null. Read the complete current_action when constructing the next call, including all its transitions,
+method steps and digests. Validate against the live output contract before choosing another operation.
 
-<!-- submission-response-example:start -->
-```js
-store("submission_response", submission_response);
-const envelope = submission_response.structuredContent ??
-  JSON.parse(submission_response.content[0].text);
-text(envelope);
-if (envelope.ok === false) {
-  // Keep the previous Task and handle the returned error and recovery instruction.
-  exit();
+A local caching/formatting exception or a shortened display does not make an already retained complete
+result uncertain. Retrieve that original object or read it in bounded parts; use operation recovery
+only when the original result itself cannot be established. Complete domain errors keep their returned
+error/recovery instruction even when the Host marks the call as an error.
+
+## Complete rejections and bounded corrections
+
+Implementation: `internal/mcp/results.go` — `EncodeError, boundedCorrectionPaths`.
+
+Example rejection (an error envelope, not a successful Task):
+
+<!-- example:mcp-output dev_flow_submit_test guard-rejection -->
+```json
+{
+  "ok": false,
+  "request_id": "request-example",
+  "tool": "dev_flow_submit_test",
+  "error": {
+    "code": "TRANSITION_NOT_ALLOWED",
+    "message": "The transition guard was not satisfied.",
+    "guard": {
+      "guard_id": "implementation_failure_identified",
+      "failures": [
+        {
+          "path": "node_result.findings",
+          "rule": "problem_findings_present",
+          "message": "Problem findings must be present."
+        }
+      ]
+    }
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_next_action",
+    "message": "Read the current Action and its transitions."
+  }
 }
-if (envelope.ok !== true || envelope.result === null ||
-    typeof envelope.result !== "object" || Array.isArray(envelope.result)) {
-  throw new Error("Incomplete submission response; inspect the retained original response.");
-}
-store("task", envelope.result);
 ```
-<!-- submission-response-example:end -->
 
-Validate the complete envelope against the live output Schema before choosing another operation.
-The example assumes the documented MCP envelope; malformed or truncated responses keep the Skill's
-uncertain-result rules. Terminal success still carries a Task with `current_action=null`.
+Follow the returned `recovery.action`, not the sample's prose. `read_next_action` permits one guarded
+read, not replay of the rejected input. The previous IMPLEMENT operation is not the outcome of a
+rejected TEST submission. `retry_safe:false`/`action:none` stops. Internal errors and uncertain writes
+never authorize payload guessing.
 
-A complete `ok=false` response uses `error` and `recovery`, including when MCP sets `isError=true`.
-Read those fields before extracting a Task or Action. A local caching/formatting exception does not
-turn a retained domain error into transport uncertainty. Read the retained original response without
-repeating the submission. If it cannot be recovered completely, apply recovery-before-retry.
+A correctable zero-write rejection explicitly has `action:correct_current_action`, `retry_safe:true`
+and `allowed_paths`. Example projection:
 
-For a complete rejection with `recovery.action="read_next_action"`, request one guarded current
-Action and follow its returned instructions. This read is not permission to replay or correct the
-rejected payload; corrections still require the Skill's bounded-correction conditions. A previously
-completed IMPLEMENT assessment is not the outcome of a rejected TEST submission. An Action mismatch
-remains a stopping condition when recovering a genuinely uncertain submission.
+```json
+{"ok":false,"error":{"code":"INVALID_ARGUMENT","details":[{"path":"node_result.findings","rule":"required_member_missing","message":"A required member is missing."}]},"recovery":{"retry_safe":true,"action":"correct_current_action","message":"Correct only the listed fields.","allowed_paths":["node_result.findings"]}}
+```
 
-## Success result paths
+Confirm the same current Action/tool, reread its schema, and change only listed fields from facts
+already established. For a failed implementation check, `findings` describes the actual defect; failed
+check names alone do not fill it. A missing user verdict requires the user's answer. If the error lists
+`repository_paths`/`artifact_manifest_incomplete`, collect/classify/prepare again and change only the
+allowed artifact members. Preserve node meaning, transition and method conclusions.
 
-| Tool | Task | Action and recovery |
-| --- | --- | --- |
-| `dev_flow_server_info` | None | Server identity and capabilities are in `result`. |
-| `dev_flow_open_task` | `result.task` | Read `result.recovery_assessment` before `result.task.current_action`; `result.created` distinguishes creation from resume. |
-| `dev_flow_get_task` | `result.task` | Saved records and `result.recovery_assessment`; use `get_next_action` to obtain a fresh workspace guard before new repository work. |
-| `dev_flow_get_next_action` | No Task object | Read `result.recovery_assessment` before `result.action`; `result.blocker` and `result.outcome` may stop work. |
-| All eight `dev_flow_submit_*` tools, `dev_flow_resolve_blocker`, `dev_flow_recover_action` | `result` | The next Action is `result.current_action`. Handle blocker/outcome first; terminal Actions are null. |
-| `dev_flow_cancel_task`, `dev_flow_abandon_task` | `result` | Inspect `result.outcome`; a successful cancellation has `current_cursor=CANCELLED` and no current Action. |
-| `dev_flow_prepare_task_relocation` | `result.task` | Retain `result.relocation_id`; the Task has the relocation blocker. |
+Host policy permits one corrected submission, followed by a stop if it fails again. Core supplies the
+zero-write decision and allowed fields; it does not count this Host retry limit. Report exact field,
+rule and failure without displaying private submitted values. See the complete
+[Test failure example](nodes/test.md#tests_failed_implementation) for the corrected call shape.
 
-## Pending Action on resume
+## Uncertain Action recovery
 
-A resumed Task can return both its source Action and a recovery assessment because the previous
-submission was retained before its Task transition committed. Follow `recovery_assessment.next_advice`
-before performing that source Action. Read the saved identity from
-`recovery_assessment.operation.action_id`, together with the returned Task ID. `current_action_id`
-can identify a later Action and is not the recovery identity.
+Implementation: `internal/application/recover_action.go` — `RecoverAction`.
 
-Use the Skill's recovery-before-retry rules for that saved operation. Do not rebuild or resubmit
-its node result. For `read_next_action`, consume the complete guarded Action already returned by
-`open_task` or `get_next_action`, after checking blocker/outcome. When the advice came from the
-saved-state-only `get_task`, perform one `get_next_action` lookup and consume its result. A completed
-assessment may remain present: do not repeat the lookup merely because the same `read_next_action`
-advice is returned. An assessment belonging to another Task/operation or an incomplete result stops recovery.
+If an ordinary submit/resolve/recover response is genuinely missing or malformed, retain the original
+Task/Action IDs and first call the saved-state `dev_flow_get_task` example. On fresh resume use
+`recovery_assessment.operation.action_id`, not a possibly newer `current_action.action_id`.
+A missing/mismatched/incomplete recovery assessment stops. Core retains the normalized payload;
+the Host does not rebuild it.
 
-## Uncertain lifecycle results
+Recovery response projection:
 
-These operations have their own identities; `dev_flow_recover_action` recovers a retained Action
-submission, not a lifecycle operation. User authorization remains in effect, but uncertainty is
-resolved through Core reads before another mutation.
+```json
+{"ok":true,"result":{"task":{"task_id":"task-example","revision":4},"recovery_assessment":{"task_revision":4,"operation":{"action_id":"saved-action","operation_id":"saved-operation","expected_revision":4},"next_advice":"submit_recovery_apply"}}}
+```
 
-| Uncertain operation | Retain before calling | Readback and next step |
-| --- | --- | --- |
-| New `open_task` | Exact provisioned worktree paths, repository scope and admitted intent | Call `open_task` on the same participating worktree with only `host` and `repository_path`, omitting `new_task` and creation fields. Compare returned intent, origin and scope to the confirmed launch; handle recovery first. A conflict, `TASK_NOT_FOUND`, mismatched identity or uncertain read stops; never create another worktree or substitute a new Task. |
-| `cancel_task` | Task ID, current revision and a fresh cancellation `request_id` | Call `get_task`; verify `task.last_operation.operation_id` equals the cancellation request, its kind is `cancel_task`, and the Task is `CANCELLED`. A different terminal outcome is reported as such, not attributed to this call. An active/mismatched result stops for inspection instead of blind cancellation retry. |
-| `abandon_task` | Task ID and revision | Call `get_task`; verify the returned terminal outcome and `last_operation.kind=abandon_task` at the expected successor revision. Report another terminal result accurately. An active, conflicting or uncertain result stops; do not invoke Action recovery. |
-| `prepare_task_relocation` | Task ID and revision | Call `get_task`; inspect the retained relocation and relocation blocker at the expected successor revision. Reuse only a matching relocation identity/source; otherwise stop before Host handoff. |
-| Host creation, handoff or cleanup | Launch/repository identity plus the original Host task/operation marker | Use `host-launch status` and the matching Host query. Preserve `should_dispatch=false` and uncertain phases; never repeat the Host mutation to discover its result. |
+| Returned next_advice | Next interaction |
+| --- | --- |
+| `retry_current_action` | Re-perform the current Action's allowed repository work, then recover the saved Action. |
+| `submit_recovery_apply` | Recover the saved Action immediately. |
+| `read_next_action` | Consume the complete guarded Action already returned by open/next-action; after get_task obtain one get_next_action. |
+| `resolve_blocker` | Restore the required repository condition, then resolve the current blocked Action. |
+| `stop_for_repository_drift` | Report the retained condition and stop. |
 
-Lifecycle readback may legitimately have `recovery_assessment=null`. Inspect its Task/operation
-result using this table; a previous Action assessment is not proof of the lifecycle operation.
-If readback cannot establish the result, report the precise missing identity/state and stop.
+Recovery call example for either of the first two returned instructions:
 
-## Task-plan field meanings
+<!-- example:mcp dev_flow_recover_action saved-operation -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "action_id": "saved-action"
+}
+```
 
-`acceptance_indexes` addresses the current Requirements `acceptance_criteria` array from zero.
-For criteria `["returns the field", "rejects invalid input"]`, indexes `[0]` and `[1]` identify the
-first and second criteria. Each index must be smaller than the current criterion count.
+Success is the complete Task in `result`, with next `result.current_action` or terminal outcome.
+Follow it; do not resubmit the old node payload. An unknown instruction stops. This table applies
+Core's returned advice; it does not recompute recovery classification from file state.
+Creation, cancellation, abandonment and relocation use their own readback rules in this reference
+and the lifecycle sections below, never Action recovery.
 
-`expected_paths` uses forward slashes and repository-relative paths. `src/api.go` matches that file;
-`src/**` covers descendants. `src` is an exact path, not a directory prefix, and `src/*.go` is not a
-supported wildcard. Multi-repository paths attach the confirmed key, for example `api::src/**`.
-Use only the current Task's declared keys. `dependencies` refers to work-item IDs in the same plan.
+## Resolve blockers
+
+Implementation: `internal/mcp/schemas.go` — `buildCatalog`.
+Implementation: `internal/workflow/submission_schema.go` — `CurrentSubmissionSchema`.
+
+Read the fresh blocker and Action first. File-scope choices require an explicit user choice and reason.
+Show the retained paths and proposed purpose. Example: “The write includes src/extra.js outside the
+plan. Allow this exact write once, revise the plan, or restore the path?” Reuse only a still-valid
+answer for this exact write. The three complete input alternatives are:
+
+<!-- example:mcp dev_flow_resolve_blocker allow_once -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "action_id": "blocked-action",
+  "choice": "allow_once",
+  "reason": "The user allows this exact prepared write."
+}
+```
+<!-- example:mcp dev_flow_resolve_blocker expand_scope -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "action_id": "blocked-action",
+  "choice": "expand_scope",
+  "reason": "The user requested a plan update for this path."
+}
+```
+<!-- example:mcp dev_flow_resolve_blocker reject -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "action_id": "blocked-action",
+  "choice": "reject",
+  "reason": "The user rejected the write and the retained content has been restored."
+}
+```
+
+`allow_once` is restricted to the same prepared intent/path set; `expand_scope` returns to TASKS to
+revise expected paths (use its requirements return only for a requirement change); `reject` resumes
+only after actual restoration. None of these expands immutable Repository Scope.
+
+For `repeated_verification_failure`, `unchanged_verification_result` or
+`unchanged_test_implementation_loop`, stop and ask for a different approach, one further attempt or
+cancellation. After the explicit retry/approach answer, or after a recovery blocker's required
+repository condition is restored, use only identity fields:
+
+<!-- example:mcp dev_flow_resolve_blocker verification-or-recovery -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "action_id": "blocked-action"
+}
+```
+
+For a workspace-history blocker, complete the separately authorized Git operation first, then:
+
+<!-- example:mcp dev_flow_resolve_blocker history -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "action_id": "blocked-action",
+  "history_resolution": {
+    "choice": "accept_current_history",
+    "reason": "The user authorized this history change and Core can observe the resulting history."
+  }
+}
+```
+
+Success returns the full Task directly; continue only from its current Action. Rejection leaves the
+condition unresolved. Relocation uses the distinct [relocation input](#complete-relocation);
+do not mix file-scope, history and relocation members. Workspace unavailability requires restoration
+of the original instance or explicit abandonment, not recreation of a same-named directory.
+
+## Prepare relocation
+
+Implementation: `internal/application/control_center_lifecycle.go` — `PrepareTaskRelocation`.
+Implementation: `internal/application/relocation.go` — `PrepareTaskRelocation`.
+
+First verify that [Host lifecycle](host-lifecycle.md#relocation) supplies an available, authorized
+relocation procedure. The Core tool alone does not supply a Host move. After explicit user authority, retain the current Core Task ID/revision and prepare once:
+
+<!-- example:mcp dev_flow_prepare_task_relocation prepare -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "revision": 8
+}
+```
+
+Success projection: `{"ok":true,"result":{"relocation_id":"relocation-example",
+"task":{"task_id":"task-example","current_cursor":"BLOCKED"}}}`. Retain the complete returned
+Task, relocation ID, source bindings/content/surface and resume node. Claims remain bound to the
+source during Handoff. If the response is lost, get the same Task and verify the saved relocation
+and blocker at the expected successor revision; reuse only that matching identity.
+
+
+## Complete relocation
+
+Implementation: `internal/application/relocation.go` — `resolveTaskRelocation`, `validateTaskRelocationDestination`.
+
+After actual Host success, use the current blocked Action, saved relocation ID and all verified destination roots:
+
+<!-- example:mcp dev_flow_resolve_blocker relocation -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "action_id": "blocked-action",
+  "relocation_id": "relocation-example",
+  "relocation_destinations": [
+    {
+      "key": "primary",
+      "repository_path": "/work/tasks/relocated-endpoint"
+    }
+  ]
+}
+```
+
+Core checks repository group, frozen base, equivalent content/surface and claim conflicts, then replaces bindings together. Success returns the complete Task directly; follow its current_action. Failed or uncertain Host movement keeps the original binding and claims and does not permit this resolution.
+
+## Cancellation
+
+Implementation: `internal/application/cancel_task.go` — `CancelTask`.
+Implementation: `internal/mcp/schemas.go` — `buildCatalog`.
+
+After the user explicitly cancels an active Task, obtain its current revision and create one fresh
+cancellation request ID. Retain it before the call; use the actual user reason.
+
+<!-- example:mcp dev_flow_cancel_task cancel -->
+```json
+{
+  "request_id": "cancel-request-example",
+  "host": "codex",
+  "task_id": "task-example",
+  "revision": 8,
+  "reason": "The user cancelled this endpoint change."
+}
+```
+
+Success returns the complete Task directly: `result.current_cursor` is CANCELLED,
+`result.current_action` is null and `result.outcome` explains termination. It does not delete Git data.
+Core must still observe the worktree. After response loss, call get_task and compare
+`task.last_operation.operation_id` with the retained cancellation request, kind `cancel_task`, and
+terminal outcome. Report a different terminal operation accurately; active/mismatched/uncertain reads
+stop for inspection. Do not invoke Action recovery or blindly repeat cancellation.
+
+## Abandon an unavailable workspace
+
+Implementation: `internal/application/abandon_task.go` — `AbandonTask`.
+
+Use only when the original workspace instance is unavailable and the user explicitly abandons the
+Task instead of restoring that instance. Core attempts an observation to establish unavailability.
+
+<!-- example:mcp dev_flow_abandon_task abandon -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "revision": 8,
+  "reason": "The original worktree is unavailable and the user explicitly abandoned the Task."
+}
+```
+
+Success returns the CANCELLED Task and releases its claims while retaining the last known binding.
+After a lost result, get_task and verify the terminal outcome, `last_operation.kind=abandon_task`
+and expected successor revision. A live workspace, conflicting revision or mismatched result stops;
+a same-named new directory cannot stand in for the original instance.

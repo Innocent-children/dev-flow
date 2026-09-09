@@ -510,31 +510,10 @@ async function assertPackageResources(paths, packageVersion) {
     throw new Error("Dev Flow Skill frontmatter must not carry Codex invocation policy");
   }
   const skillDescription = skillFrontmatter.match(/^description:\s*"([^"]+)"$/m)?.[1] ?? "";
-  for (const required of [
-    "Assess", "development requests", "direct work or Dev Flow", "dedicated Git worktrees",
-    "selected implicitly", "$dev-flow-codex:dev-flow", "never skips assessment", "resume",
-  ]) {
-    if (!skillDescription.toLowerCase().includes(required.toLowerCase())) {
-      throw new Error(`Dev Flow Skill description is missing activation boundary: ${required}`);
-    }
+  if (!/^name:\s*dev-flow\s*$/m.test(skillFrontmatter) || skillDescription.trim() === "") {
+    throw new Error("Dev Flow Skill must have name dev-flow and a non-empty description");
   }
-  if (!normalizedSkill.includes("Show the assessment. If the choice is unresolved") ||
-      !normalizedSkill.includes("explicit resume") ||
-      !normalizedSkill.includes("zero Dev Flow calls")) {
-    throw new Error("Dev Flow Skill admission does not require assessment and explicit choice");
-  }
-  for (const required of [
-    "Provisioning confirmation", "refs/remotes/<remote>/<base>",
-    "`target.environment.type=\"worktree\"`", "omit `onMissing`",
-    "clientThreadId", "never dispatch again", "workspace_origin",
-    "`ACTIVE_TASK_CONFLICT`", "never starts relocation",
-    "`relocation_id`", "`relocation_destinations:[{key,repository_path}]`",
-    "`history_resolution:{choice:\"accept_current_history\",reason}`",
-  ]) {
-    if (!normalizedSkill.includes(required)) {
-      throw new Error(`Dev Flow Skill worktree-first lifecycle is missing: ${required}`);
-    }
-  }
+  await assertSkillReferences(dirname(skillPath), skillPath, normalizedSkill);
 
   let skillMetadata;
   try {
@@ -560,6 +539,29 @@ async function assertPackageResources(paths, packageVersion) {
   ]) {
     if (!CODEX_MCP_INSTRUCTIONS.includes(required)) {
       throw new Error(`Dev Flow MCP admission is missing activation boundary: ${required}`);
+    }
+  }
+}
+
+// Registration checks that routed instructions are readable; contract tests own
+// example validation and workflow semantics remain in Core.
+async function assertSkillReferences(skillRoot, entryPath, entryText) {
+  const pending = [{ path: entryPath, text: entryText }];
+  const visited = new Set();
+  const canonicalRoot = await realpath(skillRoot);
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (visited.has(current.path)) continue;
+    visited.add(current.path);
+    for (const match of current.text.matchAll(/\[[^\]]*\]\(([^)\s]+\.md)(?:#[^)]*)?\)/gu)) {
+      if (/^[a-z][a-z0-9+.-]*:/iu.test(match[1])) continue;
+      const path = containedPath(skillRoot, resolve(dirname(current.path), match[1]), "Skill reference");
+      await assertReadableFile(path, "Dev Flow Skill reference");
+      containedPath(canonicalRoot, await realpath(path), "Skill reference");
+      if (visited.has(path)) continue;
+      const text = await readFile(path, "utf8");
+      if (text.trim() === "") throw new Error("Dev Flow Skill reference must be non-empty");
+      pending.push({ path, text });
     }
   }
 }

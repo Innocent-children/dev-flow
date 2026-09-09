@@ -85,6 +85,34 @@ Judge the resulting design by these outcomes:
 5. Superseded compatibility code and tests are absent.
 6. Understanding current behavior does not require tracing fallback chains.
 
+## Skill Maintenance
+
+Core interaction instructions and examples have one maintained source: `skills/dev-flow/core/`.
+Host-specific instructions and helpers are maintained in:
+
+- Codex: `packages/codex/plugin/skills/dev-flow/`;
+- DeepSeek: `packages/deepseek/skills/dev-flow/`.
+
+The two Host directories each contain an authored `SKILL.md` entrypoint, Host-specific references
+and helpers, and generated Core reference copies. Files marked `Generated from skills/dev-flow/core/`
+are generated copies; edit their shared source instead of editing either package copy by hand.
+Keep shared Core semantics in the shared source and actual Host authorization, workspace operations,
+tool invocation and response transport in the corresponding adapter instructions. Every interaction
+rule and example must be grounded in the current implementation; document Host limitations accurately.
+
+After changing shared content, regenerate both package copies from the repository root:
+
+```bash
+node scripts/sync-skill-references.mjs
+node scripts/sync-skill-references.mjs --check
+```
+
+Include the shared-source changes and both generated outputs in the same change. When adding,
+moving or removing references or helpers, update their links, package manifests, staging lists and
+affected checks together. Verify that both installed packages contain their complete references
+without depending on the repository's shared directory. Validate shared examples against the current
+Core contracts for both Hosts, and Host-specific examples against their actual adapter interfaces.
+
 ## Product Feature Proposals
 
 Before implementation, structure a product feature proposal with this template:
