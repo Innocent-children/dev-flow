@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { EventEmitter } from "node:events";
-import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -19,6 +19,21 @@ import {
 } from "../lib/platform/macos/pet.mjs";
 import { messagesForLanguage } from "../lib/presentation.mjs";
 import { NoRuntimeError } from "../lib/runtime.mjs";
+import { ensurePetInstalled } from "../lib/platform/macos/pet-installer.mjs";
+
+test("macOS application replacement preserves the installed copy when source staging fails", async t => {
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-mac-pet-copy-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = join(root, "package"), petDirectory = join(root, "pet");
+  const app = join(source, "runtime/darwin-arm64/DevFlowPet.app");
+  await mkdir(join(app, "Contents/MacOS"), { recursive: true });
+  await writeFile(join(app, "Contents/MacOS/DevFlowPet"), "original", { mode: 0o755 });
+  await ensurePetInstalled({ petDirectory, sourcePackageRoots: [source] });
+  await writeFile(join(app, "Contents/MacOS/DevFlowPet"), "updated");
+  await symlink(join(app, "Contents/MacOS/DevFlowPet"), join(app, "unsafe-link"));
+  await assert.rejects(ensurePetInstalled({ petDirectory, sourcePackageRoots: [source], replaceExisting: true }), /cannot contain links/);
+  assert.equal(await readFile(join(petDirectory, "DevFlowPet.app/Contents/MacOS/DevFlowPet"), "utf8"), "original");
+});
 
 const CORE_IDENTITY = "dev-flow/0.6.2";
 const DATA_ROOT_DIGEST = "3f8a1c9d".repeat(8);

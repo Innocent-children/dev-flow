@@ -37,7 +37,7 @@ Host 在确认前只读调查候选仓库，再将确认后的范围固定到 Ta
 - **会话中断后可以继续。** 新会话恢复同一个任务、剩余检查和当前决定，不需要从聊天记录重建。
 - **只沿用仍然有效的结果。** 请求、计划、实现或仓库变化后，旧检查会失效；交付前由开发者复核
   实际结果。
-- **完成结果可以核对。** 所有计划工作项完成、每条验收关联当前有效检查后，才能交付；WebUI 中断后从 Core 恢复保存的提交。
+- **完成结果可以核对。** 所有计划工作项完成、每条验收关联当前有效检查后，才能交付；WebUI 中断后从 Core 恢复保存的提交。 Codex 保留完整的拒绝响应，并按 Core 指示决定后续操作。
 
 ## 快速开始
 
@@ -110,9 +110,9 @@ Dev Flow 适合会跨会话、需要明确文件范围、必须限制测试投�
 
 ## 桌面任务入口
 
-macOS arm64 和 Windows 10/11 x64 的本地开发包提供桌面宠物，显示一个所选 Task 的保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。支持任务选择、自定义形象、动画开关、大小调整与独立启停。运行时由已安装并配置的 Codex 或 DeepSeek Adapter 提供 Core。
+`@imotong/dev-flow` npm 包包含 macOS arm64 与 Windows 10/11 x64 桌面宠物，内置九类动作、312 个 SVG 帧。宠物显示所选 Task 的保存状态并打开 WebUI，支持任务选择、自定义形象、动画控制、缩放与独立启停；Core 由已配置的 Codex 或 DeepSeek Adapter 提供。
 
-常规 npm 包不包含 macOS 原生应用。获取对应本地包、构建安装、更新与素材使用见[桌面宠物指南](docs/DESKTOP-PETS.md)。本地检查不扩大[稳定支持范围](docs/SUPPORT-MATRIX.md)。
+安装 npm 包后运行 `dev-flow install` 配置 Adapter。`install`、`upgrade`、`repair`、`reinstall` 更新应用副本并保留设置与形象，详见[桌面宠物指南](docs/DESKTOP-PETS.md)。macOS 使用 ad-hoc 签名；Developer ID、公证与 Windows 正式分发签名尚未验证。本地检查不扩大[稳定支持范围](docs/SUPPORT-MATRIX.md)。
 
 ```bash
 dev-flow pet start

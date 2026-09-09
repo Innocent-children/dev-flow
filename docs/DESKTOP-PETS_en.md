@@ -14,9 +14,22 @@ formal distribution verification. See the [support matrix](SUPPORT-MATRIX_en.md#
 
 Below, `productRoot` means the product directory, which defaults to `~/.dev-flow` on macOS; settings and appearances live in its `pet/` subdirectory.
 
-The repository's regular npm package lists and release preparation do not include `DevFlowPet.app`. A dedicated local build script adds the native
-app to an `@imotong/dev-flow` development package. Installing a regular Adapter package alone does not provide the pet application.
-Running a built app requires neither Swift nor Xcode. Building on macOS requires Node.js >=24 and a Swift >=6.0 toolchain available through `xcrun swift`.
+The formal `@imotong/dev-flow` npm package includes `runtime/darwin-arm64/DevFlowPet.app` and
+`runtime/win32-x64/DevFlowPet`, each with nine default actions and 312 SVG frames.
+Running the built application requires no compiler or Electron development environment. An independently installed Adapter provides Core.
+Formal preparation on macOS arm64 compiles Swift, assembles the locked Windows x64 Electron runtime,
+and checks versions, architectures, artwork and the extracted package files. macOS uses ad-hoc signing; Windows distribution signing remains unverified.
+
+## npm installation and startup
+
+```bash
+npm install -g @imotong/dev-flow@latest
+dev-flow install
+dev-flow pet start
+```
+
+Configure at least one Adapter through the unified entry; existing configuration can be reused. The launcher supplies Core and data-directory arguments.
+It prefers the installed user-directory app over the bundled app. `pet start` reuses an existing application; use maintenance commands below to update its copy.
 
 ## Local build and installation
 
@@ -36,10 +49,7 @@ npm install -g "/absolute/pet-build/<local-package>.tgz"
 dev-flow pet start
 ```
 
-The local unified-entry package provides `dev-flow`. Start the app through this command rather than double-clicking the bundle;
-the launcher supplies Core and data-directory arguments. Startup first uses an existing `~/.dev-flow/pet/DevFlowPet.app`, then the current
-unified-entry package's `runtime/darwin-arm64/DevFlowPet.app`. Installation helpers copy an app into the user directory only when the target is missing
-and a candidate package actually contains it. Updating an existing app is covered next.
+Local packages use the same platform application assembly as formal preparation. Build machines require Node.js >=24 and Swift >=6.0 through `xcrun swift`.
 
 ## Windows local build and installation
 
@@ -58,40 +68,31 @@ dev-flow pet stop
 
 Replace `<local-package>.tgz` with the filename identified by tarball in desktop-pet-build.json. This build assembles the Windows desktop and complete Adapter packages using the existing Core target catalog, binding artifact paths, versions and SHA256 hashes. It copies nine default actions and 312 frames and verifies extracted artwork and executable bytes. Mac Core is cross-compiled only; no Mac program, Mac test or publication is run. Windows uses the system tray in place of the macOS menu bar; artwork formats, task semantics and six scale choices align.
 
-productRoot defaults to %LOCALAPPDATA%\dev-flow. The installed app directory is productRoot/pet/DevFlowPet, with DevFlowPet.exe as its entry; it takes precedence over runtime/win32-x64/DevFlowPet in the package. settings.json and appearances/ are stored separately. The development distribution refreshes the app copy through dev-flow install, upgrade, repair or reinstall. The launcher stops maintained instances, stages the replacement, and retains settings.json and appearances/. Running pet start alone does not reinstall an existing app. Ordinary quit and uninstall preserve these files; confirmed factory-reset clears the whole pet directory under the existing rules.
+productRoot defaults to %LOCALAPPDATA%\dev-flow. The installed app directory is productRoot/pet/DevFlowPet, with DevFlowPet.exe as its entry; it takes precedence over runtime/win32-x64/DevFlowPet in the package. settings.json and appearances/ are stored separately. The unified entry refreshes the app copy through dev-flow install, upgrade, repair or reinstall. The launcher stops maintained instances, stages the replacement, and retains settings.json and appearances/. Running pet start alone does not reinstall an existing app. Ordinary quit and uninstall preserve these files; confirmed factory-reset clears the whole pet directory under the existing rules.
 
 Windows uses a restricted renderer and a local per-user single-instance channel with acknowledgments. It does not stop processes by name or PID alone. Each poll and navigation rechecks the same Core and data directory. Disconnection keeps and marks the last record, with separate task-update and last-sync timestamps. Hiding or sleeping cancels reads and animation; resuming does not replay historical completion prompts.
 
-Windows distribution signing is not verified for the local package. Recorded native environments and results are in the [adaptation report](WINDOWS-ADAPTATION_en.md); supported scope is listed in the [Support Matrix](SUPPORT-MATRIX_en.md).
+Windows distribution signing remains unverified. Recorded native environments and results are in the [adaptation report](WINDOWS-ADAPTATION_en.md); supported scope is listed in the [Support Matrix](SUPPORT-MATRIX_en.md).
 
 ## Updating the program and artwork
 
-The package, installed app copy, and user artwork are updated separately:
-
-| Item | Update method |
-| --- | --- |
-| Local unified-entry package | Quit the pet, then install the newly built `.tgz`. This updates the package's CLI and bundled app. |
-| User-directory `DevFlowPet.app` | npm package installation preserves an existing copy here. Quit the pet and replace it with the complete `.app` from the new package. |
-| Imported appearance | Reimport the same source folder from the menu after changing or adding artwork. App upgrades do not reread the original source directory or create missing animations. |
-
-While the pet is running, inspect `executable_path` in `~/.dev-flow/pet/runtime.json` to identify whether it uses the package's app or the user-directory copy.
-Normal shutdown removes this record, so inspect it before quitting. Update in this order:
-
-1. Quit through the menu or `dev-flow pet stop`. If the command fails, quit from the menu of the running pet first.
-2. Install the new local `.tgz`. If the previous executable was in the user directory, choose a fresh empty directory and extract that same new package:
+Update the npm package, then refresh the installed application copy through a maintenance command:
 
 ```bash
-mkdir -p "/absolute/pet-unpack"
-tar -xzf "/absolute/pet-build/<local-package>.tgz" -C "/absolute/pet-unpack"
+dev-flow pet stop
+npm install -g @imotong/dev-flow@latest
+dev-flow repair --host codex --yes
+dev-flow pet start
 ```
 
-3. When updating the user-directory copy, copy the complete `DevFlowPet.app` from `/absolute/pet-unpack/package/runtime/darwin-arm64/` into `~/.dev-flow/pet/`,
-   replacing the app with the same name in Finder. Replace only the application bundle; preserve `settings.json` and `appearances/`.
-4. Run `dev-flow pet start` again. To add artwork animations, also reimport the source folder as described under Import and selection.
+Choose the configured Host; DeepSeek uses `--host deepseek --profile <name>`. `install`, `upgrade`, `repair` and `reinstall` include a pet update even when the Adapter itself needs no changes. The plan lists that operation before confirmation. It stops the running pet, stages the new application, and replaces only the application directory. A stop or copy failure stops maintenance; a staging failure preserves the previous application. Settings and imported appearances remain in their separate directories.
+
+Installing the npm package alone updates its bundled application. Refresh an existing user-directory copy with the maintenance command above. Reimport an appearance from its source folder to update artwork; application updates do not invent missing animations.
+
 
 ## Default appearance and external artwork
 
-The local pet package includes only the default appearance from `packages/desktop-pet/default-appearance/`, with nine clips and 312 SVG frames. The build copies the artwork and verifies each file against its source. Import Whale Girl or other custom appearances as
+The pet package includes only the default appearance from `packages/desktop-pet/default-appearance/`, with nine clips and 312 SVG frames. The build copies the artwork and verifies each file against its source. Import Whale Girl or other custom appearances as
 separate artwork packs: choose Import appearance and select a folder containing `pet.json`. Supported formats
 are listed below under Appearance types and available animations.
 
@@ -340,8 +341,8 @@ Packs contain presentation data, not executable scripts.
 
 | Symptom | Checks and action |
 | --- | --- |
-| Installing an Adapter did not provide the pet app | Regular package lists omit the native app. Obtain a local development package containing `DevFlowPet.app` and follow Local build and installation. |
-| Updating the program did not change its behavior | Check the runtime record's `executable_path`. The user-directory app takes priority and is preserved during package installation. Program updates and artwork reimports are separate operations. |
+| Installing an Adapter did not provide the pet app | Install `@imotong/dev-flow@latest`, configure an Adapter with `dev-flow install`, then run `dev-flow pet start`. |
+| Updated package still shows old behavior | Run `dev-flow repair` after updating npm to refresh the user-directory copy; reimport artwork separately. |
 | Another appearance cannot walk, wave, or think | Check whether its installed `clips` includes those additional animations. A five-clip appearance can show tasks normally but cannot play artwork it does not contain. |
 | The source has nine clips but the installed copy has five | Confirm that the running app copy was updated too, then reimport the original folder containing the complete atlas. The app loads frames saved by the latest import; upgrades do not automatically add missing clips. |
 | Must every pack contain nine clips and 57 frames? | This fixed count applies only to Codex-layout atlases. Single PNG/SVG images and native animation packs follow their own rules in the table above. |

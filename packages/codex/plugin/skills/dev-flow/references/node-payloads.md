@@ -109,6 +109,42 @@ Names remain unique within one adjustment, and each rationale explains the addit
 Completed developer-run verification is a `source="user"` check with `command_count=0`,
 `full_suite=false`, and `full_suite_reason=""`. Put only work nobody has run yet in `manual_handoff_items`.
 
+## Test failure node-result example
+
+For `dev_flow_submit_test` with `transition_id="tests_failed_implementation"`, use
+`problem_class="implementation_failure"` and nonempty `findings`. `failed_items` identifies failed
+checks/items; `findings` describes the implementation defects that justify returning to IMPLEMENT.
+Failure summaries in `checks`, `reason`, or `method_results` do not fill `findings` for Core.
+For result types exposing `findings`, Core requires an empty array when `problem_class="none"`
+and nonempty findings for a problem transition. Schema type conformance alone does not satisfy
+these transition guards.
+
+The following example records one actual failed automated command. Replace its facts with the
+current check, use the fresh Action identity and method steps, and supply the transition reason and
+prepared artifacts in the submission envelope. It is not a budget-increase submission.
+
+<!-- test-failure-node-result-example:start -->
+```json
+{
+  "problem_class": "implementation_failure",
+  "budget_adjustment": null,
+  "checks": [{
+    "name": "final-package",
+    "source": "automated",
+    "status": "failed",
+    "summary": "Package construction failed because the build script imports an unavailable module.",
+    "command_count": 1,
+    "full_suite": false,
+    "full_suite_reason": ""
+  }],
+  "failed_items": ["Final package construction"],
+  "findings": ["The build script imports a module absent from the locked dependencies, preventing package construction."],
+  "unverified_items": ["Installation and startup of the final package"],
+  "manual_handoff_items": []
+}
+```
+<!-- test-failure-node-result-example:end -->
+
 ## Design node-result example
 
 The current `dev_flow_submit_design` schema remains authoritative. In that schema,

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -129,6 +129,49 @@ async function maintenanceFixture(t) {
 function request(operation) {
   return { operation, host: "codex", profiles: [], targetVersion: "latest", allKnownProfiles: false, adopt: false, reinstallAfterReset: false, permanent: false, yes: true, confirmationToken: null, permanentToken: null, downgradeToken: null, confirmedExplicitData: [], outputMode: "json" };
 }
+
+test("bundled pet maintenance runs even when the Adapter is current and preserves user data", async t => {
+  const fixture = await maintenanceFixture(t);
+  const packageRoot = join(fixture.root, "package");
+  const app = join(packageRoot, "runtime/darwin-arm64/DevFlowPet.app/Contents/MacOS");
+  await mkdir(app, { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), "{}");
+  await writeFile(join(app, "DevFlowPet"), "new application");
+  await chmod(join(app, "DevFlowPet"), 0o755);
+  await mkdir(fixture.paths.petDirectory, { recursive: true });
+  await writeFile(join(fixture.paths.petDirectory, "settings.json"), "settings");
+  await mkdir(join(fixture.paths.petDirectory, "appearances"));
+  await writeFile(join(fixture.paths.petDirectory, "appearances", "custom"), "appearance");
+  for (const operation of ["install", "upgrade", "repair", "reinstall"]) {
+    fixture.events.length = 0;
+    const result = await runLifecycle({ ...request(operation), targetVersion: "0.7.0" }, {
+      ...fixture.dependencies, packageRoot,
+      codexDriver: { ...fixture.dependencies.codexDriver, execute: async () => ({ changed: false }) },
+      listAdapterCoreRuntimes: async () => [],
+    });
+    assert.equal(result.code, 0);
+    assert.equal(result.plan.actions.at(-1).actionId, "pet.install");
+    assert.equal(result.result.changed, true);
+    assert.ok(result.result.completed_actions.includes("pet.install"));
+    assert.deepEqual(fixture.events, ["pet.stop:null"]);
+    assert.equal(await readFile(join(fixture.paths.petDirectory, "DevFlowPet.app/Contents/MacOS/DevFlowPet"), "utf8"), "new application");
+    assert.equal(await readFile(join(fixture.paths.petDirectory, "settings.json"), "utf8"), "settings");
+    assert.equal(await readFile(join(fixture.paths.petDirectory, "appearances/custom"), "utf8"), "appearance");
+  }
+  fixture.events.length = 0;
+  const declined = await runLifecycle({ ...request("repair"), targetVersion: "0.7.0" }, {
+    ...fixture.dependencies, packageRoot, confirmPlan: async () => false,
+  });
+  assert.equal(declined.code, 3);
+  assert.deepEqual(fixture.events, []);
+  await assert.rejects(runLifecycle({ ...request("repair"), targetVersion: "0.7.0" }, {
+    ...fixture.dependencies, packageRoot, stopPetForCore: async () => { throw new Error("stop failed"); },
+  }), /stop failed/);
+  await assert.rejects(runLifecycle({ ...request("repair"), targetVersion: "0.7.0" }, {
+    ...fixture.dependencies, packageRoot, listAdapterCoreRuntimes: async () => [],
+    petInstaller: { ensurePetInstalled: async () => { throw new Error("copy failed"); } },
+  }), error => error.message === "copy failed" && error.failedAction === "pet.install");
+});
 
 test("install and repair keep the installed version offline; reinstall deliberately repeats", async t => {
   const fixture = await maintenanceFixture(t);

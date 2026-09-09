@@ -14,9 +14,22 @@ Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实�
 
 下文 `productRoot` 指产品目录，macOS 默认是 `~/.dev-flow`；设置与形象保存在其中的 `pet/` 子目录。
 
-当前仓库的常规 npm 包清单和正式制备流程不包含 `DevFlowPet.app`。原生应用由专用本地构建脚本加入
-`@imotong/dev-flow` 开发包；安装普通 Adapter 包本身不代表已经取得宠物应用。
-运行已构建的应用无需 Swift/Xcode，macOS 构建机器需要 Node.js >=24 与可通过 `xcrun swift` 使用的 Swift >=6.0 工具链。
+正式 `@imotong/dev-flow` npm 包包含 `runtime/darwin-arm64/DevFlowPet.app` 与
+`runtime/win32-x64/DevFlowPet`，两个平台均携带九类动作、312 个 SVG 帧。
+运行已构建的应用无需编译器或 Electron 开发环境。Adapter 仍独立安装并提供 Core。
+正式制备由 macOS arm64 构建机编译 Swift、装配锁定的 Windows x64 Electron 运行时，
+然后核对应用版本、架构、默认素材和最终解包文件。macOS 使用 ad-hoc 签名；Windows 正式分发签名尚未验证。
+
+## npm 安装与启动
+
+```bash
+npm install -g @imotong/dev-flow@latest
+dev-flow install
+dev-flow pet start
+```
+
+通过统一入口配置至少一个 Adapter；已有配置可以复用。启动器传入 Core 与数据目录参数，
+优先使用用户目录中的应用副本，其次使用包内应用。`pet start` 复用已有应用，更新副本使用下述维护命令。
 
 ## 本地构建与安装
 
@@ -36,10 +49,7 @@ npm install -g "/absolute/pet-build/<local-package>.tgz"
 dev-flow pet start
 ```
 
-`dev-flow` 是该本地统一入口包提供的命令。通过它启动宠物，不直接双击应用包；启动器会传入 Core 与数据目录参数。
-启动优先使用已有的 `~/.dev-flow/pet/DevFlowPet.app`，其次使用当前统一入口包内的
-`runtime/darwin-arm64/DevFlowPet.app`。安装辅助逻辑仅在目标缺失且候选包确实带有应用时复制到用户目录。
-已有应用的更新见下一节。
+本地包与正式制备复用同一平台应用装配。构建机器需要 Node.js >=24 和通过 `xcrun swift` 使用的 Swift >=6.0。
 
 ## Windows 本地构建与安装
 
@@ -58,40 +68,31 @@ dev-flow pet stop
 
 将 `<local-package>.tgz` 替换为 desktop-pet-build.json 中 tarball 对应的文件名。该构建装配 Windows 桌面应用，并通过既有构建目标表生成两个 Adapter 的完整 Core 文件和安装包，绑定路径、版本与 SHA256；复制默认九类动作、312 帧并验证解包后的素材和可执行文件。Mac Core 仅交叉编译，不执行 Mac 程序或测试，不执行发布。Windows 采用系统托盘代替 macOS 菜单栏，素材格式、任务语义和六档缩放一致。
 
-productRoot 默认是 %LOCALAPPDATA%\dev-flow。已安装桌面目录为 productRoot/pet/DevFlowPet，入口为 DevFlowPet.exe；优先使用此目录，其次使用包内 runtime/win32-x64/DevFlowPet。settings.json、appearances/ 与程序目录分开保存。本地开发包通过 dev-flow install、upgrade、repair、reinstall 更新程序副本；统一入口先停止需要维护的实例，再暂存并替换程序目录，保留 settings.json 与 appearances/。单独 pet start 不重装已有程序。普通退出和卸载保留这些数据，确认的 factory-reset 才按既有规则清理整个宠物目录。
+productRoot 默认是 %LOCALAPPDATA%\dev-flow。已安装桌面目录为 productRoot/pet/DevFlowPet，入口为 DevFlowPet.exe；优先使用此目录，其次使用包内 runtime/win32-x64/DevFlowPet。settings.json、appearances/ 与程序目录分开保存。统一入口通过 dev-flow install、upgrade、repair、reinstall 更新程序副本；统一入口先停止需要维护的实例，再暂存并替换程序目录，保留 settings.json 与 appearances/。单独 pet start 不重装已有程序。普通退出和卸载保留这些数据，确认的 factory-reset 才按既有规则清理整个宠物目录。
 
 Windows 使用受限渲染器、当前用户范围的本地单实例通道与确认消息，不按进程名或仅凭 PID 停止程序。每轮和点击跳转前核对同一 Core 与数据目录；连接失败保留最后记录并标注断连，任务更新与同步时间分别显示。隐藏/睡眠取消读取和动画，恢复后不重放历史完成提示。
 
-本地包尚未完成 Windows 正式分发签名验证。已记录的原生环境与结果见[适配报告](WINDOWS-ADAPTATION.md)，支持范围见[支持矩阵](SUPPORT-MATRIX.md)。
+Windows 正式分发签名尚未验证。已记录的原生环境与结果见[适配报告](WINDOWS-ADAPTATION.md)，支持范围见[支持矩阵](SUPPORT-MATRIX.md)。
 
 ## 更新程序与素材
 
-程序、安装副本和用户素材分别更新：
-
-| 对象 | 更新方式 |
-| --- | --- |
-| 本地统一入口包 | 先退出宠物，再安装新构建的 `.tgz`。这会更新包内 CLI 与应用。 |
-| 用户目录中的 `DevFlowPet.app` | 若已有该应用，安装 npm 包会保留它；需要退出后用新包中的完整 `.app` 替换。 |
-| 已导入形象 | 修改或补充源图集后，从菜单重新导入同一形象文件夹。应用升级不会重新读取原始素材目录，也不会补造缺少的动作。 |
-
-运行时可查看 `~/.dev-flow/pet/runtime.json` 的 `executable_path`，确认实际使用的是包内应用还是用户目录中的应用。
-该文件在正常退出时清理，应在退出前查看。更新顺序如下：
-
-1. 使用菜单“退出”或 `dev-flow pet stop` 正常结束宠物；停止失败时先从仍在运行的宠物菜单退出。
-2. 安装新的本地 `.tgz`。如果上次运行的是用户目录中的应用，选择一个新的空目录，将同一新包解开：
+先更新 npm 包，再通过维护命令更新用户目录中的应用副本：
 
 ```bash
-mkdir -p "/absolute/pet-unpack"
-tar -xzf "/absolute/pet-build/<local-package>.tgz" -C "/absolute/pet-unpack"
+dev-flow pet stop
+npm install -g @imotong/dev-flow@latest
+dev-flow repair --host codex --yes
+dev-flow pet start
 ```
 
-3. 需要更新用户目录副本时，从 `/absolute/pet-unpack/package/runtime/darwin-arm64/` 将完整的 `DevFlowPet.app` 复制到
-   `~/.dev-flow/pet/`，在访达中替换同名应用。只替换应用包，保留 `settings.json` 和 `appearances/`。
-4. 再执行 `dev-flow pet start`。需要增加形象动作时，再按“导入与切换”重新导入素材。
+选择已配置的 Host；DeepSeek 使用 `--host deepseek --profile <name>`。`install`、`upgrade`、`repair`、`reinstall` 即使无需修改 Adapter，也会包含宠物更新。确认前的计划显示该操作。执行时先停止宠物，再暂存新应用并替换应用目录；停止或复制失败会中止维护，暂存失败保留原应用。设置和导入形象保存在独立目录中。
+
+单独安装 npm 包只更新包内应用；已有用户目录副本通过上述维护命令更新。更新形象时从原始文件夹重新导入，程序更新不会补造缺少的动作。
+
 
 ## 默认形象与外部素材
 
-本地宠物包仅内置默认形象，来自 `packages/desktop-pet/default-appearance/`，包含九类动作、312 个 SVG 帧。构建时复制素材并逐文件核对内容。鲸鱼娘等自定义形象作为独立素材包，通过“导入形象…”选择包含
+宠物包仅内置默认形象，来自 `packages/desktop-pet/default-appearance/`，包含九类动作、312 个 SVG 帧。构建时复制素材并逐文件核对内容。鲸鱼娘等自定义形象作为独立素材包，通过“导入形象…”选择包含
 `pet.json` 的文件夹导入；支持的格式见下文“形象类型与动作可用性”。
 
 导入后的素材保存在 `productRoot/pet/appearances/<id>`，程序更新保留这些素材。
@@ -332,8 +333,8 @@ Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Cod
 
 | 现象 | 检查与处理 |
 | --- | --- |
-| 安装 Adapter 后没有宠物应用 | 普通包清单不包含原生应用；取得包含 `DevFlowPet.app` 的本地开发包，并按“本地构建与安装”启动。 |
-| 更新程序后仍是原来的表现 | 查看运行记录中的 `executable_path`。用户目录中的应用优先且不会自动替换；程序更新与形象重导入是两步不同操作。 |
+| 安装 Adapter 后没有宠物应用 | 安装 `@imotong/dev-flow@latest`，运行 `dev-flow install` 配置 Adapter 后执行 `dev-flow pet start`。 |
+| 更新程序后仍是原来的表现 | 更新 npm 包后运行 `dev-flow repair` 更新用户目录副本；程序更新与形象重导入是两步不同操作。 |
 | 其他形象没有散步、挥手或思考 | 查看安装副本的 `clips` 是否包含对应附加动作。只有五类动作的形象可正常展示任务，但不能播放未提供的素材。 |
 | 源图有九类，安装副本只有五类 | 确认运行的应用副本也已更新，再从包含完整图集的原始文件夹重新导入。程序只读取最近一次导入保存的帧，不会因升级自动补齐。 |
 | 是否所有包都有九类、57 帧 | 该固定数量只适用于 Codex 布局图集；单张 PNG/SVG 与原生动画包按上表各自的规则处理。 |

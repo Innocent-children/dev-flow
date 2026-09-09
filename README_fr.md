@@ -44,7 +44,7 @@ confirmé dans la Task. Ces instructions priment sur la préférence du plugin p
   restants et la décision en cours sans les reconstruire depuis la conversation.
 - **Seuls les résultats encore valides sont réutilisés.** Toute modification de la demande, du plan, de
   l'implémentation ou du dépôt invalide les anciens contrôles ; le développeur examine le résultat avant livraison.
-- **La finalisation et la reprise restent vérifiables.** Core exige que tous les éléments du plan soient terminés et relie chaque critère d’acceptation à des vérifications valides pour l’état actuel. Après une interruption, WebUI reprend les soumissions conservées par Core.
+- **La finalisation et la reprise restent vérifiables.** Core exige que tous les éléments du plan soient terminés et relie chaque critère d’acceptation à des vérifications valides pour l’état actuel. Après une interruption, WebUI reprend les soumissions conservées par Core. Codex conserve les réponses de refus complètes et suit les instructions de Core avant de poursuivre.
 
 ## Démarrage rapide
 
@@ -125,9 +125,9 @@ mécanique sans progression à conserver, Codex ou DeepSeek seul est généralem
 
 ## Accéder aux tâches depuis le bureau
 
-Les paquets de développement locaux pour macOS arm64 et Windows 10/11 x64 proposent une mascotte de bureau. Elle affiche l’état enregistré d’un Task sélectionné et ouvre sa WebUI, sans indiquer l’activité en direct du Host ni un pourcentage d’avancement. Elle permet de choisir une tâche, d’importer des apparences, de contrôler les animations, de changer la taille et de démarrer ou quitter séparément. Core provient d’un Adapter Codex ou DeepSeek installé et configuré.
+Le paquet npm `@imotong/dev-flow` contient la mascotte de bureau pour macOS arm64 et Windows 10/11 x64, avec neuf actions et 312 images SVG par défaut. Elle affiche l’état enregistré de la Task sélectionnée et ouvre sa WebUI ; elle permet de choisir une tâche, importer une apparence, contrôler les animations, modifier la taille et démarrer ou arrêter séparément la mascotte. Un Adapter Codex ou DeepSeek configuré fournit Core.
 
-Les paquets npm habituels ne contiennent pas l’application native macOS. Consultez le [guide de la mascotte](docs/DESKTOP-PETS_en.md) pour obtenir le paquet local, le compiler, l’installer, le mettre à jour et utiliser les ressources graphiques. Les vérifications locales n’élargissent pas le [support stable](docs/SUPPORT-MATRIX_en.md).
+Après l’installation du paquet npm, exécutez `dev-flow install` pour configurer un Adapter. `install`, `upgrade`, `repair` et `reinstall` actualisent la copie de l’application en conservant les réglages et les apparences. Consultez le [guide de la mascotte](docs/DESKTOP-PETS_en.md). macOS utilise une signature ad-hoc ; Developer ID, notarisation et signature de distribution Windows restent non vérifiés. Les contrôles locaux n’étendent pas le [support stable](docs/SUPPORT-MATRIX_en.md).
 
 ```bash
 dev-flow pet start

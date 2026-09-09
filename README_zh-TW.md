@@ -38,7 +38,7 @@ Dev Flow 把已同意的請求、預期路徑、分析後形成的驗證計畫�
 - **會話中斷後可以繼續。** 新會話恢復同一任務、剩餘檢查與目前決定，不需從聊天記錄重建。
 - **只沿用仍有效的結果。** 請求、計畫、實作或程式碼儲存庫改變後，舊檢查會失效；交付前由開發者
   檢視實際結果。
-- **完成結果可以核對。** 所有計畫工作項目完成、每條驗收條件關聯目前有效的檢查後，才能交付；WebUI 中斷後可從 Core 恢復已儲存的提交。
+- **完成結果可以核對。** 所有計畫工作項目完成、每條驗收條件關聯目前有效的檢查後，才能交付；WebUI 中斷後可從 Core 恢復已儲存的提交。 Codex 保留完整的拒絕回應，並依 Core 指示決定後續操作。
 
 ## 快速開始
 
@@ -112,9 +112,9 @@ Dev Flow 適合跨會話、需要明確檔案範圍、必須限制測試投入�
 
 ## 桌面任務入口
 
-macOS arm64 與 Windows 10/11 x64 的本機開發套件提供桌面寵物，顯示所選 Task 的儲存狀態並開啟對應 WebUI，不代表 Host 即時活動或完成百分比。支援任務選擇、自訂形象、動畫開關、大小調整及獨立啟停。執行時由已安裝並設定的 Codex 或 DeepSeek Adapter 提供 Core。
+`@imotong/dev-flow` npm 套件包含 macOS arm64 與 Windows 10/11 x64 桌面寵物，內建九類動作、312 個 SVG 影格。寵物顯示所選 Task 的儲存狀態並開啟 WebUI，支援任務選擇、自訂外觀、動畫控制、縮放與獨立啟停；Core 由已設定的 Codex 或 DeepSeek Adapter 提供。
 
-一般 npm 套件不包含 macOS 原生應用程式。取得對應本機套件、建置安裝、更新與素材使用請見[桌面寵物指南](docs/DESKTOP-PETS.md)。本機檢查不擴大[穩定支援範圍](docs/SUPPORT-MATRIX.md)。
+安裝 npm 套件後執行 `dev-flow install` 設定 Adapter。`install`、`upgrade`、`repair`、`reinstall` 更新應用程式副本並保留設定與外觀，詳見[桌面寵物指南](docs/DESKTOP-PETS.md)。macOS 使用 ad-hoc 簽章；Developer ID、公證與 Windows 正式發行簽章尚未驗證。本機檢查不擴大[穩定支援範圍](docs/SUPPORT-MATRIX.md)。
 
 ```bash
 dev-flow pet start

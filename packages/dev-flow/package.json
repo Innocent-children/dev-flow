@@ -55,7 +55,9 @@
     "lib/platform/windows/pet.mjs",
     "lib/platform/windows/pet-installer.mjs",
     "lib/terminal.mjs",
-    "lib/diagnostics.mjs"
+    "lib/diagnostics.mjs",
+    "runtime/darwin-arm64/DevFlowPet.app",
+    "runtime/win32-x64/DevFlowPet"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",

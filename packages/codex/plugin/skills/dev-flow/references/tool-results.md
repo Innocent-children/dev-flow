@@ -5,6 +5,49 @@ complete envelope once. `ok=true` carries `result`; `ok=false` carries `error` a
 The tool's output Schema describes the envelope and the paths used below. Retained record contents
 remain Core-owned. A missing/truncated envelope is an uncertain result, not an empty Task.
 
+## Submission response handling
+
+In Codex `functions.exec`, retain the complete tool response before reading success-only fields.
+`store` accepts JSON-serializable values: saving `undefined` throws before the error can be displayed.
+The session Task cache is a convenience; Core remains the owner of Task state.
+
+For the eight submission tools, use the following block immediately after assigning the awaited
+response to `submission_response`. This example only records and presents the response; select the
+next operation from the complete Core result after the script returns.
+
+<!-- submission-response-example:start -->
+```js
+store("submission_response", submission_response);
+const envelope = submission_response.structuredContent ??
+  JSON.parse(submission_response.content[0].text);
+text(envelope);
+if (envelope.ok === false) {
+  // Keep the previous Task and handle the returned error and recovery instruction.
+  exit();
+}
+if (envelope.ok !== true || envelope.result === null ||
+    typeof envelope.result !== "object" || Array.isArray(envelope.result)) {
+  throw new Error("Incomplete submission response; inspect the retained original response.");
+}
+store("task", envelope.result);
+```
+<!-- submission-response-example:end -->
+
+Validate the complete envelope against the live output Schema before choosing another operation.
+The example assumes the documented MCP envelope; malformed or truncated responses keep the Skill's
+uncertain-result rules. Terminal success still carries a Task with `current_action=null`.
+
+A complete `ok=false` response uses `error` and `recovery`, including when MCP sets `isError=true`.
+Read those fields before extracting a Task or Action. A local caching/formatting exception does not
+turn a retained domain error into transport uncertainty. Read the retained original response without
+repeating the submission. If it cannot be recovered completely, apply recovery-before-retry.
+
+For a complete rejection with `recovery.action="read_next_action"`, request one guarded current
+Action and follow its returned instructions. This read is not permission to replay or correct the
+rejected payload; corrections still require the Skill's bounded-correction conditions. A previously
+completed IMPLEMENT assessment is not the outcome of a rejected TEST submission. An Action mismatch
+remains a stopping condition when recovering a genuinely uncertain submission.
+
 ## Success result paths
 
 | Tool | Task | Action and recovery |

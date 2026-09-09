@@ -94,3 +94,7 @@ The Host-neutral CLI has its own normal-only release identity:
 pnpm run release:dev-flow -- --version "<DEV_FLOW_VERSION>" --output "<ABSOLUTE_DIRECTORY>" \
   --confirm "dev-flow-v<DEV_FLOW_VERSION>"
 ```
+
+For `@imotong/dev-flow`, preparation includes both desktop applications and their default artwork. The macOS release job compiles Swift and assembles the locked Windows x64 Electron distribution; it verifies the final extracted npm package before publication. No Core or local Adapter archives are bundled in this product. See [Dev Flow CLI release](dev-flow/README.md) for toolchain and signing limits.
+
+`@imotong/dev-flow` 制备包含两个平台的桌面应用与默认素材。macOS 发布 job 编译 Swift 并装配锁定的 Windows x64 Electron，在发布前验证最终 npm 解包结果。此产品不内置 Core 或本地 Adapter 归档。工具链与签名限制见 [Dev Flow CLI 发布说明](dev-flow/README.md)。

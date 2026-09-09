@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { desktopApplications, desktopSourceFiles } from "../../../scripts/desktop-pet-package.mjs";
 import { runDevFlow } from "../lib/runtime.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -27,7 +28,8 @@ test("manifest exposes one dependency-free public macOS arm64 and Windows x64 De
   assert.deepEqual(manifest.bin, { "dev-flow": "bin/dev-flow.mjs" });
   assert.equal(Object.keys(manifest).some((field) => /dependencies/iu.test(field)), false);
   assert.equal(manifest.files.some((path) => /[*?{}[\]]/u.test(path)), false);
-  for (const path of manifest.files) assert.equal((await stat(join(packageRoot, path))).isFile(), true, path);
+  assert.deepEqual(manifest.files.filter(path => path.startsWith("runtime/")), desktopApplications);
+  for (const path of desktopSourceFiles(manifest)) assert.equal((await stat(join(packageRoot, path))).isFile(), true, path);
   assert.equal(manifest.files.includes("lib/pet.mjs"), true);
   assert.equal(manifest.files.includes("lib/platform/macos/pet.mjs"), true);
   assert.deepEqual(manifest.scripts, {

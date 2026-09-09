@@ -44,7 +44,7 @@ en la Task. Estas instrucciones tienen prioridad sobre la preferencia del plugin
   comprobaciones pendientes y la decisión actual sin reconstruirlas desde la conversación.
 - **Solo se reutilizan resultados vigentes.** Los cambios en la petición, el plan, la implementación o
   el repositorio invalidan las comprobaciones antiguas; el desarrollador revisa el resultado antes de entregarlo.
-- **Finalización y recuperación comprobables.** Core exige completar todos los elementos del plan y vincular cada criterio de aceptación con comprobaciones vigentes. Tras una interrupción, WebUI recupera los envíos guardados en Core.
+- **Finalización y recuperación comprobables.** Core exige completar todos los elementos del plan y vincular cada criterio de aceptación con comprobaciones vigentes. Tras una interrupción, WebUI recupera los envíos guardados en Core. Codex conserva las respuestas de rechazo completas y sigue las instrucciones de Core antes de continuar.
 
 ## Inicio rápido
 
@@ -124,9 +124,9 @@ no necesitan guardar el progreso, suele ser más sencillo usar Codex o DeepSeek 
 
 ## Acceso a tareas desde el escritorio
 
-Los paquetes de desarrollo locales para macOS arm64 y Windows 10/11 x64 incluyen una mascota de escritorio. Muestra el estado guardado de un Task seleccionado y abre su WebUI; no representa actividad del Host en tiempo real ni un porcentaje de finalización. Permite seleccionar tareas, importar apariencias, controlar las animaciones, cambiar el tamaño e iniciar o cerrar la mascota por separado. Un Adapter de Codex o DeepSeek instalado y configurado proporciona Core.
+El paquete npm `@imotong/dev-flow` incluye la mascota de escritorio para macOS arm64 y Windows 10/11 x64, con nueve acciones y 312 fotogramas SVG predeterminados. Muestra el estado guardado de la Task seleccionada y abre su WebUI; permite elegir tareas, importar apariencias, controlar animaciones, cambiar el tamaño e iniciar y detener la mascota por separado. Un Adapter de Codex o DeepSeek configurado proporciona Core.
 
-Los paquetes npm habituales no incluyen la aplicación nativa de macOS. Consulta la [guía de la mascota](docs/DESKTOP-PETS_en.md) para obtener el paquete local, compilar, instalar, actualizar y usar los recursos gráficos. Las comprobaciones locales no amplían el [soporte estable](docs/SUPPORT-MATRIX_en.md).
+Después de instalar el paquete npm, ejecuta `dev-flow install` para configurar un Adapter. `install`, `upgrade`, `repair` y `reinstall` actualizan la copia de la aplicación conservando ajustes y apariencias. Consulta la [guía de la mascota](docs/DESKTOP-PETS_en.md). macOS usa firma ad-hoc; Developer ID, notarización y firma de distribución para Windows siguen sin verificar. Las comprobaciones locales no amplían el [soporte estable](docs/SUPPORT-MATRIX_en.md).
 
 ```bash
 dev-flow pet start

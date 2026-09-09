@@ -35,6 +35,9 @@ jobs:
       - name: Verify native macOS arm64 runner
         run: test "$(uname -s)" = Darwin && test "$(uname -m)" = arm64
 
+      - name: Check formal desktop package contracts
+        run: node --test release/dev-flow/prepare.test.mjs
+
       - name: Run bounded repository validation
         run: ./scripts/validate-repository.sh
 

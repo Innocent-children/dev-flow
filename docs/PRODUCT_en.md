@@ -53,6 +53,8 @@ Every planned work item must complete before testing. Delivery explicitly links 
 
 An uncertain operation is read from Core's saved record before recovery or retry. Reopening WebUI still discovers pending submissions. Host handoff and worktree provisioning likewise use their own retained records to avoid duplicate execution.
 
+Codex retains the complete tool response before checking `ok` and reading success data; explicit rejections follow the returned error and handling instruction, and local caching or presentation errors do not change the original response.
+
 Same-machine handoff starts with Core retaining recovery conditions, followed by one Host handoff. Core verifies the destination and replaces repository bindings atomically. Failure retains the original bindings and claims.
 
 DONE or CANCELLED ends the Task and releases repository claims without automatically committing, pushing, opening a PR or deleting a worktree. Worktree and branch cleanup require separate authorization. Explicit abandonment of an unavailable worktree retains the last known state and ends the Task.
@@ -67,7 +69,7 @@ DONE or CANCELLED ends the Task and releases repository claims without automatic
 | Desktop pet | Show one selected Task's saved state and open its WebUI; provide task selection, custom appearances, animation controls, resizing and independent start/stop |
 | OpenSpec / Spec Kit | Optionally organize requirements, design and tasks; method-tool results do not decide Core state |
 
-The desktop pet uses local development packages for macOS arm64 or Windows 10/11 x64 and requires a configured Adapter to supply Core. Regular npm packages omit the macOS native app. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.
+The formal `@imotong/dev-flow` npm package includes the macOS arm64 and Windows 10/11 x64 desktop apps and default artwork. A configured Adapter supplies Core. Maintenance commands refresh the app copy while preserving settings and appearances. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.
 
 ## Product boundaries
 

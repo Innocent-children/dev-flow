@@ -345,12 +345,9 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 
 `PetMenuBarIcon` 负责以 AppKit 路径绘制 18 pt Dev Flow 流线标识，并提供模板图像；`PetMenu` 将图像安装到菜单栏按钮，macOS 负责外观着色。
 
-`scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源装配和 ad-hoc 签名。
-当前普通 npm 包清单与正式制备流程不包含原生应用；该脚本为本地统一入口包额外加入
-`runtime/darwin-arm64/DevFlowPet.app`。运行已构建的应用无需 Swift/Xcode，Core 由已配置的 Adapter 提供。
-安装辅助逻辑只在候选包实际包含应用且目标缺失时复制到 `$HOME/.dev-flow/pet/DevFlowPet.app`；已有目标直接保留。
-启动器优先选择该用户目录中的应用，其次选择当前统一入口包内应用。程序、应用副本和素材分别更新，流程见
-[桌面宠物指南](DESKTOP-PETS.md#更新程序与素材)。产品目录仍统一位于 `$HOME/.dev-flow`。
+`scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源和 ad-hoc 签名；`scripts/build-desktop-pet-windows.mjs` 负责 Windows 应用装配，本地开发包复用这些函数。`release/dev-flow/prepare.mjs` 按源码清单暂存文件，构建 macOS 应用并装配锁定的 Windows x64 Electron 分发文件。它将两个 runtime 目录装入同一包，核对应用版本与默认素材、保留执行权限，并在写入发布记录前逐文件比对解包结果。正式包不含本地 Adapter 归档；Core 由已配置的 Adapter 提供。
+
+包内有应用时，`plan.mjs` 为已确认的维护增加明确的宠物安装操作，即使无需更新 Adapter 也执行。`lifecycle.mjs` 在维护前停止宠物并执行该操作；平台安装器暂存并替换应用目录，保留设置与形象。启动优先使用用户目录副本，其次使用包内应用，详见[桌面宠物指南](DESKTOP-PETS.md#更新程序与素材)。
 
 用户形象保存到 `productRoot/pet/appearances/<id>`。`PetAppearanceStore` 负责受限文件读取、导入校验和
 替换；转换后的完整包在临时目录通过与加载时相同的校验后才安装。`AppearanceImages` 在像素解码前

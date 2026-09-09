@@ -50,7 +50,7 @@ npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接�
 | macOS arm64 本地开发包 | 应用构建、解包资源、ad-hoc 签名与执行权限；原生导入与选择、开关、缩放和待机活动；观察器、素材及播放定向检查 | 尚未确认最低系统运行、完整鼠标拖动自动化、完整 Codex/DeepSeek Task 会话、Developer ID 签名和公证 |
 | Windows 11 Intel x64 本地开发分发包 | Core/WebUI、包装配、原生窗口、图集导入、单实例与停止；隔离环境中的安装、重装和卸载 | Windows 10、AMD 实机、完整鼠标拖放及睡眠唤醒交互、完整 Codex/DeepSeek Task 会话和正式分发签名未验证 |
 
-桌面包面向 macOS arm64 和 Windows 10/11 x64。macOS 部署配置目标为 macOS 14；这是构建目标，不表示已经验证最低系统运行。常规 npm 包不包含 `DevFlowPet.app`，运行本地桌面包需要已配置的 Adapter 提供 Core。
+桌面包面向 macOS arm64 和 Windows 10/11 x64。macOS 部署配置目标为 macOS 14；这是构建目标，不表示已经验证最低系统运行。当前正式制备将两个平台的应用与默认素材加入 `@imotong/dev-flow` npm 包，运行时需要已配置的 Adapter 提供 Core。制备完成不等于已发布或已验证稳定安装包。
 
 历史桌面验证记录通过 Git 历史查询。Windows 的环境、步骤与结果见[Windows 报告](WINDOWS-ADAPTATION.md)。这些本地结果不扩大上方稳定支持表。安装和素材使用见[桌面宠物指南](DESKTOP-PETS.md)。
 

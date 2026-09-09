@@ -3,12 +3,13 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { gzipSync } from "node:zlib";
 
 import { stageDefaultArtwork, verifyDefaultArtwork } from "./desktop-pet-artwork.mjs";
+import { stageDesktopPackage } from "./desktop-pet-package.mjs";
 import { normalizeUstarArchive } from "./dev-flow-local.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -57,7 +58,34 @@ export async function verifyDesktopPet(application) {
   return assets;
 }
 
-// Builds a local development package. Publication owns Developer ID signing and notarization.
+// Compiles and signs the same application for local and formal packages.
+export async function buildMacDesktopApplication({ application, work, version }) {
+  if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("macOS arm64 build host required");
+  process.stdout.write("desktop-pet: compiling the macOS application\n");
+  // Release packages omit debugger paths so retries reproduce the same bytes.
+  const buildArgs = ["build", "--package-path", join(repositoryRoot, "packages", "desktop-pet", "macos"),
+    "--scratch-path", join(work, "swift"), "--configuration", "release", "--arch", "arm64",
+    "-debug-info-format", "none"];
+  await run("/usr/bin/xcrun", ["swift", ...buildArgs]);
+  const { stdout: binPath } = await run("/usr/bin/xcrun", ["swift", ...buildArgs, "--show-bin-path"]);
+  const contents = join(application, "Contents");
+  const resources = join(contents, "Resources");
+  await mkdir(join(contents, "MacOS"), { recursive: true });
+  await copyFile(join(binPath.trim(), "DevFlowPet"), join(contents, "MacOS", "DevFlowPet"));
+  await chmod(join(contents, "MacOS", "DevFlowPet"), 0o755);
+  await writeFile(join(contents, "Info.plist"), plist(version));
+  process.stdout.write("desktop-pet: assembling the default artwork and language resources\n");
+  await stageDefaultArtwork(resources);
+  for (const [locale, name] of [["en", "Dev Flow Desktop Pet"], ["zh-Hans", "Dev Flow 桌面宠物"]]) {
+    const directory = join(resources, `${locale}.lproj`);
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, "InfoPlist.strings"), `"CFBundleDisplayName" = "${name}";\n`);
+  }
+  await run("/usr/bin/codesign", ["--force", "--sign", "-", "--timestamp=none", application]);
+  return verifyDesktopPet(application);
+}
+
+// Builds a local macOS package using the shared application assembly.
 export async function buildDesktopPetPackage({ outputRoot }) {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new Error("building the desktop pet requires macOS arm64 with Swift/Xcode");
@@ -70,40 +98,10 @@ export async function buildDesktopPetPackage({ outputRoot }) {
   await mkdir(output, { recursive: true });
   const work = await mkdtemp(join(output, ".desktop-pet-build-"));
   try {
-    const source = join(repositoryRoot, "packages", "dev-flow");
-    const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
     const stage = join(work, "package");
-    for (const relative of manifest.files) {
-      await mkdir(dirname(join(stage, relative)), { recursive: true });
-      await copyFile(join(source, relative), join(stage, relative));
-    }
-    await chmod(join(stage, "bin", "dev-flow.mjs"), 0o755);
-    await copyFile(join(repositoryRoot, "LICENSE"), join(stage, "LICENSE"));
-    await writeFile(join(stage, "package.json"), `${JSON.stringify({
-      ...manifest, files: [...manifest.files, applicationRelativePath],
-    }, null, 2)}\n`);
-
-    process.stdout.write("desktop-pet: compiling the macOS application\n");
-    const buildArgs = ["build", "--package-path", join(repositoryRoot, "packages", "desktop-pet", "macos"),
-      "--scratch-path", join(work, "swift"), "--configuration", "release", "--arch", "arm64"];
-    await run("/usr/bin/xcrun", ["swift", ...buildArgs]);
-    const { stdout: binPath } = await run("/usr/bin/xcrun", ["swift", ...buildArgs, "--show-bin-path"]);
+    const manifest = await stageDesktopPackage(repositoryRoot, stage, [applicationRelativePath]);
     const application = join(stage, applicationRelativePath);
-    const contents = join(application, "Contents");
-    const resources = join(contents, "Resources");
-    await mkdir(join(contents, "MacOS"), { recursive: true });
-    await copyFile(join(binPath.trim(), "DevFlowPet"), join(contents, "MacOS", "DevFlowPet"));
-    await chmod(join(contents, "MacOS", "DevFlowPet"), 0o755);
-    await writeFile(join(contents, "Info.plist"), plist(manifest.version));
-    process.stdout.write("desktop-pet: assembling the default artwork and language resources\n");
-    await stageDefaultArtwork(resources);
-    for (const [locale, name] of [["en", "Dev Flow Desktop Pet"], ["zh-Hans", "Dev Flow 桌面宠物"]]) {
-      const directory = join(resources, `${locale}.lproj`);
-      await mkdir(directory, { recursive: true });
-      await writeFile(join(directory, "InfoPlist.strings"), `"CFBundleDisplayName" = "${name}";\n`);
-    }
-    await run("/usr/bin/codesign", ["--force", "--sign", "-", "--timestamp=none", application]);
-    await verifyDesktopPet(application);
+    await buildMacDesktopApplication({ application, work, version: manifest.version });
 
     process.stdout.write("desktop-pet: packing and checking the extracted application\n");
     // npm packing resets non-bin executable modes. The existing archive helper

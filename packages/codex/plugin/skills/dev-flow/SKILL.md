@@ -599,7 +599,10 @@ Before submitting, perform this order:
    and aggregate evidence IDs from the current Task. Before entering TEST, complete every planned work item.
    For Delivery, explicitly submit every acceptance criterion with its completed `work_item_ids` and
    passed current Test `evidence_ids`; each work item must map to that criterion in the current plan.
-   Keep comprehension confirmation separate from acceptance checks.
+   Keep comprehension confirmation separate from acceptance checks. When the node result exposes
+   `findings`, use an empty array for `problem_class="none"` and concrete nonempty findings for a
+   problem transition. TEST `failed_items` names failed checks/items; `findings` explains the defects
+   that justify the selected return transition. See the Test failure example in the node reference.
 4. Set `host="codex"`, copy only `task_id` and `action_id`, and select one returned `transition_id`.
 5. Provide `summary`, the transition's required or empty `reason`, and the exact `node_result`.
 6. Use the prepared artifact object. Put current-node artifacts in `artifacts.current` only when the live schema exposes it. Put
@@ -613,7 +616,9 @@ Before submitting, perform this order:
    the packaged reference, a previous node or an earlier tool call.
 9. Confirm `request_id`, revision, action kind, process identity, source cursor, repository binding,
    issuance workspace digests, payload envelope, destination and recovery fields are absent.
-10. Call `fresh_action.submission_tool` once.
+10. Call `fresh_action.submission_tool` once. Preserve and display the complete response before
+    extracting success-only fields, following [submission response handling](references/tool-results.md#submission-response-handling).
+    Check `ok` before updating the session Task cache; an error response has no `result`.
 
 Step 8 is the submission schema conformance gate. It is mandatory even for a one-line repository
 change. Do not call the submission tool until the complete draft passes it. If the live schema is
@@ -690,6 +695,10 @@ Task and saved Action identities, stop; do not rebuild them from partial output.
 
 Do not branch, decide, or interpret any recovery classification and do not guess from repository
 state. Core owns classification, effect proof, blocker eligibility, and mutation directives.
+
+A local exception while caching or formatting a complete response does not change its meaning.
+Read the retained original response first; a complete domain rejection follows its returned recovery
+instruction. Use uncertain-operation recovery only when the original result cannot be established.
 
 A complete structured `ok=false` result is an authoritative domain error, not transport
 uncertainty. Never convert or treat that domain error as missing or transport failure. Obey Core's

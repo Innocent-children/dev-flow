@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { validateTaskHandoff } from "../lib/task-handoff.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -244,6 +245,61 @@ test("ordinary and corrected submissions must pass the live-schema conformance g
   const example = JSON.parse(block.match(/^```json\n([\s\S]*)\n```$/u)?.[1]);
   assert.equal(Array.isArray(example.baseline.complexity_justification), true);
   assert.deepEqual(example.baseline.complexity_justification, ["No new abstraction is required."]);
+});
+
+test("submission response example preserves errors and caches only successful Tasks", async () => {
+  const reference = await readFile(join(skillRoot, "references", "tool-results.md"), "utf8");
+  const code = marked(reference, "submission-response-example").match(/^```js\n([\s\S]*)\n```$/u)?.[1];
+  assert.ok(code);
+  const previousTask = { task_id: "task-example", revision: 5, current_cursor: "TEST" };
+  const rejection = {
+    ok: false, request_id: "request-example", tool: "dev_flow_submit_test",
+    error: { code: "TRANSITION_NOT_ALLOWED", guard: {
+      guard_id: "implementation_failure_identified",
+      failures: [{ path: "node_result.findings", rule: "problem_findings_present" }],
+    } },
+    recovery: { retry_safe: false, action: "read_next_action", message: "Read the complete current transition set." },
+  };
+  const success = { ok: true, result: { ...previousTask, revision: 6, current_cursor: "IMPLEMENT", current_action: { action_id: "next-action" } } };
+  const terminal = { ok: true, result: { ...previousTask, revision: 6, current_cursor: "DONE", current_action: null } };
+  for (const envelope of [rejection, success, terminal]) {
+    for (const structured of [true, false]) {
+      const response = { content: [{ type: "text", text: JSON.stringify(envelope) }], isError: !envelope.ok };
+      if (structured) response.structuredContent = envelope;
+      const cache = new Map([["task", previousTask]]);
+      const output = [];
+      const stopped = new Error("exec exit");
+      try {
+        runInNewContext(code, {
+          submission_response: response,
+          store(key, value) {
+            // Model the exec boundary that rejected undefined in the reported failure.
+            cache.set(key, JSON.parse(JSON.stringify(value)));
+          },
+          text(value) { output.push(JSON.parse(JSON.stringify(value))); },
+          exit() { throw stopped; },
+        });
+      } catch (error) {
+        assert.equal(error, stopped);
+        assert.equal(envelope.ok, false);
+      }
+      assert.deepEqual(cache.get("submission_response"), response);
+      assert.deepEqual(output, [envelope]);
+      assert.deepEqual(cache.get("task"), envelope.ok ? envelope.result : previousTask);
+    }
+  }
+
+  for (const envelope of [{ ok: true }, { ok: true, result: null }, {}]) {
+    const cache = new Map([["task", previousTask]]);
+    assert.throws(() => runInNewContext(code, {
+      submission_response: { structuredContent: envelope },
+      store(key, value) { cache.set(key, JSON.parse(JSON.stringify(value))); },
+      text() {},
+      exit() { assert.fail("Incomplete success must not take the domain-error path"); },
+    }), /Incomplete submission response/u);
+    assert.deepEqual(cache.get("task"), previousTask);
+    assert.deepEqual(cache.get("submission_response"), { structuredContent: envelope });
+  }
 });
 
 test("relocation, abandonment, and cleanup keep Core and Host responsibilities separate", async () => {

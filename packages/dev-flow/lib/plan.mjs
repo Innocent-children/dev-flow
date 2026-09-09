@@ -10,6 +10,7 @@ export function createLifecyclePlan(request, observed, {
   platformKey = "darwin-arm64",
   recoverableCleanupDescription = "Move confirmed data to macOS Trash",
   replaceLocalPackages = false,
+  installDesktopPet = false,
 } = {}) {
   if (request.operation === "factory-reset" && request.host !== "all") {
     throw planConflict("factory reset requires --host all because Task data is shared");
@@ -39,6 +40,10 @@ export function createLifecyclePlan(request, observed, {
     }
   } else if (request.operation === "uninstall") {
     for (const target of targets) if (requiresUninstall(target)) actions.push(actionFor(target, "uninstall", null));
+  }
+
+  if (installDesktopPet && (versionedOperations.has(request.operation) || request.reinstallAfterReset)) {
+    actions.push({ actionId: "pet.install", owner: "manager", operation: "install_pet", host: "manager", profile: null, targetVersion: null });
   }
 
   const observedIdentity = {
@@ -137,6 +142,7 @@ function impactsFor(request, targets, observed, actions, recoverableCleanupDescr
   } else {
     impacts.push("Preserve Dev Flow user configuration and Task data");
   }
+  if (actions.some(action => action.operation === "install_pet")) impacts.push("Update desktop pet application; preserve settings and appearances");
   return impacts;
 }
 

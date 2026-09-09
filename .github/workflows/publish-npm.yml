@@ -91,7 +91,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           gh auth setup-git
 
-      - name: Publish selected npm product
+      # Dev Flow preparation compiles Swift and downloads the locked Windows x64
+      # Electron runtime before checking the complete two-platform tarball.
+      - name: Build, verify and publish selected npm product
         shell: bash
         env:
           GH_TOKEN: ${{ steps.release-app-token.outputs.token }}

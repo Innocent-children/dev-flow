@@ -44,7 +44,7 @@ Essas instruções têm prioridade sobre a preferência do plugin para o índice
   verificações restantes e a decisão atual sem reconstruí-las a partir da conversa.
 - **Somente resultados atuais são reutilizados.** Mudanças no pedido, no plano, na implementação ou no
   repositório invalidam verificações antigas; o desenvolvedor revisa o resultado antes da entrega.
-- **Conclusão e recuperação verificáveis.** O Core exige a conclusão de todos os itens do plano e vincula cada critério de aceitação a verificações válidas para o estado atual. Após uma interrupção, a WebUI recupera os envios salvos no Core.
+- **Conclusão e recuperação verificáveis.** O Core exige a conclusão de todos os itens do plano e vincula cada critério de aceitação a verificações válidas para o estado atual. Após uma interrupção, a WebUI recupera os envios salvos no Core. O Codex preserva as respostas completas de rejeição e segue as instruções do Core antes de continuar.
 
 ## Início rápido
 
@@ -124,9 +124,9 @@ não precisam guardar o progresso, usar Codex ou DeepSeek diretamente costuma se
 
 ## Acesso às tarefas pelo desktop
 
-Os pacotes de desenvolvimento locais para macOS arm64 e Windows 10/11 x64 oferecem um mascote de desktop. Ele mostra o estado salvo de um Task selecionado e abre sua WebUI; não indica atividade do Host em tempo real nem porcentagem de conclusão. Permite selecionar tarefas, importar aparências, controlar animações, ajustar o tamanho e iniciar ou encerrar separadamente. Um Adapter do Codex ou DeepSeek instalado e configurado fornece o Core.
+O pacote npm `@imotong/dev-flow` inclui o mascote de desktop para macOS arm64 e Windows 10/11 x64, com nove ações e 312 quadros SVG padrão. Ele mostra o estado salvo da Task selecionada e abre sua WebUI; permite selecionar tarefas, importar aparências, controlar animações, ajustar o tamanho e iniciar ou parar separadamente. Um Adapter Codex ou DeepSeek configurado fornece o Core.
 
-Os pacotes npm comuns não incluem o aplicativo nativo do macOS. Consulte o [guia do mascote](docs/DESKTOP-PETS_en.md) para obter o pacote local, compilar, instalar, atualizar e usar os recursos gráficos. As verificações locais não ampliam o [suporte estável](docs/SUPPORT-MATRIX_en.md).
+Após instalar o pacote npm, execute `dev-flow install` para configurar um Adapter. `install`, `upgrade`, `repair` e `reinstall` atualizam a cópia do aplicativo e preservam configurações e aparências. Consulte o [guia do mascote](docs/DESKTOP-PETS_en.md). O macOS usa assinatura ad-hoc; Developer ID, notarização e assinatura de distribuição do Windows ainda não foram verificados. As verificações locais não ampliam o [suporte estável](docs/SUPPORT-MATRIX_en.md).
 
 ```bash
 dev-flow pet start

@@ -84,8 +84,7 @@ Lifecycle exit codes: `0` success or no changes, `1` check/execution failure, `2
 
 ## Desktop pet (macOS arm64 and Windows x64)
 
-Running the pet requires macOS arm64 or Windows 10/11 x64, a local development package containing the corresponding desktop app, and at least one installed and configured Codex or DeepSeek Adapter.
-Regular npm file lists omit `DevFlowPet.app`; see the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md#local-build-and-installation) for building, installation, and updating an existing app.
+The npm package includes the macOS arm64 and Windows 10/11 x64 desktop applications and default artwork (nine actions, 312 SVG frames). A configured Codex or DeepSeek Adapter supplies Core. After updating this npm package, run `dev-flow repair` for the configured Host to refresh the installed app copy. `install`, `upgrade`, `repair` and `reinstall` update the app even when the Adapter needs no change, preserving settings and appearances. macOS uses ad-hoc signing; Developer ID, notarization and Windows distribution signing remain unverified. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md).
 
 | Command | Behavior |
 | --- | --- |
@@ -103,3 +102,7 @@ dev-flow pet stop
 The menu provides task and appearance selection, import, Animations, Idle activities, hide, and quit. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md)
 for task selection, the scope of nine-clip support, triggers, and troubleshooting. Stop the pet before updating or removing its current Core Adapter or
 unified-entry package; maintenance aborts if shutdown fails. Confirmed factory-reset clears `productRoot/pet`; ordinary quit and uninstall preserve user artwork and settings.
+
+## Build verification
+
+Maintainers use `node release/dev-flow/prepare.mjs --output "/absolute/pet-release"` on macOS arm64 with the repository toolchain and Swift >=6.0. It builds and verifies the two-platform tarball without publishing; use an output directory outside the repository.

@@ -110,8 +110,7 @@ dev-flow status --host all
 
 ## 桌面宠物（macOS arm64 与 Windows x64）
 
-运行需要 macOS arm64 或 Windows 10/11 x64、包含对应桌面应用的本地开发包，以及至少一个已安装并配置的 Codex 或 DeepSeek Adapter。
-当前常规 npm 清单不包含 `DevFlowPet.app`；构建、安装和已有应用更新见[桌面宠物指南](DESKTOP-PETS.md#本地构建与安装)。
+安装 `@imotong/dev-flow@latest` 获取包内 macOS arm64 与 Windows 10/11 x64 应用，并配置至少一个 Codex 或 DeepSeek Adapter 提供 Core。`install`、`upgrade`、`repair`、`reinstall` 更新应用副本并保留设置和形象，即使 Adapter 已是目标版本也执行。详见[桌面宠物指南](DESKTOP-PETS.md)。
 
 | 命令 | 行为 |
 | --- | --- |
@@ -497,6 +496,14 @@ stdin: {"launch_id":"<saved launch ID>","repository_keys":["api","web"],"primary
 
 每个工具提供输入和结果 Schema。成功结果的 `ok=true`，数据在 `result`；失败结果通过 `error` 和 `recovery` 描述原因及允许的处理方式。`structuredContent` 与文本内容中的 JSON 相同，读取完整结果一次即可。
 
+Codex 在提取 `result` 前保留完整响应并检查 `ok`。`ok=false` 响应没有成功结果，不能将其
+`result` 传给会话 `store`：`undefined` 会导致本地序列化异常并遮住原始错误。完整拒绝仍按
+`error` 和 `recovery` 处理；只有原始响应无法完整取得时才进入不确定操作恢复。
+
+TEST 选择 `tests_failed_implementation` 时，`problem_class="implementation_failure"` 且
+`findings` 必须非空。`failed_items` 列出失败检查或项目，`findings` 说明需要退回实现的具体缺陷；
+其他字段中的失败描述不能替代它。暴露 `findings` 的节点结果在 `problem_class="none"` 时使用空数组。
+
 | 工具 | Task / Action 位置 |
 | --- | --- |
 | `dev_flow_open_task`、`dev_flow_get_task` | `result.task`；先处理同层的 `result.recovery_assessment` |
@@ -527,3 +534,11 @@ Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.
 ## 已有检查的验证额度
 
 增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。
+
+### 正式桌面包制备
+
+```bash
+node release/dev-flow/prepare.mjs --output "/absolute/pet-release"
+```
+
+使用仓库工具链与 Swift >=6.0，在 macOS arm64 执行。此命令装配两个平台应用并验证最终 tarball，不执行发布；输出目录必须在仓库外。

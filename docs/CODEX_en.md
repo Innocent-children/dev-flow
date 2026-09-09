@@ -159,6 +159,8 @@ The desktop pet uses a local development package for macOS arm64 or Windows 10/1
 
 Every planned work item must be complete before testing. Delivery links each acceptance criterion to corresponding completed work and passed current checks. Developer comprehension remains a separate confirmation. If a submission result is uncertain, the Adapter reads the retained Core operation before recovery or retry. See the [Command Reference](COMMANDS_en.md) for integration details.
 
+Codex retains the complete tool response before checking `ok` and reading success data; explicit rejections follow the returned error and handling instruction, and local caching or presentation errors do not change the original response.
+
 ## File submission
 
 The Adapter collects and classifies changed files before submitting node results. Missing files receive a bounded correction instruction; workspace or history failures follow Core recovery. These preparation steps are performed by Codex. See [artifact collection and submission](ARTIFACTS_en.md).

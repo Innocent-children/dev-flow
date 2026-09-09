@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 import { execFile as execFileCallback } from "node:child_process";
-import { createHash } from "node:crypto";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { basename, isAbsolute, join, resolve } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { prepareDevFlow } from "../release/dev-flow/prepare.mjs";
 import { publishRelease } from "../release/publish.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -76,22 +76,13 @@ async function alignVersion(targetVersion) {
 
 async function prepare(selection) {
   const sourceCommit = await run("git", ["rev-parse", "HEAD"]);
-  await mkdir(selection.output, { recursive: true, mode: 0o700 });
-  await run("pnpm", ["--dir", "packages/dev-flow", "pack", "--pack-destination", selection.output]);
-  const tarball = join(selection.output, `imotong-dev-flow-${selection.version}.tgz`);
-  if (!(await stat(tarball)).isFile()) throw new Error("dev-flow tarball is missing");
-  const sha256 = createHash("sha256").update(await readFile(tarball)).digest("hex");
-  await writeFile(join(selection.output, "SHA256SUMS"), `${sha256}  ${basename(tarball)}\n`);
-  await writeFile(join(selection.output, "release-manifest.json"), `${JSON.stringify({
-    release: { product: "dev-flow", version: selection.version, source_commit: sourceCommit },
-    artifacts: [{ kind: "npm_tarball", relative_path: basename(tarball), sha256 }],
-  }, null, 2)}\n`);
+  await prepareDevFlow({ outputRoot: selection.output, sourceCommit });
   return sourceCommit;
 }
 
 async function main(selection) {
   await ensureCleanSynchronizedMain();
-  await run(process.execPath, ["--test", "release/publish.test.mjs", "packages/dev-flow/tests/package-contract.test.mjs"]);
+  await run(process.execPath, ["--test", "release/publish.test.mjs", "packages/dev-flow/tests/package-contract.test.mjs", "release/dev-flow/prepare.test.mjs"]);
   await alignVersion(selection.version);
   const sourceCommit = await prepare(selection);
   return publishRelease({ product: "dev-flow", version: selection.version, directory: selection.output, sourceCommit });

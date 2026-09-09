@@ -4,7 +4,7 @@
 版本；工作流使用固定发布检查。npm 包 `@imotong/dev-flow` 把
 `Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
 Trusted Publisher；工作流通过 OIDC 认证，不使用长期 npm 发布 token。
-`packages/dev-flow/package.json` 必须已是目标版本；失败后可用相同输入重跑，Publisher 会回读远端状态。
+固定检查通过后，入口对齐 `packages/dev-flow/package.json` 到目标版本，再构建并校验完整桌面包；失败后可用相同输入重跑，Publisher 会回读远端状态。
 
 ```bash
 pnpm run release:dev-flow -- --version "<VERSION>" --output /absolute/output \
@@ -17,15 +17,22 @@ uploads the tarball and checksums, and then finalizes the Release. Rerun with th
 Registry tarball read-back retries only propagation responses such as `ETARGET` and `E404` for up to
 ten minutes; authentication failures and byte mismatches stop immediately.
 
-## Desktop pet development artifact
+## Desktop package preparation / 桌面包制备
 
-`node scripts/build-desktop-pet.mjs --output <absolute-directory>` builds a local desktop pet package, signs the app ad hoc, and adds
-`DevFlowPet.app` to that package's file list. The regular source package list and this release preparation omit the native app.
-This build command neither publishes nor changes the release command. Developer ID signing, notarization, and minimum-system operation
-are outside the verified local artifact scope. Installation and existing-app updates are documented in the
-[desktop pet guide](../../docs/DESKTOP-PETS_en.md#local-build-and-installation).
+```bash
+node release/dev-flow/prepare.mjs --output "/absolute/pet-release"
+```
 
-`node scripts/build-desktop-pet.mjs --output <absolute-directory>` 构建本地桌面宠物包，使用 ad-hoc 签名，并将
-`DevFlowPet.app` 加入该包的文件清单。常规源码包清单与本正式制备流程不包含原生应用。该构建命令不发布、
-也不改变发布命令；Developer ID、公证和最低系统实际运行不在已验证的本地制品范围内。
-安装及已有应用更新见[桌面宠物指南](../../docs/DESKTOP-PETS.md#本地构建与安装)。
+Preparation requires macOS arm64, the repository Node/npm toolchain and Swift >=6.0. It compiles and ad-hoc signs the macOS app, installs locked Windows build dependencies in an external temporary directory without lifecycle scripts, and downloads the exact Windows x64 Electron distribution. It reuses platform assembly to include both applications and nine default actions with 312 SVG frames in one npm tarball. It checks app versions, native architectures, runtime files, artwork and every extracted file before writing `SHA256SUMS` and `release-manifest.json`. The formal package has no local Adapter archives and relies on independently configured Adapters for Core. Missing or altered files fail preparation before publication. The standalone prepare command publishes nothing.
+
+制备要求 macOS arm64、仓库规定的 Node/npm 工具链与 Swift >=6.0。它编译并以 ad-hoc 方式签名 macOS 应用，在仓库外临时目录中安装锁定的 Windows 构建依赖（禁用生命周期脚本），并下载精确版本的 Windows x64 Electron。两个平台复用既有应用装配，将应用和九类动作、312 个 SVG 帧装入同一 npm tarball。写入 `SHA256SUMS` 和 `release-manifest.json` 前，核对应用版本、架构、运行时文件、素材及全部解包文件。正式包不携带本地 Adapter 归档，Core 由独立配置的 Adapter 提供。文件缺失或内容不一致会在发布前阻止制备。单独执行制备命令不发布。
+
+The release entry runs package, preparation and publisher contract checks before the version commit, then awaits this preparation before calling the publisher. The existing `publish-npm` macOS job performs the same flow. Windows assembly on macOS is a content check, not a native Windows execution test. Developer ID signing, notarization, minimum-macOS execution and Windows distribution signing remain unverified. See the [desktop pet guide](../../docs/DESKTOP-PETS_en.md).
+
+Swift release builds omit debug information and its temporary paths so repeated preparation from the same source and toolchain can reproduce the tarball bytes. The npm app carries no debugger symbols.
+
+发布入口在版本提交前运行 package、制备和 publisher 合同检查，然后等待完整制备成功后调用 publisher。现有 `publish-npm` macOS job 使用同一流程。macOS 上装配 Windows 应用属于内容检查，不代表已执行 Windows 原生测试。Developer ID、公证、最低 macOS 实际运行与 Windows 正式分发签名仍未验证，详见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
+
+Swift 发布构建关闭调试信息及其中的临时路径，使同一源码与工具链的重复制备能够生成字节一致的 tarball。npm 应用不携带调试符号。
+
+Local development commands `node scripts/build-desktop-pet.mjs --output <absolute-directory>` and `node scripts/build-desktop-pet-windows.mjs --output <absolute-directory>` retain their platform-specific packages using the same application assembly. 本地开发命令保留各自平台的开发包入口，并复用相同的应用装配。

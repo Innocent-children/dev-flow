@@ -52,6 +52,7 @@ const chinese = {
     failed: "失败",
   },
   pet: {
+    install: "更新桌面宠物程序",
     menuStart: "开启桌面宠物",
     menuStop: "关闭桌面宠物",
     started: "✓ 桌面宠物已开启",
@@ -110,6 +111,7 @@ const english = {
     "confirmation_required", "failed",
   ].map((status) => [status, status])),
   pet: {
+    install: "Update desktop pet application",
     menuStart: "Start the desktop pet",
     menuStop: "Stop the desktop pet",
     started: "✓ Desktop pet started",
@@ -217,6 +219,7 @@ export function renderProgress(event, { language = resolveLanguage() } = {}) {
 }
 
 function actionLabel(action, messages) {
+  if (action.operation === "install_pet") return messages.pet.install;
   const host = messages.hosts[action.host] ?? action.host;
   const profile = action.profile ? ` Profile ${action.profile}` : "";
   return `${messages.operations[action.operation] ?? action.operation} ${host}${profile}`;
@@ -230,6 +233,7 @@ function stepLabel(stepId, messages) {
 function translateImpact(impact, language, messages) {
   if (language !== "zh-CN") return impact;
   const fixed = {
+    "Update desktop pet application; preserve settings and appearances": "更新桌面宠物程序，保留设置与形象",
     "Read Host and Adapter state only": "仅读取 Host 和 Adapter 状态",
     "Remove every installed Adapter before shared data cleanup": "在清理共享数据前移除所有已安装的 Adapter",
     "Clear Dev Flow user configuration": "清理 Dev Flow 用户配置",

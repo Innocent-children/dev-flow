@@ -42,7 +42,7 @@ over the plugin's code-index preference.
   decision instead of rebuilding them from the conversation.
 - **Results stay current.** Changes to the request, plan, implementation, or repository retire stale
   checks; the developer reviews the actual result before delivery.
-- **Completion and recovery stay verifiable.** Core requires all planned work items and links every acceptance criterion to current checks. WebUI recovers retained submissions from Core after an interruption.
+- **Completion and recovery stay verifiable.** Core requires all planned work items and links every acceptance criterion to current checks. WebUI recovers retained submissions from Core after an interruption. Codex preserves complete rejection responses and follows Core’s instructions before continuing.
 
 ## Quick start
 
@@ -120,9 +120,9 @@ progress, using Codex or DeepSeek directly is usually simpler.
 
 ## Desktop task entry
 
-Local development packages for macOS arm64 and Windows 10/11 x64 provide a desktop pet. It shows one selected Task’s saved state and opens its WebUI; it does not indicate live Host activity or completion percentages. It supports task selection, custom appearances, animation controls, resizing and independent start/stop. An installed, configured Codex or DeepSeek Adapter supplies Core.
+The `@imotong/dev-flow` npm package includes the desktop pet for macOS arm64 and Windows 10/11 x64, with nine default actions and 312 SVG frames. It shows one selected Task’s saved state and opens its WebUI; it supports task selection, custom appearances, animation controls, resizing and independent start/stop. A configured Codex or DeepSeek Adapter supplies Core.
 
-Regular npm packages do not include the macOS native app. Obtain the appropriate local package and follow the [desktop pet guide](docs/DESKTOP-PETS_en.md) for building, installation, updates and artwork. Local checks do not expand [stable support](docs/SUPPORT-MATRIX_en.md).
+After installing the npm package, run `dev-flow install` to configure an Adapter. `install`, `upgrade`, `repair` and `reinstall` refresh the app copy while preserving settings and appearances. See the [desktop pet guide](docs/DESKTOP-PETS_en.md). macOS uses ad-hoc signing; Developer ID, notarization and Windows distribution signing remain unverified. Local checks do not expand [stable support](docs/SUPPORT-MATRIX_en.md).
 
 ```bash
 dev-flow pet start

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { desktopSourceFiles } from "./desktop-pet-package.mjs";
 
 import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -76,13 +77,15 @@ async function buildPackages({ root, temporaryRoot, run }) {
 export async function stageAndPack(product, { root, stageRoot, outputRoot, coreArtifacts, run }) {
   const packageRoot = join(root, "packages", product);
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  if (product === "dev-flow") manifest.files = desktopSourceFiles(manifest);
   const productStageRoot = join(stageRoot, product);
   const destination = join(productStageRoot, "package");
   const files = [...new Set(["package.json", "README.md", ...manifest.files])];
   for (const relativePath of files) {
     const target = join(destination, relativePath);
     await mkdir(dirname(target), { recursive: true });
-    if (relativePath === "LICENSE") await copyFile(join(root, "LICENSE"), target);
+    if (relativePath === "package.json") await writeFile(target, `${JSON.stringify(manifest, null, 2)}\n`);
+    else if (relativePath === "LICENSE") await copyFile(join(root, "LICENSE"), target);
     else if (coreArtifacts?.has(relativePath)) {
       const runtime = coreArtifacts.get(relativePath);
       await copyExecutable(runtime.path, target, {

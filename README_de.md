@@ -44,7 +44,7 @@ Diese Anweisungen haben Vorrang vor der Code-Index-Einstellung des Plugins.
   aktuelle Entscheidung wieder her, statt sie aus dem Gespräch zu rekonstruieren.
 - **Nur aktuelle Ergebnisse gelten weiter.** Änderungen an Anfrage, Plan, Implementierung oder Repository
   machen alte Prüfungen ungültig; vor der Auslieferung prüft der Entwickler das tatsächliche Ergebnis.
-- **Abschluss und Wiederaufnahme bleiben nachvollziehbar.** Core verlangt den Abschluss aller geplanten Arbeitsschritte und verknüpft jedes Abnahmekriterium mit aktuell gültigen Prüfungen. Nach einer Unterbrechung stellt WebUI die in Core gespeicherten Einreichungen wieder her.
+- **Abschluss und Wiederaufnahme bleiben nachvollziehbar.** Core verlangt den Abschluss aller geplanten Arbeitsschritte und verknüpft jedes Abnahmekriterium mit aktuell gültigen Prüfungen. Nach einer Unterbrechung stellt WebUI die in Core gespeicherten Einreichungen wieder her. Codex bewahrt vollständige Ablehnungsantworten auf und folgt den Anweisungen von Core, bevor es fortfährt.
 
 ## Schnellstart
 
@@ -123,9 +123,9 @@ Fortschritt ist Codex oder DeepSeek allein meist einfacher.
 
 ## Aufgaben vom Desktop aus öffnen
 
-Lokale Entwicklungspakete für macOS arm64 und Windows 10/11 x64 bieten ein Desktop-Maskottchen. Es zeigt den gespeicherten Zustand eines ausgewählten Tasks und öffnet dessen WebUI; es zeigt weder die Live-Aktivität des Hosts noch einen Fertigstellungsgrad. Unterstützt werden Aufgabenauswahl, eigene Erscheinungsbilder, Animationseinstellungen, Größenänderung sowie separates Starten und Beenden. Core wird von einem installierten und konfigurierten Codex- oder DeepSeek-Adapter bereitgestellt.
+Das npm-Paket `@imotong/dev-flow` enthält das Desktop-Haustier für macOS arm64 und Windows 10/11 x64 mit neun Standardaktionen und 312 SVG-Einzelbildern. Es zeigt den gespeicherten Zustand der ausgewählten Task und öffnet deren WebUI. Es unterstützt Task-Auswahl, eigene Erscheinungsbilder, Animationssteuerung, Größenänderung sowie separates Starten und Stoppen. Ein eingerichteter Codex- oder DeepSeek-Adapter stellt Core bereit.
 
-Reguläre npm-Pakete enthalten die native macOS-App nicht. Bezug des lokalen Pakets, Bau, Installation, Updates und Grafiken beschreibt die [Desktop-Anleitung](docs/DESKTOP-PETS_en.md). Lokale Prüfungen erweitern den [stabilen Support](docs/SUPPORT-MATRIX_en.md) nicht.
+Nach der npm-Installation richtet `dev-flow install` einen Adapter ein. `install`, `upgrade`, `repair` und `reinstall` aktualisieren die Anwendungskopie und erhalten Einstellungen und Erscheinungsbilder. Siehe die [Haustieranleitung](docs/DESKTOP-PETS_en.md). macOS verwendet eine Ad-hoc-Signatur; Developer ID, Beglaubigung und Windows-Verteilungssignaturen sind noch nicht geprüft. Lokale Prüfungen erweitern den [stabilen Support](docs/SUPPORT-MATRIX_en.md) nicht.
 
 ```bash
 dev-flow pet start

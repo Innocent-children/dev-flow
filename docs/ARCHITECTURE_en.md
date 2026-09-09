@@ -380,13 +380,9 @@ Core data, the process graph, and MCP tools retain their owners.
 
 `PetMenuBarIcon` draws the 18 pt Dev Flow mark using AppKit paths and supplies a template image. `PetMenu` installs it on the menu bar button, and macOS applies the appearance color.
 
-`scripts/build-desktop-pet.mjs` compiles the macOS executable, assembles resources, and signs ad hoc.
-Regular npm package lists and release preparation currently omit the native app. This script adds
-`runtime/darwin-arm64/DevFlowPet.app` to the local unified-entry package. Running a built app requires neither Swift nor Xcode;
-a configured Adapter provides Core. Installation helpers copy the app to `$HOME/.dev-flow/pet/DevFlowPet.app` only when
-a candidate package contains it and the target is missing; existing targets are preserved. Startup prefers that user-directory app,
-then the current unified-entry package's app. The program, installed app copy, and artwork update separately; see the
-[desktop pet guide](DESKTOP-PETS_en.md#updating-the-program-and-artwork). Product files remain under `$HOME/.dev-flow`.
+`scripts/build-desktop-pet.mjs` owns macOS compilation, resources and ad-hoc signing; `scripts/build-desktop-pet-windows.mjs` owns Windows application assembly. Local development packages reuse those functions. `release/dev-flow/prepare.mjs` stages the source file list, builds the macOS application and assembles the locked Windows x64 Electron distribution. It packs both runtime directories, checks application versions and default artwork, preserves executable permissions and compares every extracted file before writing release records. The formal package contains no local Adapter archives; configured Adapters provide Core.
+
+`plan.mjs` adds an explicit pet installation action for confirmed maintenance when the package provides an app, including when no Adapter update is needed. `lifecycle.mjs` stops the pet before maintenance and executes the action. Platform installers stage and replace the app directory while retaining settings and appearances. Startup prefers the user-directory app, then the bundled app. See the [desktop pet guide](DESKTOP-PETS_en.md#updating-the-program-and-artwork).
 
 User appearances live in `productRoot/pet/appearances/<id>`. `PetAppearanceStore` owns bounded file
 reads, validation, and replacement. Complete converted packs pass the same checks as loading in a

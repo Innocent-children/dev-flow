@@ -114,8 +114,7 @@ Native Host commands remain available for diagnostic recovery.
 
 ## Desktop pet (macOS arm64 and Windows x64)
 
-Running the pet requires macOS arm64 or Windows 10/11 x64, a local development package containing the corresponding desktop app, and at least one installed and configured Codex or DeepSeek Adapter.
-Regular npm file lists omit `DevFlowPet.app`; see the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) for building, installation, and updating an existing app.
+Install `@imotong/dev-flow@latest` for the bundled macOS arm64 and Windows 10/11 x64 desktop apps. Configure at least one Codex or DeepSeek Adapter to provide Core. `install`, `upgrade`, `repair` and `reinstall` refresh the application copy while preserving settings and appearances, even when the Adapter is already current. See the [desktop pet guide](DESKTOP-PETS_en.md).
 
 | Command | Behavior |
 | --- | --- |
@@ -532,6 +531,17 @@ stdin: {"launch_id":"<saved launch ID>","repository_keys":["api","web"],"primary
 
 Each tool exposes input and result Schemas. Successful envelopes have `ok=true` and data in `result`; failures use `error` and `recovery` to describe the cause and permitted handling. `structuredContent` and text content contain the same JSON; read one complete result.
 
+Codex retains the complete response and checks `ok` before extracting `result`. An `ok=false`
+response has no success data; passing its `result` to session `store` sends `undefined`, causing a
+local serialization error that masks the original rejection. Complete rejections still follow
+`error` and `recovery`; uncertain-operation recovery applies only when the original response cannot
+be obtained completely.
+
+TEST with `tests_failed_implementation` requires `problem_class="implementation_failure"` and
+nonempty `findings`. `failed_items` lists failed checks or items; `findings` describes the defects
+requiring a return to implementation. Failure descriptions in other fields do not replace it.
+Node results exposing `findings` use an empty array when `problem_class="none"`.
+
 | Tools | Task / Action location |
 | --- | --- |
 | `dev_flow_open_task`, `dev_flow_get_task` | `result.task`; handle sibling `result.recovery_assessment` first |
@@ -563,3 +573,11 @@ Worktree creation first confirms a local or remote source, base and target branc
 ## Verification capacity for existing checks
 
 When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.
+
+### Formal desktop package preparation
+
+```bash
+node release/dev-flow/prepare.mjs --output "/absolute/pet-release"
+```
+
+Run on macOS arm64 with the repository toolchain and Swift >=6.0. This builds both application payloads and verifies the final tarball without publishing; output must be outside the repository.

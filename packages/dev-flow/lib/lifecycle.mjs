@@ -12,7 +12,7 @@ import {
   resolveManagerPaths,
   writeOwnedJSON,
 } from "./ownership.mjs";
-import { supportsDesktopPet, loadPetInstaller, loadMaintenancePlatform } from "./platform.mjs";
+import { supportsDesktopPet, loadPetInstaller, loadPetPlatform, loadMaintenancePlatform } from "./platform.mjs";
 
 import { runPet, stopPetForCore } from "./pet.mjs";
 import { createLifecyclePlan } from "./plan.mjs";
@@ -116,6 +116,9 @@ export async function runLifecycle(request, dependencies = {}) {
     dependencies.onProgress?.({ type: "phase", message: (dependencies.language ?? resolveLanguage(environment)) === "zh-CN" ? "确认目标版本" : "Resolving target versions" });
   }
   const targetVersions = await resolveTargetVersions(request, observed, { codex, deepseek, localPackages });
+  const petPlatform = usesArtifacts && supportsDesktopPet(paths.platform, paths.arch)
+    ? await loadPetPlatform(paths.platform, paths.arch) : null;
+  const installDesktopPet = petPlatform !== null && await petPlatform.isBundledPetApplicationAvailable(petPlatform.bundledPetExecutable(packageRoot));
   const plan = createLifecyclePlan(request, observed, {
     targetVersions,
     planId: dependencies.planId,
@@ -124,6 +127,7 @@ export async function runLifecycle(request, dependencies = {}) {
     platformKey: paths.runtimeKey,
     recoverableCleanupDescription: paths.recoverableCleanupDescription,
     replaceLocalPackages: localPackages !== null && localPackages !== undefined,
+    installDesktopPet,
   });
 
   if (["status", "doctor"].includes(request.operation)) {
@@ -186,7 +190,7 @@ export async function runLifecycle(request, dependencies = {}) {
     }
   }
   dependencies.onProgress?.({ type: "phase", message: (dependencies.language ?? resolveLanguage(environment)) === "zh-CN" ? "准备维护，停止受影响的桌面进程" : "Preparing maintenance and stopping affected desktop processes" });
-  await stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies, replaceDesktop: Boolean(packagedLocalPackages) });
+  await stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies, replaceDesktop: installDesktopPet });
 
   let run = await (dependencies.createRun ?? createRun)(paths, plan, { now: dependencies.now, operationId: dependencies.operationId });
   const completedActions = [];
@@ -217,6 +221,14 @@ export async function runLifecycle(request, dependencies = {}) {
           onProgress: (stepId) => dependencies.onProgress?.({ type: "step_complete", action, stepId }),
           onStepStart: (stepId) => dependencies.onProgress?.({ type: "step_start", action, stepId }),
         });
+      } else if (action.operation === "install_pet") {
+        const installer = dependencies.petInstaller ?? await loadPetInstaller(paths.platform, paths.arch);
+        const installation = await installer.ensurePetInstalled({
+          petDirectory: paths.petDirectory, sourcePackageRoots: [packageRoot],
+          enforcePrivateModes: paths.enforcePrivateModes, replaceExisting: true,
+        });
+        if (!installation.installed) throw new Error("the package did not install its desktop application");
+        effect = { changed: installation.newlyInstalled === true };
       } else if (action.operation === "cleanup") {
         effect = await executeCleanup(request, observed, paths, dependencies);
         trashRoot = effect.trashRoot ?? null;
@@ -236,33 +248,6 @@ export async function runLifecycle(request, dependencies = {}) {
         trash_root: trashRoot,
         next_step: "continue",
       }, { now: dependencies.now });
-    }
-    currentAction = { actionId: "pet.install" };
-    if (supportsDesktopPet(paths.platform, paths.arch)) {
-      const hasAdapterInstall = plan.actions.some(
-        (action) => (action.owner === "codex" || action.owner === "deepseek") && ["install", "upgrade", "repair", "reinstall"].includes(action.operation),
-      );
-      if (hasAdapterInstall) {
-        const petInstaller = dependencies.petInstaller ?? await loadPetInstaller(paths.platform, paths.arch).catch(() => null);
-        if (petInstaller?.ensurePetInstalled) {
-          const runtimes = await (dependencies.listAdapterCoreRuntimes ?? listAdapterCoreRuntimes)({ paths, environment }).catch(() => []);
-          const candidateRoots = [
-            packageRoot,
-            ...runtimes.map((r) => r.packageRoot),
-          ].filter(Boolean);
-          const petInstallation = await petInstaller.ensurePetInstalled({
-            petDirectory: paths.petDirectory,
-            sourcePackageRoots: candidateRoots,
-            enforcePrivateModes: paths.enforcePrivateModes,
-            replaceExisting: Boolean(packagedLocalPackages),
-          }).catch(error => {
-            if (packagedLocalPackages) throw error;
-            return { installed: false };
-          });
-          if (petInstallation.installed) completedActions.push("pet.install");
-          else if (packagedLocalPackages) throw new Error("the local development package did not install its desktop application");
-        }
-      }
     }
   } catch (error) {
     completedActions.push(...(error.completedSteps ?? []));
