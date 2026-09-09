@@ -18,9 +18,12 @@ executable tests decide current behavior, and the documentation must be correcte
 | `docs/PROJECT-STATUS_en.md` | Delivered capability, stable/source/unverified status, existing records, and product gaps |
 | `docs/ARCHITECTURE_en.md` | Core, Adapter, Workflow, Store, Recovery, Git Observer, and protocol design |
 | `docs/COMMANDS_en.md` | Complete lifecycle, Host, Core, selector, and MCP entrypoint reference |
-| `docs/WEBUI_en.md` | Local visualization and diagnostics, security boundaries, and reset |
+| `docs/WEBUI_en.md` | Local visualization, diagnostics, supported page operations and security boundaries |
 | `docs/SUPPORT-MATRIX_en.md` | Verified package, platform, and Host coverage |
 | `CONTRIBUTING.md` | Rules for issues, product proposals, documentation, and code contributions |
+| `docs/DESKTOP-PETS_en.md` | Desktop installation, controls, artwork formats and repeatable check methods |
+| `docs/WINDOWS-ADAPTATION_en.md` | Recorded checks, actual results and unverified scope for specific artifacts and environments |
+| `docs/TOOLCHAIN-BASELINES_en.md` | Current development/build toolchain ranges, responsibilities and revalidation requirements |
 | Host README | Installation, startup, recovery, status, removal, and Host-specific behavior |
 
 README, PRODUCT, and Host README files do not repeat protocol fields, the complete MCP catalog, or
@@ -52,3 +55,5 @@ advanced Host sections.
 Historical design and implementation records remain in Git history. README files, completed Feature
 Markdown, and other human-readable documents do not decide runtime behavior, package contents,
 versions, or release results.
+
+Synchronize statements according to each page’s responsibility rather than copying whole change summaries. Retire superseded proposals from current documentation and retrieve historical design through Git. Validation records retain artifacts, environments, results and limits; they do not establish that later artifacts passed.

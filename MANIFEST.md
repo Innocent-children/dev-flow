@@ -17,9 +17,12 @@
 | `docs/PROJECT-STATUS.md` | 当前已交付能力、稳定/源码/未验证状态、现有记录和产品缺口 |
 | `docs/ARCHITECTURE.md` | Core、Adapter、Workflow、Store、Recovery、Git Observer 和协议原理 |
 | `docs/COMMANDS.md` | lifecycle、Host、Core、selector 和 MCP 工具的完整可执行入口 |
-| `docs/WEBUI.md` | 本机可视化与诊断入口的使用、安全边界和 reset 流程 |
+| `docs/WEBUI.md` | 本机可视化与诊断入口的使用、支持的页面操作和安全边界 |
 | `docs/SUPPORT-MATRIX.md` | 已验证 package、平台和 Host 范围 |
 | `CONTRIBUTING_zh-CN.md` | Issue、产品提案、文档和代码贡献规则 |
+| `docs/DESKTOP-PETS.md` | 桌面入口的安装、操作、形象格式与可重复的检查方法 |
+| `docs/WINDOWS-ADAPTATION.md` | 特定产物与环境的已记录检查、实际结果及未验证范围 |
+| `docs/TOOLCHAIN-BASELINES.md` | 当前开发与构建工具链的兼容范围、职责及重新验证要求 |
 | Host README | 对应 Host 的安装、启动、恢复、状态、移除和特有边界 |
 
 README、PRODUCT 和 Host README 不重复协议字段、完整 MCP 目录或 Store 实现；需要精确细节时进入
@@ -49,3 +52,5 @@ Architecture、Command Reference 和 Host 对应的高级入口。
 
 历史设计与实施记录通过 Git 历史追溯。README、已完成的 Feature Markdown 和其他人类文档不会
 决定运行时行为、package 内容、版本或发布结果。
+
+文档同步按各页职责更新相关表述，不复制整段变更说明。方案被替代后移出当前文档入口，历史设计通过 Git 查询；验证记录保留产物、环境、结果与限制，不作为后续产物已经通过的证明。

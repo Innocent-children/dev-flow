@@ -26,13 +26,6 @@ restart/resume, `DONE`, and retained reopen.
 Current source includes the shared local WebUI, embedded assets, and `dev-flow webui
 start|open|status|stop`, and supports these operating-system/CPU pairs:
 
-The current-source new-Task lifecycle performs read-only Host assessment, asks the developer to
-confirm source/base/target/carry, provisions a dedicated worktree from the frozen local or remote commit, and lets
-Core derive worktree identity, history, content, and current Task surface read-only. Source includes
-tests using temporary Git repositories and run records, plus validators for explicitly supplied
-actual run records. Report an environment as verified only after tests pass in that Host and platform.
-The stable table remains unchanged until an independent release.
-
 | Runtime pair | Current-source scope | Verified scope |
 | --- | --- | --- |
 | `darwin-arm64` | macOS arm64 | Existing end-to-end tests of stable packages; current worktree features need separate tests in actual Hosts |
@@ -40,8 +33,7 @@ The stable table remains unchanged until an independent release.
 
 An npm manifest must list allowed operating systems and CPUs independently, so installation metadata
 can admit cross-pairs. Package runtime selection accepts only the two exact pairs above and rejects
-`win32-ia32`, `win32-arm64`, and `darwin-x64`. Windows product data lives under
-`%LOCALAPPDATA%\dev-flow`; user configuration remains at `%USERPROFILE%\.dev-flow\config.json`. macOS product data, desktop pet, and registrations live under `$HOME/.dev-flow`; user configuration remains at `$HOME/.dev-flow/config.json`.
+`win32-ia32`, `win32-arm64`, and `darwin-x64`. Data paths are documented in the [Command Reference](COMMANDS_en.md).
 
 New source capabilities or a later beta can expand the stable support claim above only after the
 independent release flow, downloading and checking registry package contents, and end-to-end testing of the final package in an actual Host.
@@ -57,38 +49,15 @@ For current source capabilities, actual-environment test entry points, and adopt
 
 ## Desktop pet functional checks
 
-The desktop component targets macOS arm64 (Apple Silicon) and Windows 10/11 x64 and uses a local development package containing the native app. Regular npm lists and release
-preparation currently omit `DevFlowPet.app`. See the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) for building and running it.
-A built app needs neither Swift nor Xcode; a configured Codex or DeepSeek Adapter provides Core.
+| Artifact / environment | Recorded checks | Limits |
+| --- | --- | --- |
+| macOS arm64 local development package | App build, unpacked resources, ad-hoc signature and executable permissions; native import/selection, controls, scaling and idle activities; targeted observer, artwork and playback checks | Minimum macOS execution, complete mouse-drag automation, full Codex/DeepSeek Task sessions, Developer ID signing and notarization are not established |
+| Windows 11 Intel x64 local development distribution | Core/WebUI, package assembly, native window, atlas import, singleton and stop; isolated lifecycle installation, reinstall and removal | Windows 10, AMD hardware, complete mouse-drag and sleep/wake interaction, full Codex/DeepSeek Task sessions and formal distribution signing remain unverified |
 
-Completed local checks cover package building, extracted resources/signatures/executable permissions, appearance import and selection, the Idle activities switch,
-and observed automatic waves, rightward walks, and returns to idle. Targeted tests cover static/native packs, standard Codex atlases, nine-row high-resolution
-atlases, saved selection, preservation on failed imports, cooldowns and preemption, finite-loop callbacks, and movement cancellation. Actual WebP checks use
-a local Codex atlas. Additional local checks cover the 50%–200% size menu, scaled layout and saved settings, walking speed, SVG import and rejection rules, preservation of the default nine clips and 312 frames, and local package resource/signature checks. See the guide's [acceptance checks](DESKTOP-PETS_en.md#acceptance-checks) for the methods.
+Desktop packages target macOS arm64 and Windows 10/11 x64. macOS deployment metadata targets macOS 14; this is a build target, not proof of minimum-system execution. Regular npm packages omit `DevFlowPet.app`; running a local desktop package requires a configured Adapter to supply Core.
 
-The Swift Package and app metadata target macOS 14. Actual minimum-system operation, complete physical mouse-drag checks, full Codex/DeepSeek Task sessions,
-Developer ID signing, and Apple notarization have not completed their respective verification. Local and targeted results do not expand the stable-support table
-above or Host task-workflow capabilities.
+Historical desktop validation records are available through Git history. Windows environment, procedures and results are recorded in the [Windows report](WINDOWS-ADAPTATION_en.md). These local results do not expand the stable table above. Installation and artwork instructions belong in the [desktop pet guide](DESKTOP-PETS_en.md).
 
-The local package retains the default appearance. Custom appearances such as Whale Girl are imported from external packs; their import, loading, and selection are covered by the native appearance checks described above.
+## Source DSH requirement
 
-## Windows platform boundaries and verification
-
-Windows 10/11 x64 targets ordinary desktop PCs with Intel or AMD 64-bit processors. The three Node packages implement paths, permissions, commands and cleanup separately in `lib/platform/windows/` and `lib/platform/macos/`; selection entry points only dispatch to the current platform. Core keeps shared platform-neutral task semantics, while Windows Git processes hide console windows. Codex `--version` and `status` use the selected executable-file policy, and Windows PowerShell launchers output UTF-8. This change was tested only on native Windows; Windows 10, AMD hardware and macOS were not tested, and stable support claims remain unchanged. See the [Windows adaptation report](WINDOWS-ADAPTATION_en.md).
-
-## Windows desktop features
-
-The Windows 10/11 x64 desktop pet aligns with macOS task selection and status bubbles, WebUI navigation, tray/context menus, static and native animated PNG/SVG appearances, Codex PNG/WebP atlas imports, nine actions, dragging, six scale settings, hide/restore and independent start/stop. Windows uses a separate Electron implementation while macOS retains Swift/AppKit; both only read Core state. The Windows local package is built by `scripts/build-desktop-pet-windows.mjs`, with user data in `%LOCALAPPDATA%\dev-flow\pet`. See the [desktop pet guide](DESKTOP-PETS_en.md) for building, installation, updates and verification.
-
-On Windows, existing AppData directories are resolved to their actual paths, including directory aliases exposed by packaged desktop hosts; symbolic links remain rejected.
-
-The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
-
-## Current DSH interface
-
-The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
-
-
-Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
-`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
-`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).
+The source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. This source requirement does not replace the stable-package environment listed above.

@@ -83,4 +83,4 @@ pnpm run validate
 
 ## Windows Git 进程
 
-Windows 10/11 x64 面向普通 Intel、AMD 64 位桌面电脑。三个 Node 包的路径、权限、命令和清理规则分别由 `lib/platform/windows/` 与 `lib/platform/macos/` 实现，选择入口只按当前平台分派。Core 的平台中立任务语义保持共享；Windows Git 进程隐藏控制台窗口。Codex 的 `--version` 与 `status` 使用所选平台的可执行文件检查，Windows PowerShell 启动器输出 UTF-8。本次只执行 Windows 原生测试；Windows 10、AMD 实机和 macOS 未测试，稳定支持声明保持不变。详见[Windows 适配报告](../docs/WINDOWS-ADAPTATION.md)。
+Windows 进程实现为只读 Git 观察隐藏控制台窗口，darwin 实现保留本机进程行为。平台选择位于进程边界，Domain、Workflow、Application 与 Recovery 共用任务语义。平台验证见[Windows 报告](../docs/WINDOWS-ADAPTATION.md)。

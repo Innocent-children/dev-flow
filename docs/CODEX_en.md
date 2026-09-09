@@ -93,46 +93,13 @@ decision allows another attempt.
 
 ## Verification effort and post-change review
 
-Codex creates the initial `verification_plan` only at TASKS, after reading requirements, design, work
-decomposition, causal impact, and the existing test structure. It records intended checks and their
-rationales, expected automatic commands, whether a full suite is expected, and whether test-code
-changes are expected. A small change starts with the closest targeted check; spare capacity does not
-justify widening to package, module, or repository scope.
+Codex plans verification after requirements, design, impact and existing tests have been understood. The plan records necessary checks, reasons, initial command capacity, full-suite expectations and expected test-code changes. Focused checks come first.
 
-Exhausted capacity does not end the Task. Before any extra command, Codex uses the current TEST
-Action's `verification_budget_increased` transition with a real `new_impact`, `new_risk`,
-`verification_failure`, or `verification_gap`, and adds only the checks, commands, or permissions
-needed now. Core retains the reason and previous/resulting budgets, then stays in TEST. “For
-completeness”, “increase confidence”, “to be safe”, and remaining capacity are not valid reasons.
+Before exceeding capacity, the Host records a concrete new impact, risk, failure or gap and only the necessary increase. Existing checks can receive capacity for remaining work or reruns. An increase creates no passed result. Every full-suite run needs a fresh justification; spare capacity or a previous full-suite run is insufficient.
 
-Before every full suite, Codex freshly checks broad impact, whether targeted/package checks suffice,
-the exact risk the suite adds coverage for, and whether repository instructions require it at this
-checkpoint. The current reason is recorded as `full_suite_reason`; a small-fix rerun cannot inherit an
-earlier reason automatically.
+Test-code changes should protect stable behavior, public interfaces, important failures or actual regressions. Post-change review covers the diff, causal impact and acceptance needs; fixes receive related rechecks. Explicit review is read-only and stops after findings until repair is separately authorized. Unrelated historical issues stay outside ordinary post-change review.
 
-Test-code changes require lasting value: stable product behavior, a public interface specification, an important
-failure path, or an observed regression. A one-time README word rule gets one text search. Ordinary
-post-change review covers only the diff, direct/indirect causal impact, and acceptance needs. After a
-review fix, Codex rechecks that finding and related targeted regressions, not the whole repository.
-An explicit code review is read-only and stops after all findings are delivered until repair is
-separately authorized.
-
-Ordinary post-change review and delivery report only findings causally related to the current change;
-unrelated historical issues stay outside the report.
-
-The trusted hook runs `dev-flow-codex hook pre-tool-use`, which forwards the parsed targets through
-`dev-flow-codex host-check pre-file-write` to the packaged Core. It checks supported `apply_patch`
-targets against the current Task Plan before writing. An expected additional-repository path proceeds
-only when that root is already in immutable Scope and authorized through Codex `--add-dir`.
-For an unplanned path the developer chooses `allow_once`, `expand_scope`, or reject/restore with a reason.
-Other tools and shell commands may write first; Core observes them before the next action. There is no
-"ignore external change" choice inside a dedicated Task worktree. A disabled, untrusted, or unavailable
-hook must not be described as reliable interception; when an invoked child check fails, that write stops.
-
-Core derives the current Task surface from the frozen base, commits, index, worktree, and untracked
-state. A normal linear commit on the task branch preserves current paths. An exact-content commit keeps
-Test and Comprehension valid; a content change invalidates them. Branch switch, detach, rewind, rewrite,
-or worktree replacement produces a specific blocker or unavailable result before substantive work.
+See the [Command Reference](COMMANDS_en.md) for submission fields.
 
 ## Handoff and terminal worktrees
 
@@ -179,57 +146,23 @@ and Git repositories remain. Permanent Task-data cleanup uses the separately con
 - Core observes Git read-only and never fetches, creates worktrees/branches, commits, merges, rebases, pushes, tags, or publishes.
 - A worktree is a source-change ownership boundary, not a process, network, credential, port, database, or container sandbox.
 - A multi-repository Task opens only after every root is independently provisioned and authorized; partial isolation is rejected.
-- A shared-directory sub-agent cannot replace a dedicated Host worktree and no `ACTIVE_TASK_CONFLICT` post-open move remains.
+- A shared-directory sub-agent cannot replace a dedicated Host worktree; `ACTIVE_TASK_CONFLICT` stops creation for the developer to resolve the existing Task.
 
 See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_en.md), and
 [Project Status](PROJECT-STATUS_en.md).
 
-## Desktop pet local development package
+## Desktop task entry
 
-On macOS arm64, the desktop pet uses a local development package containing `DevFlowPet.app`, with Core supplied by an already configured Codex or DeepSeek Adapter.
-Regular npm file lists and release preparation currently omit the native app; see the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) to obtain it.
-The pet shows one selected Task's saved state and opens its WebUI. Core owns Task state; presentation indicates neither live Host activity nor completion percentages.
+The desktop pet uses a local development package for macOS arm64 or Windows 10/11 x64 and reads the saved Task state from the configured Adapter’s Core. It opens the selected Task in WebUI; it does not indicate live Host activity or completion percentages. Regular npm packages omit the macOS native app. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, controls, updates and appearances.
 
-Appearances can use a single PNG, a native animation pack, a standard Codex format 1/2 atlas, or Dev Flow's high-resolution extension. Five task clips are required;
-additional artwork determines whether walking, waving, or thinking is available. Only Codex-layout atlases have the fixed nine-clip, 57-frame extraction.
-Idle activities have a separate switch, task prompts take priority, and automatic movement preserves manual placement.
-Program updates, replacement of an installed app copy, and artwork reimports are separate operations. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, all trigger rules, and troubleshooting.
+## Completion and recovery
 
-The local pet package retains the default appearance. Import Whale Girl or other custom appearances as separate artwork packs through Import appearance. Artwork is stored in the user directory and preserved across application updates.
+Every planned work item must be complete before testing. Delivery links each acceptance criterion to corresponding completed work and passed current checks. Developer comprehension remains a separate confirmation. If a submission result is uncertain, the Adapter reads the retained Core operation before recovery or retry. See the [Command Reference](COMMANDS_en.md) for integration details.
 
-## Windows platform adaptation
+## File submission
 
-Windows 10/11 x64 targets ordinary desktop PCs with Intel or AMD 64-bit processors. The three Node packages implement paths, permissions, commands and cleanup separately in `lib/platform/windows/` and `lib/platform/macos/`; selection entry points only dispatch to the current platform. Core keeps shared platform-neutral task semantics, while Windows Git processes hide console windows. Codex `--version` and `status` use the selected executable-file policy, and Windows PowerShell launchers output UTF-8. This change was tested only on native Windows; Windows 10, AMD hardware and macOS were not tested, and stable support claims remain unchanged. See the [Windows adaptation report](WINDOWS-ADAPTATION_en.md).
+The Adapter collects and classifies changed files before submitting node results. Missing files receive a bounded correction instruction; workspace or history failures follow Core recovery. These preparation steps are performed by Codex. See [artifact collection and submission](ARTIFACTS_en.md).
 
-The Windows 10/11 x64 desktop pet aligns with macOS task selection and status bubbles, WebUI navigation, tray/context menus, static and native animated PNG/SVG appearances, Codex PNG/WebP atlas imports, nine actions, dragging, six scale settings, hide/restore and independent start/stop. Windows uses a separate Electron implementation while macOS retains Swift/AppKit; both only read Core state. The Windows local package is built by `scripts/build-desktop-pet-windows.mjs`, with user data in `%LOCALAPPDATA%\dev-flow\pet`. See the [desktop pet guide](DESKTOP-PETS_en.md) for building, installation, updates and verification.
+## Carried content
 
-On Windows, existing AppData directories are resolved to their actual paths, including directory aliases exposed by packaged desktop hosts; symbolic links remain rejected.
-
-Windows Codex registration validates the current Host marketplace `name` and `root` plus Plugin identity. The Windows implementation normalizes the `\\?\` path prefix; macOS retains its own readback rules.
-
-The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
-
-## Completion and Action recovery
-
-Before entering TEST, every work item in the current Task Plan must be completed. DELIVERY receives explicit acceptance results linking each criterion to completed work items mapped to that criterion and passed checks in the current Test. Automated, static, Host-observed and explicit manual checks are supported. Comprehension confirmation remains separate and does not automatically substitute for acceptance checks. Missing, incorrect or outdated references reject the submission.
-
-WebUI and MCP share Core semantic submission, operation retention and recovery. Core retains the canonical payload; the page sends the current Task revision, Action ID and semantic results. Network failures first trigger a Core read. Reopening the page discovers pending operations and recovers them by Action ID. Invalid completion results neither advance the Task nor retain an operation.
-
-## Artifact preparation
-
-Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
-
-Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before starting Codex. The MCP server, hook and artifact commands use that same directory. `dev-flow-codex artifacts <collect|prepare> --help` returns JSON examples, field descriptions, outputs and the next step without starting Core.
-
-
-Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
-`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
-`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).
-
-## Planning and checking carried content
-
-When Codex carries local changes, it records their preservation in REQUIREMENTS and reconciles the complete `current_changed_paths` with `expected_paths` and retained process artifacts in TASKS. New development and preservation receive separate work and checks; an empty current-Action file collection cannot replace the complete Task path comparison. Preservation checks compare the launch snapshot and do not certify existing behavior as tested. Existing file-scope blockers continue through the current Core choices and transitions.
-
-## Verification capacity for existing checks
-
-When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.
+Confirmed local content belongs to the Task scope. Codex plans preservation checks separately from new development and compares preserved contents with the launch snapshot. Preserving a file does not certify its existing business behavior. Unexplained paths still require a scope decision. See [worktree sources](WORKTREE-SOURCES_en.md).

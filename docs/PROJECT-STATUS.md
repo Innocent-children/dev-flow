@@ -99,6 +99,6 @@ package 可用和已有的具体的宿主完整流程测试，不能据此推导
 3. 阅读 [Support Matrix](SUPPORT-MATRIX.md)，区分稳定支持与源码能力，并按需打开上表中的实际运行记录；
 4. 阅读 [Security Policy](../SECURITY.md) 和 [Threat Model](THREAT-MODEL.md)，了解剩余风险。
 
-## 当前 DSH 接口
+## 源码 DSH 要求
 
-当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
+当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。该要求描述源码兼容范围，稳定安装包的验证环境仍由[支持矩阵](SUPPORT-MATRIX.md)单独记录。

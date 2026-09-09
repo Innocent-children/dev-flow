@@ -2,239 +2,85 @@
 
 [中文](PRODUCT.md) | [English](PRODUCT_en.md)
 
-## One-sentence position
+## Product position
 
-> Dev Flow first helps a developer decide whether a request warrants the full workflow. A selected
-> Task starts from a developer-confirmed local or remote branch in a dedicated worktree, while Core keeps its
-> actual changes, post-analysis verification plan, and current progress coherent.
+Dev Flow helps developers decide whether a request needs a full development process, and preserves requirements, change scope, verification effort and progress so long-running AI coding tasks can continue after a session ends.
 
-Codex or DeepSeek still reads code, edits files, and runs commands. Dev Flow retains one saved
-Task state. Verification effort is planned with the Task Plan, and later expansion records a concrete new
-impact, risk, failure, or gap. Core rejects or pauses unplanned results, scope expansion, stale
-results, workspace-history conflicts, and uncertain operations.
+Codex or DeepSeek understands code, edits files and executes commands. Go Core retains the one Task state, observes the actual worktree, checks current results and decides the legal next step. A Task is a persisted development job; an Action is an operation Core issues for its current stage.
 
-## Target users and job
+## Target users and use cases
 
-Dev Flow is for developers using Codex or DeepSeek in real repositories when work can span sessions
-or days. It fits work that needs an explicit file boundary, bounded test effort, interruption recovery,
-and isolation from unrelated changes in a shared checkout.
+The product serves developers using Codex or DeepSeek on real repositories over multiple sessions or days. It fits public-interface, persistence, multi-component and recovery-sensitive changes, as well as work requiring explicit file scope and verification effort.
 
-Users can:
+Other changes in a shared checkout can obscure ownership. Chat history alone may not establish whether tests remain valid, an operation succeeded, or work remains after an interruption. Dev Flow gives the task a dedicated worktree and retains requirements, plans, check results, blocker reasons and recovery information.
 
-- inspect a read-only change assessment before a Task exists and choose direct work, Dev Flow, or clarification;
-- confirm local or remote source, base branch, new target branch and local content choice for every repository;
-- start from a frozen base commit in a dedicated named-branch worktree, carrying local changes when selected;
-- retain the goal, acceptance criteria, exclusions, and expected paths, then save the verification
-  plan and initial budget after task analysis;
-- retain the basis, reason, added checks, increment, and resulting budget before TEST continues with
-  more capacity;
-- let Core derive the current change surface from Git instead of trusting agent-reported paths;
-- allow one unplanned path, revise the plan, or restore the file;
-- make normal linear commits on the task branch while branch switches, rewinds, and unprepared rewrites stop;
-- invalidate Test and Comprehension after content changes while preserving them across an exact-content commit;
-- read a retained uncertain operation before recovery or retry;
-- relocate the same Task between same-machine Host workspaces;
-- have the Host reconsider every full suite, test-code change, and post-change review scope;
-- explicitly abandon a missing workspace and make separate keep, handoff, worktree-cleanup, and branch-cleanup decisions at terminal state.
+Direct Host use is usually simpler for one-off questions, explanations, status queries and small mechanical edits. A few explicitly selected repositories may share one Task, but multi-repository work and worktree handoff are advanced capabilities, not the primary use case.
 
-## Main problem
+## Task creation and resume
 
-The previous flow bound a new Task to the checkout already in use. Git-visible work from another tool,
-process, or person could drift the Task, while agent-reported file paths could neither prove the
-author nor distinguish later content changes on an already-dirty path.
+A new request receives a read-only assessment of discovered impact, unknowns and a recommendation. The developer chooses direct work, Dev Flow or clarification; an explicit selector does not skip assessment. Before selection there is no Task creation, Git mutation or development-session dispatch.
 
-The current flow uses one worktree instance as the ownership boundary. A new request receives a
-read-only assessment first. If the developer chooses Dev Flow, the Host obtains an explicit
-source, branch and content decision, resolves the local or remote ref, freezes its commit, and creates the Task
-only in a dedicated worktree. Later changes in the source checkout are unrelated; every Git-visible
-change in the Task worktree belongs to that Task.
+After choosing Dev Flow, the developer confirms each repository's local or remote source, base branch, new task branch and whether to carry local content. Local preparation can work offline; remote preparation fetches the selected branch and freezes the starting commit. Confirmed carrying copies staged, unstaged and non-ignored untracked content while preserving the source checkout and staged state. Application failure retains the destination for inspection; one Task opens only after every repository is ready.
 
-Before starting a development session, the source Codex session organizes the complete relevant requirements discussion, retaining original messages, confirmed requirements, terminology, scope constraints, code findings, working instructions, unaccepted suggestions, assumptions, and open questions. Desktop tasks and CLI relaunch use the same saved material; longer content is supplied through complete files. Existing development and worktree confirmations remain effective, with no extra handoff-summary approval. The Codex Host owns collection and sending; Core continues to decide Task state.
+Discovery follows user instructions, applicable repository rules and Host permissions. Discovery may identify candidates; Task membership requires confirmation and becomes fixed at creation.
 
-Working instructions in the handoff contain only session-specific instructions and authorizations.
-The destination Codex session loads global and repository `AGENTS.md` files normally; the handoff
-duplicates neither their contents nor summaries and excludes automatically injected rule blocks from
-original requirements discussion. Actual user requests to change a rule remain requirements.
-Applicable rules unavailable through destination discovery identify their source path, scope, and
-concrete discovery gap, preferably referencing a readable source file; if that file is unreadable,
-include only the necessary task-specific rule text and exclude credentials. Record unverified
-availability in `open_questions` instead of copying entire files as a precaution.
+When Codex starts a new session, it retains relevant requirements discussion and confirmed requirements, distinguishing unaccepted suggestions and unresolved questions. Explicit choices and authorizations that remain valid are retained; only unresolved decisions or required inputs need another question.
 
-## Task handling rules
+Explicit resume returns to the original worktree instance and saved state without creating another task or selecting another worktree. The destination of a confirmed launch verifies the retained launch record before continuing initialization. A missing or replaced original worktree pauses progress; the developer can restore that instance or explicitly abandon the Task.
 
-Repository discovery and code-index selection follow current user instructions and applicable
-`AGENTS.md`, ahead of the plugin's code-index preference. When those instructions require a project
-index, the Host reads it, candidate project documentation, and relevant code/configuration before Task
-creation to establish the complete proposed scope. Every repository is confirmed and provisioned
-before that scope is fixed in the Task; discovery respects existing Host permissions.
+## Change and verification rules
 
-Codex retains explicit choices and authorizations that remain valid for the current request and assessment. When no decision or required input is outstanding, it continues without an acknowledgment pause for progress updates or Skill-rule explanations. When input is needed, it asks the concrete question in the same response; development mode, worktree parameters, comprehension confirmation, separate operation authorization, and blockers keep their respective rules.
-
-| User event | Product behavior |
+| Situation | Current behavior |
 | --- | --- |
-| A new request may be small | The Host performs read-only discovery and stops for a choice; no Core call, Task, Git write, receipt, or child dispatch exists before confirmation |
-| The developer chooses Dev Flow | The Host shows and confirms the source, branch and content choices plus bounded source dirtiness, then resolves, freezes, provisions, and verifies a dedicated worktree |
-| The Task worktree changes | Core derives identity, history, content, Action delta, and the base-relative current Task surface |
-| Work leaves the plan | Supported structured writes ask first; later observation finds other writes, and unexplained paths cannot reach testing or delivery |
-| TASKS completes analysis | Retain planned checks and rationales, the initial automatic-command budget, full-suite expectation, and test-code expectation |
-| Capacity is insufficient | TEST accepts only an increase with an allowed basis category, concrete reason, and needed increment, then remains in TEST |
-| A full suite is proposed | The Host rechecks broad impact, whether focused checks suffice, the concrete uncovered risk, and repository checkpoint rules; available budget is not a reason |
-| Testing repeats | A third exact repetition pauses |
-| Code is reviewed after change | Review only the diff, causal impact, and acceptance needs; delivery reports only related findings; after a fix rerun only related review and checks |
-| Earlier results become stale | Content changes invalidate Test and Comprehension; committing identical content does not |
-| Workspace history changes unexpectedly | Branch switch, detach, rewind, rewrite, or worktree replacement produces a specific blocker or unavailable result |
-| The Host relocates the Task | Core prepares a relocation blocker, the Host performs one handoff, and verified destination bindings and claims change atomically |
-| The workspace is gone | Ordinary cancellation cannot fabricate observation; explicit abandon retains the last known state and releases claims |
+| Worktree changes | Core derives actual changes from Git; later source-checkout edits are separate from the Task |
+| Work leaves the plan | Supported structured tools ask before writing; later observation finds other writes, and unexplained paths cannot reach testing or delivery |
+| An unplanned file needs handling | The developer chooses one-time allowance, replanning or restoration; Core retains the decision |
+| Analysis completes | The task plan records checks, rationales, initial command budget, full-suite expectation and test-code expectation |
+| Verification capacity is insufficient | Record a concrete new impact, risk, failure or gap and the required increase before more testing; remaining work or reruns of existing checks can also receive capacity |
+| A full suite is proposed | Reassess whether focused checks suffice, what remains uncovered and current repository requirements every time; spare capacity is not a reason to widen testing |
+| Testing repeats exactly | The third identical failure, result or change-and-failure loop pauses for an explicit decision |
+| Code is reviewed after a change | Cover the current change, direct or indirect impact and acceptance needs; fixes receive related rechecks; explicit review stays read-only and awaits separate repair authorization |
+| Content changes | Invalidate tests and comprehension based on older content; linear commits of identical content retain their results |
+| Workspace history is abnormal | Branch switches, detached HEAD, rewinds, unprepared history rewrites or instance replacement trigger a blocker or unavailable state |
 
-## Current product commitments
+Carried local content belongs to the Task change scope. Codex plans preservation and new development separately; preservation checks do not certify existing behavior as tested.
 
-Current source commits to:
+Task creation does not freeze the final verification budget. Consumption belongs to the current task plan; formally rebuilding the plan starts its budget while retaining old records. Capacity increases produce no passed results, and Hosts must report the checks actually performed and their sources.
 
-- creating every new Task only after confirmation in a dedicated worktree on a named task branch;
-- assessing every new request, exact selector, and parallel batch before waiting for a choice; only explicit resume skips assessment;
-- copying staged, unstaged and non-ignored untracked local content only when explicitly selected, while preserving the source;
-- opening one multi-repository Task only after every repository has been resolved, isolated, authorized, and verified;
-- keeping Core's Git access read-only while it stores WorkspaceOrigin, current observation and surface, Actions, records, blockers, and outcome;
-- creating no final test budget at Task open; TASKS owns the initial verification plan and Evidence
-  consumption is scoped to the current Task Plan revision;
-- letting TEST use the `verification_budget_increased` self-transition to retain a justified increase
-  instead of ending merely because capacity is exhausted;
-- accepting semantic Host node results while Core derives file effects and current paths;
-- using the same Core Task and `BLOCKED` state for file scope, workspace history, verification brakes, relocation, and Recovery;
-- preserving the Task surface across linear commits and content-bound records across an exact-content commit;
-- retaining separate narrow records for provisioning, Action Recovery, and relocation without another business state machine;
-- making DONE and CANCELLED release claims without automatically committing, pushing, opening a pull request, or deleting a worktree;
-- projecting the same Core state through Codex, DeepSeek, and the local WebUI.
+## Completion and uncertain operations
 
-These commitments do not intercept every Host shell or file operation and do not make a worktree a
-file-system, process, network, or credential sandbox. External writes may happen first and be handled
-by the next Core observation.
+Every planned work item must complete before testing. Delivery explicitly links each acceptance criterion to corresponding completed work and passed current checks. Automated, static, Host-observed and explicit manual checks are supported; developer comprehension confirmation is retained separately and cannot replace acceptance checks.
 
-## Tasks that fit and do not fit
+An uncertain operation is read from Core's saved record before recovery or retry. Reopening WebUI still discovers pending submissions. Host handoff and worktree provisioning likewise use their own retained records to avoid duplicate execution.
 
-Dev Flow fits work spanning sessions or Host restarts; public-contract, Schema, state, multi-package,
-multi-Host, or recovery-sensitive changes; and tasks needing an explicit surface, analyzed verification effort,
-worktree isolation, or same-machine relocation. A few explicit repositories may share one Task only
-when each can be provisioned independently.
+Same-machine handoff starts with Core retaining recovery conditions, followed by one Host handoff. Core verifies the destination and replaces repository bindings atomically. Failure retains the original bindings and claims.
 
-Direct Host use is normally simpler for one-off questions, explanations, status requests, and small
-mechanical changes with no public-contract impact. Work requiring cross-machine relocation, a security sandbox, remote execution, or
-automatic Git publication, does not fit.
+DONE or CANCELLED ends the Task and releases repository claims without automatically committing, pushing, opening a PR or deleting a worktree. Worktree and branch cleanup require separate authorization. Explicit abandonment of an unavailable worktree retains the last known state and ends the Task.
 
-## Relationship to other tools
+## Entry points and component responsibilities
 
-| Tool | Responsibility |
+| Component | User purpose |
 | --- | --- |
-| Codex / DeepSeek | Understand the request and code, assess whether to use Dev Flow, perform confirmed Host/Git work, edit code, and run checks |
-| OpenSpec / Spec Kit | Optionally organize requirements, design, and tasks; never decide a Core node or completion |
-| Dev Flow Core | Retain the one Task, observe the workspace, enforce scope/verification/recovery rules, and decide the legal next action |
+| Codex / DeepSeek | Assess requests, perform confirmed development and Host operations, and resume the same Core Task |
+| Unified lifecycle CLI | Install, diagnose, maintain and remove Adapters, preserving Task data and configuration during ordinary maintenance |
+| Local WebUI | Inspect tasks, results, blockers and recovery, and submit supported operations through Core |
+| Desktop pet | Show one selected Task's saved state and open its WebUI; provide task selection, custom appearances, animation controls, resizing and independent start/stop |
+| OpenSpec / Spec Kit | Optionally organize requirements, design and tasks; method-tool results do not decide Core state |
 
-## Task execution flow
+The desktop pet uses local development packages for macOS arm64 or Windows 10/11 x64 and requires a configured Adapter to supply Core. Regular npm packages omit the macOS native app. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.
 
-1. The Host assesses each new request read-only, reports `small|standard|large|uncertain`, candidate
-   impact, unknowns, and a recommendation, then waits. Request, canonical root, HEAD, or status changes
-   invalidate the assessment.
-2. After source, branch and content confirmation, the Host resolves the base and creates a dedicated worktree. Core
-   verifies worktree, branch, HEAD, base and the confirmed content choice before Task creation. Explicit resume returns
-   to the original instance.
-3. Core derives the current Task surface from the base commit, commits, index, worktree, and untracked
-   files. ExpectedPaths, one-time decisions, and the TASKS verification plan control progress. The
-   current budget counts only the current Task Plan revision, and every increase retains its concrete
-   reason. Test and Comprehension bind to content.
-4. Core retains uncertain Actions, blockers, relocation, and outcome. Same-machine relocation keeps
-   source claims during Host handoff and replaces them once after verification. Cleanup needs separate authorization.
+## Product boundaries
 
-## Completion and Action recovery
+- Core observes Git read-only; authorized Hosts perform fetch, worktree creation, branch operations, handoff and cleanup.
+- Worktrees isolate source-change ownership, not processes, networks, credentials, ports, databases, containers or services.
+- Core does not intercept every Host file operation or shell command; external writes may happen before observation checks them.
+- The product does not automatically copy ignored files, install dependencies, expand repository scope or clean active, dirty, unpushed, unknown-owner or uncertain resources.
+- General agents, arbitrary workflow DSLs, custom state machines, cross-machine transfer, remote MCP, cloud multi-user management and automatic Git publication are outside scope.
 
-Before entering TEST, every work item in the current Task Plan must be completed. DELIVERY receives explicit acceptance results linking each criterion to completed work items mapped to that criterion and passed checks in the current Test. Automated, static, Host-observed and explicit manual checks are supported. Comprehension confirmation remains separate and does not automatically substitute for acceptance checks. Missing, incorrect or outdated references reject the submission.
+## Feature decisions and verified scope
 
-WebUI and MCP share Core semantic submission, operation retention and recovery. Core retains the canonical payload; the page sends the current Task revision, Action ID and semantic results. Network failures first trigger a Core read. Reopening the page discovers pending operations and recovers them by Action ID. Invalid completion results neither advance the Task nor retain an operation.
+Improvements should address actual task problems, help resume from the right state and reduce the effort needed to understand state and next steps. Decisions use Task, Action, repository observations and retained records; Core remains the sole authority for Task state. A new platform, Host or interface needs a concrete user result and repeatable acceptance method.
 
-## Explicit non-goals
+Source capability does not establish stable-package support. Results apply only to the actual artifacts, platforms and steps tested; simulations and static checks cannot replace real Host workflows. The project does not yet have enough external data to demonstrate lower defect rates, verification cost or recovery time.
 
-Dev Flow is not a general agent or workflow DSL. Core does not fetch, create branches/worktrees,
-commit, stash, reset, merge, rebase, push, tag, open pull requests, or publish. The product does not
-copy ignored files; install dependencies;
-isolate ports, databases, Docker volumes, or services; or automatically delete active, dirty,
-unpushed, unknown-owner, or uncertain worktrees. Cross-machine relocation, automatic addition of
-unconfirmed neighboring repositories, partly isolated multi-repository Tasks, remote MCP, and cloud
-multi-user management are out of scope.
-
-## Verified scope
-
-The project provides public npm packages, interface specification tests, and records of complete task
-workflows in actual Codex and DeepSeek. Each result applies only to the package, platform, and steps
-tested. Fixtures, static checks, and results from other platforms cannot expand stable support.
-
-Dev Flow remains early and does not yet have enough external data to claim lower defect rates,
-verification cost, or recovery time. See [Project Status](PROJECT-STATUS_en.md) and the
-[Support Matrix](SUPPORT-MATRIX_en.md). Runtime behavior remains defined by source, machine-readable
-schemas, package manifests, CLI parsers, and executable tests.
-
-## Desktop task entry
-
-On macOS arm64, the desktop pet uses a local development package containing `DevFlowPet.app`, with Core supplied by an already configured Codex or DeepSeek Adapter.
-Regular npm file lists and release preparation currently omit the native app; see the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) to obtain it.
-The pet shows one selected Task's saved state and opens its WebUI. Core owns Task state; presentation indicates neither live Host activity nor completion percentages.
-While no task is selected, the pet keeps looking for new tasks, preferring the most recently updated blocked task, then the most recently updated active task. Once selected, the watched task stays selected until you change it.
-The menu bar uses a monochrome Dev Flow mark that adapts to the system appearance. Pet size offers six settings from 50% to 200% and saves the selection while keeping bubble text unchanged.
-
-Appearances can use a single PNG or SVG, a native PNG/SVG animation pack, a standard Codex format 1/2 atlas, or Dev Flow's high-resolution extension. Five task clips are required;
-additional artwork determines whether walking, waving, or thinking is available. Only Codex-layout atlases have the fixed nine-clip, 57-frame extraction.
-Idle activities have a separate switch, task prompts take priority, and automatic movement preserves manual placement.
-Program updates, replacement of an installed app copy, and artwork reimports are separate operations. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, all trigger rules, and troubleshooting.
-
-The local pet package retains the default appearance in a separate artwork directory with nine clips and 312 SVG frames. Import Whale Girl or other custom appearances as separate artwork packs through Import appearance. Artwork is stored in the user directory and preserved across application updates.
-
-## Windows platform boundaries and verification
-
-Windows 10/11 x64 targets ordinary desktop PCs with Intel or AMD 64-bit processors. The three Node packages implement paths, permissions, commands and cleanup separately in `lib/platform/windows/` and `lib/platform/macos/`; selection entry points only dispatch to the current platform. Core keeps shared platform-neutral task semantics, while Windows Git processes hide console windows. Codex `--version` and `status` use the selected executable-file policy, and Windows PowerShell launchers output UTF-8. This change was tested only on native Windows; Windows 10, AMD hardware and macOS were not tested, and stable support claims remain unchanged. See the [Windows adaptation report](WINDOWS-ADAPTATION_en.md).
-
-## Windows desktop features
-
-The Windows 10/11 x64 desktop pet aligns with macOS task selection and status bubbles, WebUI navigation, tray/context menus, static and native animated PNG/SVG appearances, Codex PNG/WebP atlas imports, nine actions, dragging, six scale settings, hide/restore and independent start/stop. Windows uses a separate Electron implementation while macOS retains Swift/AppKit; both only read Core state. The Windows local package is built by `scripts/build-desktop-pet-windows.mjs`, with user data in `%LOCALAPPDATA%\dev-flow\pet`. See the [desktop pet guide](DESKTOP-PETS_en.md) for building, installation, updates and verification.
-On Windows, resizing ends the current idle activity and resumes normal scheduling.
-
-On Windows, existing AppData directories are resolved to their actual paths, including directory aliases exposed by packaged desktop hosts; symbolic links remain rejected.
-
-The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
-
-## Current DSH interface
-
-The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
-
-## Lifecycle entry
-
-The public `dev-flow` manages Adapter installation and maintenance. Its menu shows state first; plans show versions and resource paths before confirmation. Installation, repair and reinstall keep installed versions by default; upgrade selects `latest`. Satisfied installation, repair, upgrade and removal require no repeated changes, while reinstall executes every time. Diagnostics identify failed checks and recovery commands, errors retain causes and completed steps, and installation results retain hook trust and Profile restart instructions. JSON never prompts. The launcher owns terminal interaction, version selection and installation records; Core independently owns Task state. See the [Command Reference](COMMANDS_en.md#lifecycle-command-behavior) for options and repeat behavior.
-
-`dev-flow-codex host-launch <operation>` reads a UTF-8 JSON object of at most 1 MiB from the stdin stream, including chunked input and multibyte characters split across chunks. Read failures, invalid UTF-8, duplicate members, invalid JSON, arrays, and null are rejected before the operation runs; errors go to stderr and successful JSON results go to stdout.
-
-## Artifact preparation
-
-Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
-
-Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before starting Codex. The MCP server, hook and artifact commands use that same directory. `dev-flow-codex artifacts <collect|prepare> --help` returns JSON examples, field descriptions, outputs and the next step without starting Core.
-
-Codex can query parameter Schemas, field sources and next steps through `dev-flow-codex --help` and operation help, and assemble repository arguments from the same set of provisioned workspace records. MCP provides result Schemas and structured responses. Resumed sessions handle Core-retained pending submissions before performing the current node; creation, cancellation, abandonment and relocation preparation use their own readback identities.
-
-`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `prepared` skips fetch. An explicit ID must match the saved receipt.
-
-`host-launch dispatch-result` accepts the complete Codex creation response, including JSON in `content[].text`. It saves `clientThreadId` as `host_client_thread_id` with phase `queued`; resubmitting a retained result with the same `launch_id` and `repository_key` can recover an `uncertain` record. Subsequent inspection follows the same creation, without dispatching again.
-
-
-Codex `dispatch-start` saves the complete `host_request` in `receipt.operation_status.host_request` and enters `dispatch_prepared`; repeated calls and `status` can read it back. `dispatch-call` uses the current `dispatch_attempt_id` to enter `dispatching`; only its first `should_dispatch=true` result permits one creation call. The caller writes complete command stdout to a private file, checks the exit code and parses JSON from that file before forwarding the request unchanged, avoiding display truncation.
-
-When the previous caller has stopped and the creation tool was demonstrably never called, `dispatch-recover` accepts the current attempt ID, `host_call_not_made=true`, `previous_caller_stopped=true` and a specific `reason`, retains the request and issues a new claim ID for `dispatch-call`. Empty task IDs alone do not prove non-invocation. When creation was called but its result is unknown, the Host searches tasks and archived tasks using the saved title, launch ID and repository marker, reads complete initial messages and submits `candidates` (`thread_id`, `initial_prompt`) to `dispatch-reconcile`. Exactly one complete prompt match saves the task ID; zero matches, multiple matches or unavailable inspection never authorize another creation. Core continues to own Task state.
-
-
-Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
-`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
-`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).
-
-## Planning carried content in Codex
-
-When Codex carries local changes, it records their preservation in REQUIREMENTS and reconciles the complete `current_changed_paths` with `expected_paths` and retained process artifacts in TASKS. New development and preservation receive separate work and checks; an empty current-Action file collection cannot replace the complete Task path comparison. Preservation checks compare the launch snapshot and do not certify existing behavior as tested. Existing file-scope blockers continue through the current Core choices and transitions.
-
-## Verification capacity for existing checks
-
-When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.
+See the [Support Matrix](SUPPORT-MATRIX_en.md) for stable support and unverified scope, and [Project Status](PROJECT-STATUS_en.md) for delivered capabilities and gaps. Protocols and implementation belong in [Architecture](ARCHITECTURE_en.md), and operation parameters in the [Command Reference](COMMANDS_en.md).

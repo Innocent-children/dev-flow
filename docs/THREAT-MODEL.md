@@ -78,7 +78,3 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 - 不受支持的平台、Host 版本和 source-only build 没有稳定安全支持声明。
 
 安全问题请按仓库根目录的 [Security Policy](../SECURITY.md) 私密报告。
-
-
-工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
-`carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。

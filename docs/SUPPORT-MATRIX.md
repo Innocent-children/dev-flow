@@ -24,20 +24,13 @@ Codex 的安装与移除测试检查安装包和 Core 标识、安装、setup、
 当前源码包含共享本机 WebUI、内嵌资产和 `dev-flow webui start|open|status|stop`，并支持以下
 操作系统与 CPU 组合：
 
-当前源码的新 Task 生命周期先在 Host 中做只读改动量评估，再由用户确认 source/base/target/carry，从
-解析本地或远端分支后固定的 commit 建立专属工作树；Core 只读计算工作树 identity、history、content 和当前
-Task surface。源码测试使用临时 Git 仓库和运行记录，也提供检查外部实际运行记录的入口。只有
-在对应 Host 和平台实际完成测试，才能报告该环境已验证；正式发布前，上方稳定支持表保持不变。
-
 | Runtime pair | 当前源码范围 | 已验证的范围 |
 | --- | --- | --- |
 | `darwin-arm64` | macOS arm64 | 已有稳定安装包的完整流程测试；当前工作树功能仍需在实际宿主中单独验证 |
 | `win32-x64` | Windows 10/11 桌面版 x64 | Windows 11 x64 本机 Core/WebUI/MCP、完整 Go 套件、Adapter 接口规范和两个平台的本地打包；尚未验证稳定 `@latest` 安装包的完整流程 |
 
 npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接受交叉组合；package runtime selector 只接受
-上表两个精确 pair，并拒绝 `win32-ia32`、`win32-arm64` 与 `darwin-x64`。Windows 使用
-`%LOCALAPPDATA%\dev-flow` 保存产品数据，用户配置仍位于 `%USERPROFILE%\.dev-flow\config.json`；macOS 使用
-`$HOME/.dev-flow` 统一管理产品数据、桌面宠物与注册状态，用户配置位于 `$HOME/.dev-flow/config.json`。
+上表两个精确 pair，并拒绝 `win32-ia32`、`win32-arm64` 与 `darwin-x64`。数据目录见[命令参考](COMMANDS.md)。
 
 新的源码能力或后续 beta 只有经过独立发布流程、下载核对 npm 安装包内容，并在实际宿主中测试最终安装包，才能扩大上方
 稳定支持声明。
@@ -52,36 +45,15 @@ npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接�
 
 ## 桌面宠物功能检查
 
-桌面组件面向 macOS arm64（Apple Silicon）与 Windows 10/11 x64，通过包含原生应用的本地开发包使用。当前常规 npm 清单与正式制备流程不包含
-`DevFlowPet.app`；本地构建与运行步骤见[桌面宠物指南](DESKTOP-PETS.md#本地构建与安装)。运行已构建的应用无需 Swift/Xcode，
-Core 由已配置的 Codex 或 DeepSeek Adapter 提供。
+| 产物 / 环境 | 已记录检查 | 限制 |
+| --- | --- | --- |
+| macOS arm64 本地开发包 | 应用构建、解包资源、ad-hoc 签名与执行权限；原生导入与选择、开关、缩放和待机活动；观察器、素材及播放定向检查 | 尚未确认最低系统运行、完整鼠标拖动自动化、完整 Codex/DeepSeek Task 会话、Developer ID 签名和公证 |
+| Windows 11 Intel x64 本地开发分发包 | Core/WebUI、包装配、原生窗口、图集导入、单实例与停止；隔离环境中的安装、重装和卸载 | Windows 10、AMD 实机、完整鼠标拖放及睡眠唤醒交互、完整 Codex/DeepSeek Task 会话和正式分发签名未验证 |
 
-已完成的本机检查包括本地包构建、解包后的资源/签名/执行权限、形象导入与选择、待机活动开关，以及自动挥手、向右散步和回到待机。
-定向测试覆盖静态/原生动画包、Codex 标准图集、九行动作的高分辨率图集、选择保存、导入失败保留、冷却与抢占、有限循环回调和窗口移动停止。
-新增本机检查覆盖 50%～200% 大小菜单、缩放后的布局与设置保存、行走速度、SVG 导入与拒绝规则，以及默认九类动作、312 帧的内容保持和本地包资源/签名检查。
-实际 WebP 检查使用本地 Codex 图集，完整验证方法见[指南的验收方式](DESKTOP-PETS.md#验收方式)。
+桌面包面向 macOS arm64 和 Windows 10/11 x64。macOS 部署配置目标为 macOS 14；这是构建目标，不表示已经验证最低系统运行。常规 npm 包不包含 `DevFlowPet.app`，运行本地桌面包需要已配置的 Adapter 提供 Core。
 
-Swift Package 和应用 metadata 的部署目标为 macOS 14。最低系统实际运行、真实鼠标拖放的完整检查、完整 Codex/DeepSeek 任务会话、
-Developer ID 签名和 Apple 公证尚未完成相应验证。上述本地与定向结果不扩大上方稳定支持表，也不扩大 Host 任务流程能力。
+历史桌面验证记录通过 Git 历史查询。Windows 的环境、步骤与结果见[Windows 报告](WINDOWS-ADAPTATION.md)。这些本地结果不扩大上方稳定支持表。安装和素材使用见[桌面宠物指南](DESKTOP-PETS.md)。
 
-本地包保留默认形象；鲸鱼娘等自定义形象通过外部包导入，其导入、加载与选择属于上述原生形象检查范围。
+## 源码 DSH 要求
 
-## Windows 平台边界与验证
-
-Windows 10/11 x64 面向普通 Intel、AMD 64 位桌面电脑。三个 Node 包的路径、权限、命令和清理规则分别由 `lib/platform/windows/` 与 `lib/platform/macos/` 实现，选择入口只按当前平台分派。Core 的平台中立任务语义保持共享；Windows Git 进程隐藏控制台窗口。Codex 的 `--version` 与 `status` 使用所选平台的可执行文件检查，Windows PowerShell 启动器输出 UTF-8。本次只执行 Windows 原生测试；Windows 10、AMD 实机和 macOS 未测试，稳定支持声明保持不变。详见[Windows 适配报告](WINDOWS-ADAPTATION.md)。
-
-## Windows 桌面功能
-
-Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](DESKTOP-PETS.md)。
-
-Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿主提供的目录别名；仍拒绝符号链接。
-
-当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
-
-## 当前 DSH 接口
-
-当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
-
-
-工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
-`carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。
+当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。该源码要求不替代上表中稳定安装包的验证环境。

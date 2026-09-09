@@ -24,17 +24,11 @@ or clean resources.
 The interface supports Simplified Chinese and English. Initial selection follows browser language;
 a manual choice remains in the browser and never enters Core, a Task, a receipt, or account state.
 
-The verification panel renders only structured state retained by Core. Before TASKS completes,
-`plan` and `current_budget` are null. Afterwards it shows planned checks plus full-suite and test-code
-expectations. `usage` counts only the current Task Plan revision; older records remain in facts and
-timeline. Every increase shows its basis, reason, added checks, increment, and resulting budget. The
-WebUI neither infers full-suite necessity from remaining capacity nor runs verification commands.
+The verification panel shows whether planning is complete, the planned checks, full-suite and test-code expectations, current-plan usage, and each justified increase. Older plan records remain in the timeline. WebUI displays Core’s results; the Host decides which checks to run.
 
 ## Mutation boundary
 
-The WebUI no longer creates a new Task from an arbitrary checkout. A new Task must pass Host-side
-read-only assessment, developer confirmation, fetch, dedicated-worktree provisioning, and verification
-in Codex or DeepSeek before the target Host calls Core.
+Codex or DeepSeek creates new Tasks after read-only assessment, developer confirmation, source resolution and dedicated-worktree preparation. The page displays and handles existing Tasks.
 
 The page may submit these operations using the current Task and Action identifiers returned by Core:
 
@@ -59,16 +53,6 @@ observation. A dedicated worktree has no option to ignore a supposedly external 
 Before entering TEST, every work item in the current Task Plan must be completed. DELIVERY receives explicit acceptance results linking each criterion to completed work items mapped to that criterion and passed checks in the current Test. Automated, static, Host-observed and explicit manual checks are supported. Comprehension confirmation remains separate and does not automatically substitute for acceptance checks. Missing, incorrect or outdated references reject the submission.
 
 WebUI and MCP share Core semantic submission, operation retention and recovery. Core retains the canonical payload; the page sends the current Task revision, Action ID and semantic results. Network failures first trigger a Core read. Reopening the page discovers pending operations and recovers them by Action ID. Invalid completion results neither advance the Task nor retain an operation.
-
-### Action HTTP fields
-
-| Route | Request fields, in addition to csrf |
-| --- | --- |
-| `POST /api/tasks/{task_id}/actions/submit` | request_id, task_revision, action_id, payload; payload follows the current semantic form schema |
-| `POST /api/tasks/{task_id}/recovery/assess` | action_id |
-| `POST /api/tasks/{task_id}/recovery/apply` | action_id |
-
-A null `pending_action_id` means the current detail read found no unapplied operation. A present ID exposes recovery controls. Core re-reads and validates the Action to decide the actual result.
 
 ## Start, open, inspect, and stop
 
@@ -123,34 +107,12 @@ runtime use needs no Node server, CDN, external font, or separate WebUI package.
 - browser-created shared-checkout Tasks or automatic reconstruction of a missing worktree;
 - user-defined graphs or another copy of Task state.
 
-## Desktop task entry
+## Desktop entry and file errors
 
-On macOS arm64, the desktop pet uses a local development package containing `DevFlowPet.app`, with Core supplied by an already configured Codex or DeepSeek Adapter.
-Regular npm file lists and release preparation currently omit the native app; see the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) to obtain it.
-The pet shows one selected Task's saved state and opens its WebUI. Core owns Task state; presentation indicates neither live Host activity nor completion percentages.
+The desktop pet can open the selected Task in this WebUI. It uses a local development package and the configured Adapter’s Core. Installation, controls and appearances are described in the [desktop pet guide](DESKTOP-PETS_en.md).
 
-Appearances can use a single PNG, a native animation pack, a standard Codex format 1/2 atlas, or Dev Flow's high-resolution extension. Five task clips are required;
-additional artwork determines whether walking, waving, or thinking is available. Only Codex-layout atlases have the fixed nine-clip, 57-frame extraction.
-Idle activities have a separate switch, task prompts take priority, and automatic movement preserves manual placement.
-Program updates, replacement of an installed app copy, and artwork reimports are separate operations. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, all trigger rules, and troubleshooting.
+When a submission omits changed process files, the page shows the missing repository paths separately from request-field errors. A correction is allowed only when Core confirms no write and explicitly permits one correction of the listed artifact fields. Workspace and history errors follow their existing recovery rules. Integration fields belong in [artifact collection and submission](ARTIFACTS_en.md).
 
-The local pet package retains the default appearance. Import Whale Girl or other custom appearances as separate artwork packs through Import appearance. Artwork is stored in the user directory and preserved across application updates.
+Task details show the confirmed worktree source and whether local content was carried. Creation and source selection happen in the Host; see [worktree sources](WORKTREE-SOURCES_en.md).
 
-## Windows desktop features
-
-The Windows 10/11 x64 desktop pet aligns with macOS task selection and status bubbles, WebUI navigation, tray/context menus, static and native animated PNG/SVG appearances, Codex PNG/WebP atlas imports, nine actions, dragging, six scale settings, hide/restore and independent start/stop. Windows uses a separate Electron implementation while macOS retains Swift/AppKit; both only read Core state. The Windows local package is built by `scripts/build-desktop-pet-windows.mjs`, with user data in `%LOCALAPPDATA%\dev-flow\pet`. See the [desktop pet guide](DESKTOP-PETS_en.md) for building, installation, updates and verification.
-
-The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
-
-## Missing artifact handling
-
-Missing process files return `artifact_manifest_incomplete` and `error.repository_paths`, separately from request field paths. Only after Core proves zero writes and explicitly permits correction may the caller correct the specified artifact fields once on the same Action. Workspace and history failures keep their existing recovery routes; WebUI displays omitted paths. See [artifact collection and submission](ARTIFACTS_en.md).
-
-
-Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
-`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
-`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).
-
-## Verification capacity for existing checks
-
-When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.
+Existing planned checks can receive more verification capacity for remaining work or a rerun. The page records the concrete reason and increase without creating a passed result.

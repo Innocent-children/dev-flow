@@ -86,8 +86,3 @@ Identity or target drift stops cleanup.
 - Unsupported platforms, Host versions, and source-only builds do not have a stable security support claim.
 
 Report security issues privately by following the repository [Security Policy](../SECURITY.md).
-
-
-Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
-`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
-`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).

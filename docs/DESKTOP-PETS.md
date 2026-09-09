@@ -62,7 +62,7 @@ productRoot 默认是 %LOCALAPPDATA%\dev-flow。已安装桌面目录为 product
 
 Windows 使用受限渲染器、当前用户范围的本地单实例通道与确认消息，不按进程名或仅凭 PID 停止程序。每轮和点击跳转前核对同一 Core 与数据目录；连接失败保留最后记录并标注断连，任务更新与同步时间分别显示。隐藏/睡眠取消读取和动画，恢复后不重放历史完成提示。
 
-本地包尚未完成 Windows 正式分发签名验证。当前原生检查在 Windows 11 Intel x64 上执行，Windows 10 与 AMD 实机未测试；本次没有运行 Mac 程序或 Mac 测试；完整制包仅交叉编译 Mac Core 文件。结果与限制见[适配报告](WINDOWS-ADAPTATION.md)。
+本地包尚未完成 Windows 正式分发签名验证。已记录的原生环境与结果见[适配报告](WINDOWS-ADAPTATION.md)，支持范围见[支持矩阵](SUPPORT-MATRIX.md)。
 
 ## 更新程序与素材
 
@@ -347,25 +347,17 @@ Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Cod
 
 ## 验收方式
 
-`swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` 在本机 macOS 上通过 24 项观察器测试，使用模拟 Core 与 HTTP 返回验证空列表后发现新任务、保留已有选择、清除选择后继续查找、读取失败和迟到响应。`node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` 在本机通过 4 项测试，以模拟 Electron、设置存储和 HTTP 执行 Windows 主进程轮询，验证相同选择规则。本次未执行 Windows 原生窗口测试，也未替换正在运行的应用。
+按受影响组件与环境选择检查，单独保存产物身份、执行命令、实际结果及未执行项。
 
-`node --test packages/desktop-pet/windows/tests/renderer.test.cjs` 使用模拟 DOM、IPC 和时钟验证 Windows 渲染脚本，可在 Mac 和 Windows 上运行。普通轮询保留散步，缩放结束散步后能安排后续活动，工作和庆祝动画保持进度。两端 CI 均运行此检查；测试不启动原生窗口。包路径、权限与 `.exe` 检查的环境要求见[平台定向检查](../scripts/README.md#平台定向检查)。
+| 检查 | 环境与预期结果 |
+| --- | --- |
+| `swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` | macOS；使用模拟 Core/HTTP 检查任务发现、选择保留与迟到响应处理 |
+| `swift test --package-path packages/desktop-pet/macos --filter PetAppearanceTests` | macOS；静态、原生和 Codex 素材导入保留支持的帧与时长，失败时保留已安装形象 |
+| `node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` | 模拟 Electron、偏好与 HTTP，检查任务发现和选择规则 |
+| `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` | 模拟 DOM、IPC 与时钟，检查轮询保留动画、缩放取消散步及后续正常调度 |
+| `node --test scripts/desktop-pet-artwork.test.mjs` | 检查默认素材复制与内容变化后的拒绝 |
+| 已安装的本地包 | 在目标系统检查任务选择、WebUI 跳转、导入、缩放、隐藏恢复、启动复用，以及正常停止后保留设置 |
 
-`packages/desktop-pet/windows/tests/native.cjs` 由 Windows x64 Electron 执行，验证真实窗口缩放后渲染器退出散步状态；其他平台在加载 Electron 前跳过。该脚本沿用 `DEV_FLOW_PET_NATIVE_OUTPUT`、`DEV_FLOW_PET_NATIVE_REQUEST` 和 `DEV_FLOW_PET_APP_ROOT` 指定的原生测试环境。本轮在 Mac arm64 上通过上述 Mac 与跨平台定向检查，Windows `.exe` 和 Electron 窗口检查未执行。
+Windows 原生窗口检查需要 Windows x64 Electron 和 `packages/desktop-pet/windows/tests/native.cjs` 指定的环境；模拟检查不能证明原生窗口行为。完整 Host 流程和最低系统检查需要各自的实际环境。
 
-本次 macOS arm64 定向检查覆盖 30 项原生测试与 2 项素材装配测试，包括大小菜单、缩放后的锚点和气泡、设置保存、行走速度、PNG 回归，以及 SVG 导入和拒绝规则。
-使用默认形象作为 `DEV_FLOW_PET_TEST_FIXTURE` 运行 `SVGArtworkTests`，确认九类动作、312 个矢量帧导入后内容一致；`node --test scripts/desktop-pet-artwork.test.mjs` 验证复制内容及改动后拒绝。这些是本机组件和素材检查，完整桌面会话另行验证。
-
-在 macOS arm64 上执行 `swift test --package-path packages/desktop-pet/macos --filter PetAppearanceTests`：
-
-- 标准格式 1/2 的 PNG 图集导入后保留九类动作、57 帧，单格仍为 192×208；四类附加动作的行位置、帧数和逐帧时长正确。
-- 12288×14976 的扩展 PNG 图集导入后保留九类动作和 1536×1664 单格；少于九个完整动作行时拒绝导入并保留旧形象。
-- 五类任务动作的原生包可正常加载，清单中无效的附加动作被拒绝。
-- 转换后的 PNG 文件超过 128 MiB 时拒绝重导入，旧形象仍可加载，已保存选择保持不变。
-- 超大图片头和可能导致整数溢出的画布清单被拒绝，程序返回错误。
-
-待机调度另由 `PetActivityTests` 验证可控时间、冷却、完整动作结束、提醒抢占、位移边界和素材缺项；
-`PresentationRulesTests` 覆盖审核节点选择，播放器和窗口测试覆盖实际结束回调与停止移动，偏好测试覆盖开关保存。
-这些检查分别覆盖原生导入、展示规则和 AppKit 组件；实际桌面交互检查与完整 Codex/DeepSeek 任务会话结果分别记录。
-
-实现职责见[架构说明](ARCHITECTURE.md#桌面宠物职责)，平台与分发验证范围见[支持矩阵](SUPPORT-MATRIX.md#桌面宠物功能检查)。
+已验证范围与限制见[支持矩阵](SUPPORT-MATRIX.md)，Windows 检查结果见[Windows 报告](WINDOWS-ADAPTATION.md)。历史桌面验证记录通过 Git 历史查询；组件检查不扩大稳定支持范围。

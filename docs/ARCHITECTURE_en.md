@@ -235,6 +235,16 @@ Ordinary Actions use `Service.SubmitAction`; blockers use `Service.ResolveBlocke
 
 Task detail returns `pending_action_id` for a retained operation that has not been applied. HTTP recovery accepts only the Action ID; `GetTask` and `RecoverAction` read the retained payload and decide the next step. A browser network failure first queries Core, and ordinary submission is hidden while recovery is pending. Reloading the page reads the pending reference from Core. The browser no longer assembles an internal OperationProbe.
 
+### Action HTTP fields
+
+| Route | Request fields, in addition to csrf |
+| --- | --- |
+| `POST /api/tasks/{task_id}/actions/submit` | request_id, task_revision, action_id, payload; payload follows the current semantic form schema |
+| `POST /api/tasks/{task_id}/recovery/assess` | action_id |
+| `POST /api/tasks/{task_id}/recovery/apply` | action_id |
+
+A null `pending_action_id` means the current detail read found no unapplied operation. A present ID exposes recovery controls. Core re-reads and validates the Action to decide the actual result.
+
 ## Verification plan, budget increases, and review scope
 
 The final verification budget is not part of creation-time `TaskIntent`. TASKS runs after
@@ -319,8 +329,7 @@ dev_flow_abandon_task
 ```
 
 Store implements one current SQLite Schema, strict snapshot codec, Action operation, append-only
-TaskEvent, claims, and revision CAS. There is no migration, old-Schema reader, shared-checkout fallback,
-or reset prompt. Claim lookup uses directly observable worktree-instance identity so the prewrite hook
+TaskEvent, claims, and revision CAS. Claim lookup uses directly observable worktree-instance identity so the prewrite hook
 can still find a Task after an illicit branch switch.
 
 WebUI is a loopback HTTP Adapter that projects WorkspaceOrigin, observation/surface, blockers,
@@ -402,17 +411,17 @@ See the [desktop pet guide](DESKTOP-PETS_en.md) for usage, artwork, and trigger 
 
 `scripts/build-desktop-pet.mjs` calls `scripts/desktop-pet-artwork.mjs` to copy the default SVG appearance from `packages/desktop-pet/default-appearance/` and compare every delivered file with its source. Users import custom appearances from external packs. `PetAppearanceStore` lists and loads appearances in the user directory, while `PetAppearanceSelection` switches between the default and imported appearances. Generated application bundles are stored outside the repository and are not tracked by Git.
 
-## Windows platform boundaries and verification
+## Platform responsibilities
 
-Windows 10/11 x64 targets ordinary desktop PCs with Intel or AMD 64-bit processors. The three Node packages implement paths, permissions, commands and cleanup separately in `lib/platform/windows/` and `lib/platform/macos/`; selection entry points only dispatch to the current platform. Core keeps shared platform-neutral task semantics, while Windows Git processes hide console windows. Codex `--version` and `status` use the selected executable-file policy, and Windows PowerShell launchers output UTF-8. This change was tested only on native Windows; Windows 10, AMD hardware and macOS were not tested, and stable support claims remain unchanged. See the [Windows adaptation report](WINDOWS-ADAPTATION_en.md).
+The three Node packages select platform implementations at `lib/platform.mjs`; paths, permissions, commands and cleanup live in `lib/platform/windows/` and `lib/platform/macos/`. Core keeps platform-neutral task semantics. Windows Git processes hide console windows; Codex version/status preflight uses the selected executable policy, and PowerShell launchers use UTF-8. Native validation is recorded separately in the [Windows report](WINDOWS-ADAPTATION_en.md).
 
-## Windows desktop features
+Windows Codex registration validates marketplace `name` and `root` together with Plugin identity; the Windows implementation normalizes the `\\?\` path prefix. macOS uses its own readback rules.
 
-The Windows 10/11 x64 desktop pet aligns with macOS task selection and status bubbles, WebUI navigation, tray/context menus, static and native animated PNG/SVG appearances, Codex PNG/WebP atlas imports, nine actions, dragging, six scale settings, hide/restore and independent start/stop. Windows uses a separate Electron implementation while macOS retains Swift/AppKit; both only read Core state. The Windows local package is built by `scripts/build-desktop-pet-windows.mjs`, with user data in `%LOCALAPPDATA%\dev-flow\pet`. See the [desktop pet guide](DESKTOP-PETS_en.md) for building, installation, updates and verification.
+## Windows desktop responsibilities
 
-On Windows, existing AppData directories are resolved to their actual paths, including directory aliases exposed by packaged desktop hosts; symbolic links remain rejected.
+`packages/desktop-pet/windows/` owns the Electron window, tray, renderer, local observation and artwork handling; macOS retains Swift/AppKit. Both read Core state. `scripts/build-desktop-pet-windows.mjs` assembles the Windows desktop distribution with both Adapter packages. The launcher verifies bundled hashes and manages application replacement while preserving settings and artwork in `%LOCALAPPDATA%\dev-flow\pet`.
 
-The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
+The Windows path implementation resolves existing AppData directories to actual paths, including aliases supplied by packaged desktop hosts, while rejecting symbolic links. GUI launch uses `Start-Process` and a per-launch acknowledgment, so the persistent desktop process does not retain the invoking terminal’s output handles. Platform maintenance identifies Core by full executable path, command and creation time before stopping instances for replacement.
 
 ## Current DSH interface
 
@@ -431,7 +440,6 @@ Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `d
 The Codex package owns command discovery in `lib/host-launch-contract.mjs`. `host-launch <operation> --help` returns input Schemas, field sources, output fields and next steps before reading stdin, resolving installation paths or executing an operation. `host-launch scope` reads the confirmed repository records and reuses coordinator validation to assemble Core repository arguments. The Host coordinator continues to own Git operations.
 
 Core MCP `inputSchema` describes submissions; `outputSchema` describes the public result envelope and paths needed to continue, while Core domain validation owns retained record contents. `structuredContent` and text content carry the same JSON result. Hosts handle `recovery_assessment.next_advice` before the current Action and obtain the saved submission identity from `recovery_assessment.operation.action_id` on a fresh-session resume. Lifecycle operations read back Tasks, creation origins or relocation records through their own identities instead of using ordinary Action recovery.
-
 
 Codex `dispatch-start` saves the complete `host_request` in `receipt.operation_status.host_request` and enters `dispatch_prepared`; repeated calls and `status` can read it back. `dispatch-call` uses the current `dispatch_attempt_id` to enter `dispatching`; only its first `should_dispatch=true` result permits one creation call. The caller writes complete command stdout to a private file, checks the exit code and parses JSON from that file before forwarding the request unchanged, avoiding display truncation.
 

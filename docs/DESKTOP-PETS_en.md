@@ -62,7 +62,7 @@ productRoot defaults to %LOCALAPPDATA%\dev-flow. The installed app directory is 
 
 Windows uses a restricted renderer and a local per-user single-instance channel with acknowledgments. It does not stop processes by name or PID alone. Each poll and navigation rechecks the same Core and data directory. Disconnection keeps and marks the last record, with separate task-update and last-sync timestamps. Hiding or sleeping cancels reads and animation; resuming does not replay historical completion prompts.
 
-The local package has not completed Windows distribution signing verification. Native checks ran on Windows 11 Intel x64; Windows 10 and AMD hardware were unavailable. No macOS tests were performed; complete packaging cross-compiles the Mac Core artifact without executing it. See the [adaptation report](WINDOWS-ADAPTATION_en.md) for results and limits.
+Windows distribution signing is not verified for the local package. Recorded native environments and results are in the [adaptation report](WINDOWS-ADAPTATION_en.md); supported scope is listed in the [Support Matrix](SUPPORT-MATRIX_en.md).
 
 ## Updating the program and artwork
 
@@ -355,26 +355,17 @@ Packs contain presentation data, not executable scripts.
 
 ## Acceptance checks
 
-`swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` passed 24 observer tests on local macOS, using simulated Core and HTTP responses to check discovery after empty lists, retaining a selection, resuming discovery after clearing it, read failures, and late responses. `node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` passed 4 tests locally, running Windows main-process polling with simulated Electron, preference storage, and HTTP to check the same selection rules. This change did not run native Windows window tests or replace the running application.
+Use checks matching the affected component and environment, and retain the artifact identity, command, actual result and any unrun steps separately.
 
-`node --test packages/desktop-pet/windows/tests/renderer.test.cjs` exercises the Windows renderer using a simulated DOM, IPC and clock on Mac or Windows. Ordinary polls preserve walking, resizing cancels walking and allows later activities, and work and celebration playback retain their progress. Both CI jobs run this check without starting a native window. See [platform-targeted checks](../scripts/README_en.md#platform-targeted-checks) for package-path, permission and `.exe` prerequisites.
+| Check | Environment and expected result |
+| --- | --- |
+| `swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` | macOS; simulated Core/HTTP checks task discovery, selection retention and late-response handling |
+| `swift test --package-path packages/desktop-pet/macos --filter PetAppearanceTests` | macOS; static/native/Codex import preserves supported frames and timing, and failed imports preserve the installed appearance |
+| `node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` | Simulated Electron, preferences and HTTP; verify discovery and selection rules |
+| `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` | Simulated DOM, IPC and clock; polling preserves animation, resizing cancels walking and normal scheduling resumes |
+| `node --test scripts/desktop-pet-artwork.test.mjs` | Verify default-artwork copying and rejection after content changes |
+| Installed local package | On the target OS, check task selection, WebUI navigation, import, scaling, hide/restore, startup reuse and normal stop with retained settings |
 
-`packages/desktop-pet/windows/tests/native.cjs` runs under Windows x64 Electron and checks that resizing a real window clears the renderer's walking activity; other platforms skip before loading Electron. It uses the existing native environment supplied by `DEV_FLOW_PET_NATIVE_OUTPUT`, `DEV_FLOW_PET_NATIVE_REQUEST`, and `DEV_FLOW_PET_APP_ROOT`. The Mac and cross-platform checks above passed on Mac arm64 in this correction; Windows `.exe` and Electron window checks were not run.
+Native Windows window checks require Windows x64 Electron and the environment described by `packages/desktop-pet/windows/tests/native.cjs`; simulations do not establish native window behavior. Full Host workflows and minimum-system checks require their own actual environments.
 
-The current macOS arm64 targeted checks cover 30 native tests and two artwork-staging tests, including size menu selection, scaled anchor and bubble layout, saved settings, walking speed, PNG regressions, and SVG import and rejection rules.
-Running `SVGArtworkTests` with the default appearance as `DEV_FLOW_PET_TEST_FIXTURE` verifies that all nine clips and 312 vector frames retain their contents after import. `node --test scripts/desktop-pet-artwork.test.mjs` verifies copied contents and rejects altered files. These are local component and artwork checks; full desktop sessions are verified separately.
-
-On macOS arm64, run `swift test --package-path packages/desktop-pet/macos --filter PetAppearanceTests`:
-
-- Importing standard format 1/2 PNG atlases preserves nine clips, 57 frames, and 192×208 cells; the four additional clips retain the correct rows, frame counts, and timings.
-- Importing the 12288×14976 extended PNG atlas preserves nine clips and 1536×1664 cells. Atlases with fewer than nine complete animation rows are rejected, preserving the installed appearance.
-- Native packs with the five task clips remain loadable, and invalid additional clips are rejected.
-- Reimporting a pack whose converted PNG files exceed 128 MiB is rejected; the previous appearance remains loadable and its saved selection is preserved.
-- Oversized image headers and canvas catalogs that could cause integer overflow return errors.
-
-`PetActivityTests` separately covers controlled time, cooldowns, complete activity endings, alert preemption, walking bounds, and missing artwork.
-`PresentationRulesTests` covers review-node selection; player and window tests cover actual completion callbacks and movement cancellation;
-preference tests cover switch persistence. These checks cover native import, presentation rules, and AppKit components separately.
-Actual desktop interaction checks and full Codex/DeepSeek task-session results are recorded separately.
-
-See [architecture](ARCHITECTURE_en.md#desktop-pet-responsibilities) for implementation ownership and the [support matrix](SUPPORT-MATRIX_en.md#desktop-pet-functional-checks) for platform and distribution verification.
+See the [Support Matrix](SUPPORT-MATRIX_en.md) for verified scope and limits, and the [Windows report](WINDOWS-ADAPTATION_en.md) for Windows check results. Historical desktop validation records are available through Git history; component checks do not expand stable support.

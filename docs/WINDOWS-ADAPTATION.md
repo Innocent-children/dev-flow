@@ -4,36 +4,13 @@
 
 ## 范围与结论
 
+本报告保留 2026-09-07 Windows 适配及本地桌面分发包的检查记录，不作为当前实施计划，也不代表本次重新验证。当前职责见[架构说明](ARCHITECTURE.md)，安装方式见[桌面宠物指南](DESKTOP-PETS.md)。
+
 本次完善现有 Windows 10/11 桌面 x64 实现，处理器范围是 Intel、AMD 的 x86-64。x64 不代表 32 位 x86；Windows Server、ARM64、32 位和特殊 Windows 环境不在范围内。
 
 已修复 Windows 命令编码与 Codex 可执行文件检查缺陷，隔离已有 Host 平台交织，并完成本机 Windows 验证。所有任务状态、节点、转移、Schema 和 Git 只读边界保持现有设计；不新增工作流、兼容层、迁移或回退读取。
 
 本次没有执行 macOS 测试。完整统一入口包按仓库既有目标表交叉编译 Mac Core 文件，但不运行 Mac 程序。macOS 的路径、权限、信号、命令和宠物安装行为按现有逻辑迁入独立实现，已有 macOS 原生组件未修改。代码结构检查支持平台隔离的判断，但不等于 macOS 运行回归证明。
-
-## 问题与设计依据
-
-现有三个 Node 包在同一文件中混合两套平台规则，Host 路径、权限和生命周期代码仍有具体操作系统分支。Codex 的版本和状态入口没有把 Windows 可执行文件检查策略传给 Core 预检；Windows PowerShell 的重定向输出使用本地代码页，中文输出产生乱码。Core 从桌面 Host 观察 Git 时也未显式隐藏子进程控制台。
-
-用户此前只能依赖已有的部分 Windows 路径适配，或绕过失效的入口直接运行 Core；当前要求是在不改变 macOS 行为的前提下修正现有接口。依据来自当前源码、package manifest、CLI parser、临时 Git 工作树和实际 Windows 进程结果，而不是 Host 对完成状态的推断。
-
-本次把平台机制交给各自实现，把唯一 Task 决策继续留在 Core。错误检查可能阻断可运行的 Windows Core，错误放行可能掩盖缺失文件，因此仍保留文件存在、类型、路径和实际执行检查，仅在 Windows 不要求 POSIX 执行位。平台选择仍只接受现有两个精确 runtime pair。
-
-## 责任与实现
-
-| 责任 | 修改及当前行为 |
-| --- | --- |
-| Core 平台中立语义 | Domain、Workflow、Application、Recovery 不加入操作系统判断；流程内容摘要与 Schema 不变 |
-| Core Windows 进程 | repository 的 Git 命令调用平台配置函数；Windows 设置 HideWindow，darwin 实现为空操作，保留原行为 |
-| Host 平台选择 | 三个包的 lib/platform.mjs 只选择对应实现；runtime、路径、权限、信号及清理策略分别保存在 platform/windows/ 与 platform/macos/ |
-| Host 路径 | Codex/DeepSeek paths 和统一入口 ownership 使用所选策略计算产品目录；保留 Windows LocalAppData 与 macOS 用户目录规则 |
-| Host 命令 | Codex 与统一入口将命令发现、Windows npm 启动器解析和调用放到对应平台目录；Windows PowerShell 明确使用 UTF-8，参数作为字面值编码传递，并保留退出码 |
-| Codex 入口 | --version 与 status 向预检传入 requireExecutableMode；Windows 检查实际文件与执行结果，不要求 POSIX 执行位 |
-| DeepSeek receipt | 读写权限检查消费所选 permissionPolicy，不在 receipt 代码中判断操作系统 |
-| macOS 宠物 | Codex 的安装实现移入 platform/macos/pet-installer.mjs；统一入口通过平台能力选择安装器，Windows 不进入该实现 |
-| 构建与安装包 | 同步三个 manifest、Codex 本地 staging 清单、仓库归档检查及相关 package 测试，包含新增平台模块 |
-| Core 版本 | CORE_VERSION 按修复影响递增 PATCH，并同步两份受检机器 fixture；npm 版本与公开发布元数据不变 |
-
-开始时已有四个未提交文件：packages/codex/lib/platform.mjs、packages/codex/lib/task-admission.mjs、packages/codex/tests/task-admission.test.mjs、packages/deepseek/tests/workspace-coordinator.test.mjs。原有 Windows Git 路径转换、中文路径测试及 Git 换行设置均已保留；平台文件中的转换函数随本次拆分移入 Windows 实现。
 
 ## 验收环境
 
@@ -95,134 +72,14 @@ Windows 实现位于 packages/desktop-pet/windows，运行时依赖仅在该目�
 
 源码入口为 scripts/build-desktop-pet-windows.mjs，构建步骤见[桌面宠物指南](DESKTOP-PETS.md#windows-本地构建与安装)。本地构建结果与包摘要保存在输出目录的 desktop-pet-build.json，截图和原生结果保存为 desktop.png、native-result.json、lifecycle-result.json 与 cli-result.json。
 
-鼠标拖放和真实系统睡眠/唤醒尚未进行完整人工操作验证；代码已连接对应 Windows 事件。Windows 10、AMD 实机和完整 Codex/DeepSeek Task 会话仍未验证。未进行任何 macOS 测试或构建，未扩大公开稳定支持声明。
+鼠标拖放和真实系统睡眠/唤醒尚未进行完整人工操作验证；代码已连接对应 Windows 事件。Windows 10、AMD 实机和完整 Codex/DeepSeek Task 会话仍未验证。桌面专项检查未执行 macOS 构建或测试；后续统一分发包检查包含 Mac Core 交叉编译。上述结果均未扩大公开稳定支持声明。
 
 ## 统一入口实际验收
 
-先前仅安装两个 Adapter 与手工修复注册的方式不构成本轮最终交付。当前分发包包含完整的两个 Adapter 包和 Windows 桌面程序，均由统一入口管理。
+统一入口检查使用包含两个完整 Adapter 包与 Windows 桌面程序的本地分发包。
 
 已用独立的 npm 前缀、CODEX_HOME、DSH_HOME 和产品数据目录调用真实 Codex、DSH 与 dev-flow 命令，完成 install、pet start、重复启动、宠物运行中 reinstall、doctor、uninstall 和再次 install。注册与安装没有使用手工补写。卸载后的设置保留已检查。首次宠物启动约 1.25 秒返回，重复启动约 0.69 秒返回，修复了此前依赖超时才能返回的问题。
 
-本机真实配置随后同样使用 npm 引导统一入口，再执行 dev-flow install --host all --profile web --yes、status 和 pet start。Codex、DeepSeek web 均 ready，宠物已运行。安装器在 Windows 按目标包的实际可执行路径、命令和进程创建时间停止占用文件的 MCP 实例；这是统一流程的代码，不是手工终止步骤。
+本机真实配置随后同样使用 npm 引导统一入口，再执行 dev-flow install --host all --profile web --yes、status 和 pet start。检查时 Codex、DeepSeek web 均为 ready，宠物成功运行。安装器在 Windows 按目标包的实际可执行路径、命令和进程创建时间停止占用文件的 MCP 实例；这是统一流程的代码，不是手工终止步骤。
 
 完整包不再缺少 Mac Core 文件；只做交叉编译与制包检查，没有运行 Mac 程序或 Mac 测试。本轮没有发布 npm 或修改公开稳定版本。
-
-## 变更路径
-
-实际修改路径如下；未提交或发布。
-
-- `CORE_VERSION`
-- `README.md`
-- `README_de.md`
-- `README_es.md`
-- `README_fr.md`
-- `README_ja.md`
-- `README_ko.md`
-- `README_pt-BR.md`
-- `README_zh-CN.md`
-- `README_zh-TW.md`
-- `docs/ARCHITECTURE.md`
-- `docs/ARCHITECTURE_en.md`
-- `docs/CODEX_en.md`
-- `docs/COMMANDS.md`
-- `docs/COMMANDS_en.md`
-- `docs/DEEPSEEK_en.md`
-- `docs/DESKTOP-PETS.md`
-- `docs/DESKTOP-PETS_en.md`
-- `docs/PRODUCT.md`
-- `docs/PRODUCT_en.md`
-- `docs/SUPPORT-MATRIX.md`
-- `docs/SUPPORT-MATRIX_en.md`
-- `docs/TOOLCHAIN-BASELINES.md`
-- `docs/WEBUI.md`
-- `docs/WEBUI_en.md`
-- `docs/WINDOWS-ADAPTATION.md`
-- `docs/WINDOWS-ADAPTATION_en.md`
-- `docs/WINDOWS-PARITY.md`
-- `docs/WINDOWS-PARITY_en.md`
-- `internal/README.md`
-- `internal/README_en.md`
-- `internal/repository/git_observer.go`
-- `internal/repository/process_darwin.go`
-- `internal/repository/process_windows.go`
-- `internal/repository/process_windows_test.go`
-- `internal/webui/assets/generated/assets/index-C550w0rZ.js`
-- `internal/webui/assets/generated/assets/index-D4HxSYuq.css`
-- `internal/webui/assets/generated/index.html`
-- `internal/webui/assets/generated/manifest.json`
-- `internal/webui/runtime_windows.go`
-- `packages/codex/README.md`
-- `packages/codex/bin/dev-flow-codex.mjs`
-- `packages/codex/lib/command.mjs`
-- `packages/codex/lib/lifecycle.mjs`
-- `packages/codex/lib/paths.mjs`
-- `packages/codex/lib/platform.mjs`
-- `packages/codex/lib/platform/macos/command.mjs`
-- `packages/codex/lib/platform/macos/pet-installer.mjs`
-- `packages/codex/lib/platform/macos/policies.mjs`
-- `packages/codex/lib/platform/windows/command.mjs`
-- `packages/codex/lib/platform/windows/policies.mjs`
-- `packages/codex/lib/task-admission.mjs`
-- `packages/codex/package.json`
-- `packages/codex/tests/fixtures/graph-method-profiles.json`
-- `packages/codex/tests/package-contract.test.mjs`
-- `packages/codex/tests/task-admission.test.mjs`
-- `packages/codex/tests/task-launch.test.mjs`
-- `packages/codex/tests/windows-command.test.mjs`
-- `packages/codex/tests/windows-package.test.mjs`
-- `packages/codex/tests/windows-webui.test.mjs`
-- `packages/deepseek/README.md`
-- `packages/deepseek/lib/paths.mjs`
-- `packages/deepseek/lib/platform.mjs`
-- `packages/deepseek/lib/platform/macos/policies.mjs`
-- `packages/deepseek/lib/platform/windows/policies.mjs`
-- `packages/deepseek/lib/provisioning-receipt.mjs`
-- `packages/deepseek/package.json`
-- `packages/deepseek/tests/package-contract.test.mjs`
-- `packages/deepseek/tests/workspace-coordinator.test.mjs`
-- `packages/desktop-pet/windows/appearance.cjs`
-- `packages/desktop-pet/windows/decode.html`
-- `packages/desktop-pet/windows/main.cjs`
-- `packages/desktop-pet/windows/observation.cjs`
-- `packages/desktop-pet/windows/package-lock.json`
-- `packages/desktop-pet/windows/package.json`
-- `packages/desktop-pet/windows/preload.cjs`
-- `packages/desktop-pet/windows/storage.cjs`
-- `packages/desktop-pet/windows/tests/contracts.test.cjs`
-- `packages/desktop-pet/windows/tests/native.cjs`
-- `packages/desktop-pet/windows/view.css`
-- `packages/desktop-pet/windows/view.html`
-- `packages/desktop-pet/windows/view.js`
-- `packages/dev-flow/README.md`
-- `packages/dev-flow/lib/cli.mjs`
-- `packages/dev-flow/lib/command.mjs`
-- `packages/dev-flow/lib/hosts/codex.mjs`
-- `packages/dev-flow/lib/lifecycle.mjs`
-- `packages/dev-flow/lib/local-packages.mjs`
-- `packages/dev-flow/lib/ownership.mjs`
-- `packages/dev-flow/lib/pet.mjs`
-- `packages/dev-flow/lib/plan.mjs`
-- `packages/dev-flow/lib/platform.mjs`
-- `packages/dev-flow/lib/platform/macos/command.mjs`
-- `packages/dev-flow/lib/platform/macos/maintenance.mjs`
-- `packages/dev-flow/lib/platform/macos/policies.mjs`
-- `packages/dev-flow/lib/platform/windows/command.mjs`
-- `packages/dev-flow/lib/platform/windows/maintenance.mjs`
-- `packages/dev-flow/lib/platform/windows/pet-installer.mjs`
-- `packages/dev-flow/lib/platform/windows/pet.mjs`
-- `packages/dev-flow/lib/platform/windows/policies.mjs`
-- `packages/dev-flow/lib/presentation.mjs`
-- `packages/dev-flow/package.json`
-- `packages/dev-flow/tests/cli.test.mjs`
-- `packages/dev-flow/tests/codex-driver.test.mjs`
-- `packages/dev-flow/tests/local-packages.test.mjs`
-- `packages/dev-flow/tests/package-contract.test.mjs`
-- `packages/dev-flow/tests/pet.test.mjs`
-- `packages/dev-flow/tests/windows-pet.test.mjs`
-- `protocol/fixtures/graph-server-info.json`
-- `scripts/README.md`
-- `scripts/README_en.md`
-- `scripts/build-codex-local.sh`
-- `scripts/build-desktop-pet-windows.mjs`
-- `scripts/validate-repository.sh`
-- `tests/contract/platform_boundary_test.go`

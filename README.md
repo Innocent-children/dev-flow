@@ -44,12 +44,6 @@ over the plugin's code-index preference.
   checks; the developer reviews the actual result before delivery.
 - **Completion and recovery stay verifiable.** Core requires all planned work items and links every acceptance criterion to current checks. WebUI recovers retained submissions from Core after an interruption.
 
-## Artifact preparation
-
-Before submitting, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`. Core enumerates the current Action changes; Codex classifies every file and the command generates the artifact arrays. Omitted files receive exact paths and a bounded correction instruction. Workspace, history and node permissions remain enforced. See [artifact collection and submission](docs/ARTIFACTS_en.md).
-
-Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before starting Codex. The MCP server, hook and artifact commands use that same directory. `dev-flow-codex artifacts <collect|prepare> --help` returns JSON examples, field descriptions, outputs and the next step without starting Core.
-
 ## Quick start
 
 > Stable npm `@latest` is currently verified on macOS arm64. Use Node.js `>=24` and an installed,
@@ -62,8 +56,6 @@ Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before start
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
-
-The lifecycle menu shows installed Adapter states, supports back/exit and invalid-input retry, and opens Control Center. Plans show versions and resource paths before confirmation. `install`, `repair`, and `reinstall` keep installed versions by default; `upgrade` selects `latest`. Healthy repeated installation/repair, up-to-date upgrade, and already-completed removal require no changes; reinstall deliberately replaces the package again. `doctor` reports failed checks and recovery commands. Use `dev-flow repair --help` for options; JSON never prompts. These commands maintain Adapters; update the public launcher with `npm install -g @imotong/dev-flow@latest`.
 
 Choose Codex, DeepSeek, or both in the interactive setup. Before starting the first task, complete the
 Host-specific step printed by the installer:
@@ -126,19 +118,11 @@ effort, or may require rework without reusing stale results.
 For one-off questions, code explanations, status checks, and small mechanical edits that need no saved
 progress, using Codex or DeepSeek directly is usually simpler.
 
-## Desktop pet (macOS arm64)
+## Desktop task entry
 
-The local pet package retains the default appearance. Import Whale Girl or other custom appearances as separate artwork packs; application updates preserve imported artwork.
+Local development packages for macOS arm64 and Windows 10/11 x64 provide a desktop pet. It shows one selected Task’s saved state and opens its WebUI; it does not indicate live Host activity or completion percentages. It supports task selection, custom appearances, animation controls, resizing and independent start/stop. An installed, configured Codex or DeepSeek Adapter supplies Core.
 
-The desktop pet is available on macOS arm64 through a local development package containing `DevFlowPet.app`; regular npm file lists and release preparation omit the native app. Running a built package requires no Swift/Xcode and uses Core from an already configured Codex or DeepSeek Adapter. It shows one Task's saved state and opens its WebUI, without inferring live Host activity or completion percentages. Quitting preserves Tasks and WebUI.
-
-Import a static PNG or SVG, a native PNG/SVG animation pack, or a Codex format 1/2 atlas. Native packs require five task clips and may add four more; Codex-layout atlases extract nine clips and 57 frames. Dev Flow's high-resolution extension requires a separate standard-sized atlas for use in Codex. Available artwork drives idle walking, waving, and thinking, with a separate Idle activities switch and priority for task prompts. Program updates and artwork reimports are separate operations.
-
-The menu bar uses a monochrome Dev Flow mark that adapts to the system appearance. Pet size offers six settings from 50% to 200% while keeping bubble text unchanged. The default appearance ships as a separate nine-clip pack of 312 SVG frames.
-
-While no task is selected, the pet keeps looking for new tasks, preferring the most recently updated blocked task, then the most recently updated active task. Once selected, the watched task stays selected until you change it.
-
-See the [desktop pet guide](docs/DESKTOP-PETS_en.md) for obtaining the app, installation, updates, triggers, limits, and troubleshooting; the support matrix defines public support.
+Regular npm packages do not include the macOS native app. Obtain the appropriate local package and follow the [desktop pet guide](docs/DESKTOP-PETS_en.md) for building, installation, updates and artwork. Local checks do not expand [stable support](docs/SUPPORT-MATRIX_en.md).
 
 ```bash
 dev-flow pet start
@@ -153,44 +137,3 @@ dev-flow pet stop
 ## License
 
 [Apache License 2.0](LICENSE)
-
-## Windows desktop adaptation
-
-Windows 10/11 x64 targets ordinary Intel and AMD 64-bit desktop PCs. Host path, permission, command and cleanup rules live in separate `platform/windows/` and `platform/macos/` implementations; Core retains shared platform-neutral task semantics. Windows command shims use UTF-8, and Core Git observation hides console windows. See the [adaptation report](docs/WINDOWS-ADAPTATION_en.md) for native Windows verification and its limits; this does not expand the stable package support claim.
-
-Windows now also provides the desktop pet: task selection and status bubbles, tray menus, PNG/SVG appearances, native animations, Codex PNG/WebP atlases, nine actions, dragging, six size settings, hide/restore and independent start/stop. Build the Windows local package with `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`; prerequisites and installation are in the [desktop pet guide](docs/DESKTOP-PETS_en.md). Windows and macOS desktop implementations remain separate.
-On Windows, resizing ends the current idle activity and resumes normal scheduling.
-
-On Windows, existing AppData directories are resolved to their actual paths, including directory aliases exposed by packaged desktop hosts; symbolic links remain rejected.
-
-The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
-
-`dev-flow-codex host-launch <operation>` reads a UTF-8 JSON object of at most 1 MiB from the stdin stream, including chunked input and multibyte characters split across chunks. Read failures, invalid UTF-8, duplicate members, invalid JSON, arrays, and null are rejected before the operation runs; errors go to stderr and successful JSON results go to stdout.
-
-## Command help and task recovery
-
-Codex exposes workspace operation parameters, result fields and next steps through command help. After every repository is prepared, the Host assembles its recorded workspace scope. MCP result Schemas describe where to read Tasks and Actions; resumed sessions handle pending submissions before continuing.
-
-```bash
-dev-flow-codex --help
-dev-flow-codex host-launch prepare --help
-dev-flow-codex artifacts --help
-dev-flow-codex artifacts collect --help
-dev-flow-codex artifacts prepare --help
-```
-
-See the [command reference](docs/COMMANDS_en.md) for parameter and recovery rules.
-
-`host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `prepared` skips fetch. An explicit ID must match the saved receipt.
-
-`host-launch dispatch-result` accepts the complete Codex creation response, including JSON in `content[].text`. It saves `clientThreadId` as `host_client_thread_id` with phase `queued`; resubmitting a retained result with the same `launch_id` and `repository_key` can recover an `uncertain` record. Subsequent inspection follows the same creation, without dispatching again.
-
-Codex retains complete workspace creation requests for readback. `dispatch-start` prepares, `dispatch-call` grants one call, `dispatch-recover` resumes a proven uncalled operation, and `dispatch-reconcile` matches an existing task after an unknown result. Callers parse complete JSON files; missing results never authorize duplicate creation.
-
-## Planning carried files in Codex
-
-When Codex carries local changes, it records their preservation in REQUIREMENTS and reconciles the complete `current_changed_paths` with `expected_paths` and retained process artifacts in TASKS. New development and preservation receive separate work and checks; an empty current-Action file collection cannot replace the complete Task path comparison. Preservation checks compare the launch snapshot and do not certify existing behavior as tested. Existing file-scope blockers continue through the current Core choices and transitions.
-
-## More capacity for planned checks
-
-When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.

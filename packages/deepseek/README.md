@@ -110,23 +110,13 @@ Core 保存的原目标阶段继续。下一次仍然完全重复时会再次暂
 
 ## 验证投入和修改后复核
 
-Adapter 在 TASKS 完成需求、设计、工作拆分、影响面和现有测试结构分析后，才保存初始
-`verification_plan`，包括计划检查及理由、预计自动命令数、完整套件预期和测试代码预期。小改动先用
-离当前 diff 最近的定向检查；剩余额度不能作为扩大到 package、module 或全仓库的理由。
+DeepSeek 在读完需求、设计、影响面和现有测试后规划验证，记录必要检查、理由、初始命令额度、完整套件预期及测试代码预期。优先选择与改动最接近的定向检查。
 
-额度不足时不直接结束 Task，也不先运行额外命令。Adapter 使用当前 TEST Action 的
-`verification_budget_increased`，用 `new_impact`、`new_risk`、`verification_failure` 或
-`verification_gap` 说明具体事实，只增加当前需要的检查、命令或权限。Core 保存原因和调整前后预算并
-留在 TEST。为了更全面、提高信心、保险起见或“还有预算”都不能支持增加。
+额度不足时，先记录具体的新影响、风险、失败或缺口，只增加当前需要的部分；已有检查的补做或重跑也可以补充额度，增加本身不产生通过结果。每次完整套件都需重新说明必要性，不能仅凭剩余额度或上次已执行来决定。
 
-每次完整套件前都重新判断广泛影响、定向/包级检查是否足够、待补的具体风险和仓库当前检查点要求，
-本次理由写入 `full_suite_reason`，小修复后不自动沿用旧理由。测试代码只为稳定行为、公开接口规范、重要
-失败路径或真实回归保留；一次性 README 词语要求只做一次文本搜索。
+测试代码应保护稳定行为、公开接口、重要失败路径或真实回归。修改后复核只覆盖 diff、因果影响与验收所需内容；修复后只做相关复查。显式审查保持只读，交付问题后等待单独修复授权；普通修改后复核不报告无关历史问题。
 
-普通实现后的复核只看当前 diff、直接或间接影响和验收所需路径。修复复核发现后只检查原问题、相关
-回归和对应定向检查，不重启全仓库审计。显式 code review 阶段只读，交付完整发现后等待单独修复授权。
-
-普通修改后的复核和交付只报告与当前改动有因果关系的问题，无关历史问题不进入报告。
+提交字段见[命令参考](../../docs/COMMANDS.md)。
 
 ## 范围外文件先询问
 
@@ -217,45 +207,14 @@ Repository Scope、路径格式和协议规则见[架构](../../docs/ARCHITECTUR
 - [项目状态](../../docs/PROJECT-STATUS.md)
 - [WebUI](../../docs/WEBUI.md)
 
-## 桌面宠物本地开发包
+## 桌面任务入口
 
-macOS arm64 的桌面宠物通过包含 `DevFlowPet.app` 的本地开发包使用，运行时复用已配置的 Codex 或 DeepSeek Adapter 提供的 Core。
-当前常规 npm 清单与正式制备流程不包含原生应用，获取方式以[桌面宠物指南](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md#本地构建与安装)为准。
-宠物显示一个所选 Task 的保存状态并打开对应 WebUI；Core 决定任务状态，展示不代表 Host 实时活动或完成百分比。
+桌面宠物通过 macOS arm64 或 Windows 10/11 x64 本地开发包使用，从已配置 Adapter 的 Core 读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。常规 npm 包不包含 macOS 原生应用。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
 
-形象可使用单张 PNG、原生动画包、Codex 标准格式 1/2 图集或 Dev Flow 高分辨率扩展。五类任务动作是基础要求，附加素材决定能否散步、挥手或思考；
-只有 Codex 布局图集固定提取九类、57 帧。待机活动有独立开关，任务提示优先，自动位移保留手动摆放位置。
-程序更新、已有应用副本替换和素材重导入分别处理；安装、全部动作规则与常见问题统一见[桌面宠物指南](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md)。
+## 完成与恢复
 
-本地宠物包保留默认形象；鲸鱼娘等自定义形象作为独立素材包，通过“导入形象…”安装。素材保存在用户目录，程序更新保留已导入形象。
+进入测试前须完成当前计划全部工作项。交付时逐条关联验收条件、对应的已完成工作和当前通过的检查，开发者理解确认单独进行。提交结果不确定时，Adapter 先读取 Core 保存的操作，再恢复或重试。集成细节见[命令参考](../../docs/COMMANDS.md)。
 
-## Windows 平台适配
+## 文件漏报
 
-Windows 10/11 x64 面向普通 Intel、AMD 64 位桌面电脑。三个 Node 包的路径、权限、命令和清理规则分别由 `lib/platform/windows/` 与 `lib/platform/macos/` 实现，选择入口只按当前平台分派。Core 的平台中立任务语义保持共享；Windows Git 进程隐藏控制台窗口。Codex 的 `--version` 与 `status` 使用所选平台的可执行文件检查，Windows PowerShell 启动器输出 UTF-8。本次只执行 Windows 原生测试；Windows 10、AMD 实机和 macOS 未测试，稳定支持声明保持不变。详见[Windows 适配报告](../../docs/WINDOWS-ADAPTATION.md)。
-
-Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
-
-Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿主提供的目录别名；仍拒绝符号链接。
-
-当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
-
-## 完成条件与操作恢复
-
-进入 TEST 前，当前 Task Plan 的全部工作项必须已经完成。DELIVERY 逐条接收明确的验收结果，每项关联已完成且对应此验收条件的工作项，以及当前 Test 中通过的检查。自动检查、静态检查、Host 观察和明确人工检查均可使用；理解确认仍单独保存，不自动代替验收检查。遗漏、错误或过期引用会使提交被拒绝。
-
-WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core 保存规范化载荷，页面只提交当前 Task revision、Action ID 和语义结果。网络异常先回读 Core；页面重新打开后仍能发现待恢复操作，并按 Action ID 恢复。无效完成结果不会推进任务或保存操作。
-
-## 当前 DSH 接口
-
-当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
-
-## 文件漏报处理
-
-流程文件漏报返回 `artifact_manifest_incomplete` 和 `error.repository_paths`，与请求字段路径分开。仅在 Core 确认零写入并明确允许时，可保持同一 Action、仅纠正指定 artifact 字段一次。工作树和历史异常继续使用原有恢复方式；WebUI 展示遗漏路径。详见[文件收集与提交](../../docs/ARTIFACTS.md)。
-
-
-本地来源的任务分支由辅助清理流程保留，供用户单独检查处理。
-
-## 已有检查的验证额度
-
-增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。
+Adapter 报告漏报路径，并按 Core 允许的范围纠正一次。工作树和历史异常继续使用对应恢复规则。本地来源的任务分支由辅助清理流程保留，供用户单独检查。详见[文件收集与提交](../../docs/ARTIFACTS.md)。

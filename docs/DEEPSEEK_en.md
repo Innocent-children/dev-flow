@@ -96,42 +96,13 @@ developer decision allows another attempt.
 
 ## Verification effort and post-change review
 
-The Adapter creates the initial `verification_plan` at TASKS only after requirements, design, work
-decomposition, causal impact, and existing tests are understood. It retains intended checks and
-rationales, expected automatic commands, the full-suite expectation, and the test-code expectation.
-A small change begins with the closest targeted check; unused capacity does not justify package,
-module, or repository-wide verification.
+DeepSeek plans verification after requirements, design, impact and existing tests have been understood. The plan records necessary checks, reasons, initial command capacity, full-suite expectations and expected test-code changes. Focused checks come first.
 
-Exhausted capacity does not end the Task and does not authorize running an extra command first. The
-Adapter uses the current TEST Action's `verification_budget_increased` transition with a concrete
-`new_impact`, `new_risk`, `verification_failure`, or `verification_gap`, adding only what is needed
-now. Core retains the reason and previous/resulting budgets, then stays in TEST. “For completeness”,
-“increase confidence”, “to be safe”, and remaining capacity are invalid reasons.
+Before exceeding capacity, the Host records a concrete new impact, risk, failure or gap and only the necessary increase. Existing checks can receive capacity for remaining work or reruns. An increase creates no passed result. Every full-suite run needs a fresh justification; spare capacity or a previous full-suite run is insufficient.
 
-Before every full suite, the Adapter freshly checks broad impact, whether targeted/package checks
-suffice, the exact uncovered risk, and repository checkpoint rules. It records the current reason as
-`full_suite_reason`; a rerun after a small fix cannot inherit the earlier reason automatically.
+Test-code changes should protect stable behavior, public interfaces, important failures or actual regressions. Post-change review covers the diff, causal impact and acceptance needs; fixes receive related rechecks. Explicit review is read-only and stops after findings until repair is separately authorized. Unrelated historical issues stay outside ordinary post-change review.
 
-Test-code changes require lasting value in stable product behavior, a public interface specification, an important
-failure path, or an observed regression. A one-time README word requirement gets one text search.
-Ordinary post-change review covers only the diff, direct/indirect causal impact, and acceptance needs;
-after a review fix, only that finding and related targeted regressions are rechecked. Explicit code
-review remains read-only and stops after findings until repair is separately authorized.
-
-Ordinary post-change review and delivery report only findings causally related to the current change;
-unrelated historical issues stay outside the report.
-
-During selected turns, DSH checks `write`, `edit`, and mutating `str_replace_editor` targets against
-the union of every WorkItem `ExpectedPaths`, with repository-key qualification for multi-repository
-Tasks, before dispatch. An unplanned path requires `allow_once`, `expand_scope`, or
-reject/restore. Bash and other tools may write first; Core finds them on its next observation. A
-dedicated worktree does not offer an "ignore external change" decision. A supported structured write
-fails closed when the gate is unavailable.
-
-Core derives current Task surface from the frozen base, commits, index, worktree, and untracked state.
-Normal linear commits preserve current paths. Exact-content commits preserve Test/Comprehension;
-content changes invalidate them. Branch switch, detach, rewind, rewrite, or worktree replacement is
-reported before substantive work.
+See the [Command Reference](COMMANDS_en.md) for submission fields.
 
 ## Terminal behavior
 
@@ -187,51 +158,14 @@ separately confirmed `dev-flow factory-reset` operation.
 See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_en.md), and
 [Project Status](PROJECT-STATUS_en.md).
 
-## Desktop pet local development package
+## Desktop task entry
 
-On macOS arm64, the desktop pet uses a local development package containing `DevFlowPet.app`, with Core supplied by an already configured Codex or DeepSeek Adapter.
-Regular npm file lists and release preparation currently omit the native app; see the [desktop pet guide](DESKTOP-PETS_en.md#local-build-and-installation) to obtain it.
-The pet shows one selected Task's saved state and opens its WebUI. Core owns Task state; presentation indicates neither live Host activity nor completion percentages.
+The desktop pet uses a local development package for macOS arm64 or Windows 10/11 x64 and reads the saved Task state from the configured Adapter’s Core. It opens the selected Task in WebUI; it does not indicate live Host activity or completion percentages. Regular npm packages omit the macOS native app. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, controls, updates and appearances.
 
-Appearances can use a single PNG, a native animation pack, a standard Codex format 1/2 atlas, or Dev Flow's high-resolution extension. Five task clips are required;
-additional artwork determines whether walking, waving, or thinking is available. Only Codex-layout atlases have the fixed nine-clip, 57-frame extraction.
-Idle activities have a separate switch, task prompts take priority, and automatic movement preserves manual placement.
-Program updates, replacement of an installed app copy, and artwork reimports are separate operations. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, all trigger rules, and troubleshooting.
+## Completion and recovery
 
-The local pet package retains the default appearance. Import Whale Girl or other custom appearances as separate artwork packs through Import appearance. Artwork is stored in the user directory and preserved across application updates.
+Every planned work item must be complete before testing. Delivery links each acceptance criterion to corresponding completed work and passed current checks. Developer comprehension remains a separate confirmation. If a submission result is uncertain, the Adapter reads the retained Core operation before recovery or retry. See the [Command Reference](COMMANDS_en.md) for integration details.
 
-## Windows platform adaptation
+## Missing files
 
-Windows 10/11 x64 targets ordinary desktop PCs with Intel or AMD 64-bit processors. The three Node packages implement paths, permissions, commands and cleanup separately in `lib/platform/windows/` and `lib/platform/macos/`; selection entry points only dispatch to the current platform. Core keeps shared platform-neutral task semantics, while Windows Git processes hide console windows. Codex `--version` and `status` use the selected executable-file policy, and Windows PowerShell launchers output UTF-8. This change was tested only on native Windows; Windows 10, AMD hardware and macOS were not tested, and stable support claims remain unchanged. See the [Windows adaptation report](WINDOWS-ADAPTATION_en.md).
-
-The Windows 10/11 x64 desktop pet aligns with macOS task selection and status bubbles, WebUI navigation, tray/context menus, static and native animated PNG/SVG appearances, Codex PNG/WebP atlas imports, nine actions, dragging, six scale settings, hide/restore and independent start/stop. Windows uses a separate Electron implementation while macOS retains Swift/AppKit; both only read Core state. The Windows local package is built by `scripts/build-desktop-pet-windows.mjs`, with user data in `%LOCALAPPDATA%\dev-flow\pet`. See the [desktop pet guide](DESKTOP-PETS_en.md) for building, installation, updates and verification.
-
-On Windows, existing AppData directories are resolved to their actual paths, including directory aliases exposed by packaged desktop hosts; symbolic links remain rejected.
-
-The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
-
-## Completion and Action recovery
-
-Before entering TEST, every work item in the current Task Plan must be completed. DELIVERY receives explicit acceptance results linking each criterion to completed work items mapped to that criterion and passed checks in the current Test. Automated, static, Host-observed and explicit manual checks are supported. Comprehension confirmation remains separate and does not automatically substitute for acceptance checks. Missing, incorrect or outdated references reject the submission.
-
-WebUI and MCP share Core semantic submission, operation retention and recovery. Core retains the canonical payload; the page sends the current Task revision, Action ID and semantic results. Network failures first trigger a Core read. Reopening the page discovers pending operations and recovers them by Action ID. Invalid completion results neither advance the Task nor retain an operation.
-
-## Current DSH interface
-
-The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
-
-## Missing artifact handling
-
-Missing process files return `artifact_manifest_incomplete` and `error.repository_paths`, separately from request field paths. Only after Core proves zero writes and explicitly permits correction may the caller correct the specified artifact fields once on the same Action. Workspace and history failures keep their existing recovery routes; WebUI displays omitted paths. See [artifact collection and submission](ARTIFACTS_en.md).
-
-
-Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
-`source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use
-`carry_changes=false`. See [worktree sources and local changes](WORKTREE-SOURCES_en.md).
-
-
-Assisted cleanup retains local-source task branches for separate user inspection and handling.
-
-## Verification capacity for existing checks
-
-When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.
+The Adapter reports omitted files and follows Core’s permitted correction once. Workspace and history failures retain their recovery rules. Local-source task branches are preserved by assisted cleanup for separate inspection. See [artifact collection and submission](ARTIFACTS_en.md).

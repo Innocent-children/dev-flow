@@ -97,26 +97,13 @@ Blocker 和 Recovery。原 worktree 丢失或已被另一个实例替换时会�
 
 ## 验证投入和修改后复核
 
-Codex 在 TASKS 已经读完需求、设计、工作拆分、影响面和现有测试结构后，才写入初始
-`verification_plan`：准备执行的检查、每项理由、预计自动命令数、是否预计完整套件、是否预计新增或
-修改测试代码。小范围改动先选与 diff 最近的定向检查，不因为仍有额度就扩大到 package、module 或
-全仓库。
+Codex 在读完需求、设计、影响面和现有测试后规划验证，记录必要检查、理由、初始命令额度、完整套件预期及测试代码预期。优先选择与改动最接近的定向检查。
 
-额度不足不会直接结束 Task。Codex 在额外命令执行前，使用当前 TEST Action 返回的
-`verification_budget_increased`，说明 `new_impact`、`new_risk`、`verification_failure` 或
-`verification_gap` 中的实际依据，只增加当前需要的检查、命令或权限。Core 保存原因和调整前后预算，
-然后留在 TEST 继续。为了更全面、提高信心、保险起见或“还有预算”都不是有效原因。
+额度不足时，先记录具体的新影响、风险、失败或缺口，只增加当前需要的部分；已有检查的补做或重跑也可以补充额度，增加本身不产生通过结果。每次完整套件都需重新说明必要性，不能仅凭剩余额度或上次已执行来决定。
 
-每次准备完整测试套件时，Codex 都重新判断改动是否广泛、定向或包级检查是否已经足够、完整套件补足
-什么具体风险、仓库是否要求当前检查点运行，并把本次理由记录为 `full_suite_reason`。小修复后的重跑
-不能沿用上一次理由。
+测试代码应保护稳定行为、公开接口、重要失败路径或真实回归。修改后复核只覆盖 diff、因果影响与验收所需内容；修复后只做相关复查。显式审查保持只读，交付问题后等待单独修复授权；普通修改后复核不报告无关历史问题。
 
-修改测试代码前先判断它是否保护稳定产品行为、公开接口规范、重要失败路径或真实回归；一次性 README
-词语要求只做一次文本搜索。普通实现后的复核只覆盖当前 diff、直接或间接影响及验收所需路径。修复
-复核发现后只确认原问题、相关回归和对应定向检查，不重新启动全仓库审计。显式 code review 阶段只读，
-完整交付发现后等待用户另行授权修复。
-
-普通修改后的复核和交付只报告与当前改动有因果关系的问题，无关历史问题不进入报告。
+提交字段见[命令参考](../../docs/COMMANDS.md)。
 
 ## 范围外文件先询问
 
@@ -176,7 +163,7 @@ npm uninstall -g dev-flow-codex
 - selector 不绕过仓库权限、当前 Action、Git 写入授权或发布确认；
 - 工作树是源码改动归属边界，不是进程、网络、凭据、端口、数据库或容器沙箱；
 - 多仓库 Task 只有在每个 root 都独立 provision 并授权后才创建，部分隔离会整体拒绝；
-- 共享目录 sub-agent 不能替代独立 Host worktree，也不再保留 `ACTIVE_TASK_CONFLICT` 后搬家；
+- 共享目录 sub-agent 不能替代独立 Host worktree，`ACTIVE_TASK_CONFLICT` 返回后停止创建；
 - 可选代码索引只帮助检索，不能扩大 Scope 或决定 Recovery 和流程状态。
 
 ## 高级多仓库与 worktree
@@ -185,26 +172,12 @@ npm uninstall -g dev-flow-codex
 代码调查、工作要求，并单独列出未采纳建议、假设和待确定问题。已有开发及工作树确认不会把助手建议
 自动变成要求，也不新增交接摘要确认步骤。
 
-交接中的工作要求仅包含会话专属指示和授权。
-全局及仓库 `AGENTS.md` 由目标 Codex 会话正常加载，交接材料不重复其正文或摘要，也不将自动注入的规则块保存为原始需求讨论。
-用户在对话中提出的规则修改仍保留为真实需求。
-目标无法自动加载的适用规则注明来源路径、适用范围和具体原因，优先引用可读取的源文件；源文件不可读取时仅补充本次需要的规则文本并排除凭据。
-可用性尚未核实时记入 `open_questions`，不预防性复制整份文件。
-
-内部 `host-launch prepare` 必须提供 `handoff_file`，指向已有确认后写在已评估仓库之外的 UTF-8 JSON
-草稿。helper 在 fetch 前将完整材料保存到 Host 产品目录，并在 receipt 中关联 `handoff_digest`。
-`dispatch-start` 只接收 `launch_id`、`repository_key`、`project_id`；`cli-provision` 只接收 `launch_id`、
-`repository_key`、`additional_worktree_paths`、`source_repository_path`。两个入口直接使用保存的材料，
-不再接收另一段请求摘要。完整结构化 Prompt 超过 24 KiB UTF-8 时提供完整文件路径及读取说明，材料不截断。
-完整参数与格式见[命令参考](../../docs/COMMANDS.md)和[发送端交接格式](plugin/skills/dev-flow/references/task-handoff.md)。
-
 当前源码支持一个主仓库和最多七个显式附加仓库。附加仓库必须先通过 Codex `--add-dir` 成为当前
 会话已授权的 writable root；Scope 创建后不可变，系统不会扫描相邻目录自动扩大范围。
 
 并行批次会先逐项评估，用户一次确认要进入 Dev Flow 的项目和每个唯一 target branch，确认前没有
 child dispatch。Codex 只有在 Host 能为每个项目提供独立 worktree-backed task/thread 时才分派；每个
-child 有一个 Host task、一个 worktree 和一个 Core Task。`ACTIVE_TASK_CONFLICT` 现在只会停止，不再
-触发事后搬家。
+child 有一个 Host task、一个 worktree 和一个 Core Task。`ACTIVE_TASK_CONFLICT` 返回后停止，由用户处理现有任务。
 
 Codex App managed worktree 从固定 `base_commit` 创建，child 在 Core 调用前建立用户
 确认的 target branch。无 task creation 能力的 Codex CLI 使用 receipt 返回的 `codex -C` / `--add-dir`
@@ -229,63 +202,18 @@ Repository Scope、worktree 分派和协议规则见[架构](../../docs/ARCHITEC
 - [项目状态](../../docs/PROJECT-STATUS.md)
 - [WebUI](../../docs/WEBUI.md)
 
-## 桌面宠物本地开发包
+## 桌面任务入口
 
-macOS arm64 的桌面宠物通过包含 `DevFlowPet.app` 的本地开发包使用，运行时复用已配置的 Codex 或 DeepSeek Adapter 提供的 Core。
-当前常规 npm 清单与正式制备流程不包含原生应用，获取方式以[桌面宠物指南](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md#本地构建与安装)为准。
-宠物显示一个所选 Task 的保存状态并打开对应 WebUI；Core 决定任务状态，展示不代表 Host 实时活动或完成百分比。
+桌面宠物通过 macOS arm64 或 Windows 10/11 x64 本地开发包使用，从已配置 Adapter 的 Core 读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。常规 npm 包不包含 macOS 原生应用。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
 
-形象可使用单张 PNG、原生动画包、Codex 标准格式 1/2 图集或 Dev Flow 高分辨率扩展。五类任务动作是基础要求，附加素材决定能否散步、挥手或思考；
-只有 Codex 布局图集固定提取九类、57 帧。待机活动有独立开关，任务提示优先，自动位移保留手动摆放位置。
-程序更新、已有应用副本替换和素材重导入分别处理；安装、全部动作规则与常见问题统一见[桌面宠物指南](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS.md)。
+## 完成与恢复
 
-本地宠物包保留默认形象；鲸鱼娘等自定义形象作为独立素材包，通过“导入形象…”安装。素材保存在用户目录，程序更新保留已导入形象。
+进入测试前须完成当前计划全部工作项。交付时逐条关联验收条件、对应的已完成工作和当前通过的检查，开发者理解确认单独进行。提交结果不确定时，Adapter 先读取 Core 保存的操作，再恢复或重试。集成细节见[命令参考](../../docs/COMMANDS.md)。
 
-## Windows 平台适配
+## 文件提交
 
-Windows 10/11 x64 面向普通 Intel、AMD 64 位桌面电脑。三个 Node 包的路径、权限、命令和清理规则分别由 `lib/platform/windows/` 与 `lib/platform/macos/` 实现，选择入口只按当前平台分派。Core 的平台中立任务语义保持共享；Windows Git 进程隐藏控制台窗口。Codex 的 `--version` 与 `status` 使用所选平台的可执行文件检查，Windows PowerShell 启动器输出 UTF-8。本次只执行 Windows 原生测试；Windows 10、AMD 实机和 macOS 未测试，稳定支持声明保持不变。详见[Windows 适配报告](../../docs/WINDOWS-ADAPTATION.md)。
+Adapter 在提交节点结果前收集并分类改动文件。文件漏报按返回指示纠正；工作树或历史异常按 Core 恢复规则处理。这些准备步骤由 Codex 执行，详细流程见[文件收集与提交](../../docs/ARTIFACTS.md)。
 
-Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
+## 携带内容
 
-Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿主提供的目录别名；仍拒绝符号链接。
-
-Windows Codex 注册回读按当前宿主的 marketplace `name`、`root` 与 Plugin 身份校验，并在 Windows 平台实现中规范化 `\\?\` 路径前缀；macOS 保留自己的回读规则。
-
-当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
-
-## 完成条件与操作恢复
-
-进入 TEST 前，当前 Task Plan 的全部工作项必须已经完成。DELIVERY 逐条接收明确的验收结果，每项关联已完成且对应此验收条件的工作项，以及当前 Test 中通过的检查。自动检查、静态检查、Host 观察和明确人工检查均可使用；理解确认仍单独保存，不自动代替验收检查。遗漏、错误或过期引用会使提交被拒绝。
-
-WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core 保存规范化载荷，页面只提交当前 Task revision、Action ID 和语义结果。网络异常先回读 Core；页面重新打开后仍能发现待恢复操作，并按 Action ID 恢复。无效完成结果不会推进任务或保存操作。
-
-`dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。
-
-## 文件提交准备
-
-Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`，复用 Core 对当前 Action 的完整 Git 观察。Codex 只补充文件用途和说明，准备命令检查清单与当前观察一致后生成 artifact 数组。流程文件漏报返回具体路径和仅修改 artifact 字段的一次纠正指示；实际仓库异常继续按原有恢复规则处理。详见[文件收集与提交](../../docs/ARTIFACTS.md)。
-
-在启动 Codex 前，将 `DEV_FLOW_DATA_DIR` 设为已存在的规范化绝对目录，MCP、hook 和文件准备命令使用同一数据目录。`dev-flow-codex artifacts <collect|prepare> --help` 返回 JSON 示例、字段说明、输出和下一步，查询时不启动 Core。
-
-## 调用说明与结果恢复
-
-`dev-flow-codex --help` 列出命令；`dev-flow-codex host-launch <operation> --help` 返回该操作的完整输入 Schema、字段来源、输出字段和下一步。帮助查询不读取 stdin 或执行工作区操作。所有仓库准备完成后，`host-launch scope` 汇总同一 launch 的创建记录供 Core 使用。
-
-MCP 提供结果 Schema，并在 `structuredContent` 和文本中返回同一 JSON。Skill 按工具类型读取 Task 或 Action，并在恢复会话中优先处理已有恢复建议；创建、取消、放弃和迁移准备使用各自的结果回读规则。正常执行仅展示简短状态。详见[命令参考](../../docs/COMMANDS.md)。
-
-`host-launch prepare` 省略 `launch_id` 时自动生成 ID，并使用该 ID 核对启动记录。重试时传入返回的 `receipt.launch_id`，继续同一次启动；记录已为 `prepared` 时跳过 fetch。显式传入的 ID 必须与保存记录一致。
-
-`host-launch dispatch-result` 接收 Codex 创建任务的完整返回值，包括 `content[].text` 中的 JSON。它将 `clientThreadId` 保存为 `host_client_thread_id`，阶段设为 `queued`；以相同 `launch_id` 和 `repository_key` 重新提交保留的结果，可以恢复 `uncertain` 记录。后续检查继续跟踪同一次创建，不重复派发。
-
-
-Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.operation_status.host_request`，进入 `dispatch_prepared`；重复调用和 `status` 均可回读。`dispatch-call` 使用当前 `dispatch_attempt_id` 将阶段改为 `dispatching`，仅首次返回 `should_dispatch=true` 时允许调用一次创建工具。调用方将命令完整 stdout 写入私有文件，检查退出码并从文件解析 JSON，再原样转发请求，避免显示长度限制截断内容。
-
-确认原调用方已停止且创建工具尚未调用时，`dispatch-recover` 接收当前派发 ID、`host_call_not_made=true`、`previous_caller_stopped=true` 和具体 `reason`，保留原请求并换发调用许可 ID；随后执行 `dispatch-call`。空任务 ID 本身不能证明未调用。已经调用但结果未知时，Host 按保存的启动标题、启动 ID 和仓库标识查找任务及归档任务，读取候选任务完整初始消息，将 `candidates`（`thread_id`、`initial_prompt`）交给 `dispatch-reconcile`。唯一完整消息匹配才保存任务 ID；零匹配、多个匹配或查询不可用均不允许重新创建。Core Task 状态保持由 Core 管理。
-
-## 携带内容的规划与检查
-
-Codex 携带本地改动时，会在 REQUIREMENTS 中记录保留要求，在 TASKS 中将完整的 `current_changed_paths` 与 `expected_paths` 及已保留的流程文件逐项核对。新开发工作和已有内容保留分别安排工作项与检查；当前 Action 的空文件清单不能代替完整 Task 路径核对。保留检查比较启动快照，不代表已有业务功能已经验证。已发生的文件范围阻塞仍通过现有 Core 选择与转移处理。
-
-## 已有检查的验证额度
-
-增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。
+已确认携带的本地内容计入 Task 范围。Codex 将内容保留检查与新开发分别安排，并与启动快照比较；保留文件不代表已有业务行为已验证。未说明的路径仍需处理范围决定。详见[工作树来源](../../docs/WORKTREE-SOURCES.md)。

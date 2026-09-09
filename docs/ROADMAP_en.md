@@ -2,74 +2,42 @@
 
 [中文](ROADMAP.md) | [English](ROADMAP_en.md)
 
-The roadmap describes user outcomes to improve, not delivery dates. Delivered capabilities and their
-current status belong in [Project Status](PROJECT-STATUS_en.md); stable support remains in the
-[Support Matrix](SUPPORT-MATRIX_en.md).
+This roadmap describes user outcomes still needing improvement and their relative priority, without promising dates. See [Project Status](PROJECT-STATUS_en.md) for delivered capabilities and the [Support Matrix](SUPPORT-MATRIX_en.md) for stable support. The directions below require further design and validation; they are not existing feature commitments.
 
-## Goal
+## First priority: understanding a resumed task
 
-> After a long-running task is interrupted, give the developer and agent an accurate current state
-> and a next step that does not expand work, repeat effects, or broaden verification without reason.
+Help developers quickly understand what is complete, what remains, why work stopped and who needs to act next.
 
-## Current focus: understand the Task and worktree
+- Organize retained records into a shorter, clearer resume summary highlighting remaining work, blocker reasons and an actionable next step.
+- Make it easier to distinguish checks that still apply to current code from results requiring renewed confirmation.
+- Evaluate how to retain consequential failed approaches and rejection reasons, reducing repeated proposals of excluded approaches.
+- Evaluate how to present new requirements during an active Task so users can distinguish changing this Task, scheduling later work and ending the current Task.
 
-This stage improves the clarity and cost of using capabilities that already exist:
+New summaries or records should reuse the one Core Task and reduce interpretation effort. They must not add another process state or let a Host decide completion.
 
-- summarize what the current Task is;
-- distinguish confirmed results from results that remain uncertain;
-- show which verification records still apply to the current implementation;
-- explain why a Task is blocked and what must be confirmed;
-- show the current legal next step directly;
-- show a read-only change assessment and recommendation before a new request creates a Task;
-- show confirmed source/base/target/carry, the dedicated worktree, Task Plan, current changed paths,
-  file-scope decisions, and unexplained paths;
-- distinguish normal linear commits, content changes, history conflicts, workspace unavailability,
-  and relocation;
-- expose the post-analysis verification plan, current budget/usage, every increase reason, and
-  Recovery assessment in the Host and local WebUI;
-- keep ordinary post-change review within the diff, causal impact, and acceptance needs without
-  restarting a repository-wide audit after a fix.
+## Continued calibration: verification and completion
 
-This work adds no process node or second Task state; budget increases reuse one TEST-to-TEST self-transition.
+- Use real feedback to evaluate initial verification plans and capacity increases, reducing unnecessary checks and false blocks.
+- Improve request-assessment explanations and misclassification feedback so users can decide whether the full process is useful.
+- Provide public fault-injection demonstrations for uncertain operations, showing what was retained and when recovery is permitted.
+- Improve the consolidated completion view so missing acceptance items and their remedies are easier to find.
+- Reduce the number of user operations while retaining necessary confirmation and recovery checks.
 
-Current behavior validates all planned work items and explicit acceptance links. WebUI and MCP share retained-operation recovery.
+Validate these improvements through actual Codex or DeepSeek scenarios, distinguishing test results, user feedback and unverified inferences.
 
-## Planned improvements: make completion decisions more accurate
+## Longer-term candidates: collaboration and transfer
 
-The following are future directions and are not implemented, or not fully implemented, today:
+These directions rank below resume experience and verification judgment and need independent requirements and complete designs:
 
-- stronger binding between verification records and current implementation state;
-- use real feedback to tune initial verification plans and increase decisions without false widening
-  or false blocking;
-- a publicly reproducible fault-injection test for an uncertain Action;
-- improve the explainability and feedback loop for `small|standard|large|uncertain` assessments;
-- reduce confirmation and recovery steps without adding a second state machine.
+- Task takeover between Codex and DeepSeek;
+- Cross-machine Task transfer with verifiable export and import;
+- Read-only PR / CI verification summaries and shared read-only Task views;
+- Simpler OpenSpec / Spec Kit document integration.
 
-Names such as Skip, Guarded, and Strict are not delivered user features. Any future naming and
-behavior requires a separate product design and end-to-end testing in an actual coding tool.
-
-## Long-term considerations: cross-machine and team collaboration
-
-The following are later candidates and are not implemented today:
-
-- cross-machine Task transfer with verifiable export/import;
-- read-only PR / CI verification summaries;
-- a team read-only Task view;
-- simpler OpenSpec / Spec Kit document integration.
-
-Current source supports same-machine relocation. Any future cross-machine capability must still use
-one Core Task state; an Adapter cannot copy the current stage or decide completion independently.
+Takeover and transfer must retain the one Core Task state, existing results, remaining work and authorization boundaries. Copying a Host's stage cannot substitute for that state.
 
 ## Not planned
 
-Dev Flow does not currently plan to:
+General agents, shell or filesystem security sandboxes, automatic Git publication, arbitrary workflow DSLs, custom state machines, automatic discovery and admission of neighboring repositories, and cloud project-management platforms are not planned.
 
-- become a general-purpose agent;
-- make Core a shell or file-system sandbox;
-- commit, merge, rebase, push, tag, or publish automatically;
-- provide an arbitrary workflow DSL or user-defined state machine;
-- scan neighboring repositories and expand Repository Scope automatically;
-- turn the local WebUI into a cloud project-management platform.
-
-A new platform, Host, or interface enters the roadmap only when it improves long-running task
-continuation and has an independent validation method.
+A new platform, Host or interface should enter implementation planning only when it solves a specific long-running-task problem and has a repeatable acceptance method.

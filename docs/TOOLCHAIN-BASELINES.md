@@ -1,102 +1,44 @@
-# Toolchain Compatibility Policy
+# 工具链兼容策略
 
-**Policy reviewed on**: 2026-08-14
+[中文](TOOLCHAIN-BASELINES.md) | [English](TOOLCHAIN-BASELINES_en.md)
 
-工具链要求使用最低版本或兼容主版本范围。开发机、CI 和宿主不得通过“版本必须等于某个补丁号”的方式判断可用性。
+本页说明仓库开发、构建与 Host 兼容要求。最低版本或兼容主版本范围用于判断可用性；锁文件、构建日志和发布记录保存实际解析版本。具体 CI 选择由工作流配置决定，固定构建工具版本不等于拒绝其他兼容补丁版本。
 
-实际解析版本仍会出现在 `go.mod`、`go.sum`、`pnpm-lock.yaml`、构建日志和发布清单中；这些是复现和验证所需的记录，不是对兼容补丁或次版本的拒绝规则。
+## 开发工具链
 
-## Go
+| 工具 | 要求 | 维护位置 |
+| --- | --- | --- |
+| Go | `>=1.26`；使用受支持的稳定版本 | `go.mod` 声明语言下限，`go.sum` 记录依赖；非必要不指定精确 toolchain 补丁号 |
+| Node.js | 仓库开发与 Host Adapter 使用 `>=24`，且处于官方支持周期 | 对应 `package.json` 声明范围，CI 配置选择执行版本 |
+| pnpm | `>=11 <12` | 根 `package.json` 声明范围，`pnpm-lock.yaml` 记录实际依赖 |
 
-- Minimum: `>= 1.26`；
-- `go.mod` language floor: `go 1.26`；
-- Release history: <https://go.dev/doc/devel/release>。
-
-开发机可使用任何受官方支持且不低于最低版本的稳定 Go。CI 默认使用当前稳定版，并依靠 `go.mod` 的语言版本约束避免意外使用更高语言级别。不要写入精确 `toolchain goX.Y.Z`，除非独立规格证明必须这样做。
-
-## Node.js
-
-- Minimum: `>= 24`；
-- Requirement: 所用版本仍处于官方 Current、Active LTS 或 Maintenance LTS 支持周期；
-- Release schedule: <https://nodejs.org/en/about/previous-releases>。
-
-Node.js 只用于 Monorepo 包工具和宿主适配，不是共享流程 Runtime。CI 使用当前 LTS，而不是固定一个补丁版本。
+Node.js 承担包工具和 Host 适配，Go Core 承担共享任务运行时。各公开包的运行环境见[支持矩阵](SUPPORT-MATRIX.md)，不从仓库工具链推导稳定支持。
 
 ## 平台构建与原生验证
 
-当前源码只生成两个精确 runtime pair：Go `darwin/arm64` 对应 Node `darwin-arm64`，Go
-`windows/amd64` 对应 Node `win32-x64`。npm 的独立 `os`/`cpu` 元数据不能表达配对关系，因此 package
-保留 `darwin|win32` 与 `arm64|x64` 元数据供 npm 预筛选，再由 launcher 拒绝交叉组合、32 位和 ARM64
-Windows。
+当前构建目标是两个精确 runtime pair：Go `darwin/arm64` 对应 Node `darwin-arm64`，Go `windows/amd64` 对应 Node `win32-x64`。npm 的 `os` 与 `cpu` 只能独立预筛选，运行时选择器核对实际配对。
 
-`scripts/build-core-runtimes.mjs` 是双 runtime 的唯一构建入口，按 runtime key 返回路径、GOOS、GOARCH、
-Core 版本、大小和 SHA-256；Codex 与 DeepSeek 源码 package 不保存该输出，本地 package、release staging
-与实际环境的完整流程测试在仓库外临时目录构建并按同一报告选择产物。
+`scripts/build-core-runtimes.mjs` 负责双 runtime 构建，报告产物路径、GOOS、GOARCH、Core 版本、大小与 SHA-256。本地打包和发布 staging 在仓库外构建产物，源码包不保留预编译 Core。
 
-普通 PR CI 在 macOS arm64 runner 运行仓库通用验证和 macOS 原生完整流程测试，并在 Windows x64 runner
-原生构建 Core、运行完整 Go 与三个 Node package 的可执行测试、构建双 runtime 本地 package 以及验证
-WebUI lifecycle。Windows runner 不构成 Windows Server 产品支持声明。standalone release 可在 macOS
-runner 交叉构建 Windows amd64 Core，但稳定支持仍要求 Support Matrix 中记录的真实消费版 Windows
-编程工具中的完整流程测试。
+macOS 与 Windows 的原生检查分别执行。交叉编译证明产物可构建，不代表目标系统或实际 Host 已完成运行验证；Windows CI runner 也不构成 Windows Server 支持声明。检查入口见[脚本说明](../scripts/README.md)，正式发布要求见[发布说明](../release/README.md)。
 
-## pnpm
+## Core 依赖
 
-- Supported range: `>= 11 < 12`；
-- Registry: <https://www.npmjs.com/package/pnpm>。
+| 依赖 | 兼容范围与用途 |
+| --- | --- |
+| `github.com/modelcontextprotocol/go-sdk` | `>=v1.7.0 <v2.0.0`；提供本地 STDIO Tools 接入 |
+| `modernc.org/sqlite` | `v1`；通过 `database/sql` 提供无需 CGo 的 SQLite |
 
-根 `package.json` 使用 `engines.pnpm` 表达范围，不要求精确 `packageManager` 补丁号。CI 选择当前 11.x 稳定版；`pnpm-lock.yaml` 记录实际解析结果。升级到新的主版本需要独立审查。
+在兼容范围内选择符合最低 Go 要求的稳定依赖，由 `go.mod` 和 `go.sum` 记录实际版本。运行时不按精确 SDK 或驱动补丁号判断 Dev Flow 兼容性。Dev Flow 的工具、字段与行为以当前 Core 接口为准；SDK 提供的其他能力不自动成为产品功能。
 
-## Model Context Protocol Go SDK
+## Host 兼容与重新验证
 
-- Minimum compatible line: `github.com/modelcontextprotocol/go-sdk >= v1.7.0 < v2.0.0`；
-- Releases: <https://github.com/modelcontextprotocol/go-sdk/releases>。
+Host 技术说明和包配置记录最低支持版本及兼容范围，验证记录保存实际使用的 Codex 或 DSH 版本。兼容补丁或次版本本身不构成拒绝启动的理由。接口发生不兼容变化时，更新受影响的实现、版本范围、技术说明及针对性验证。
 
-Feature `002` 实施时解析当时最新稳定的 v1 版本，并由 `go.mod`/`go.sum` 记录实际版本。运行时和宿主适配不得通过精确 SDK 补丁号判断 Dev Flow 兼容性；Dev Flow 自己的工具约定独立版本化。
+工具链或 Host 依赖变更应说明：当前范围、实际测试版本、变更原因、影响的接口与行为、对应源码和检查，以及是否需要真实 Host 流程验证。只验证本次变更影响的范围，不附带引入无关产品功能。
 
-Dev Flow 首版只使用本地 STDIO Tools。不要因为 SDK 提供 HTTP、OAuth、Sampling 或其他能力就扩大产品范围。
+## 桌面宠物构建
 
-## SQLite Driver
+macOS arm64 本地构建需要 Node.js `>=24` 和提供 Swift `>=6.0` 的 Xcode 命令行工具。Swift Package 与应用 metadata 的部署目标是 macOS 14；最低系统运行尚未验证。构建器装配素材、保留原生执行权限并进行 ad-hoc 签名；安装后的运行不依赖 Swift/Xcode。
 
-- Module line: `modernc.org/sqlite v1`；
-- Selection: Feature `002` 实施时使用与最低 Go 版本兼容的最新稳定 v1 版本；
-- Package: <https://pkg.go.dev/modernc.org/sqlite>。
-
-该驱动通过 `database/sql` 提供无需 CGo 的 SQLite。`go.mod` 和 `go.sum` 记录实际解析版本；规格和运行时不做补丁版本相等判断。
-
-## Host Compatibility
-
-Codex 与 DeepSeek Harness 的宿主功能规格必须在各自 `plan.md` 中定义：
-
-1. 最低支持宿主版本；
-2. 允许的兼容范围；
-3. 当前最新稳定宿主版本的实际环境的完整流程测试；
-4. 触发重新验证的宿主接口规范变化。
-
-实际环境的完整流程测试需要记录实际宿主版本，便于复现结果，但产品不得仅因为后来出现兼容的补丁或次版本就拒绝启动。若宿主公开接口规范发生不兼容变化，应通过新的规格调整最低版本或兼容范围。
-
-## Revalidation Rules
-
-工具链更新不能与无关产品功能混合。评审材料至少记录：
-
-1. 当前最低版本或兼容范围；
-2. 实际解析/测试版本；
-3. 更新原因；
-4. 与 Dev Flow 有关的 API 或行为变化；
-5. 需要更新的源码、约定和测试；
-6. 是否要重新在实际宿主中运行测试；
-7. 确认未顺带引入产品能力。
-
-## Desktop pet development build
-
-桌面宠物源码构建使用 macOS arm64、Node.js `>=24` 和 Swift `>=6.0` 的 Xcode 命令行工具。
-Swift Package 与应用 metadata 的 deployment target 为 macOS 14；该值是编译目标，最低系统运行尚未验证。
-构建器复用已有素材和 USTAR 工具，使用 ad-hoc 签名检查本地功能包。安装后运行不依赖 Swift/Xcode。
-
-Desktop pet source builds use macOS arm64, Node.js `>=24`, and Xcode command-line tools with Swift
-`>=6.0`. The Swift Package and app metadata target macOS 14; this is a compilation target, with
-minimum-OS execution still unverified. The builder reuses existing artwork and USTAR helpers and
-signs ad hoc for local functional checks. Installed execution needs no Swift/Xcode.
-
-Windows 桌面构建使用 Windows x64、Node.js `>=24` 与 `packages/desktop-pet/windows/package-lock.json` 锁定的 Electron 和素材解析依赖；这些依赖只进入 Windows 桌面包，不进入 Core 或 macOS 构建。
-
-Windows desktop builds use Windows x64, Node.js `>=24`, and the Electron/artwork dependencies locked in `packages/desktop-pet/windows/package-lock.json`. These dependencies belong only to the Windows desktop package, not Core or macOS builds.
+Windows x64 桌面构建需要 Node.js `>=24`，Electron 和素材解析依赖由 `packages/desktop-pet/windows/package-lock.json` 锁定。这些依赖只进入 Windows 桌面包。构建步骤见[桌面宠物指南](DESKTOP-PETS.md)。

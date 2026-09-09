@@ -21,15 +21,11 @@ Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task
 界面支持简体中文和英文。首次跟随浏览器语言；手工选择只保存在浏览器，不进入 Core、Task、receipt
 或账号状态。
 
-验证区块只显示 Core 保存的结构化状态。TASKS 完成前 `plan` 与 `current_budget` 为空；完成后显示计划
-检查、完整套件和测试代码预期。`usage` 只统计当前 Task Plan revision，旧计划记录仍可在事实和时间线
-中查看。每条预算增加显示依据、原因、新增检查、增加量和调整后预算。WebUI 不根据剩余额度替 Host
-决定是否运行完整套件，也不执行验证命令。
+验证区块显示是否已完成规划、计划检查、完整套件和测试代码预期、当前计划消耗，以及每次有理由的额度增加。旧计划记录保留在时间线中。WebUI 展示 Core 结果，实际检查由 Host 决定并执行。
 
 ## 可执行操作的边界
 
-WebUI 不再从任意 checkout 创建新 Task。新 Task 必须由 Codex 或 DeepSeek 完成只读评估、用户确认、
-fetch、专属工作树创建和验证后，再从目标 Host 调用 Core。
+新 Task 由 Codex 或 DeepSeek 完成只读评估、用户确认、来源解析及专属工作树准备，再从目标 Host 创建；页面负责展示和处理已有任务。
 
 页面可以使用 Core 当前返回的任务和操作标识，提交以下操作：
 
@@ -51,16 +47,6 @@ fetch、专属工作树创建和验证后，再从目标 Host 调用 Core。
 进入 TEST 前，当前 Task Plan 的全部工作项必须已经完成。DELIVERY 逐条接收明确的验收结果，每项关联已完成且对应此验收条件的工作项，以及当前 Test 中通过的检查。自动检查、静态检查、Host 观察和明确人工检查均可使用；理解确认仍单独保存，不自动代替验收检查。遗漏、错误或过期引用会使提交被拒绝。
 
 WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core 保存规范化载荷，页面只提交当前 Task revision、Action ID 和语义结果。网络异常先回读 Core；页面重新打开后仍能发现待恢复操作，并按 Action ID 恢复。无效完成结果不会推进任务或保存操作。
-
-### Action HTTP 字段
-
-| 路径 | 请求字段（另含 csrf） |
-| --- | --- |
-| `POST /api/tasks/{task_id}/actions/submit` | request_id、task_revision、action_id、payload；payload 使用当前表单返回的语义字段 |
-| `POST /api/tasks/{task_id}/recovery/assess` | action_id |
-| `POST /api/tasks/{task_id}/recovery/apply` | action_id |
-
-详情的 `pending_action_id` 为空时表示当前读取没有待应用操作；存在时页面显示恢复入口。Core 的再次读取和 Action 校验决定实际执行结果。
 
 ## 启动、打开、查看状态和停止
 
@@ -112,32 +98,12 @@ React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，�
 - 由浏览器创建共享 checkout Task 或自动补建丢失的工作树；
 - 用户自定义流程图或第二份 Task 状态。
 
-## 桌面任务入口
+## 桌面入口与文件错误
 
-macOS arm64 的桌面宠物通过包含 `DevFlowPet.app` 的本地开发包使用，运行时复用已配置的 Codex 或 DeepSeek Adapter 提供的 Core。
-当前常规 npm 清单与正式制备流程不包含原生应用，获取方式以[桌面宠物指南](DESKTOP-PETS.md#本地构建与安装)为准。
-宠物显示一个所选 Task 的保存状态并打开对应 WebUI；Core 决定任务状态，展示不代表 Host 实时活动或完成百分比。
+桌面宠物可以打开所选 Task 的 WebUI，使用本地开发包与已配置 Adapter 提供的 Core。安装、操作和形象说明见[桌面宠物指南](DESKTOP-PETS.md)。
 
-形象可使用单张 PNG、原生动画包、Codex 标准格式 1/2 图集或 Dev Flow 高分辨率扩展。五类任务动作是基础要求，附加素材决定能否散步、挥手或思考；
-只有 Codex 布局图集固定提取九类、57 帧。待机活动有独立开关，任务提示优先，自动位移保留手动摆放位置。
-程序更新、已有应用副本替换和素材重导入分别处理；安装、全部动作规则与常见问题统一见[桌面宠物指南](DESKTOP-PETS.md)。
+提交流程文件漏报时，页面分别展示遗漏的仓库路径和请求字段错误。只有 Core 确认零写入并明确允许时，才能仅纠正列出的 artifact 字段一次。工作树与历史异常继续使用对应恢复规则。集成字段见[文件收集与提交](ARTIFACTS.md)。
 
-本地宠物包保留默认形象；鲸鱼娘等自定义形象作为独立素材包，通过“导入形象…”安装。素材保存在用户目录，程序更新保留已导入形象。
+任务详情展示已确认的工作树来源及本地内容携带选择。创建与来源选择在 Host 中完成，见[工作树来源](WORKTREE-SOURCES.md)。
 
-## Windows 桌面功能
-
-Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](DESKTOP-PETS.md)。
-
-当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
-
-## 文件漏报处理
-
-流程文件漏报返回 `artifact_manifest_incomplete` 和 `error.repository_paths`，与请求字段路径分开。仅在 Core 确认零写入并明确允许时，可保持同一 Action、仅纠正指定 artifact 字段一次。工作树和历史异常继续使用原有恢复方式；WebUI 展示遗漏路径。详见[文件收集与提交](ARTIFACTS.md)。
-
-
-工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
-`carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。
-
-## 已有检查的验证额度
-
-增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。
+原计划中的检查可因补做或重跑增加验证额度。页面保存具体原因和增加量，不因此产生通过结果。

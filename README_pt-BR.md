@@ -46,12 +46,6 @@ Essas instruções têm prioridade sobre a preferência do plugin para o índice
   repositório invalidam verificações antigas; o desenvolvedor revisa o resultado antes da entrega.
 - **Conclusão e recuperação verificáveis.** O Core exige a conclusão de todos os itens do plano e vincula cada critério de aceitação a verificações válidas para o estado atual. Após uma interrupção, a WebUI recupera os envios salvos no Core.
 
-## Preparação de arquivos
-
-Antes do envio, o Codex executa `dev-flow-codex artifacts collect` e `dev-flow-codex artifacts prepare`. O Core enumera todas as alterações da Action atual; o Codex classifica cada arquivo e o comando gera as listas de artefatos. As omissões recebem os caminhos exatos e uma instrução de correção limitada. As verificações da árvore de trabalho, do histórico e das permissões do nó continuam em vigor. Consulte [coleta e envio de arquivos](docs/ARTIFACTS_en.md).
-
-Antes de iniciar o Codex, defina `DEV_FLOW_DATA_DIR` com o caminho absoluto canônico de um diretório existente. O servidor MCP, o hook e os comandos de preparação de arquivos usam o mesmo diretório. `dev-flow-codex artifacts <collect|prepare> --help` retorna exemplos JSON, descrições dos campos, saídas e a próxima etapa sem iniciar o Core.
-
 ## Início rápido
 
 > A versão estável publicada no npm sob `@latest` está atualmente verificada no macOS arm64. Instale
@@ -64,8 +58,6 @@ Antes de iniciar o Codex, defina `DEV_FLOW_DATA_DIR` com o caminho absoluto can�
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
-
-O menu de ciclo de vida mostra o estado dos Adapters e permite voltar, sair, corrigir entradas e abrir o Control Center. As versões e os caminhos afetados aparecem antes da confirmação. `install`, `repair` e `reinstall` preservam por padrão a versão instalada; `upgrade` seleciona `latest`. Repetir uma instalação ou reparo saudável, uma atualização já aplicada ou uma remoção concluída não gera alterações; `reinstall` substitui o pacote novamente. `doctor` mostra as verificações que falharam e os comandos para resolvê-las. Consulte `dev-flow repair --help`; o modo JSON não faz perguntas. Esses comandos gerenciam os Adapters; atualize o inicializador público com `npm install -g @imotong/dev-flow@latest`.
 
 Escolha Codex, DeepSeek ou ambos na configuração interativa. Antes de iniciar a primeira tarefa,
 conclua também a última etapa indicada pelo instalador:
@@ -130,19 +122,11 @@ arquivos, restringem o esforço de testes ou podem exigir retrabalho sem reutili
 Para perguntas pontuais, explicações de código, consultas de status e pequenas mudanças mecânicas que
 não precisam guardar o progresso, usar Codex ou DeepSeek diretamente costuma ser mais simples.
 
-## Mascote de desktop (macOS arm64)
+## Acesso às tarefas pelo desktop
 
-O pacote local mantém a aparência padrão. A Garota Baleia e outras aparências personalizadas são importadas como pacotes de recursos separados; as atualizações do aplicativo preservam os recursos importados.
+Os pacotes de desenvolvimento locais para macOS arm64 e Windows 10/11 x64 oferecem um mascote de desktop. Ele mostra o estado salvo de um Task selecionado e abre sua WebUI; não indica atividade do Host em tempo real nem porcentagem de conclusão. Permite selecionar tarefas, importar aparências, controlar animações, ajustar o tamanho e iniciar ou encerrar separadamente. Um Adapter do Codex ou DeepSeek instalado e configurado fornece o Core.
 
-O mascote está disponível no macOS arm64 por meio de um pacote local de desenvolvimento com `DevFlowPet.app`; as listas comuns de arquivos npm e a preparação de versões oficiais não incluem o aplicativo nativo. Executar um pacote já compilado não exige Swift/Xcode e usa o Core de um Adapter Codex ou DeepSeek configurado. O mascote mostra o estado salvo de uma Task e abre sua WebUI, sem inferir atividade ao vivo do Host ou porcentagens de progresso. Ao sair, as Tasks e a WebUI são preservadas.
-
-É possível importar um PNG ou SVG estático, um pacote de animação nativo PNG/SVG ou um atlas no formato Codex 1/2. Pacotes nativos exigem cinco animações de tarefa e podem adicionar quatro; atlas Codex geram nove animações e 57 quadros. A extensão de alta resolução do Dev Flow precisa de um atlas separado com dimensões padrão para uso no Codex. As imagens disponíveis determinam caminhadas, acenos e gestos de pensamento em repouso, com um controle independente e prioridade para avisos de tarefas. Atualizar o programa e importar novamente as imagens são operações separadas.
-
-A barra de menus exibe o logotipo curvo do Dev Flow em uma única cor, que se adapta à aparência do sistema. O tamanho do mascote oferece seis ajustes de 50% a 200%, mantendo o tamanho do texto do balão. A aparência padrão acompanha o aplicativo como um pacote separado com nove animações e 312 quadros SVG.
-
-Enquanto nenhuma tarefa estiver selecionada, o mascote continua procurando novas tarefas: primeiro escolhe a tarefa bloqueada atualizada mais recentemente e, se não houver nenhuma, a tarefa ativa atualizada mais recentemente. A seleção permanece até que você a altere manualmente.
-
-Consulte o [guia do mascote](docs/DESKTOP-PETS_en.md) para obter o aplicativo, instalar, atualizar, conhecer as regras e os limites e resolver problemas. A matriz de suporte define o suporte público.
+Os pacotes npm comuns não incluem o aplicativo nativo do macOS. Consulte o [guia do mascote](docs/DESKTOP-PETS_en.md) para obter o pacote local, compilar, instalar, atualizar e usar os recursos gráficos. As verificações locais não ampliam o [suporte estável](docs/SUPPORT-MATRIX_en.md).
 
 ```bash
 dev-flow pet start
@@ -157,44 +141,3 @@ dev-flow pet stop
 ## Licença
 
 [Apache License 2.0](LICENSE)
-
-## Adaptação para Windows desktop
-
-Windows 10/11 x64 destina-se a PCs desktop comuns com processadores Intel ou AMD de 64 bits. As regras de caminhos, permissões, comandos e limpeza do Host ficam separadas em `platform/windows/` e `platform/macos/`; o Core compartilha a semântica de tarefas independente da plataforma. Os inicializadores de comandos do Windows usam UTF-8 e a observação Git do Core oculta janelas de console. Consulte o [relatório de adaptação](docs/WINDOWS-ADAPTATION_en.md) para a verificação nativa no Windows e seus limites; esses resultados não ampliam o suporte dos pacotes estáveis.
-
-O Windows também oferece o mascote de desktop: seleção de tarefas e estado, menu da bandeja, aparências PNG/SVG, animações nativas, atlas Codex PNG/WebP, nove ações, arrastar, seis tamanhos, ocultar/restaurar e iniciar/parar de forma independente. Crie o pacote local do Windows com `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`; consulte os pré-requisitos e a instalação no [guia do mascote](docs/DESKTOP-PETS_en.md). As implementações de Windows e macOS permanecem separadas.
-No Windows, alterar o tamanho encerra a atividade ociosa atual e retoma a programação normal.
-
-No Windows, diretórios AppData existentes são resolvidos para seus caminhos reais, incluindo aliases de hosts de desktop empacotados; links simbólicos continuam sendo rejeitados.
-
-A distribuição de desenvolvimento para Windows inclui os dois pacotes Adapter e o aplicativo desktop. Após instalar o inicializador, use `dev-flow install --host all --yes` e `dev-flow pet start`. O reparo e a reinstalação usam a mesma entrada, verificam os hashes, atualizam o aplicativo e preservam dados de Task, configurações e aparências.
-
-`dev-flow-codex host-launch <operation>` lê um objeto JSON UTF-8 de até 1 MiB do fluxo stdin, incluindo entradas divididas em blocos e caracteres multibyte separados entre blocos. Falhas de leitura, UTF-8 inválido, membros duplicados, JSON inválido, arrays e null são rejeitados antes da execução da operação. Os erros são enviados para stderr e os resultados JSON bem-sucedidos para stdout.
-
-## Ajuda dos comandos e retomada de tarefas
-
-A ajuda do Codex descreve os parâmetros das operações na árvore de trabalho, os campos de resposta e a próxima etapa. Quando todos os repositórios estão preparados, o Host reúne o escopo salvo das árvores de trabalho. Os Schemas de resultado do MCP indicam onde ler Task e Action; sessões retomadas tratam os envios pendentes antes de continuar.
-
-```bash
-dev-flow-codex --help
-dev-flow-codex host-launch prepare --help
-dev-flow-codex artifacts --help
-dev-flow-codex artifacts collect --help
-dev-flow-codex artifacts prepare --help
-```
-
-Consulte os parâmetros e as regras de recuperação na [referência de comandos](docs/COMMANDS_en.md).
-
-`host-launch prepare` gera `launch_id` quando ele é omitido e usa esse ID para conferir o registro de inicialização. Para retomar a mesma inicialização, envie o `receipt.launch_id` retornado; se o registro já estiver em `prepared`, fetch será ignorado. Um ID explícito deve corresponder ao registro salvo.
-
-`host-launch dispatch-result` aceita a resposta completa de criação do Codex, incluindo o JSON em `content[].text`. Salva `clientThreadId` como `host_client_thread_id` com a fase `queued`; reenviar um resultado preservado com os mesmos `launch_id` e `repository_key` permite recuperar um registro `uncertain`. As verificações seguintes acompanham a mesma criação, sem dispará-la novamente.
-
-O Codex salva as solicitações completas de criação de espaços de trabalho para releitura. `dispatch-start` prepara, `dispatch-call` permite uma chamada, `dispatch-recover` retoma uma operação comprovadamente não chamada e `dispatch-reconcile` identifica uma tarefa existente quando o resultado é desconhecido. O chamador analisa arquivos JSON completos; a ausência de resultados não autoriza uma criação duplicada.
-
-## Planejamento dos arquivos copiados no Codex
-
-Quando o Codex copia alterações locais, registra sua preservação em REQUIREMENTS e compara todos os `current_changed_paths` com `expected_paths` e os artefatos de processo preservados em TASKS. O novo desenvolvimento e a preservação recebem tarefas e verificações separadas; uma lista vazia de arquivos da Action atual não substitui a comparação de todos os caminhos da Task. As verificações de preservação comparam o snapshot inicial e não certificam que o comportamento existente foi testado. Os bloqueios de escopo já existentes continuam a usar as opções e transições atuais do Core.
-
-## Mais capacidade para verificações planejadas
-
-Ao aumentar a capacidade de verificação, `additional_checks` pode citar nomes de verificações do plano atual ou de ajustes anteriores; `rationale` explica o trabalho restante ou a nova execução. Os nomes continuam únicos em cada envio, e motivos concretos, um aumento real e os limites existentes continuam obrigatórios. Aumentar a capacidade não cria resultados aprovados.

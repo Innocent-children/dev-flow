@@ -204,7 +204,6 @@ complete file paths and reading instructions without truncating material. Neithe
 a newly written `request` summary. Missing or altered material fails sending before a desktop dispatch
 is recorded or a CLI worktree is created. Task titles retain deterministic launch/repository markers.
 
-
 `dev-flow-codex` accepts no other subcommands and has no implicit `help`, `update`, or `uninstall`
 subcommand. Native Host recovery can update to `latest` by reinstalling globally and rerunning `setup`:
 
@@ -237,8 +236,7 @@ changes invalidate the assessment.
 After Dev Flow is selected, the developer confirms the local or remote source, base and target
 branches, and the local content choice. Codex resolves the source, freezes the commit, creates or
 launches a dedicated worktree, and applies the selected snapshot. Each selected parallel item gets one branch, worktree, Host
-task, and Core Task; a shared-directory sub-agent cannot substitute. The old post-`ACTIVE_TASK_CONFLICT`
-move is removed. Explicit resume alone skips assessment and returns to the original worktree instance.
+task, and Core Task; a shared-directory sub-agent cannot substitute. An `ACTIVE_TASK_CONFLICT` stops creation for the developer to resolve the existing Task. Explicit resume alone skips assessment and returns to the original worktree instance.
 
 ## DeepSeek Harness
 
@@ -506,16 +504,6 @@ and true may prefer an available code index. An unavailable or incomplete index 
 notice in the current session and a fallback to ordinary search; index results do not change an
 existing Task's Scope.
 
-## Windows platform boundaries and verification
-
-Windows 10/11 x64 targets ordinary desktop PCs with Intel or AMD 64-bit processors. The three Node packages implement paths, permissions, commands and cleanup separately in `lib/platform/windows/` and `lib/platform/macos/`; selection entry points only dispatch to the current platform. Core keeps shared platform-neutral task semantics, while Windows Git processes hide console windows. Codex `--version` and `status` use the selected executable-file policy, and Windows PowerShell launchers output UTF-8. This change was tested only on native Windows; Windows 10, AMD hardware and macOS were not tested, and stable support claims remain unchanged. See the [Windows adaptation report](WINDOWS-ADAPTATION_en.md).
-
-## Windows desktop features
-
-The Windows 10/11 x64 desktop pet aligns with macOS task selection and status bubbles, WebUI navigation, tray/context menus, static and native animated PNG/SVG appearances, Codex PNG/WebP atlas imports, nine actions, dragging, six scale settings, hide/restore and independent start/stop. Windows uses a separate Electron implementation while macOS retains Swift/AppKit; both only read Core state. The Windows local package is built by `scripts/build-desktop-pet-windows.mjs`, with user data in `%LOCALAPPDATA%\dev-flow\pet`. See the [desktop pet guide](DESKTOP-PETS_en.md) for building, installation, updates and verification.
-
-The current Windows development distribution includes both Adapter packages and the desktop app. After installing the launcher package, use `dev-flow install --host all --yes` and `dev-flow pet start`. Repair and reinstall use the same entry, verify bundled artifact hashes, refresh the desktop app, and preserve Task data, settings and appearances.
-
 ## Artifact collection and preparation commands
 
 `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare` forward to the packaged Core commands `dev-flow artifacts collect` and `dev-flow artifacts prepare`. Each reads one UTF-8 JSON object up to 1 MiB from stdin and writes `{ok:true,result:...}` or `{ok:false,error:...}` to stdout, exiting with 0 on success or 1 on failure. Collect accepts `{host,task_id,action_id}`; prepare accepts `{host,collection}`. Collect returns complete file facts; prepare checks classification and observation freshness and generates artifact arrays. Both read the existing Task and Git without creating storage or advancing the process. See [artifact collection and submission](ARTIFACTS_en.md) for all fields and steps.
@@ -564,11 +552,9 @@ Use the complete original Codex response as `dispatch-result` input `host_result
 
 A valid `clientThreadId` is saved as `operation_status.host_client_thread_id` with phase `queued`; a valid `threadId` is saved as `host_thread_id` with phase `dispatched`. Resubmitting the retained original result for the same `launch_id` and `repository_key` allows `uncertain → queued`; a later ready result follows `queued → dispatched`, retaining the queued ID and original dispatch marker. `dispatch-start` returns `should_dispatch: false` in all these phases. The Host continues inspecting the same creation; `clientThreadId` is not a task ID usable with tools requiring `threadId`.
 
-
 Codex `dispatch-start` saves the complete `host_request` in `receipt.operation_status.host_request` and enters `dispatch_prepared`; repeated calls and `status` can read it back. `dispatch-call` uses the current `dispatch_attempt_id` to enter `dispatching`; only its first `should_dispatch=true` result permits one creation call. The caller writes complete command stdout to a private file, checks the exit code and parses JSON from that file before forwarding the request unchanged, avoiding display truncation.
 
 When the previous caller has stopped and the creation tool was demonstrably never called, `dispatch-recover` accepts the current attempt ID, `host_call_not_made=true`, `previous_caller_stopped=true` and a specific `reason`, retains the request and issues a new claim ID for `dispatch-call`. Empty task IDs alone do not prove non-invocation. When creation was called but its result is unknown, the Host searches tasks and archived tasks using the saved title, launch ID and repository marker, reads complete initial messages and submits `candidates` (`thread_id`, `initial_prompt`) to `dispatch-reconcile`. Exactly one complete prompt match saves the task ID; zero matches, multiple matches or unavailable inspection never authorize another creation. Core continues to own Task state.
-
 
 Worktree creation first confirms a local or remote source, base and target branches, and whether to carry local content.
 `source_type` and `carry_changes` are required; local sources use `remote_name=""`, remote sources use

@@ -43,12 +43,6 @@ Task 생성을 중지하고 확인할 수 있도록 대상 작업 트리를 보�
   전달 전에 개발자가 실제 결과를 검토합니다.
 - **완료 결과와 복구 상태를 확인할 수 있습니다.** Core는 계획된 모든 작업의 완료와 각 인수 조건에 연결된 현재 유효한 검증을 확인합니다. WebUI가 중단되어도 Core에 저장된 제출 내용을 복구할 수 있습니다.
 
-## 파일 제출 준비
-
-Codex는 제출 전에 `dev-flow-codex artifacts collect`와 `dev-flow-codex artifacts prepare`를 실행합니다. Core가 현재 Action의 모든 변경을 수집하고 Codex가 각 파일을 분류하면 명령이 artifact 배열을 생성합니다. 누락된 파일에는 정확한 경로와 허용 범위가 제한된 수정 지침을 반환합니다. 작업 트리, 이력 및 노드 권한 검사는 계속 적용됩니다. [파일 수집 및 제출](docs/ARTIFACTS_en.md)을 참고하세요.
-
-Codex를 시작하기 전에 `DEV_FLOW_DATA_DIR`에 기존 디렉터리의 정규화된 절대 경로를 설정합니다. MCP 서버, hook, 파일 준비 명령은 같은 데이터 디렉터리를 사용합니다. `dev-flow-codex artifacts <collect|prepare> --help`는 Core를 시작하지 않고 JSON 예제, 필드 설명, 출력과 다음 단계를 반환합니다.
-
 ## 빠른 시작
 
 > npm의 `@latest`로 공개된 안정 버전은 현재 macOS arm64에서 검증되었습니다. Node.js `>=24`와 지원되는 Codex 또는
@@ -61,8 +55,6 @@ Codex를 시작하기 전에 `DEV_FLOW_DATA_DIR`에 기존 디렉터리의 정�
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
-
-수명 주기 메뉴는 Adapter 설치 상태를 표시하며 뒤로 가기, 종료, 잘못된 입력 재시도와 Control Center 열기를 지원합니다. 확인 전에 버전 변경과 리소스 경로를 표시합니다. `install`, `repair`, `reinstall`은 기본적으로 설치된 버전을 유지하며 `upgrade`는 `latest`를 선택합니다. 정상 설치에 대한 반복 설치/복구, 이미 대상 버전인 업데이트, 완료된 제거는 변경 없이 끝납니다. `reinstall`은 패키지를 다시 교체합니다. `doctor`는 실패한 검사와 해결 명령을 표시합니다. 옵션은 `dev-flow repair --help`를 참고하세요. JSON 모드에서는 질문하지 않습니다. 이 명령들은 Adapter를 관리하며 공통 실행기는 `npm install -g @imotong/dev-flow@latest`로 업데이트합니다.
 
 대화형 설정에서 Codex, DeepSeek 또는 둘 다 선택합니다. 첫 작업을 시작하기 전에 설치 프로그램이
 안내하는 마무리 단계도 완료하세요.
@@ -125,19 +117,11 @@ Dev Flow는 여러 세션에 걸치거나, 파일 범위와 테스트 양을 명
 일회성 질문, 코드 설명, 상태 확인, 진행 상황을 저장할 필요가 없는 작은 기계적 변경은 Codex나
 DeepSeek를 직접 사용하는 편이 더 간단합니다.
 
-## 데스크톱 펫（macOS arm64）
+## 데스크톱 작업 진입점
 
-로컬 펫 패키지는 기본 외형을 유지합니다. 고래 소녀 등 사용자 지정 외형은 별도 리소스 패키지로 가져오며, 앱을 업데이트해도 가져온 리소스는 유지됩니다.
+macOS arm64와 Windows 10/11 x64용 로컬 개발 패키지는 데스크톱 펫을 제공합니다. 선택한 Task의 저장된 상태를 표시하고 해당 WebUI를 엽니다. Host의 실시간 활동이나 완료 비율을 나타내지는 않습니다. 작업 선택, 사용자 지정 외형, 애니메이션 설정, 크기 조절, 개별 시작과 종료를 지원합니다. 설치 및 설정이 완료된 Codex 또는 DeepSeek Adapter가 Core를 제공합니다.
 
-데스크톱 펫은 `DevFlowPet.app`을 포함한 macOS arm64용 로컬 개발 패키지로 사용할 수 있습니다. 일반 npm 파일 목록과 정식 릴리스 준비에는 네이티브 앱이 포함되지 않습니다. 빌드된 패키지를 실행할 때 Swift/Xcode는 필요하지 않으며, 설정된 Codex 또는 DeepSeek Adapter가 Core를 제공합니다. 펫은 한 Task의 저장된 상태와 해당 WebUI를 보여 주며 Host의 실시간 활동이나 완료율을 추정하지 않습니다. 종료해도 Task와 WebUI는 유지됩니다.
-
-정적 PNG/SVG, PNG/SVG 네이티브 애니메이션 팩, Codex 표준 형식 1/2 아틀라스를 가져올 수 있습니다. 네이티브 팩에는 5가지 작업 동작이 필요하며 4가지 동작을 추가할 수 있습니다. Codex 아틀라스는 9가지 동작과 57프레임을 추출합니다. Dev Flow 자체 고해상도 확장을 Codex에서도 사용하려면 표준 크기 아틀라스를 따로 준비해야 합니다. 제공된 소재에 따라 대기 중 걷기, 손 흔들기, 생각하기가 동작합니다. 대기 활동은 따로 끌 수 있으며 작업 알림이 우선합니다. 프로그램 업데이트와 소재 다시 가져오기는 별도 작업입니다.
-
-메뉴 막대에는 Dev Flow의 곡선 로고를 사용한 단색 아이콘이 표시되며, 시스템 모양에 맞춰 색상이 바뀝니다. 펫 크기는 50%~200%의 6단계로 조절할 수 있고 말풍선 글자 크기는 유지됩니다. 기본 모습은 9가지 동작, 312개의 SVG 프레임을 담은 별도 소재 팩으로 포함됩니다.
-
-선택된 작업이 없으면 펫은 새 작업을 계속 찾습니다. 가장 최근에 업데이트된 차단된 작업을 우선 선택하고, 없으면 가장 최근에 업데이트된 진행 중인 작업을 선택합니다. 선택 후에는 사용자가 직접 변경할 때까지 같은 작업을 표시합니다.
-
-앱 받기, 설치와 업데이트, 동작 조건, 제한 및 문제 해결은 [데스크톱 펫 안내](docs/DESKTOP-PETS_en.md)를 참고하세요. 공개 지원 범위는 지원 표를 따릅니다.
+일반 npm 패키지에는 macOS 네이티브 앱이 포함되지 않습니다. 로컬 패키지 준비, 빌드, 설치, 업데이트와 소재 사용은 [데스크톱 펫 가이드](docs/DESKTOP-PETS_en.md)를 참고하세요. 로컬 검증으로 [안정 지원 범위](docs/SUPPORT-MATRIX_en.md)가 확대되지는 않습니다.
 
 ```bash
 dev-flow pet start
@@ -152,44 +136,3 @@ dev-flow pet stop
 ## 라이선스
 
 [Apache License 2.0](LICENSE)
-
-## Windows 데스크톱 지원
-
-Windows 10/11 x64는 Intel 또는 AMD 64비트 프로세서를 사용하는 일반 데스크톱 PC를 대상으로 합니다. Host의 경로, 권한, 명령 및 정리 규칙은 `platform/windows/`와 `platform/macos/`로 분리하며, Core는 플랫폼에 독립적인 작업 의미 규칙을 공유합니다. Windows 명령 실행기는 UTF-8을 사용하고 Core의 Git 관찰은 콘솔 창을 숨깁니다. Windows 실기기 검증 결과와 한계는 [적용 보고서](docs/WINDOWS-ADAPTATION_en.md)를 참조하세요. 이 결과로 안정 패키지의 지원 범위를 확대하지 않습니다.
-
-Windows에서도 데스크톱 펫을 제공합니다. 작업 선택과 상태 말풍선, 트레이 메뉴, PNG/SVG 외형, 네이티브 애니메이션, Codex PNG/WebP 아틀라스, 9가지 동작, 드래그, 6단계 크기, 숨기기와 복원, 개별 시작과 종료를 지원합니다. `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`로 Windows 로컬 패키지를 빌드합니다. 의존성 준비와 설치는 [데스크톱 펫 가이드](docs/DESKTOP-PETS_en.md)를 참조하세요. Windows와 macOS 데스크톱 구현은 서로 독립적입니다.
-Windows에서 크기를 변경하면 현재 대기 동작을 종료하고 정상적인 동작 스케줄로 돌아갑니다.
-
-Windows에서는 패키지형 데스크톱 호스트가 제공하는 디렉터리 별칭을 포함하여 기존 AppData 디렉터리의 실제 경로를 확인합니다. 심볼릭 링크는 계속 거부합니다.
-
-현재 Windows 개발 패키지에는 두 Adapter 패키지와 데스크톱 앱이 포함됩니다. 실행기 패키지를 설치한 뒤 `dev-flow install --host all --yes`와 `dev-flow pet start`를 사용합니다. 복구와 재설치도 같은 진입점에서 수행하며, 내장 패키지 해시를 검증하고 앱을 갱신하면서 Task 데이터, 설정, 외형을 보존합니다.
-
-`dev-flow-codex host-launch <operation>`은 stdin 스트림에서 최대 1 MiB의 UTF-8 JSON 객체를 읽으며, 청크 입력과 청크 경계에 걸친 멀티바이트 문자를 지원합니다. 읽기 실패, 잘못된 UTF-8, 중복 멤버, 잘못된 JSON, 배열 및 null은 작업 실행 전에 거부됩니다. 오류는 stderr로, 성공한 JSON 결과는 stdout으로 출력됩니다.
-
-## 명령어 도움말과 작업 재개
-
-Codex 명령어 도움말에서 작업 트리 작업의 매개변수, 반환 필드, 다음 단계를 확인할 수 있습니다. 모든 저장소 준비가 끝나면 Host가 저장된 작업 트리 범위를 취합합니다. MCP 결과 Schema는 Task와 Action을 읽을 위치를 설명하며, 세션을 재개할 때는 미완료 제출을 먼저 처리합니다.
-
-```bash
-dev-flow-codex --help
-dev-flow-codex host-launch prepare --help
-dev-flow-codex artifacts --help
-dev-flow-codex artifacts collect --help
-dev-flow-codex artifacts prepare --help
-```
-
-매개변수와 복구 규칙은 [명령어 참조](docs/COMMANDS_en.md)를 확인하세요.
-
-`host-launch prepare`는 `launch_id`가 생략되면 ID를 생성하고 해당 ID로 시작 기록을 확인합니다. 재시도할 때 반환된 `receipt.launch_id`를 전달하면 같은 시작 작업을 재개하며, 기록이 이미 `prepared`이면 fetch를 건너뜁니다. 명시적으로 전달한 ID는 저장된 기록과 일치해야 합니다.
-
-`host-launch dispatch-result`는 `content[].text`의 JSON을 포함한 Codex 작업 생성 응답 전체를 받습니다. `clientThreadId`를 `host_client_thread_id`로 저장하고 단계를 `queued`로 설정합니다. 같은 `launch_id`와 `repository_key`로 보관한 결과를 다시 제출하면 `uncertain` 기록을 복구할 수 있습니다. 이후 확인은 같은 생성 작업을 추적하며 다시 디스패치하지 않습니다.
-
-Codex는 작업 공간 생성 요청 전체를 저장하여 다시 읽을 수 있게 합니다. `dispatch-start`는 요청을 준비하고, `dispatch-call`은 한 번의 호출을 허용하며, `dispatch-recover`는 호출하지 않았음이 확인된 작업을 복구합니다. 결과가 불명확하면 `dispatch-reconcile`로 기존 작업을 확인합니다. 호출자는 완전한 JSON 파일을 파싱하며, 결과 누락을 이유로 중복 생성하지 않습니다.
-
-## Codex에서 가져온 파일의 작업 계획
-
-Codex가 로컬 변경을 가져오면 REQUIREMENTS에 내용 보존 요구 사항을 기록하고, TASKS에서 전체 `current_changed_paths`를 `expected_paths` 및 보존된 프로세스 산출물과 대조합니다. 새 개발 작업과 기존 내용 보존에는 각각 작업 항목과 확인 절차를 지정합니다. 현재 Action의 파일 목록이 비어 있어도 전체 Task 경로 확인을 대신할 수 없습니다. 보존 확인은 시작 시점의 스냅샷과 비교하는 것이며 기존 기능의 테스트 완료를 뜻하지 않습니다. 이미 발생한 파일 범위 차단은 기존 Core 선택지와 전이로 처리합니다.
-
-## 계획된 확인 작업의 실행 한도 추가
-
-검증 실행 한도를 늘릴 때 `additional_checks`는 현재 계획이나 이전 증가 기록의 확인 작업 이름을 참조할 수 있으며, `rationale`에는 남은 작업이나 재실행 이유를 적습니다. 한 번의 제출 안에서 이름은 고유해야 하며 구체적인 이유, 실제 증가량, 기존 상한은 계속 확인합니다. 실행 한도 증가 자체가 통과 결과를 만들지는 않습니다.

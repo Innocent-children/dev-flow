@@ -192,7 +192,6 @@ Codex 新会话启动使用原会话保存的完整需求交接材料。以下�
 不截断材料。两个启动入口都不再接收新写的 `request` 摘要。材料缺失或被修改时，发送操作在记录桌面
 dispatch 或创建 CLI 工作树之前失败。任务标题继续使用确定的 launch/repository 标识。
 
-
 `dev-flow-codex` 不支持其他子命令，也不提供隐式 `help`、`update` 或 `uninstall` 子命令。Host 原生更新到
 当前 `latest` 时重新运行全局安装和 `setup`：
 
@@ -223,7 +222,7 @@ Core、不创建 Task/receipt/child，也不写 Git；request、root、HEAD 或 
 选择 Dev Flow 后，用户逐仓确认 source/base/target/carry。Codex Host 解析本地或远端起点、冻结 commit，并
 创建或启动专属 worktree；本地来源按确认的 carry_changes 复制 staged、unstaged 和非 ignored 的 untracked 内容到 child。并行
 批次的每个项目各有一个 branch、worktree、Host task 和 Core Task。共享目录 sub-agent 不能代替。
-旧的 `ACTIVE_TASK_CONFLICT` 后搬家路径已经删除。
+`ACTIVE_TASK_CONFLICT` 返回后停止，由用户处理现有任务。
 
 明确 resume 是唯一跳过 assessment 的路径，它回到原 worktree instance，不选择替代 branch/worktree。
 
@@ -470,16 +469,6 @@ Host 选择检索工具时，当前用户指令和适用的 `AGENTS.md` 优先�
 false 选择普通文件和文本搜索，true 可优先使用当前可用的代码索引。索引不可用或结果不完整时，
 Host 在当前会话中至多提示一次并回到普通搜索；索引结果不改变已创建 Task 的 Scope。
 
-## Windows 平台边界与验证
-
-Windows 10/11 x64 面向普通 Intel、AMD 64 位桌面电脑。三个 Node 包的路径、权限、命令和清理规则分别由 `lib/platform/windows/` 与 `lib/platform/macos/` 实现，选择入口只按当前平台分派。Core 的平台中立任务语义保持共享；Windows Git 进程隐藏控制台窗口。Codex 的 `--version` 与 `status` 使用所选平台的可执行文件检查，Windows PowerShell 启动器输出 UTF-8。本次只执行 Windows 原生测试；Windows 10、AMD 实机和 macOS 未测试，稳定支持声明保持不变。详见[Windows 适配报告](WINDOWS-ADAPTATION.md)。
-
-## Windows 桌面功能
-
-Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](DESKTOP-PETS.md)。
-
-当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
-
 ## 文件收集与准备命令
 
 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare` 分别转发到包内 Core 的 `dev-flow artifacts collect` 和 `dev-flow artifacts prepare`。两个命令从 stdin 读取最多 1 MiB 的单个 UTF-8 JSON 对象，通过 stdout 返回 `{ok:true,result:...}` 或 `{ok:false,error:...}`，成功退出码为 0，失败为 1。collect 输入为 `{host,task_id,action_id}`；prepare 输入为 `{host,collection}`。前者输出完整文件信息，后者检查逐项分类、观察是否变化并生成 artifact 数组。只读取已有 Task 和 Git，不创建存储或推进流程。完整字段及使用步骤见[文件收集与提交](ARTIFACTS.md)。
@@ -528,11 +517,9 @@ Task Plan 的 `expected_paths` 支持精确路径及目录后缀 `/**`，不支�
 
 有效 `clientThreadId` 保存到 `operation_status.host_client_thread_id`，阶段为 `queued`；有效 `threadId` 保存到 `host_thread_id`，阶段为 `dispatched`。对相同 `launch_id` 和 `repository_key` 补交保留的原始结果，允许 `uncertain → queued`；后续就绪结果沿 `queued → dispatched` 保存，并保留排队 ID 和原派发标识。`dispatch-start` 在这些阶段均返回 `should_dispatch: false`。Host 继续检查同一次创建；`clientThreadId` 不是可传给要求 `threadId` 的工具的任务 ID。
 
-
 Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.operation_status.host_request`，进入 `dispatch_prepared`；重复调用和 `status` 均可回读。`dispatch-call` 使用当前 `dispatch_attempt_id` 将阶段改为 `dispatching`，仅首次返回 `should_dispatch=true` 时允许调用一次创建工具。调用方将命令完整 stdout 写入私有文件，检查退出码并从文件解析 JSON，再原样转发请求，避免显示长度限制截断内容。
 
 确认原调用方已停止且创建工具尚未调用时，`dispatch-recover` 接收当前派发 ID、`host_call_not_made=true`、`previous_caller_stopped=true` 和具体 `reason`，保留原请求并换发调用许可 ID；随后执行 `dispatch-call`。空任务 ID 本身不能证明未调用。已经调用但结果未知时，Host 按保存的启动标题、启动 ID 和仓库标识查找任务及归档任务，读取候选任务完整初始消息，将 `candidates`（`thread_id`、`initial_prompt`）交给 `dispatch-reconcile`。唯一完整消息匹配才保存任务 ID；零匹配、多个匹配或查询不可用均不允许重新创建。Core Task 状态保持由 Core 管理。
-
 
 工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
 `carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。

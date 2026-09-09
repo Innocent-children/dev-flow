@@ -213,6 +213,16 @@ IMPLEMENT→TEST、REFACTOR→TEST 要求 `completed_work_item_ids` 覆盖当前
 
 任务详情返回 `pending_action_id`，表示 Core 已保存但尚未应用的操作。HTTP 恢复只接收 Action ID，由 `GetTask` 和 `RecoverAction` 读取保存载荷并决定下一步。浏览器网络异常先查询 Core，待恢复期间隐藏普通提交表单；刷新页面后仍从 Core 读取待恢复标识。浏览器不再组装内部 OperationProbe。
 
+### Action HTTP 字段
+
+| 路径 | 请求字段（另含 csrf） |
+| --- | --- |
+| `POST /api/tasks/{task_id}/actions/submit` | request_id、task_revision、action_id、payload；payload 使用当前表单返回的语义字段 |
+| `POST /api/tasks/{task_id}/recovery/assess` | action_id |
+| `POST /api/tasks/{task_id}/recovery/apply` | action_id |
+
+详情的 `pending_action_id` 为空时表示当前读取没有待应用操作；存在时页面显示恢复入口。Core 的再次读取和 Action 校验决定实际执行结果。
+
 ## 验证计划、预算增加和复核范围
 
 最终验证预算不属于创建时的 `TaskIntent`。TASKS 已经完成 Requirements、Design、工作拆分、影响面和
@@ -288,7 +298,7 @@ dev_flow_abandon_task
 ```
 
 Store 只实现当前 SQLite Schema、严格 snapshot codec、Action operation、append-only TaskEvent、claims 和
-revision CAS。没有迁移、旧 Schema reader、shared-checkout fallback 或 reset prompt。claim key 使用可直接
+revision CAS。claim key 使用可直接
 观察的 worktree instance identity，使写前 hook 即使遇到非法 branch switch 仍能找到 Task。
 
 WebUI 是 loopback HTTP Adapter，只投影 WorkspaceOrigin、当前 observation/surface、blocker、relocation、
@@ -360,17 +370,17 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 
 `scripts/build-desktop-pet.mjs` 调用 `scripts/desktop-pet-artwork.mjs`，从 `packages/desktop-pet/default-appearance/` 复制默认 SVG 形象并逐文件核对内容。自定义形象由用户从外部包导入；`PetAppearanceStore` 负责用户目录中的形象列表与加载，`PetAppearanceSelection` 在默认形象与已导入形象之间切换。生成的应用包保存在仓库外，不纳入 Git 跟踪。
 
-## Windows 平台边界与验证
+## 平台职责
 
-Windows 10/11 x64 面向普通 Intel、AMD 64 位桌面电脑。三个 Node 包的路径、权限、命令和清理规则分别由 `lib/platform/windows/` 与 `lib/platform/macos/` 实现，选择入口只按当前平台分派。Core 的平台中立任务语义保持共享；Windows Git 进程隐藏控制台窗口。Codex 的 `--version` 与 `status` 使用所选平台的可执行文件检查，Windows PowerShell 启动器输出 UTF-8。本次只执行 Windows 原生测试；Windows 10、AMD 实机和 macOS 未测试，稳定支持声明保持不变。详见[Windows 适配报告](WINDOWS-ADAPTATION.md)。
+三个 Node 包在 `lib/platform.mjs` 选择平台实现；路径、权限、命令与清理分别位于 `lib/platform/windows/` 和 `lib/platform/macos/`。Core 共用平台中立的任务语义。Windows Git 进程隐藏控制台窗口；Codex 版本与状态预检使用所选平台的可执行文件策略，PowerShell 启动器使用 UTF-8。原生验证单独记录在[Windows 报告](WINDOWS-ADAPTATION.md)。
 
-## Windows 桌面功能
+Windows Codex 注册回读核对 marketplace 的 `name`、`root` 与 Plugin 身份，并在 Windows 实现中规范化 `\\?\` 路径前缀；macOS 使用自己的回读规则。
 
-Windows 10/11 x64 的桌面宠物提供与 macOS 对齐的任务选择与状态气泡、WebUI 跳转、托盘/右键菜单、PNG/SVG 静态和原生动画形象、Codex PNG/WebP 图集导入、九类动作、拖动、六档缩放、隐藏恢复与独立启停。Windows 使用独立 Electron 实现，macOS 保留 Swift/AppKit；两者只读取 Core 状态。Windows 本地包由 `scripts/build-desktop-pet-windows.mjs` 构建，用户数据位于 `%LOCALAPPDATA%\dev-flow\pet`。构建、安装、更新与验证见[桌面宠物指南](DESKTOP-PETS.md)。
+## Windows 桌面职责
 
-Windows 会将已有 AppData 目录解析为实际路径，包括打包桌面宿主提供的目录别名；仍拒绝符号链接。
+`packages/desktop-pet/windows/` 负责 Electron 窗口、托盘、渲染器、本地观察与素材处理，macOS 保留 Swift/AppKit。两者只读取 Core 状态。`scripts/build-desktop-pet-windows.mjs` 装配包含两个 Adapter 包的 Windows 桌面分发包。统一入口校验内置包摘要并管理程序替换，保留 `%LOCALAPPDATA%\dev-flow\pet` 中的设置和形象。
 
-当前 Windows 开发包同时包含两个 Adapter 包和桌面应用。安装统一入口包后，使用 `dev-flow install --host all --yes` 与 `dev-flow pet start`。修复、重装均通过同一入口执行，校验内置包摘要、更新桌面应用，并保留 Task 数据、设置和形象。
+Windows 路径实现将已有 AppData 目录解析为实际路径，包括打包桌面 Host 提供的目录别名，同时拒绝符号链接。GUI 使用 `Start-Process` 和每次启动的确认记录，避免常驻桌面进程保留调用终端的输出句柄。平台维护通过完整可执行路径、命令和创建时间识别 Core 实例，再停止需要替换的实例。
 
 ## 当前 DSH 接口
 
@@ -389,7 +399,6 @@ Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-
 Codex 的命令说明由 Host 包的 `lib/host-launch-contract.mjs` 提供；`host-launch <operation> --help` 在读取 stdin、解析安装路径或执行操作前返回输入 Schema、字段来源、输出字段和下一步。`host-launch scope` 只读取已确认的仓库记录，复用协调器的完整性检查后生成 Core 仓库参数。Git 操作继续由 Host 协调器负责。
 
 Core MCP 的 `inputSchema` 描述提交参数，`outputSchema` 描述公开结果外层和继续执行所需的字段路径，保存记录的内容由 Core 领域校验负责。`structuredContent` 与文本内容携带同一 JSON 结果。Host 先处理 `recovery_assessment.next_advice`，再读取当前 Action；新会话从 `recovery_assessment.operation.action_id` 获取保存的提交身份。生命周期操作回读 Task、创建来源或迁移记录，不借用普通 Action 恢复入口。
-
 
 Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.operation_status.host_request`，进入 `dispatch_prepared`；重复调用和 `status` 均可回读。`dispatch-call` 使用当前 `dispatch_attempt_id` 将阶段改为 `dispatching`，仅首次返回 `should_dispatch=true` 时允许调用一次创建工具。调用方将命令完整 stdout 写入私有文件，检查退出码并从文件解析 JSON，再原样转发请求，避免显示长度限制截断内容。
 

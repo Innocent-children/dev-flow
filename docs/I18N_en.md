@@ -21,6 +21,8 @@ paired English and Simplified Chinese files, including:
 The English and Simplified Chinese technical documents synchronize product position, current
 capability, future direction, commands, platforms, Hosts, and security boundaries.
 
+Desktop usage and toolchain policy also maintain paired Chinese/English files. Synchronization preserves product meaning within each page’s responsibility; technical-reference links supply detailed fields.
+
 ## Root README locales
 
 The root README family retains these nine locales:
