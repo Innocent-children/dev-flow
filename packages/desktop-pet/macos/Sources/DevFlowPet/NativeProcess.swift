@@ -29,9 +29,8 @@ enum NativeProcess {
         identity(pid: getpid())
     }
 
-    /// Reads the actual creation information of a process. A recycled PID whose
-    /// start identity or executable path differs yields `nil`, which is how an
-    /// expired runtime record is detected.
+    /// Reads live process facts. InstanceRules compares them with the saved
+    /// record to detect a recycled PID or a changed executable.
     static func identity(pid: Int32) -> Identity? {
         guard pid > 0 else { return nil }
         guard let startIdentity = processStartIdentity(pid: pid) else { return nil }
@@ -40,12 +39,14 @@ enum NativeProcess {
         return Identity(pid: pid, startIdentity: startIdentity, executablePath: executablePath, ownerUserID: ownerUserID)
     }
 
-    /// The same process creation timestamp format the Core runtime receipt uses,
-    /// so the launcher and the desktop agree on one identity representation.
+    /// Kernel creation time as decimal seconds:microseconds, independent of locale and timezone.
     static func processStartIdentity(pid: Int32) -> String? {
-        guard let output = runProcess("/bin/ps", arguments: ["-o", "lstart=", "-p", String(pid)]) else { return nil }
-        let identity = output.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        return identity.isEmpty ? nil : identity
+        guard pid > 0 else { return nil }
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size,
+              info.pbi_pid == UInt32(pid), info.pbi_start_tvsec > 0 else { return nil }
+        return "\(info.pbi_start_tvsec):\(info.pbi_start_tvusec)"
     }
 
     static func executablePath(pid: Int32) -> String? {
@@ -103,23 +104,6 @@ enum NativeProcess {
         signal(SIGPIPE, SIG_IGN)
     }
 
-    private static func runProcess(_ path: String, arguments: [String]) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
 }
 
 /// An advisory lock that keeps exactly one desktop instance per user. The lock

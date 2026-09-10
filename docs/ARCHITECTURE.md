@@ -363,6 +363,8 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。每轮分页读取受阻和进行中任务，按任务 ID 去重；从列表消失的已观察任务及固定任务通过详情确认当前状态。列表缺失本身不能表示完成，读取失败保留最后成功集合；过期响应不能覆盖新选择。任务面板按需分页。
 `PetTaskCollection` 和 Windows `task-collection.cjs` 负责桌面关注顺序、明确固定与本会话完成提示，Core 负责生命周期。自动关注受阻优先，同级保持稳定；完成提示结束后切换未完成任务。`PetBubbleStackView` 和 Windows renderer 负责最多三层叠加、展开滚动及逐任务点击；导航前重新核对同一 Core 与数据目录。
 `productRoot/pet/settings.json` 保存位置、动画开关、按数据目录分组的 `pinned_tasks`、`selected_appearance`、默认开启的 `idle_activities_enabled` 与角色缩放比例 `scale`。自动关注和未读完成提示仅在内存中维护；`runtime.json` 记录进程身份。
+
+macOS 宠物的 `process_start_identity` 由内核进程信息中的启动秒和微秒组成，保存为十进制 `seconds:microseconds` 字符串，与语言环境和时区无关。恢复与停止同时核对 PID、启动标识、所属用户及程序路径；原生信息读取失败时拒绝识别该进程。应用替换前先停止旧实例，新实例写入当前格式的运行记录。
 Core 数据、流程图和 MCP 工具保持现有职责。
 
 `PetMenuBarIcon` 负责以 AppKit 路径绘制 18 pt Dev Flow 流线标识，并提供模板图像；`PetMenu` 将图像安装到菜单栏按钮，macOS 负责外观着色。
