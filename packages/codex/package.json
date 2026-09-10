@@ -1,6 +1,6 @@
 {
   "name": "dev-flow-codex",
-  "version": "0.9.9",
+  "version": "0.10.0",
   "private": false,
   "description": "Dev Flow tasks in local branches or dedicated worktrees for Codex.",
   "license": "Apache-2.0",
