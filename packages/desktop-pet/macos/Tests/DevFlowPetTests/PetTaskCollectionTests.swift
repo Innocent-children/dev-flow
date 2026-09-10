@@ -62,7 +62,7 @@ final class PetTaskCollectionTests: XCTestCase {
         window.isReleasedWhenClosed = false
         window.orderFrontRegardless()
         defer { window.orderOut(nil) }
-        view.update(cards: tasks.cards, pinned: nil, fallback: BubbleRules.content(result: tasks.focus, lastSyncAt: Date(), strings: .chinese, language: .chinese), sync: Date(), strings: .chinese, language: .chinese)
+        view.update(cards: tasks.cards, pinned: nil, sync: Date(), strings: .chinese, language: .chinese)
         let collapsed = view.requiredHeight(width: 256)
         window.setContentSize(CGSize(width: 256, height: collapsed))
         view.frame.size = CGSize(width: 256, height: collapsed)
@@ -97,6 +97,75 @@ final class PetTaskCollectionTests: XCTestCase {
             let screen = CGRect(x: 0, y: 0, width: 900, height: 700)
             let origin = PositionRules.constrain(position: .init(x: 895, y: 695), windowSize: size, visibleFrame: screen, fallbackInset: 24)
             XCTAssertTrue(screen.contains(CGRect(origin: origin, size: size)))
+        }
+    }
+
+    @MainActor
+    func testEmptyCardsHideTheBubbleAndResetExpansion() {
+        let view = PetBubbleStackView(frame: .zero)
+        let tasks = PetTaskCollection()
+        XCTAssertTrue(view.isHidden)
+        XCTAssertEqual(view.requiredHeight(width: 256), 0)
+        view.setExpanded(true)
+        XCTAssertFalse(view.isExpanded)
+
+        tasks.update([TestFixtures.summary(taskID: "a")], readiness: .ready)
+        view.update(cards: tasks.cards, pinned: nil, sync: nil, strings: .english, language: .english)
+        XCTAssertFalse(view.isHidden)
+        view.setExpanded(true)
+        XCTAssertTrue(view.isExpanded)
+        XCTAssertGreaterThan(view.requiredHeight(width: 256), 0)
+
+        view.update(cards: [], pinned: nil, sync: nil, strings: .english, language: .english)
+        XCTAssertTrue(view.isHidden)
+        XCTAssertFalse(view.isExpanded)
+        XCTAssertEqual(view.requiredHeight(width: 256), 0)
+        XCTAssertTrue(descendants(view).compactMap { $0 as? PetBubbleView }.isEmpty)
+        XCTAssertTrue(view.subviews.compactMap { $0 as? NSButton }.allSatisfy(\.isHidden))
+        view.update(BubbleContent(title: "Connection message", stage: nil, summary: nil,
+            taskUpdated: nil, lastSync: nil, blocker: nil))
+        XCTAssertTrue(view.isHidden, "a message cannot create a taskless bubble")
+
+        view.update(cards: tasks.cards, pinned: nil, sync: nil, strings: .english, language: .english)
+        XCTAssertFalse(view.isHidden)
+        XCTAssertFalse(view.isExpanded)
+        XCTAssertEqual(descendants(view).compactMap { $0 as? PetBubbleView }.count, 1)
+    }
+
+    @MainActor
+    func testEmptyBubbleLayoutPreservesCharacterAndReleasesMouseArea() async throws {
+        _ = NSApplication.shared
+        let window = PetWindow()
+        window.motionEnabled = false
+        window.layout(atOrigin: CGPoint(x: 100, y: 100))
+        window.orderFrontRegardless()
+        defer { window.orderOut(nil) }
+        let tasks = PetTaskCollection()
+        tasks.update([TestFixtures.summary(taskID: "a")], readiness: .ready)
+        for scale in [0.5, 1, 2] {
+            window.content.setScale(scale)
+            window.content.bubble.update(cards: tasks.cards, pinned: nil, sync: nil, strings: .english, language: .english)
+            window.relayoutForBubble()
+            try await Task.sleep(nanoseconds: 50_000_000)
+            window.content.layoutSubtreeIfNeeded()
+            let characterOrigin = window.content.character.frame.origin
+            let windowOrigin = window.frame.origin
+            let bubblePoint = NSPoint(x: window.content.bubble.frame.midX, y: window.content.bubble.frame.midY)
+            XCTAssertTrue(window.content.containsInteractivePoint(bubblePoint))
+            let screenPoint = window.convertPoint(toScreen: window.content.convert(bubblePoint, to: nil))
+            window.content.screenMouseLocation = { screenPoint }
+
+            window.content.bubble.update(cards: [], pinned: nil, sync: nil, strings: .english, language: .english)
+            window.relayoutForBubble()
+            try await Task.sleep(nanoseconds: 50_000_000)
+            window.content.layoutSubtreeIfNeeded()
+            XCTAssertEqual(window.frame.origin, windowOrigin)
+            XCTAssertEqual(window.content.character.frame.origin, characterOrigin)
+            XCTAssertEqual(window.frame.height, 144 * scale, accuracy: 0.01)
+            XCTAssertFalse(window.content.containsInteractivePoint(bubblePoint))
+            XCTAssertTrue(window.ignoresMouseEvents)
+            let characterPoint = NSPoint(x: window.content.character.frame.midX, y: window.content.character.frame.midY)
+            XCTAssertTrue(window.content.containsInteractivePoint(characterPoint))
         }
     }
 

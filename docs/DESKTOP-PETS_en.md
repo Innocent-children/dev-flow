@@ -105,6 +105,8 @@ The menu bar entry uses a monochrome Dev Flow mark, with a clear gap between the
 
 By default, up to three task bubbles overlap: the front bubble shows the focused task, with the outlines of other task cards behind it. The footer shows unfinished and blocked counts, plus a count for additional tasks. Hover or click the count to expand a scrollable list; each bubble opens its own task WebUI.
 
+When there are no task cards to display, the bubbles and count control are hidden, including on hover. Bubbles return automatically when tasks appear. The hidden area lets mouse input pass through, and clicking the character still opens the task list. Completion prompts, pinned tasks, and task records retained during disconnection follow the rules below.
+
 Every observation discovers unfinished tasks. Automatic focus prioritizes blocked tasks and remains stable among tasks with the same priority; a new focus is selected by most recent update. When the focused task completes, its prompt stays for about three seconds before focus moves to unfinished work. Completions observed continuously in this session remain in the expanded list until opened or dismissed. Cancelled, archived, or confirmed unavailable tasks also release automatic focus. With no remaining work, the pet becomes idle.
 
 Pin task saves an explicit choice for the current data directory. A pinned task stays focused after completion while other task bubbles remain visible. Follow automatically clears the pin. Opening a task does not pin it. Restart restores only an explicit pin; completion prompts are limited to the current session.

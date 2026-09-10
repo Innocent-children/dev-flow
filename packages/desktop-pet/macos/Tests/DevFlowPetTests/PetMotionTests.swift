@@ -25,7 +25,6 @@ final class PetMotionTests: XCTestCase {
         tasks.update((0..<5).map { TestFixtures.summary(taskID: "motion-\($0)",
             requestSummary: "Task \($0): Native motion with a longer description", lifecycle: .active) }, readiness: .ready)
         window.content.bubble.update(cards: tasks.cards, pinned: nil,
-            fallback: BubbleRules.content(result: tasks.focus, lastSyncAt: nil, strings: .english, language: .english),
             sync: nil, strings: .english, language: .english)
         window.layout(atOrigin: CGPoint(x: 200, y: 200))
         window.orderFrontRegardless()

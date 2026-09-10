@@ -91,10 +91,55 @@ test("stacked cards expand and each action retains its task ID", async () => {
   assert.deepEqual(renderer.commands.at(-1), ["dismiss", "d"]);
 });
 
+test("empty cards hide the bubble through hover and restore after a task arrives", () => {
+  const renderer = createRenderer();
+  const state = stateFor("idle");
+  renderer.publish(state);
+  const bubble = renderer.document.querySelector("#bubble");
+  const toggle = renderer.document.querySelector("#activityToggle");
+  assert.equal(bubble.hidden, true);
+  assert.equal(toggle.hidden, true);
+  assert.ok(renderer.commands.some(([name, value]) => name === "bubble-height" && value === 0));
+  renderer.document.body.onmouseenter();
+  assert.equal(bubble.hidden, true);
+  assert.equal(toggle.hidden, true);
+
+  state.cards = [{ taskID: "a", result: { phase: "active", summary: { request_summary: "Task a", lifecycle: "active" } } }];
+  renderer.publish(state);
+  assert.equal(bubble.hidden, false);
+  assert.equal(renderer.document.querySelector("#cards").children.length, 1);
+  state.cards = [];
+  renderer.publish(state);
+  assert.equal(bubble.hidden, true);
+  assert.equal(toggle.hidden, true);
+  assert.equal(renderer.document.querySelector("#cards").children.length, 0);
+  assert.deepEqual(renderer.commands.at(-1), ["bubble-height", 0]);
+
+  renderer.image.onpointerdown({ button: 0, screenX: 100, screenY: 100, pointerId: 1 });
+  renderer.image.onpointerup();
+  assert.deepEqual(renderer.commands.at(-1), ["open", undefined], "the character still opens navigation without cards");
+});
+
+test("removing the bubble releases a stationary pointer and character hover restores input", () => {
+  const renderer = createRenderer();
+  const state = stateFor("active");
+  state.cards = [{ taskID: "a", result: { phase: "active", summary: { lifecycle: "active" } } }];
+  renderer.publish(state);
+  const bubble = renderer.document.querySelector("#bubble");
+  renderer.document.elementFromPoint = () => ({ closest: () => bubble.hidden ? null : bubble });
+  renderer.document.listeners.mousemove({ clientX: 100, clientY: 20 });
+  state.cards = [];
+  renderer.publish(state);
+  assert.deepEqual(renderer.commands.at(-1), ["hit", false]);
+  renderer.document.elementFromPoint = () => ({ closest: () => renderer.image });
+  renderer.document.listeners.mousemove({ clientX: 100, clientY: 100 });
+  assert.deepEqual(renderer.commands.at(-1), ["hit", true]);
+});
+
 function createRenderer() {
   const commands = [], elements = new Map(), timers = new Map();
   let publish, interval, now = 0, nextID = 0;
-  const element = () => ({ style: {}, children: [], append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; }, addEventListener() {}, classList: { add() {}, remove() {}, toggle() {} } });
+  const element = () => ({ style: {}, children: [], append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; }, addEventListener() {}, setPointerCapture() {}, classList: { add() {}, remove() {}, toggle() {} } });
   const document = {
     querySelector(selector) {
       if (!elements.has(selector)) elements.set(selector, element());
@@ -102,7 +147,8 @@ function createRenderer() {
     },
     createElement: element,
     body: element(),
-    addEventListener() {},
+    listeners: {},
+    addEventListener(name, callback) { this.listeners[name] = callback; },
   };
   const context = vm.createContext({
     document,

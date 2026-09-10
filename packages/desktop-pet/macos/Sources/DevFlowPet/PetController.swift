@@ -164,22 +164,12 @@ final class PetController: PetWindowHandling {
     private func present(_ update: ObservationUpdate, allowPrompt: Bool = false) {
         guard window.isVisible, !sleeping, !exiting else { return }
         window.motionEnabled = preferences.current.animationsEnabled && !NativeProcess.reduceMotionEnabled()
-        let content: BubbleContent
-        if let message = transientMessage {
-            content = BubbleContent(title: message, stage: nil, summary: nil, taskUpdated: nil, lastSync: nil, blocker: nil)
-        } else {
-            content = BubbleRules.content(
-                result: update.presentation,
-                lastSyncAt: update.lastSyncAt,
-                strings: strings,
-                language: language
-            )
-        }
         window.content.bubble.maximumHeight = max(70, min(280, (window.screen?.visibleFrame.height ?? 700) - 144 * preferences.current.scale - 32))
-        if transientMessage != nil { window.content.bubble.update(content) }
-        else {
-            window.content.bubble.update(cards: update.cards, pinned: update.pinnedTaskID, fallback: content,
-                sync: update.lastSyncAt, strings: strings, language: language)
+        window.content.bubble.update(cards: update.cards, pinned: update.pinnedTaskID,
+            sync: update.lastSyncAt, strings: strings, language: language)
+        if let message = transientMessage {
+            window.content.bubble.update(BubbleContent(title: message, stage: nil, summary: nil,
+                taskUpdated: nil, lastSync: nil, blocker: nil))
         }
         window.relayoutForBubble(animated: true)
         play(update.presentation, allowPrompt: allowPrompt)

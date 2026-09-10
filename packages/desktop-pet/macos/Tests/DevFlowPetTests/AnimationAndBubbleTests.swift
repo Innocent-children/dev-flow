@@ -534,6 +534,9 @@ final class AnimationAndBubbleTests: XCTestCase {
     @MainActor
     func testBriefHoverCancelsExpansionAndSettledHoverFinishesResize() async {
         let window = PetWindow()
+        let tasks = PetTaskCollection()
+        tasks.update([TestFixtures.summary(taskID: "hover")], readiness: .ready)
+        window.content.bubble.update(cards: tasks.cards, pinned: nil, sync: nil, strings: .english, language: .english)
         window.content.bubble.update(BubbleContent(title: "Hover transition", stage: "Implementation",
             summary: "Hover transition details", taskUpdated: "Updated", lastSync: "Synced", blocker: nil))
         window.layout(atOrigin: CGPoint(x: 100, y: 100))
@@ -551,6 +554,17 @@ final class AnimationAndBubbleTests: XCTestCase {
         XCTAssertTrue(window.content.bubble.isExpanded)
         XCTAssertEqual(scroll?.hasVerticalScroller, false)
         XCTAssertEqual(window.frame.height, window.content.requiredSize.height, accuracy: 1)
+        window.setBubbleHovered(false)
+        try? await Task.sleep(nanoseconds: 750_000_000)
+        XCTAssertFalse(window.content.bubble.isExpanded)
+        XCTAssertEqual(window.frame.height, window.content.requiredSize.height, accuracy: 1)
+        window.setBubbleHovered(true)
+        window.content.bubble.update(cards: [], pinned: nil, sync: nil, strings: .english, language: .english)
+        window.relayoutForBubble(animated: true)
+        try? await Task.sleep(nanoseconds: 750_000_000)
+        XCTAssertTrue(window.content.bubble.isHidden)
+        XCTAssertFalse(window.content.bubble.isExpanded, "pending hover cannot restore an empty bubble")
+        XCTAssertEqual(window.frame.height, 144, accuracy: 1)
         window.setBubbleHovered(false)
         try? await Task.sleep(nanoseconds: 750_000_000)
         XCTAssertFalse(window.content.bubble.isExpanded)
