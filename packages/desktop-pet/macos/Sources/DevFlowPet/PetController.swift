@@ -80,6 +80,13 @@ final class PetController: PetWindowHandling {
         window = PetWindow()
         window.content.setScale(preferences.current.scale)
         window.content.handler = self
+        window.content.bubble.onOpen = { [weak self] id in
+            guard let self, let card = self.lastUpdate?.cards.first(where: { $0.taskID == id }) else { return }
+            self.openPage(phase: card.result.phase, selectedTaskID: id)
+        }
+        window.content.bubble.onPin = { [weak self] id in Task { await self?.observer?.select(taskID: id) } }
+        window.content.bubble.onDismiss = { [weak self] id in Task { await self?.observer?.acknowledge(taskID: id) } }
+        window.content.bubble.onResize = { [weak self] in self?.window.relayoutForBubble() }
         window.content.character.configure(library: selection.library, strings: strings)
         activities.configure(catalog: selection.library?.catalog)
         window.content.character.onPlaybackFinished = { [weak self] clip in
@@ -161,7 +168,12 @@ final class PetController: PetWindowHandling {
                 language: language
             )
         }
-        window.content.bubble.update(content)
+        window.content.bubble.maximumHeight = max(70, min(400, (window.screen?.visibleFrame.height ?? 700) - 144 * preferences.current.scale - 32))
+        if transientMessage != nil { window.content.bubble.update(content) }
+        else {
+            window.content.bubble.update(cards: update.cards, pinned: update.pinnedTaskID, fallback: content,
+                sync: update.lastSyncAt, strings: strings, language: language)
+        }
         window.relayoutForBubble()
         play(update.presentation, allowPrompt: allowPrompt)
     }
@@ -255,6 +267,8 @@ final class PetController: PetWindowHandling {
         switch action {
         case .chooseTask:
             openPicker()
+        case .resumeAutomatic:
+            Task { await observer?.select(taskID: nil) }
         case .chooseAppearance(let id):
             do {
                 try appearanceSelection.select(id)
@@ -307,6 +321,7 @@ final class PetController: PetWindowHandling {
         applyActivityOutput()
         window.content.setScale(scale)
         window.layout(atOrigin: origin)
+        if let lastUpdate { present(lastUpdate) }
         activityCenter = origin
         window.content.synchronizeHover()
         refreshMenu()
@@ -655,6 +670,8 @@ final class PetController: PetWindowHandling {
                 // again. Background refresh never opens a browser.
                 if !NativeProcess.openInBrowser(url) {
                     petLog.error("the default browser did not accept \(url, privacy: .private)")
+                } else if let selectedTaskID {
+                    await observer?.acknowledge(taskID: selectedTaskID)
                 }
             case .blocked(let block):
                 showTransient(block == .identityMismatch ? strings.exitCoreIdentityChanged : strings.disconnectedDetail)

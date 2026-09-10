@@ -91,7 +91,7 @@ DONE or CANCELLED ends the Task and releases repository claims without automatic
 | Codex / DeepSeek | Assess requests, perform confirmed development and Host operations, and resume the same Core Task |
 | Unified lifecycle CLI | Install, diagnose, maintain and remove Adapters, preserving Task data and configuration during ordinary maintenance |
 | Local WebUI | Inspect tasks, results, blockers and recovery, and submit supported operations through Core |
-| Desktop pet | Show one selected Task's saved state and open its WebUI; provide task selection, custom appearances, animation controls, resizing and independent start/stop |
+| Desktop pet | Show multiple Tasks in stacked bubbles and open each WebUI; prioritize blocked tasks, follow unfinished work after completion, and provide pinning, custom appearances, animation controls, resizing and independent start/stop |
 | OpenSpec / Spec Kit | Optionally organize requirements, design and tasks; method-tool results do not decide Core state |
 
 The formal `@imotong/dev-flow` npm package includes the macOS arm64 and Windows 10/11 x64 desktop apps and default artwork. A configured Adapter supplies Core. Maintenance commands refresh the app copy while preserving settings and appearances. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.

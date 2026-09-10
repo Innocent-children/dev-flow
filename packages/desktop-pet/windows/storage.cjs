@@ -59,7 +59,7 @@ class Preferences {
       scale: 1,
       animations_enabled: true,
       idle_activities_enabled: true,
-      selected_tasks: {},
+      pinned_tasks: {},
       selected_appearance: null,
     };
     this.pending = Promise.resolve();
@@ -73,9 +73,10 @@ class Preferences {
         value.scale > 2 ||
         typeof value.animations_enabled !== "boolean" ||
         typeof value.idle_activities_enabled !== "boolean" ||
-        !value.selected_tasks ||
-        typeof value.selected_tasks !== "object" ||
-        Array.isArray(value.selected_tasks)
+        (value.pinned_tasks !== undefined && (
+        !value.pinned_tasks ||
+        typeof value.pinned_tasks !== "object" ||
+        Array.isArray(value.pinned_tasks)))
       )
         throw new Error("Invalid settings");
       if (
@@ -84,7 +85,9 @@ class Preferences {
           !Number.isFinite(value.position.y))
       )
         throw new Error("Invalid position");
-      this.value = value;
+      this.value = { ...this.value, position: value.position, scale: value.scale,
+        animations_enabled: value.animations_enabled, idle_activities_enabled: value.idle_activities_enabled,
+        pinned_tasks: value.pinned_tasks ?? {}, selected_appearance: value.selected_appearance };
     } catch (error) {
       if (error.code !== "ENOENT") this.warning = error.message;
     }

@@ -29,6 +29,8 @@ final class PetWindow: NSPanel {
     let content: PetContentView
     var onWalkingFinished: (() -> Void)?
     private var walkingTimer: Timer?
+    private var localMouseMonitor: Any?
+    private var globalMouseMonitor: Any?
 
     var isWalking: Bool { walkingTimer != nil }
 
@@ -53,6 +55,25 @@ final class PetWindow: NSPanel {
         isReleasedWhenClosed = false
         ignoresMouseEvents = false
         animationBehavior = .none
+        acceptsMouseMovedEvents = true
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+            MainActor.assumeIsolated { self?.updateMousePassthrough() }
+            return event
+        }
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in
+            MainActor.assumeIsolated { self?.updateMousePassthrough() }
+        }
+    }
+
+    deinit {
+        if let localMouseMonitor { NSEvent.removeMonitor(localMouseMonitor) }
+        if let globalMouseMonitor { NSEvent.removeMonitor(globalMouseMonitor) }
+    }
+
+    private func updateMousePassthrough() {
+        guard isVisible, NSEvent.pressedMouseButtons == 0 else { return }
+        let point = content.convert(convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
+        ignoresMouseEvents = !content.character.frame.contains(point) && !content.bubble.frame.contains(point)
     }
 
     /// Places the window so the character's reference point stays where the user
@@ -113,13 +134,14 @@ final class PetContentView: NSView {
     weak var handler: PetWindowHandling?
 
     let character = PetCharacterView(frame: .zero)
-    let bubble = PetBubbleView(frame: .zero)
+    let bubble = PetBubbleStackView(frame: .zero)
 
     private var trackingArea: NSTrackingArea?
     private var characterTrackingArea: NSTrackingArea?
     private var pressScreenLocation: NSPoint?
     private var pressWindowOrigin: CGPoint?
     private var isDragging = false
+    private var cardClick: (() -> Void)?
     private var scale: CGFloat = 1
     private lazy var characterWidth = character.widthAnchor.constraint(equalToConstant: PetCharacterView.characterSize.width)
     private lazy var characterHeight = character.heightAnchor.constraint(equalToConstant: PetCharacterView.characterSize.height)
@@ -140,7 +162,7 @@ final class PetContentView: NSView {
             character.bottomAnchor.constraint(equalTo: bottomAnchor),
             character.centerXAnchor.constraint(equalTo: centerXAnchor),
 
-            bubble.widthAnchor.constraint(equalToConstant: PetBubbleView.bubbleWidth),
+            bubble.widthAnchor.constraint(equalToConstant: PetBubbleStackView.bubbleWidth),
             bubble.topAnchor.constraint(equalTo: topAnchor),
             bubble.centerXAnchor.constraint(equalTo: centerXAnchor),
             bubble.bottomAnchor.constraint(equalTo: character.topAnchor, constant: -PetBubbleView.characterSpacing),
@@ -157,9 +179,9 @@ final class PetContentView: NSView {
     }
 
     func requiredSize(atScale scale: Double) -> CGSize {
-        let bubbleHeight = bubble.requiredHeight(width: PetBubbleView.bubbleWidth)
+        let bubbleHeight = bubble.requiredHeight(width: PetBubbleStackView.bubbleWidth)
         return CGSize(
-            width: max(PetBubbleView.bubbleWidth, PetCharacterView.characterSize.width * scale),
+            width: max(PetBubbleStackView.bubbleWidth, PetCharacterView.characterSize.width * scale),
             height: bubbleHeight + PetBubbleView.characterSpacing + PetCharacterView.characterSize.height * scale
         )
     }
@@ -228,6 +250,11 @@ final class PetContentView: NSView {
         isDragging = false
     }
 
+    func beginCardPress(with event: NSEvent, open: @escaping () -> Void) {
+        cardClick = open
+        mouseDown(with: event)
+    }
+
     override func mouseDragged(with event: NSEvent) {
         guard let window, let start = pressScreenLocation, let origin = pressWindowOrigin else { return }
         let current = NSEvent.mouseLocation
@@ -242,6 +269,8 @@ final class PetContentView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        let clickedCard = cardClick
+        cardClick = nil
         let dragged = isDragging
         let origin = window?.frame.origin
         pressScreenLocation = nil
@@ -255,7 +284,8 @@ final class PetContentView: NSView {
             return
         }
         handler?.petWindowPressedChanged(false)
-        handler?.petWindowDidRequestOpen()
+        if let clickedCard { clickedCard() }
+        else { handler?.petWindowDidRequestOpen() }
         synchronizeHover()
     }
 

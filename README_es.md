@@ -97,10 +97,7 @@ eliminación, consulta la [referencia de comandos](docs/COMMANDS_en.md).
 
 ## Mascota de escritorio
 
-La mascota de escritorio muestra el estado guardado de una tarea seleccionada y abre su WebUI.
-Puedes elegir tareas, personalizar su apariencia, controlar animaciones, cambiar su tamaño e
-iniciarla o detenerla por separado. Antes de usarla, completa la instalación y la configuración de
-Codex o DeepSeek indicadas arriba.
+La mascota muestra varias tareas en burbujas superpuestas y abre la WebUI de cada una. Prioriza las tareas bloqueadas y pasa automáticamente a otra tarea pendiente cuando termina la actual; también puedes fijar una tarea. Puedes personalizar su apariencia, controlar animaciones, cambiar su tamaño e iniciarla o detenerla por separado. Antes de usarla, completa la instalación y la configuración de Codex o DeepSeek indicadas arriba.
 
 ```bash
 dev-flow pet start

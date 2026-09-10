@@ -400,9 +400,9 @@ Source, machine-readable schemas, package manifests, CLI parsers, and executable
 `packages/dev-flow/lib/pet.mjs` reuses installed Adapter Core selection and WebUI commands; macOS
 invocation lives in `lib/platform/macos/pet.mjs`. `packages/desktop-pet/macos` owns AppKit windows,
 read-only HTTP, presentation, process identity, the single instance, and preferences. Each observation
-checks the same Core and service identities; cancellation invalidates old responses. While unselected, each observation searches blocked tasks, then active tasks; empty lists preserve the unselected state so later polls keep looking. With a selection, observation reads only that task until the user changes it; stale discovery responses cannot overwrite a newer selection. The chooser pages on demand.
-`productRoot/pet/settings.json` stores position, the animation switch, and selection per data root;
-`selected_appearance`, the enabled-by-default `idle_activities_enabled`, and the character scale `scale` are also saved. `runtime.json` records process identity.
+checks the same Core and service identities; cancellation invalidates old responses. Each round pages through blocked and active tasks and deduplicates by task ID. Detail reads confirm the state of previously observed tasks that disappear from the lists and of the pinned task. List absence alone does not mean completion. Failed reads retain the last successful collection, and stale responses cannot overwrite a newer choice. The chooser pages on demand.
+`PetTaskCollection` and Windows `task-collection.cjs` own desktop focus, explicit pinning, and session-local completion prompts; Core owns lifecycle. Automatic focus prioritizes blocked tasks and remains stable at equal priority, then hands off to unfinished work after the completion prompt. `PetBubbleStackView` and the Windows renderer own the three-bubble stack, scrolling expansion, and per-task clicks. Navigation rechecks the same Core and data directory.
+`productRoot/pet/settings.json` stores position, animation controls, `pinned_tasks` per data root, `selected_appearance`, the enabled-by-default `idle_activities_enabled`, and character scale `scale`. Automatic focus and unread completion prompts stay in memory; `runtime.json` records process identity.
 Core data, the process graph, and MCP tools retain their owners.
 
 `PetMenuBarIcon` draws the 18 pt Dev Flow mark using AppKit paths and supplies a template image. `PetMenu` installs it on the menu bar button, and macOS applies the appearance color.
@@ -419,7 +419,7 @@ atlases and Dev Flow's own high-resolution extension during import, preserving a
 and cell resolution. `AnimationCatalog` defines five required task clips and four optional additional
 clips, validating every supplied clip;
 `PetAppearanceSelection` keeps successful loading and saved selection consistent; `PetCharacterView`
-plays the common catalog. `selected_appearance` is independent of `selected_tasks` per data root.
+plays the common catalog. `selected_appearance` is independent of `pinned_tasks` per data root.
 Preference updates share one lock and preserve the old value on write failure. Switching releases old
 frames and shows the current state without replaying prompts.
 

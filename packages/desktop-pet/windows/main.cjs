@@ -17,11 +17,13 @@ const { createHash, randomUUID } = require("node:crypto");
 const { Preferences, writeJSON, safePath } = require("./storage.cjs");
 const { AppearanceStore } = require("./appearance.cjs");
 const { Observer, presentation } = require("./observation.cjs");
+const { TaskCollection } = require("./task-collection.cjs");
 const texts = {
   zh: {
     title: "Dev Flow 桌面宠物",
     selectTask: "选择任务",
-    noSelection: "不关注任务",
+    noSelection: "恢复自动",
+    pin: "固定关注", tasks: "个未完成", dismiss: "关闭提示",
     appearance: "选择形象",
     import: "导入形象…",
     default: "默认形象",
@@ -49,7 +51,8 @@ const texts = {
   en: {
     title: "Dev Flow Desktop Pet",
     selectTask: "Select task",
-    noSelection: "No selected task",
+    noSelection: "Follow automatically",
+    pin: "Pin task", tasks: "unfinished", dismiss: "Dismiss",
     appearance: "Choose appearance",
     import: "Import appearance…",
     default: "Default appearance",
@@ -212,7 +215,7 @@ async function createDesktop(request) {
     (_contents, _permission, callback) => callback(false),
   );
   const observer = new Observer(request);
-  let selected = prefs.value.selected_tasks[request.dataRootDigest] ?? null,
+  let selected = prefs.value.pinned_tasks[request.dataRootDigest] ?? null,
     display = presentation(null, null, true, Boolean(selected)),
     picker = null,
     visible = true,
@@ -226,6 +229,10 @@ async function createDesktop(request) {
     drag,
     closing = false,
     rendering = false;
+  const tasks = new TaskCollection(() => Date.now());
+  tasks.pin(selected);
+  let bubbleHeight = 110;
+  let requestedBubbleHeight = 110;
   const work = screen.getPrimaryDisplay().workArea;
   let anchor = prefs.value.position ?? {
     x: work.x + work.width - 200,
@@ -239,9 +246,11 @@ async function createDesktop(request) {
   function layout(offset = 0) {
     const { canvas, anchor: artAnchor } = appearance.catalog;
     const scale = prefs.value.scale;
+    const available = screen.getDisplayMatching({ x: Math.round(anchor.x), y: Math.round(anchor.y), width: 1, height: 1 }).workArea;
+    bubbleHeight = Math.max(70, Math.min(requestedBubbleHeight, available.height - 144 * scale - 24));
     const factor = (144 * scale) / Math.max(canvas.width, canvas.height);
     const width = Math.ceil(Math.max(320, 144 * scale + 24)),
-      height = Math.ceil(110 + 144 * scale + 16);
+      height = Math.ceil(bubbleHeight + 144 * scale + 16);
     const bounds = {
       x: Math.round(
         anchor.x -
@@ -251,7 +260,7 @@ async function createDesktop(request) {
       ),
       y: Math.round(
         anchor.y -
-          110 -
+          bubbleHeight -
           (144 * scale - canvas.height * factor) / 2 -
           artAnchor.y * factor,
       ),
@@ -279,6 +288,9 @@ async function createDesktop(request) {
           deliveredAppearance === appearance.serial ? null : appearance,
         labels,
         display,
+        cards: tasks.cards,
+        pinnedTaskID: tasks.pinned,
+        bubbleHeight,
         visible: visible && !sleeping,
         warning,
         picker,
@@ -286,6 +298,7 @@ async function createDesktop(request) {
       });
       deliveredAppearance = appearance.serial;
       display = { ...display, prompt: false };
+      tasks.consumePrompts();
     }
   }
   async function failure(error) {
@@ -344,7 +357,8 @@ async function createDesktop(request) {
     const appearances = await store.list();
     const items = [
       { label: labels.open, click: guarded(open) },
-      { label: labels.selectTask, click: guarded(() => showPicker(1)) },
+      { label: labels.pin + "…", click: guarded(() => showPicker(1)) },
+      { label: labels.noSelection, click: guarded(() => select(null)) },
       { type: "separator" },
       {
         label: labels.appearance,
@@ -410,15 +424,16 @@ async function createDesktop(request) {
     tray.setContextMenu(result);
     return result;
   }
-  async function open() {
+  async function open(id = selected) {
+    const card = tasks.cards.find(c => c.taskID === id);
+    if (id !== null && !card && id !== selected && !picker?.items.some(t => t.task_id === id)) throw new Error("Choose a displayed task");
+    const missing = id === selected && display.phase === "missing";
     await observer.connect();
-    await shell.openExternal(
-      observer.url +
-        "/tasks" +
-        (selected && display.phase !== "missing"
-          ? "/" + encodeURIComponent(selected)
-          : ""),
-    );
+    await shell.openExternal(observer.url + "/tasks" + (id && !missing ? "/" + encodeURIComponent(id) : ""));
+    tasks.acknowledge(id);
+    selected = tasks.focus;
+    display = tasks.display;
+    publish();
   }
   async function showPicker(page) {
     const session = ++pickerGeneration;
@@ -437,14 +452,15 @@ async function createDesktop(request) {
   async function select(id) {
     if (
       id !== null &&
-      (typeof id !== "string" || !picker?.items.some((t) => t.task_id === id))
+      (typeof id !== "string" || !picker?.items.some((t) => t.task_id === id) && !tasks.cards.some(c => c.taskID === id))
     )
       throw new Error("Choose a displayed task");
     await prefs.update((p) => {
-      if (id) p.selected_tasks[request.dataRootDigest] = id;
-      else delete p.selected_tasks[request.dataRootDigest];
+      if (id) p.pinned_tasks[request.dataRootDigest] = id;
+      else delete p.pinned_tasks[request.dataRootDigest];
     });
-    selected = id;
+    tasks.pin(id);
+    selected = tasks.focus;
     picker = null;
     continuous = false;
     await poll();
@@ -457,41 +473,40 @@ async function createDesktop(request) {
     observer.controller = new AbortController();
     try {
       await observer.connect();
-      if (selected === null) {
-        const blocked = await observer.list(1, "blocked");
-        let item = blocked.items.find((t) => !t.archived);
-        if (!item)
-          item = (await observer.list(1, "active")).items.find(
-            (t) => !t.archived,
-          );
-        if (round !== generation || selected !== null) return;
-        if (item) {
-          selected = item.task_id;
-          await prefs.update((p) => {
-            p.selected_tasks[request.dataRootDigest] = item.task_id;
-          });
+      const summaries = new Map();
+      let readiness = "ready";
+      for (const lifecycle of ["blocked", "active"]) {
+        for (let page = 1; ; page++) {
+          const list = await observer.list(page, lifecycle);
+          if (round !== generation) return;
+          readiness = list.readiness ?? readiness;
+          for (const item of list.items) summaries.set(item.task_id, item);
+          if (!list.has_next) break;
         }
       }
-      const result = selected ? await observer.detail(selected) : null;
-      if (round !== generation) return;
-      display = presentation(
-        result?.summary ?? null,
-        display,
-        true,
-        Boolean(selected),
-        continuous,
-      );
-      display.readiness = result?.readiness ?? "ready";
+      const ids = new Set([...tasks.observedIDs].filter(id => !summaries.has(id)));
+      if (tasks.pinned) ids.add(tasks.pinned);
+      for (const id of ids) {
+        const detail = await observer.detail(id);
+        if (round !== generation) return;
+        if (detail) { summaries.set(id, detail.summary); readiness = detail.readiness ?? readiness; }
+        else summaries.delete(id);
+      }
+      if (!continuous) tasks.interrupt();
+      tasks.update([...summaries.values()], readiness);
+      selected = tasks.focus;
+      display = tasks.display;
       lastSyncAt = new Date().toISOString();
       continuous = true;
     } catch (error) {
       if (round !== generation) return;
+      tasks.disconnect();
       display = presentation(null, display, false, Boolean(selected));
       continuous = false;
     }
     if (round === generation) {
       publish();
-      timer = setTimeout(poll, 3000);
+      timer = setTimeout(poll, tasks.remainingHold ? Math.min(3000, tasks.remainingHold) : 3000);
     }
   }
   async function command(name, value) {
@@ -500,7 +515,14 @@ async function createDesktop(request) {
       return;
     }
     if (name === "menu") return (await menu()).popup({ window: win });
-    if (name === "open") return open();
+    if (name === "open") return open(value === undefined ? selected : value);
+    if (name === "dismiss" && tasks.cards.some(c => c.taskID === value)) {
+      tasks.acknowledge(value); selected = tasks.focus; display = tasks.display; publish(); return;
+    }
+    if (name === "bubble-height" && Number.isFinite(value)) {
+      requestedBubbleHeight = Math.max(70, Math.min(value, 1000));
+      layout(); publish(); return;
+    }
     if (name === "picker") return showPicker(Number(value));
     if (name === "select") return select(value);
     if (name === "drag") {

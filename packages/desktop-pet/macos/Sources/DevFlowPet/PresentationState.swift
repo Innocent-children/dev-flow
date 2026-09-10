@@ -235,6 +235,12 @@ final class PresentationState {
         lastKnownReadiness = nil
     }
 
+    func consumePrompt() {
+        result = PresentationRules.Result(phase: result.phase, clip: result.clip, playIntro: false,
+            useRestFrame: result.useRestFrame, summary: result.summary, isStaleSummary: result.isStaleSummary,
+            detailReadiness: result.detailReadiness)
+    }
+
     @discardableResult
     func apply(_ input: DisplayInput) -> PresentationRules.Result {
         let evaluated = PresentationRules.evaluate(

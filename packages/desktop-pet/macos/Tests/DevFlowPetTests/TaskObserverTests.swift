@@ -130,13 +130,13 @@ final class TaskObserverTests: XCTestCase {
     func testClosedPanelSupersedesItsOwnListSession() async {
         let context = makeContext(selectedTaskID: "task-1")
         context.client.setDetail(taskID: "task-1", .value(TestDetails.detail()))
-        context.client.holdLists()
         let observer = context.observer
 
         await observer.restoreSelectionFromPreferences()
         await observer.beginObserving()
         await assertEventually { context.collector.count >= 2 }
 
+        context.client.holdLists()
         let session = await observer.beginListSession()
         let pending = Task { await observer.loadList(page: 1, lifecycle: nil, session: session) }
         await assertEventually { context.client.openListGateCount == 1 }
@@ -183,8 +183,8 @@ final class TaskObserverTests: XCTestCase {
         await assertEventually { context.collector.snapshot.last?.selectedTaskID == "blocked-new" }
 
         let listRequests = context.client.recordedRequests.filter { $0.hasPrefix("list:") }
-        XCTAssertEqual(listRequests, ["list:blocked:page=1"], "the active list must not be read once a blocked Task was found")
-        XCTAssertEqual(context.preferences.current.selectedTask(for: TestFixtures.dataRootDigest), "blocked-new")
+        XCTAssertEqual(listRequests, ["list:blocked:page=1", "list:active:page=1"])
+        XCTAssertNil(context.preferences.current.selectedTask(for: TestFixtures.dataRootDigest))
     }
 
     func testDefaultSelectionFallsBackToActiveAndOtherwiseStaysIdle() async {
@@ -226,19 +226,18 @@ final class TaskObserverTests: XCTestCase {
         context.client.setDetail(taskID: "created-later", .value(TestDetails.detail(taskID: "created-later")))
         await context.observer.refreshNow()
         await assertEventually { context.collector.snapshot.last?.selectedTaskID == "created-later" }
-        XCTAssertEqual(context.preferences.current.selectedTask(for: TestFixtures.dataRootDigest), "created-later")
+        XCTAssertNil(context.preferences.current.selectedTask(for: TestFixtures.dataRootDigest))
         XCTAssertEqual(context.collector.snapshot.last?.presentation.phase, .working(node: "IMPLEMENT"))
 
         context.client.setList(lifecycle: .blocked, .value(TestDetails.list(summaries: [
             TestFixtures.summary(taskID: "new-blocked", lifecycle: .blocked),
         ])))
-        let reads = context.client.requestCount("detail:")
         let lists = context.client.requestCount("list:")
         await context.observer.refreshNow()
-        await assertEventually { context.client.requestCount("detail:") > reads }
+        await assertEventually { context.client.requestCount("list:") > lists }
         let selected = await context.observer.currentSelection()
-        XCTAssertEqual(selected, "created-later")
-        XCTAssertEqual(context.client.requestCount("list:"), lists)
+        XCTAssertEqual(selected, "new-blocked")
+        XCTAssertEqual(context.client.requestCount("list:"), lists + 2)
     }
 
     func testClearingSelectionResumesDiscovery() async {
@@ -253,7 +252,7 @@ final class TaskObserverTests: XCTestCase {
         await assertEventually { context.collector.snapshot.last?.selectedTaskID == "task-1" }
         await context.observer.select(taskID: nil)
         await assertEventually { context.collector.snapshot.last?.selectedTaskID == "blocked" }
-        XCTAssertEqual(context.preferences.current.selectedTask(for: TestFixtures.dataRootDigest), "blocked")
+        XCTAssertNil(context.preferences.current.selectedTask(for: TestFixtures.dataRootDigest))
     }
 
     func testOtherTaskUpdatesDoNotChangeTheWatchedTask() async {
@@ -272,7 +271,7 @@ final class TaskObserverTests: XCTestCase {
         let selection = await observer.currentSelection()
         XCTAssertEqual(selection, "task-1")
         XCTAssertFalse(context.client.recordedRequests.contains("detail:task-other"))
-        XCTAssertFalse(context.client.recordedRequests.contains { $0.hasPrefix("list:") })
+        XCTAssertTrue(context.client.recordedRequests.contains { $0.hasPrefix("list:") })
     }
 
     // MARK: - Connection recovery
@@ -459,6 +458,25 @@ final class TaskObserverTests: XCTestCase {
 
     // MARK: - Helpers
 
+    func testPagesAllActiveTasksAndConfirmsDisappearedTaskThroughDetail() async {
+        let context = makeContext(selectedTaskID: nil)
+        context.client.setPage(1, lifecycle: .active, .value(TestDetails.list(page: 1, hasNext: true,
+            summaries: [TestFixtures.summary(taskID: "a")])) )
+        context.client.setPage(2, lifecycle: .active, .value(TestDetails.list(page: 2,
+            summaries: [TestFixtures.summary(taskID: "a"), TestFixtures.summary(taskID: "b")])) )
+        await context.observer.beginObserving()
+        await assertEventually { context.collector.snapshot.last?.cards.count == 2 }
+        XCTAssertTrue(context.client.recordedRequests.contains("list:active:page=2"))
+        context.client.setPage(1, lifecycle: .active, .value(TestDetails.list(summaries: [TestFixtures.summary(taskID: "b")])) )
+        context.client.setDetail(taskID: "a", .value(TestDetails.detail(taskID: "a", currentNode: "DONE", lifecycle: .done)))
+        await context.observer.refreshNow(clearSelectionContinuity: false)
+        await assertEventually { context.collector.snapshot.last?.presentation.phase == .completed }
+        XCTAssertTrue(context.client.recordedRequests.contains("detail:a"))
+        XCTAssertTrue(context.collector.snapshot.last?.cards.contains(where: { $0.taskID == "a" && $0.unread }) ?? false)
+        await context.observer.acknowledge(taskID: "a")
+        await assertEventually { context.collector.snapshot.last?.selectedTaskID == "b" }
+    }
+
     func testHidingDropsAnInFlightCompletion() async {
         let context = makeContext(selectedTaskID: "task-1")
         context.client.holdDetail(taskID: "task-1")
@@ -499,6 +517,7 @@ final class TaskObserverTests: XCTestCase {
         context.client.setDetail(taskID: "chosen", .value(TestDetails.detail(taskID: "chosen")))
         await context.observer.beginObserving()
         await assertEventually { context.client.openListGateCount == 1 }
+        context.client.stopHoldingLists()
         await context.observer.select(taskID: "chosen")
         await assertEventually { context.collector.snapshot.last?.selectedTaskID == "chosen" }
         context.client.releaseListGate(.value(TestDetails.list(summaries: [TestFixtures.summary(taskID: "old-default")])))

@@ -414,7 +414,7 @@ final class LaunchAndInstanceTests: XCTestCase {
         let keys = try XCTUnwrap(
             (JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]).map { Set($0.keys) }
         )
-        XCTAssertEqual(keys, ["animations_enabled", "idle_activities_enabled", "position", "selected_tasks", "scale"])
+        XCTAssertEqual(keys, ["animations_enabled", "idle_activities_enabled", "position", "pinned_tasks", "scale"])
     }
 
     func testPrivatePermissionsOnThePetDirectoryAndRecords() throws {

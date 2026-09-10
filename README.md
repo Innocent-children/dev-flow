@@ -96,9 +96,7 @@ For non-interactive installation, custom DSH Profiles, upgrades, repair, and rem
 
 ## Desktop pet
 
-The desktop pet shows a selected task's saved state and opens its WebUI. You can choose tasks,
-customize its appearance, control animations, resize it, and start or stop it independently. Complete
-the installation and Codex or DeepSeek setup above before using it.
+The desktop pet shows multiple tasks in stacked bubbles and opens each task's WebUI. It prioritizes blocked tasks and automatically follows unfinished work after a task completes; you can also pin a task. Customize its appearance, control animations, resize it, and start or stop it independently. Complete the installation and Codex or DeepSeek setup above before using it.
 
 ```bash
 dev-flow pet start

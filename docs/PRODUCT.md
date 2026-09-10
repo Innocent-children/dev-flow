@@ -85,7 +85,7 @@ DONE 或 CANCELLED 结束任务并释放仓库占用，不自动提交代码、�
 | Codex / DeepSeek | 评估请求、执行已确认的开发与 Host 操作，并从同一 Core Task 恢复工作 |
 | 统一 lifecycle CLI | 安装、诊断、维护和移除 Adapter，保留普通维护中的 Task 数据与用户配置 |
 | 本机 WebUI | 查看任务、结果、阻塞与恢复信息，并通过 Core 提交支持的操作 |
-| 桌面宠物 | 显示一个所选 Task 的保存状态并打开对应 WebUI；支持任务选择、自定义形象、动画控制、大小调整与独立启停 |
+| 桌面宠物 | 以叠加气泡显示多个 Task 的保存状态并分别打开 WebUI；受阻优先、完成后自动关注未完成任务，支持固定关注、自定义形象、动画控制、大小调整与独立启停 |
 | OpenSpec / Spec Kit | 可选地组织需求、设计和任务，方法工具的结果不决定 Core 状态 |
 
 桌面宠物由正式 `@imotong/dev-flow` npm 包提供，包含 macOS arm64 与 Windows 10/11 x64 应用和默认素材，运行时需要已配置的 Adapter 提供 Core。维护命令更新应用副本并保留设置与形象。桌面展示不代表 Host 实时活动或完成百分比。安装与素材说明见[桌面宠物指南](DESKTOP-PETS.md)。

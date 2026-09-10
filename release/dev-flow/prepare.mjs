@@ -46,7 +46,7 @@ export async function verifyWindowsApplication(application, version) {
   const app = join(application, "resources", "app");
   const manifest = JSON.parse(await readFile(join(app, "package.json"), "utf8"));
   if (manifest.version !== version || manifest.main !== "main.cjs") throw new Error("Windows desktop application version or entry differs");
-  for (const file of ["main.cjs", "storage.cjs", "appearance.cjs", "observation.cjs", "preload.cjs", "view.js", "view.html", "view.css", "decode.html"]) {
+  for (const file of ["main.cjs", "storage.cjs", "appearance.cjs", "observation.cjs", "task-collection.cjs", "preload.cjs", "view.js", "view.html", "view.css", "decode.html"]) {
     if (!(await readFile(join(app, file))).equals(await readFile(join(root, "packages/desktop-pet/windows", file)))) throw new Error(`Windows application differs from source: ${file}`);
   }
   for (const module of ["saxes", "xmlchars", "image-size"]) await readFile(join(app, "node_modules", module, "package.json"));

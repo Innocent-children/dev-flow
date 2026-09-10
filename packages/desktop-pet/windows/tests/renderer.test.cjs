@@ -71,15 +71,36 @@ function stateFor(phase) {
   };
 }
 
+test("stacked cards expand and each action retains its task ID", async () => {
+  const renderer = createRenderer();
+  const state = stateFor("active");
+  state.labels = { tasks: "unfinished", blocked: "blocked", pin: "Pin", noSelection: "Auto", dismiss: "Dismiss" };
+  state.cards = ["a", "b", "c", "d"].map(id => ({ taskID: id, unread: id === "d",
+    result: { phase: "active", summary: { task_id: id, request_summary: "Task " + id, lifecycle: "active" } } }));
+  renderer.publish(state);
+  const cards = renderer.document.querySelector("#cards");
+  assert.equal(cards.children.length, 3);
+  assert.match(renderer.document.querySelector("#activityToggle").textContent, /\+1/);
+  cards.children[1].children[0].onclick();
+  assert.deepEqual(renderer.commands.at(-1), ["open", "b"]);
+  renderer.document.body.onmouseenter();
+  assert.equal(cards.children.length, 4);
+  cards.children[2].children[2].onclick();
+  assert.deepEqual(renderer.commands.at(-1), ["select", "c"]);
+  cards.children[3].children[3].onclick();
+  assert.deepEqual(renderer.commands.at(-1), ["dismiss", "d"]);
+});
+
 function createRenderer() {
   const commands = [], elements = new Map(), timers = new Map();
   let publish, interval, now = 0, nextID = 0;
-  const element = () => ({ style: {}, addEventListener() {}, classList: { add() {}, remove() {} } });
+  const element = () => ({ style: {}, children: [], append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; }, addEventListener() {}, classList: { add() {}, remove() {}, toggle() {} } });
   const document = {
     querySelector(selector) {
       if (!elements.has(selector)) elements.set(selector, element());
       return elements.get(selector);
     },
+    createElement: element,
     body: element(),
     addEventListener() {},
   };
@@ -100,7 +121,7 @@ function createRenderer() {
   });
   vm.runInContext(readFileSync(join(__dirname, "../view.js"), "utf8"), context);
   return {
-    commands,
+    commands, document,
     image: document.querySelector("#character"),
     publish(state) { publish(structuredClone(state)); },
     tick(time) { now = time; interval(); },

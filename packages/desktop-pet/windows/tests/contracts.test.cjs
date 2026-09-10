@@ -130,7 +130,7 @@ test("concurrent preference updates keep independent selections and exact scale"
       p.scale = 1.5;
     }),
     prefs.update((p) => {
-      p.selected_tasks.a = "task-a";
+      p.pinned_tasks.a = "task-a";
     }),
     prefs.update((p) => {
       p.selected_appearance = "orange";
@@ -139,6 +139,6 @@ test("concurrent preference updates keep independent selections and exact scale"
   const reopened = new Preferences(root);
   await reopened.load();
   assert.equal(reopened.value.scale, 1.5);
-  assert.equal(reopened.value.selected_tasks.a, "task-a");
+  assert.equal(reopened.value.pinned_tasks.a, "task-a");
   assert.equal(reopened.value.selected_appearance, "orange");
 });

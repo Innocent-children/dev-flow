@@ -21,6 +21,8 @@ struct ObservationUpdate: Equatable {
     let presentation: PresentationRules.Result
     let lastSyncAt: Date?
     let selectedTaskID: String?
+    var cards: [PetTaskCollection.Card] = []
+    var pinnedTaskID: String? = nil
 }
 
 enum ListLoadResult: Equatable {
@@ -39,7 +41,7 @@ enum ListLoadResult: Equatable {
 /// explicit retry may ask Core to start the local service.
 actor TaskObserver {
     /// After a finished request the desktop waits five seconds before reading
-    /// the selected Task again.
+    /// the task collection again.
     static let pollInterval: TimeInterval = 5
     /// While disconnected the desktop checks the service every fifteen seconds.
     static let reconnectInterval: TimeInterval = 15
@@ -47,7 +49,9 @@ actor TaskObserver {
     private let core: CoreRuntimeClient
     private let expectedCoreIdentity: String
     private let expectedDataRootDigest: String
-    private let presentation: PresentationState
+    private let tasks: PetTaskCollection
+    private let now: () -> Date
+    private var lastSyncAt: Date?
     private let preferences: PreferenceStore
     private let makeClient: @Sendable (String) -> WebUIReading?
     private let onUpdate: @Sendable (ObservationUpdate) -> Void
@@ -75,7 +79,8 @@ actor TaskObserver {
         self.expectedCoreIdentity = expectedCoreIdentity
         self.expectedDataRootDigest = expectedDataRootDigest
         self.preferences = preferences
-        self.presentation = PresentationState(now: now)
+        self.tasks = PetTaskCollection(now: now)
+        self.now = now
         self.makeClient = makeClient
         self.onUpdate = onUpdate
     }
@@ -87,7 +92,7 @@ actor TaskObserver {
     func beginObserving() {
         guard !isObserving else { return }
         isObserving = true
-        presentation.noteDiscontinuity()
+        tasks.interrupt()
         restartLoop()
     }
 
@@ -98,7 +103,7 @@ actor TaskObserver {
         listGeneration += 1
         loop?.cancel()
         loop = nil
-        presentation.noteDiscontinuity()
+        tasks.interrupt()
     }
 
     /// Cancels the polling loop and every in-flight request. Called once during
@@ -111,20 +116,19 @@ actor TaskObserver {
     /// from sleep.
     func refreshNow(clearSelectionContinuity: Bool = true) {
         if clearSelectionContinuity {
-            presentation.noteDiscontinuity()
+            tasks.interrupt()
         }
         restartLoop()
     }
 
     func select(taskID: String?) {
-        guard taskID != selectedTaskID else { return }
+        guard taskID != tasks.pinnedID else { return }
         selectionGeneration += 1
         selectedTaskID = taskID
+        tasks.pin(taskID)
         preferences.update { preferences in
             preferences.select(taskID: taskID, for: expectedDataRootDigest)
         }
-        presentation.noteDiscontinuity()
-        presentation.discardLastKnownSummary()
         restartLoop()
     }
 
@@ -132,10 +136,16 @@ actor TaskObserver {
         selectedTaskID
     }
 
-    /// Restores the remembered selection for this data directory. A missing
-    /// default is resolved later from the blocked and active lists.
+    func acknowledge(taskID: String) {
+        tasks.acknowledge(taskID)
+        selectedTaskID = tasks.focusID
+        if let client { publish(connection: .connected(url: client.origin)) }
+    }
+
+    /// Restores the explicitly pinned task for this data directory.
     func restoreSelectionFromPreferences() {
         selectedTaskID = preferences.current.selectedTask(for: expectedDataRootDigest)
+        tasks.pin(selectedTaskID)
     }
 
     // MARK: - Explicit retry
@@ -209,51 +219,56 @@ actor TaskObserver {
                 return Self.reconnectInterval
             }
             noteReadFailure()
-            presentation.apply(.disconnected)
             publish(connection: .disconnected)
             return Self.reconnectInterval
         }
         guard let client else { return Self.reconnectInterval }
 
-        if selectedTaskID == nil {
-            let resolved = await resolveDefaultSelection(client: client, generation: generation)
-            guard isCurrent(generation) else { return Self.pollInterval }
-            guard resolved else {
-                noteReadFailure()
-                presentation.apply(.disconnected)
-                publish(connection: .disconnected)
-                return Self.reconnectInterval
-            }
-        }
-        guard let taskID = selectedTaskID else {
-            presentation.apply(.noSelection)
-            publish(connection: .connected(url: client.origin))
-            return Self.pollInterval
-        }
-
         let selectionAtRequest = selectionGeneration
         let connectionAtRequest = connectionGeneration
-        let result = await client.taskDetail(taskID: taskID)
-        guard selectionAtRequest == selectionGeneration,
-              connectionAtRequest == connectionGeneration,
-              isCurrent(generation) else {
-            return Self.pollInterval
+        func current() -> Bool {
+            selectionAtRequest == selectionGeneration && connectionAtRequest == connectionGeneration && isCurrent(generation)
         }
-        switch result {
-        case .value(let detail):
-            presentation.apply(.task(detail.summary, detailReadiness: detail.readiness))
-            publish(connection: .connected(url: client.origin))
-            return Self.pollInterval
-        case .notFound:
-            presentation.apply(.taskMissing)
-            publish(connection: .connected(url: client.origin))
-            return Self.pollInterval
-        case .failure:
+        var summaries: [String: DesktopTaskSummary] = [:]
+        var readiness: Readiness = .ready
+        var failed = false
+        for lifecycle in [TaskLifecycle.blocked, .active] {
+            var page = 1
+            while current() {
+                let result = await client.taskList(page: page, lifecycle: lifecycle)
+                guard current() else { return Self.pollInterval }
+                guard case .value(let list) = result else { failed = true; break }
+                readiness = list.readiness
+                for item in list.items { summaries[item.taskID] = item }
+                if !list.hasNext { break }
+                page += 1
+            }
+            if failed { break }
+        }
+        if !failed {
+            var details = tasks.observedIDs.subtracting(summaries.keys)
+            if let pinned = tasks.pinnedID { details.insert(pinned) }
+            for id in details.sorted() {
+                let result = await client.taskDetail(taskID: id)
+                guard current() else { return Self.pollInterval }
+                switch result {
+                case .value(let detail): summaries[id] = detail.summary; readiness = detail.readiness
+                case .notFound: summaries[id] = nil
+                case .failure: failed = true
+                }
+                if failed { break }
+            }
+        }
+        if failed {
             noteReadFailure()
-            presentation.apply(.disconnected)
             publish(connection: .disconnected)
             return Self.reconnectInterval
         }
+        tasks.update(Array(summaries.values), readiness: readiness)
+        lastSyncAt = now()
+        selectedTaskID = tasks.focusID
+        publish(connection: .connected(url: client.origin))
+        return min(Self.pollInterval, max(0.05, tasks.remainingHold ?? Self.pollInterval))
     }
 
     /// A failed read drops the connection immediately; recovery is read-only and
@@ -261,17 +276,22 @@ actor TaskObserver {
     private func noteReadFailure() {
         client = nil
         connectionGeneration += 1
-        presentation.noteDiscontinuity()
+        tasks.disconnect()
     }
 
     private func publish(connection: ConnectionPhase) {
         let update = ObservationUpdate(
             connection: connection,
-            presentation: presentation.result,
-            lastSyncAt: presentation.lastSyncAt,
-            selectedTaskID: selectedTaskID
+            presentation: connection == .disconnected ? PresentationRules.evaluate(input: .disconnected, previous: nil,
+                continuousObservation: false, previousPhase: .disconnected, lastKnownSummary: tasks.focus.summary,
+                lastKnownReadiness: nil) : tasks.focus,
+            lastSyncAt: lastSyncAt,
+            selectedTaskID: selectedTaskID,
+            cards: tasks.cards,
+            pinnedTaskID: tasks.pinnedID
         )
         onUpdate(update)
+        tasks.consumePrompts()
     }
 
     // MARK: - Connection establishment
@@ -291,8 +311,8 @@ actor TaskObserver {
         case .connected(let url):
             if previousOrigin != url {
                 connectionGeneration += 1
-                presentation.noteDiscontinuity()
-                if presentation.lastSyncAt == nil { publish(connection: .connected(url: url)) }
+                tasks.interrupt()
+                if lastSyncAt == nil { publish(connection: .connected(url: url)) }
             }
             exitReason = nil
             return true
@@ -367,27 +387,4 @@ actor TaskObserver {
         return nil
     }
 
-    /// Resolves the default watched Task when nothing is remembered: the most
-    /// recently updated blocked Task first, then the most recently updated
-    /// active Task, otherwise the desktop stays idle.
-    private func resolveDefaultSelection(client: WebUIReading, generation: Int) async -> Bool {
-        for lifecycle in [TaskLifecycle.blocked, .active] {
-            let result = await client.taskList(page: 1, lifecycle: lifecycle)
-            guard isCurrent(generation), selectedTaskID == nil else { return false }
-            switch result {
-            case .value(let list):
-                guard let newest = list.items.max(by: { $0.updatedAt < $1.updatedAt }) else { continue }
-                selectionGeneration += 1
-                selectedTaskID = newest.taskID
-                preferences.update { preferences in
-                    preferences.select(taskID: newest.taskID, for: expectedDataRootDigest)
-                }
-                presentation.noteDiscontinuity()
-                return true
-            case .notFound, .failure:
-                return false
-            }
-        }
-        return true
-    }
 }

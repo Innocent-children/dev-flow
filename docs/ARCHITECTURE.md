@@ -360,8 +360,9 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 
 `packages/dev-flow/lib/pet.mjs` 复用已安装 Adapter 的 Core 选择与 WebUI 入口；macOS 调用位于
 `lib/platform/macos/pet.mjs`。`packages/desktop-pet/macos` 负责 AppKit 窗口、只读 HTTP、展示、进程身份、
-单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。未选中任务时，每轮观察按受阻、进行中的顺序查找任务；空列表保留未选择状态，后续轮询继续查找。已有选择时只读取所选任务，直到用户更换选择；过期查找响应不能覆盖新选择。任务面板按需分页。`productRoot/pet/settings.json` 只保存位置、动画开关和按数据目录分组的
-任务选择，还保存 `selected_appearance`、默认开启的 `idle_activities_enabled` 与角色缩放比例 `scale`；`runtime.json` 记录进程身份。
+单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。每轮分页读取受阻和进行中任务，按任务 ID 去重；从列表消失的已观察任务及固定任务通过详情确认当前状态。列表缺失本身不能表示完成，读取失败保留最后成功集合；过期响应不能覆盖新选择。任务面板按需分页。
+`PetTaskCollection` 和 Windows `task-collection.cjs` 负责桌面关注顺序、明确固定与本会话完成提示，Core 负责生命周期。自动关注受阻优先，同级保持稳定；完成提示结束后切换未完成任务。`PetBubbleStackView` 和 Windows renderer 负责最多三层叠加、展开滚动及逐任务点击；导航前重新核对同一 Core 与数据目录。
+`productRoot/pet/settings.json` 保存位置、动画开关、按数据目录分组的 `pinned_tasks`、`selected_appearance`、默认开启的 `idle_activities_enabled` 与角色缩放比例 `scale`。自动关注和未读完成提示仅在内存中维护；`runtime.json` 记录进程身份。
 Core 数据、流程图和 MCP 工具保持现有职责。
 
 `PetMenuBarIcon` 负责以 AppKit 路径绘制 18 pt Dev Flow 流线标识，并提供模板图像；`PetMenu` 将图像安装到菜单栏按钮，macOS 负责外观着色。
@@ -376,7 +377,7 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 自有高分辨率扩展图集，完整保留九类动作、57 帧与原始单格分辨率。`AnimationCatalog` 定义五类必需
 任务动作和四类可选附加动作，并校验所有已提供动作；`PetAppearanceSelection` 负责资源加载成功与选择保存
 的一致性；`PetCharacterView` 负责统一播放，并将素材锚点换算为 AppKit 坐标。`SVGArtwork` 负责静态矢量内容和尺寸校验，AppKit 保留 SVG 表示并按显示尺寸绘制。偏好增加 `selected_appearance`，与按数据目录保存的
-`selected_tasks` 独立；偏好更新在同一锁内完成，写入失败保留原值。切换释放旧帧，直接显示当前状态，
+`pinned_tasks` 独立；偏好更新在同一锁内完成，写入失败保留原值。切换释放旧帧，直接显示当前状态，
 不重新播放旧提示。
 
 `PresentationRules` 从 Core 快照决定任务展示和审核节点动作。`PetActivityController` 负责本地休闲动作、

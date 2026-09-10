@@ -202,7 +202,7 @@ window.pet.onState((next) => {
   image.style.width = canvas.width * factor + "px";
   image.style.height = canvas.height * factor + "px";
   image.style.top =
-    110 + (144 * state.preferences.scale - canvas.height * factor) / 2 + "px";
+    (state.bubbleHeight ?? 110) + (144 * state.preferences.scale - canvas.height * factor) / 2 + "px";
   document.querySelector("#phase").textContent =
     state.display.summary?.request_summary ?? state.labels.selectTask;
   document.querySelector("#summary").textContent = [
@@ -234,6 +234,7 @@ window.pet.onState((next) => {
     ]
       .filter(Boolean)
       .join("\n");
+  renderCards();
   if (changed) {
     cancelActivity();
     terminalAt = ["done", "cancelled", "archived"].includes(state.display.phase)
@@ -267,7 +268,11 @@ window.pet.onState((next) => {
         task.worktree_path,
       ].join(" · ");
       button.append(detail);
-      button.onclick = () => command("select", task.task_id);
+      button.onclick = () => command("open", task.task_id);
+      const pin = document.createElement("button");
+      pin.textContent = state.labels.pin;
+      pin.onclick = () => command("select", task.task_id);
+      items.append(pin);
       items.append(button);
     }
     document.querySelector("#page").textContent = state.picker.page;
@@ -284,10 +289,14 @@ image.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   command("menu");
 });
-bubble.onclick = () => command("open");
+document.querySelector("#primary").onclick = () => command("open");
+document.querySelector("#activityToggle").onclick = () => {
+  hovered = !hovered; document.body.classList.toggle("hover", hovered); renderCards();
+};
 document.body.onmouseenter = () => {
   hovered = true;
   document.body.classList.add("hover");
+  renderCards();
   if (activity && activity !== "waving") {
     cancelActivity();
     base();
@@ -297,6 +306,7 @@ document.body.onmouseleave = () => {
   hovered = false;
   hoverAt = 0;
   document.body.classList.remove("hover");
+  renderCards();
 };
 image.onmouseenter = () => {
   hoverAt = Date.now() + 400;
@@ -351,3 +361,60 @@ document.addEventListener("mousemove", (event) => {
   }
 });
 window.pet.ready();
+
+// Every card captures its own ID; window sizing follows the visible card area.
+let requestedBubbleHeight = 0;
+function renderCards() {
+  if (!state) return;
+  const cards = state.cards ?? [];
+  const container = document.querySelector("#cards");
+  container.replaceChildren();
+  document.querySelector("#primary").hidden = cards.length > 0;
+  const shown = hovered ? cards : cards.slice(0, 3);
+  for (const [index, card] of shown.entries()) {
+    const row = document.createElement("div");
+    row.className = "task-card";
+    row.style.zIndex = String(shown.length - index);
+    if (!hovered) row.style.top = (shown.length - index - 1) * 42 + "px";
+    const open = document.createElement("button");
+    open.className = "card-open";
+    const title = document.createElement("strong");
+    title.textContent = card.result.summary?.request_summary ?? state.labels.missing;
+    const status = document.createElement("small");
+    status.textContent = [state.labels[card.result.phase] ?? card.result.phase,
+      card.result.summary?.current_node, card.result.stale ? state.labels.stale : null,
+      state.pinnedTaskID === card.taskID ? state.labels.pin : null].filter(Boolean).join(" · ");
+    open.append(title, status);
+    open.onclick = () => command("open", card.taskID);
+    row.append(open);
+    if (hovered) {
+      const detail = document.createElement("small");
+      detail.className = "card-detail";
+      detail.textContent = [card.result.summary?.blocker, card.result.summary?.request_summary,
+        card.result.summary?.updated_at ? state.labels.updated + ": " + new Date(card.result.summary.updated_at).toLocaleString() : null,
+        state.lastSyncAt ? state.labels.lastSync + ": " + new Date(state.lastSyncAt).toLocaleString() : null].filter(Boolean).join("\n");
+      row.append(detail);
+      const pin = document.createElement("button");
+      pin.textContent = state.pinnedTaskID === card.taskID ? state.labels.noSelection : state.labels.pin;
+      pin.onclick = () => command("select", state.pinnedTaskID === card.taskID ? null : card.taskID);
+      row.append(pin);
+      if (card.unread) {
+        const dismiss = document.createElement("button");
+        dismiss.textContent = state.labels.dismiss;
+        dismiss.onclick = () => command("dismiss", card.taskID);
+        row.append(dismiss);
+      }
+    }
+    container.append(row);
+  }
+  const toggle = document.querySelector("#activityToggle");
+  toggle.hidden = !cards.length;
+  const unfinished = cards.filter(c => c.result.summary && !c.result.summary.archived && !["done", "cancelled"].includes(c.result.summary.lifecycle)).length;
+  const blocked = cards.filter(c => c.result.summary?.lifecycle === "blocked").length;
+  toggle.textContent = `${unfinished} ${state.labels.tasks} · ${blocked} ${state.labels.blocked}` +
+    (!hovered && cards.length > 3 ? ` · +${cards.length - 3}` : "") + (hovered ? " ▴" : " ▾");
+  const contentHeight = cards.length ? (hovered ? Math.min(380, cards.length * 210) : 86 + Math.max(0, shown.length - 1) * 42) : (hovered ? 200 : 80);
+  const wanted = contentHeight + 44;
+  container.style.height = Math.max(30, Math.min(contentHeight, (state.bubbleHeight ?? wanted) - 44)) + "px";
+  if (wanted !== requestedBubbleHeight) { requestedBubbleHeight = wanted; command("bubble-height", wanted); }
+}

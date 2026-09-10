@@ -35,7 +35,7 @@ button:hover {
   cursor: pointer;
   -webkit-user-drag: none;
 }
-#bubble {
+#primary {
   position: absolute;
   top: 12px;
   left: 50%;
@@ -74,10 +74,36 @@ body:not(.hover) #detail {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-body.hover #bubble {
+body.hover #primary {
   max-height: 238px;
   z-index: 3;
 }
+#bubble {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 292px;
+}
+#primary { position: relative; top: 0; left: 0; transform: none; }
+#cards { position: relative; overflow: hidden; }
+body.hover #cards { overflow-y: auto; }
+.task-card {
+  position: absolute;
+  width: calc(100% - 8px);
+  min-height: 82px;
+  padding: 4px 8px;
+  border: 1px solid #dbe4ee;
+  border-radius: 12px;
+  background: #f8fbff;
+  box-shadow: 0 2px 5px #15294720;
+}
+body.hover .task-card { position: relative; margin-bottom: 8px; }
+.card-open { display: block; width: 100%; padding: 3px 0; border: 0; background: transparent; text-align: left; }
+.card-open strong, .card-open small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 18px; }
+.card-open small, .card-detail { font-size: 11px; color: #586880; }
+.card-detail { display: block; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 130px; overflow-y: auto; margin: 4px 0; }
+#activityToggle { width: 100%; font-size: 11px; padding: 4px; }
 body.hover #detail {
   white-space: pre-line;
   max-height: 154px;

@@ -12,6 +12,7 @@ import Foundation
 final class PetMenu: NSObject, NSMenuDelegate {
     enum Action: Equatable {
         case chooseTask
+        case resumeAutomatic
         case chooseAppearance(String?)
         case importAppearance
         case openTaskList
@@ -29,6 +30,7 @@ final class PetMenu: NSObject, NSMenuDelegate {
     let menu = NSMenu()
     private let statusItem: NSStatusItem
     private let chooseTaskItem = NSMenuItem()
+    private let automaticItem = NSMenuItem()
     private let appearanceItem = NSMenuItem()
     private let appearancesMenu = NSMenu()
     private let openTaskListItem = NSMenuItem()
@@ -61,7 +63,8 @@ final class PetMenu: NSObject, NSMenuDelegate {
         importingAppearance: Bool,
         scale: Double = 1
     ) {
-        chooseTaskItem.title = strings.menuChooseTask
+        chooseTaskItem.title = strings.petPin + "…"
+        automaticItem.title = strings.petAuto
         appearanceItem.title = importingAppearance ? strings.importingAppearance : strings.menuChooseAppearance
         appearanceItem.isEnabled = !importingAppearance
         appearancesMenu.removeAllItems()
@@ -106,6 +109,7 @@ final class PetMenu: NSObject, NSMenuDelegate {
         menu.autoenablesItems = false
         menu.delegate = self
         add(chooseTaskItem, action: #selector(chooseTask))
+        add(automaticItem, action: #selector(resumeAutomatic))
         appearanceItem.submenu = appearancesMenu
         appearancesMenu.autoenablesItems = false
         menu.addItem(appearanceItem)
@@ -153,6 +157,7 @@ final class PetMenu: NSObject, NSMenuDelegate {
         appearancesMenu.addItem(item)
     }
     @objc private func openTaskList() { onAction?(.openTaskList) }
+    @objc private func resumeAutomatic() { onAction?(.resumeAutomatic) }
     @objc private func retryConnection() { onAction?(.retryConnection) }
     @objc private func toggleAnimations() { onAction?(.toggleAnimations) }
     @objc private func toggleIdleActivities() { onAction?(.toggleIdleActivities) }

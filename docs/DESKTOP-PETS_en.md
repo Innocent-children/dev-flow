@@ -103,17 +103,21 @@ Reimport the same source folder to update a custom appearance. Switching appeara
 
 The menu bar entry uses a monochrome Dev Flow mark, with a clear gap between the crossbar and main curve at small sizes. The 18 pt vector icon is tinted by macOS for the menu bar appearance and selection state.
 
-Startup restores the saved task selection for the current data directory. While unselected, each observation looks for the most recently updated blocked task, then the most recently updated active task. If neither exists, it stays unselected and keeps looking on subsequent polls.
-Once selected, the watched task stays selected even when other tasks are created or updated, or the watched task completes or becomes unavailable. Use Choose task from the context menu or menu bar to change it; clearing the selection resumes automatic discovery.
-Discovery uses the existing observation intervals: macOS waits 5 seconds after each round, Windows 3 seconds. Hiding or sleeping pauses observation. A failed list read shows disconnection; discovery continues after reconnection.
+By default, up to three task bubbles overlap: the front bubble shows the focused task, with names and stages visible on the others. The footer shows unfinished and blocked counts, plus a count for additional tasks. Hover or click the count to expand a scrollable list; each bubble opens its own task WebUI.
+
+Every observation discovers unfinished tasks. Automatic focus prioritizes blocked tasks and remains stable among tasks with the same priority; a new focus is selected by most recent update. When the focused task completes, its prompt stays for about three seconds before focus moves to unfinished work. Completions observed continuously in this session remain in the expanded list until opened or dismissed. Cancelled, archived, or confirmed unavailable tasks also release automatic focus. With no remaining work, the pet becomes idle.
+
+Pin task saves an explicit choice for the current data directory. A pinned task stays focused after completion while other task bubbles remain visible. Follow automatically clears the pin. Opening a task does not pin it. Restart restores only an explicit pin; completion prompts are limited to the current session.
+
+Observation waits five seconds after each round on macOS and three seconds on Windows; a completion prompt can trigger an earlier refresh. Hiding or sleeping pauses reads. Failed reads preserve the last records and mark them disconnected. Recovery, wake, and first reads of historical completion do not replay celebrations.
 
 Ordinary Codex chats do not automatically become Dev Flow Tasks. A selected task that remains active keeps working or review artwork even when its Host has no new output.
 
 | Operation | Result |
 | --- | --- |
-| Left-click the pet or bubble | Open the selected Task's WebUI, or the list when no task is selected. |
-| Context menu / menu bar | Choose tasks and appearances, import packs, adjust pet size, control animations and idle activities, hide, or quit. |
-| Hover | Expand the bubble; hovering over the character can also trigger a wave when idle conditions are met. |
+| Left-click the pet or bubble | The pet opens the focused task, or the list with no focus; each bubble opens its own Task WebUI. |
+| Context menu / menu bar | Pin a task, follow automatically, choose appearances, import packs, adjust pet size, control animations and idle activities, hide, or quit. |
+| Hover | Expand the task bubbles; hovering over the character can also trigger a wave when idle conditions are met. |
 | Drag and drop | Save the new placement, which becomes the center of subsequent walks. |
 | Hide or system sleep | Stop animation, movement, and observation requests; show or wake to read the current state again. |
 | Quit / `dev-flow pet stop` | End only the pet, preserving WebUI, Tasks, settings, and artwork. |
@@ -293,7 +297,7 @@ The menu includes an enabled-by-default Idle activities switch, saved as `idle_a
 and task animations while stopping idle rotation, interaction waves, and automatic movement. The Animations switch and the system's
 Reduce Motion setting take precedence; disabling animation uses still frames.
 
-Idle activities begin when the service is connected, the window is visible, and no task is selected. Completed, cancelled, or archived tasks
+Idle activities begin when the service is connected, the window is visible, and no task is focused. Automatic mode follows unfinished work after a completion prompt; pinned completed, cancelled, or archived tasks
 retain their corresponding posture for three seconds before idling. An observed completion first plays its full celebration, then waits those
 three seconds. A first read of an already-completed task uses its still completion frame without replaying a historical celebration.
 Active, blocked, unavailable, or unknown tasks and disconnected services use their corresponding task presentation.
@@ -360,7 +364,7 @@ Use checks matching the affected component and environment, and retain the artif
 
 | Check | Environment and expected result |
 | --- | --- |
-| `swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` | macOS; simulated Core/HTTP checks task discovery, selection retention and late-response handling |
+| `swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` | macOS; simulated Core/HTTP checks multi-task discovery, pinning, automatic handoff and late-response handling |
 | `swift test --package-path packages/desktop-pet/macos --filter PetAppearanceTests` | macOS; static/native/Codex import preserves supported frames and timing, and failed imports preserve the installed appearance |
 | `node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` | Simulated Electron, preferences and HTTP; verify discovery and selection rules |
 | `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` | Simulated DOM, IPC and clock; polling preserves animation, resizing cancels walking and normal scheduling resumes |

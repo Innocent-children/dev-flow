@@ -39,7 +39,7 @@ export async function stageWindowsDesktopApplication({ application, version, dep
     "main.cjs",
     "storage.cjs",
     "appearance.cjs",
-    "observation.cjs",
+    "observation.cjs", "task-collection.cjs",
     "preload.cjs",
     "view.js",
     "view.html",

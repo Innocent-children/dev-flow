@@ -111,12 +111,10 @@ enum BubbleRules {
                 blocker: nil
             )
         case .blocked(let node):
-            // `BLOCKED` keeps the node label Core already provides, which reads
-            // as a temporary block, and never restates every block as waiting
-            // for an approval.
+            // The resident line identifies blocked work while retaining its Core node.
             return BubbleContent(
                 title: summary?.requestSummary ?? strings.chooseTask,
-                stage: marked(strings.nodeName(node), result: result, strings: strings),
+                stage: marked(node == "BLOCKED" ? strings.nodeName(node) : "\(strings.petBlockedStatus) · \(strings.nodeName(node))", result: result, strings: strings),
                 summary: summary?.requestSummary,
                 taskUpdated: taskUpdated,
                 lastSync: lastSync,

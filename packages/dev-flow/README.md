@@ -99,7 +99,7 @@ dev-flow pet start
 dev-flow pet stop
 ```
 
-The menu provides task and appearance selection, import, Animations, Idle activities, hide, and quit. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md)
+Stacked bubbles show multiple tasks and open each task’s WebUI. Automatic focus prioritizes blocked tasks and follows unfinished work after completion. The menu provides Pin task, Follow automatically, appearance selection, import, Animations, Idle activities, hide, and quit. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md)
 for task selection, the scope of nine-clip support, triggers, and troubleshooting. Stop the pet before updating or removing its current Core Adapter or
 unified-entry package; maintenance aborts if shutdown fails. Confirmed factory-reset clears `productRoot/pet`; ordinary quit and uninstall preserve user artwork and settings.
 

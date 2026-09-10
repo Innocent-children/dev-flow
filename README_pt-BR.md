@@ -97,10 +97,7 @@ consulte a [referência de comandos](docs/COMMANDS_en.md).
 
 ## Mascote de desktop
 
-O mascote de desktop mostra o estado salvo de uma tarefa selecionada e abre sua WebUI. Você pode
-escolher tarefas, personalizar a aparência, controlar animações, ajustar o tamanho e iniciar ou parar
-o mascote de forma independente. Antes de usá-lo, conclua a instalação e a configuração do Codex ou
-DeepSeek descritas acima.
+O mascote mostra várias tarefas em balões sobrepostos e abre a WebUI de cada uma. Ele prioriza tarefas bloqueadas e passa automaticamente para outra tarefa pendente quando a atual termina; você também pode fixar uma tarefa. É possível personalizar a aparência, controlar animações, ajustar o tamanho e iniciar ou parar o mascote de forma independente. Antes de usá-lo, conclua a instalação e a configuração do Codex ou DeepSeek descritas acima.
 
 ```bash
 dev-flow pet start

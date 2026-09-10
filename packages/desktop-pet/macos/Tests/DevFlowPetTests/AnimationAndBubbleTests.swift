@@ -254,14 +254,14 @@ final class AnimationAndBubbleTests: XCTestCase {
         window.layout(atOrigin: CGPoint(x: 100, y: 100))
         window.content.layoutSubtreeIfNeeded()
         XCTAssertEqual(window.content.character.bounds.size, CGSize(width: 288, height: 288))
-        XCTAssertEqual(window.content.bubble.bounds.width, PetBubbleView.bubbleWidth)
+        XCTAssertEqual(window.content.bubble.bounds.width, PetBubbleStackView.bubbleWidth)
         XCTAssertEqual(window.content.requiredSize.height, originalSize.height + 144)
         XCTAssertEqual(window.content.referencePoint(atScale: 2), CGPoint(x: 144, y: 24))
         window.content.setScale(0.5)
         window.layout(atOrigin: CGPoint(x: 100, y: 100))
         window.content.layoutSubtreeIfNeeded()
         XCTAssertEqual(window.content.character.bounds.size, CGSize(width: 72, height: 72))
-        XCTAssertEqual(window.content.bubble.bounds.width, PetBubbleView.bubbleWidth)
+        XCTAssertEqual(window.content.bubble.bounds.width, PetBubbleStackView.bubbleWidth)
     }
 
     func testAssetLibraryRequiresADeliveredCatalog() {

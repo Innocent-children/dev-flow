@@ -98,10 +98,7 @@ et la suppression, consultez la [référence des commandes](docs/COMMANDS_en.md)
 
 ## Mascotte de bureau
 
-La mascotte de bureau affiche l’état enregistré d’une tâche sélectionnée et ouvre sa WebUI. Vous
-pouvez choisir la tâche, personnaliser l’apparence, contrôler les animations, modifier la taille et
-la démarrer ou l’arrêter indépendamment. Terminez d’abord l’installation et la configuration de
-Codex ou DeepSeek décrites ci-dessus.
+La mascotte affiche plusieurs tâches dans des bulles superposées et ouvre la WebUI de chacune. Elle donne la priorité aux tâches bloquées et passe automatiquement à une tâche inachevée lorsque la tâche actuelle se termine ; vous pouvez aussi épingler une tâche. Vous pouvez personnaliser son apparence, contrôler les animations, modifier sa taille et la démarrer ou l’arrêter indépendamment. Terminez d’abord l’installation et la configuration de Codex ou DeepSeek décrites ci-dessus.
 
 ```bash
 dev-flow pet start

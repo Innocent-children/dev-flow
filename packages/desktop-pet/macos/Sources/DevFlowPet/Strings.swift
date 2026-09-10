@@ -16,6 +16,11 @@ enum PetLanguage: String, Equatable {
 }
 
 struct PetStrings: Equatable {
+    var petPin: String { self == .chinese ? "固定关注" : "Pin task" }
+    var petAuto: String { self == .chinese ? "恢复自动" : "Follow automatically" }
+    var petTasks: String { self == .chinese ? "个未完成" : "unfinished" }
+    var petBlocked: String { self == .chinese ? "个受阻" : "blocked" }
+    var petBlockedStatus: String { self == .chinese ? "受阻" : "Blocked" }
     // Bubble
     let chooseTask: String
     let disconnected: String

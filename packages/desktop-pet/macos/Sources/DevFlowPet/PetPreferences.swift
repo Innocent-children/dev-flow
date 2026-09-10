@@ -13,7 +13,7 @@ struct PetPreferences: Codable, Equatable {
     var animationsEnabled: Bool
     var idleActivitiesEnabled: Bool
     var scale: Double
-    var selectedTasks: [String: String]
+    var pinnedTasks: [String: String]
     var selectedAppearance: String?
 
     enum CodingKeys: String, CodingKey {
@@ -21,19 +21,19 @@ struct PetPreferences: Codable, Equatable {
         case animationsEnabled = "animations_enabled"
         case idleActivitiesEnabled = "idle_activities_enabled"
         case scale
-        case selectedTasks = "selected_tasks"
+        case pinnedTasks = "pinned_tasks"
         case selectedAppearance = "selected_appearance"
     }
 
-    static let `default` = PetPreferences(position: nil, animationsEnabled: true, selectedTasks: [:])
+    static let `default` = PetPreferences(position: nil, animationsEnabled: true, pinnedTasks: [:])
 
-    init(position: Position?, animationsEnabled: Bool, selectedTasks: [String: String], selectedAppearance: String? = nil,
+    init(position: Position?, animationsEnabled: Bool, pinnedTasks: [String: String], selectedAppearance: String? = nil,
          idleActivitiesEnabled: Bool = true, scale: Double = 1) {
         self.position = position
         self.animationsEnabled = animationsEnabled
         self.idleActivitiesEnabled = idleActivitiesEnabled
         self.scale = scale
-        self.selectedTasks = selectedTasks
+        self.pinnedTasks = pinnedTasks
         self.selectedAppearance = selectedAppearance
     }
 
@@ -46,22 +46,22 @@ struct PetPreferences: Codable, Equatable {
         guard scale.isFinite, (0.5...2).contains(scale) else {
             throw DecodingError.dataCorruptedError(forKey: .scale, in: container, debugDescription: "pet scale must be between 0.5 and 2")
         }
-        selectedTasks = try container.decodeIfPresent([String: String].self, forKey: .selectedTasks) ?? [:]
+        pinnedTasks = try container.decodeIfPresent([String: String].self, forKey: .pinnedTasks) ?? [:]
         selectedAppearance = try container.decodeIfPresent(String.self, forKey: .selectedAppearance)
     }
 
     func selectedTask(for dataRootDigest: String) -> String? {
         guard dataRootDigest.isEmpty == false else { return nil }
-        return selectedTasks[dataRootDigest]
+        return pinnedTasks[dataRootDigest]
     }
 
     mutating func select(taskID: String?, for dataRootDigest: String) {
         guard dataRootDigest.isEmpty == false else { return }
         guard let taskID, taskID.isEmpty == false else {
-            selectedTasks.removeValue(forKey: dataRootDigest)
+            pinnedTasks.removeValue(forKey: dataRootDigest)
             return
         }
-        selectedTasks[dataRootDigest] = taskID
+        pinnedTasks[dataRootDigest] = taskID
     }
 }
 

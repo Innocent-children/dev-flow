@@ -43,6 +43,7 @@ final class ScriptedWebUIClient: WebUIReading, @unchecked Sendable {
     private var systemStatusResult: WebUIReadResult<SystemStatusResponse> = .failure(.unreachable)
     private var detailResults: [String: WebUIReadResult<TaskDetailResponse>] = [:]
     private var listResults: [TaskLifecycle?: WebUIReadResult<TaskListResponse>] = [:]
+    private var pageResults: [String: WebUIReadResult<TaskListResponse>] = [:]
     private var heldDetailTasks: Set<String> = []
     private var holdsLists = false
     private var openDetailGates: [ReadGate<WebUIReadResult<TaskDetailResponse>>] = []
@@ -67,9 +68,15 @@ final class ScriptedWebUIClient: WebUIReading, @unchecked Sendable {
         lock.lock(); listResults[lifecycle] = result; lock.unlock()
     }
 
+    func setPage(_ page: Int, lifecycle: TaskLifecycle, _ result: WebUIReadResult<TaskListResponse>) {
+        lock.lock(); pageResults["\(lifecycle.rawValue):\(page)"] = result; lock.unlock()
+    }
+
     func holdDetail(taskID: String) {
         lock.lock(); heldDetailTasks.insert(taskID); lock.unlock()
     }
+
+    func stopHoldingLists() { lock.lock(); holdsLists = false; lock.unlock() }
 
     func holdLists() {
         lock.lock(); holdsLists = true; lock.unlock()
@@ -155,7 +162,7 @@ final class ScriptedWebUIClient: WebUIReading, @unchecked Sendable {
             lock.unlock()
             return .held(gate)
         }
-        let result = listResults[lifecycle] ?? .failure(.unreachable)
+        let result = pageResults["\(lifecycle?.rawValue ?? "any"):\(page)"] ?? listResults[lifecycle] ?? .value(TestDetails.list(summaries: []))
         lock.unlock()
         return .immediate(result)
     }

@@ -98,10 +98,7 @@ die [Befehlsreferenz](docs/COMMANDS_en.md).
 
 ## Desktop-Maskottchen
 
-Das Desktop-Maskottchen zeigt den gespeicherten Zustand einer ausgewählten Aufgabe und öffnet deren
-WebUI. Du kannst Aufgaben auswählen, das Aussehen anpassen, Animationen steuern, die Größe ändern und
-das Maskottchen unabhängig starten oder stoppen. Schließe vorher die oben beschriebene Installation
-und Einrichtung von Codex oder DeepSeek ab.
+Das Desktop-Maskottchen zeigt mehrere Aufgaben in gestapelten Sprechblasen und öffnet die jeweilige WebUI. Blockierte Aufgaben haben Vorrang. Nach Abschluss einer Aufgabe wechselt es automatisch zu einer noch offenen Aufgabe; du kannst auch eine Aufgabe anheften. Du kannst das Aussehen anpassen, Animationen steuern, die Größe ändern und das Maskottchen unabhängig starten oder stoppen. Schließe vorher die oben beschriebene Installation und Einrichtung von Codex oder DeepSeek ab.
 
 ```bash
 dev-flow pet start
