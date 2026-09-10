@@ -1,18 +1,20 @@
 import AppKit
 
-/// Arranges independent task cards above the character and reports explicit card actions.
+/// Keeps task cards in one scroll surface across native layout transitions.
 @MainActor
 final class PetBubbleStackView: NSView {
-    static let bubbleWidth: CGFloat = 284
+    static let bubbleWidth: CGFloat = 256
     static let characterSpacing: CGFloat = 8
     var onOpen: ((String) -> Void)?
     var onPin: ((String?) -> Void)?
     var onDismiss: ((String) -> Void)?
     var onResize: (() -> Void)?
     private let scroll = NSScrollView()
-    private let document = NSView()
+    private let document = PetCardDocument()
+    private let cardSurface = PetCardDocument()
+    private let materialGroup: NSView
     private lazy var toggle = CardButton(id: "toggle", title: "", handler: { [weak self] _ in self?.expand() })
-    private var rows: [NSView] = []
+    private var rows: [PetCardRow] = []
     private var cards: [PetTaskCollection.Card] = []
     private var pinned: String?
     private var strings = PetStrings.english
@@ -20,17 +22,30 @@ final class PetBubbleStackView: NSView {
     private var sync: Date?
     private var fallback = BubbleContent(title: "", stage: nil, summary: nil, taskUpdated: nil, lastSync: nil, blocker: nil)
     private(set) var isExpanded = false
-    private var scrollToTop = false
-    var maximumHeight: CGFloat = 400
+    private var cardsNeedLayout = true
+    var hasPendingLayout: Bool { cardsNeedLayout }
+    var maximumHeight: CGFloat = 280
 
     override init(frame: NSRect) {
+        if #available(macOS 26.0, *) {
+            let glass = NSGlassEffectContainerView()
+            glass.spacing = 0
+            materialGroup = glass
+        } else { materialGroup = NSView() }
         super.init(frame: frame)
         scroll.drawsBackground = false
-        scroll.hasVerticalScroller = true
+        scroll.contentView.drawsBackground = false
+        scroll.hasVerticalScroller = false
+        scroll.hasHorizontalScroller = false
+        scroll.autohidesScrollers = true
+        scroll.scrollerStyle = .overlay
         scroll.documentView = document
+        document.addSubview(materialGroup)
+        if #available(macOS 26.0, *), let glass = materialGroup as? NSGlassEffectContainerView {
+            glass.contentView = cardSurface
+        } else { materialGroup.addSubview(cardSurface) }
         addSubview(scroll)
         addSubview(toggle)
-        toggle.bezelStyle = .inline
         toggle.target = self
         toggle.action = #selector(expand)
     }
@@ -39,80 +54,167 @@ final class PetBubbleStackView: NSView {
     func update(_ content: BubbleContent) { fallback = content; cards = []; rebuild() }
     func update(cards: [PetTaskCollection.Card], pinned: String?, fallback: BubbleContent,
                 sync: Date?, strings: PetStrings, language: PetLanguage) {
+        let unchanged = self.cards == cards && self.pinned == pinned && self.strings == strings && self.language == language
         self.cards = cards; self.pinned = pinned; self.fallback = fallback
         self.sync = sync; self.strings = strings; self.language = language
+        if unchanged && !cards.isEmpty {
+            for (card, row) in zip(cards, rows) {
+                row.bubble.update(BubbleRules.content(result: card.result, lastSyncAt: sync, strings: strings, language: language))
+            }
+            return
+        }
         rebuild()
     }
+
     func setExpanded(_ value: Bool) {
         guard value != isExpanded else { return }
-        isExpanded = value; scrollToTop = value; rebuild()
+        isExpanded = value
+        scroll.contentView.scroll(to: .zero)
+        updateToggle()
+        cardsNeedLayout = true
+        needsLayout = true
     }
+
+    /// Retargets existing views inside the window's native animation transaction.
+    func beginTransition() { arrangeCards(animated: true) }
+    func finishTransition() {
+        for (index, row) in rows.enumerated() { row.isHidden = !isExpanded && index >= 3 }
+    }
+
     @objc private func expand() { setExpanded(!isExpanded); onResize?() }
 
     private func rebuild() {
-        rows.forEach { $0.removeFromSuperview() }; rows = []
-        let visible = isExpanded ? cards : Array(cards.prefix(3))
-        let entries: [(PetTaskCollection.Card?, BubbleContent)] = cards.isEmpty ? [(nil, fallback)] : visible.map {
+        let existing = Dictionary(uniqueKeysWithValues: rows.map { ($0.taskID, $0) })
+        let entries: [(PetTaskCollection.Card?, BubbleContent)] = cards.isEmpty ? [(nil, fallback)] : cards.map {
             ($0, BubbleRules.content(result: $0.result, lastSyncAt: sync, strings: strings, language: language))
         }
-        for (index, entry) in entries.enumerated() {
-            let row = NSView()
-            let bubble = PetBubbleView(frame: .zero)
-            bubble.update(entry.1)
-            bubble.setExpanded(isExpanded)
-            row.addSubview(bubble)
-            let height = isExpanded || index == 0 ? bubble.requiredHeight(width: Self.bubbleWidth - 12) : 48
-            bubble.frame = NSRect(x: 0, y: isExpanded ? 28 : 0, width: Self.bubbleWidth - 12, height: height)
-            row.frame.size = CGSize(width: Self.bubbleWidth - 12, height: height + (isExpanded ? 28 : 0))
+        let next = entries.map { entry -> PetCardRow in
+            let id = entry.0?.taskID
+            let row = existing[id] ?? PetCardRow(taskID: id)
+            row.bubble.update(entry.1)
             if let card = entry.0 {
-                let open = CardButton(id: card.taskID, title: "", handler: { [weak self] in self?.onOpen?($0) })
-                open.isBordered = false
-                open.frame = bubble.frame
-                open.setAccessibilityLabel(entry.1.title)
-                row.addSubview(open)
-                if isExpanded {
-                    let pin = CardButton(id: card.taskID, title: pinned == card.taskID ? strings.petAuto : strings.petPin,
-                        handler: { [weak self] id in guard let self else { return }; self.onPin?(self.pinned == id ? nil : id) })
-                    pin.frame = NSRect(x: 4, y: 0, width: 130, height: 26)
-                    row.addSubview(pin)
-                    if card.unread {
-                        let dismiss = CardButton(id: card.taskID, title: strings.dismiss, handler: { [weak self] in self?.onDismiss?($0) })
-                        dismiss.frame = NSRect(x: 144, y: 0, width: 116, height: 26)
-                        row.addSubview(dismiss)
-                    }
-                }
+                row.configure(card: card, pinned: pinned, strings: strings,
+                    open: { [weak self] in self?.onOpen?($0) },
+                    pin: { [weak self] id in guard let self else { return }; self.onPin?(self.pinned == id ? nil : id) },
+                    dismiss: { [weak self] in self?.onDismiss?($0) })
             }
-            document.addSubview(row); rows.append(row)
+            if row.superview == nil { cardSurface.addSubview(row) }
+            return row
         }
+        for row in rows where !next.contains(where: { $0 === row }) { row.removeFromSuperview() }
+        rows = next
+        // Front card stays above the rear cards in both layouts.
+        for row in rows.reversed() { cardSurface.addSubview(row, positioned: .above, relativeTo: nil) }
+        updateToggle()
+        cardsNeedLayout = true
+        needsLayout = true
+    }
+
+    private func updateToggle() {
         let active = cards.filter { $0.result.summary.map { !$0.archived && !$0.lifecycle.isTerminal } ?? false }.count
         let blocked = cards.filter { $0.result.summary?.lifecycle == .blocked }.count
         toggle.title = "\(active) \(strings.petTasks) · \(blocked) \(strings.petBlocked)" + (cards.count > 3 && !isExpanded ? " · +\(cards.count - 3)" : "") + (isExpanded ? " ▴" : " ▾")
-        toggle.isHidden = cards.isEmpty
-        needsLayout = true
+        toggle.isHidden = cards.count < 2 && !isExpanded
     }
+
+    private var footer: CGFloat { cards.count < 2 && !isExpanded ? 0 : 24 }
     private var documentHeight: CGFloat {
-        if isExpanded { return rows.reduce(0) { $0 + $1.frame.height + 8 } }
-        return (rows.first?.frame.height ?? 0) + CGFloat(max(0, rows.count - 1)) * 38
+        if isExpanded { return 12 + rows.reduce(0) { $0 + $1.requiredHeight + 8 } }
+        return 54 + CGFloat(max(0, min(rows.count, 3) - 1)) * 8
     }
-    func requiredHeight(width: CGFloat) -> CGFloat { min(maximumHeight, documentHeight + (cards.isEmpty ? 0 : 28)) }
+    func requiredHeight(width: CGFloat) -> CGFloat { min(maximumHeight, documentHeight + footer) }
+
+    private func arrangeCards(animated: Bool) {
+        cardsNeedLayout = false
+        var top: CGFloat = 6
+        for (index, row) in rows.enumerated() {
+            let visible = isExpanded || index < 3
+            row.isHidden = false
+            let width = Self.bubbleWidth - 24 - (isExpanded ? 0 : CGFloat(min(index, 2)) * 8)
+            let height = isExpanded ? row.requiredHeight : 42
+            let y = isExpanded ? top : 6 + CGFloat(max(0, min(rows.count, 3) - 1) - min(index, 2)) * 8
+            let target = NSRect(x: 12 + (isExpanded ? 0 : CGFloat(min(index, 2)) * 4), y: y, width: width, height: height)
+            if row.frame == .zero { row.frame = target }
+            let proxy = animated ? row.animator() : row
+            proxy.frame = target
+            proxy.alphaValue = visible ? 1 : 0
+            row.arrange(expanded: isExpanded, showsText: isExpanded || index == 0, width: width, animated: animated)
+            top += height + 8
+        }
+    }
+
     override func layout() {
         super.layout()
-        let footer: CGFloat = cards.isEmpty ? 0 : 28
-        toggle.frame = NSRect(x: 0, y: 0, width: bounds.width, height: footer)
+        let toggleWidth = min(bounds.width - 24, toggle.intrinsicContentSize.width + 16)
+        toggle.frame = NSRect(x: (bounds.width - toggleWidth) / 2, y: 0, width: toggleWidth, height: footer)
         scroll.frame = NSRect(x: 0, y: footer, width: bounds.width, height: max(0, bounds.height - footer))
-        document.frame = NSRect(x: 0, y: 0, width: bounds.width, height: documentHeight)
-        var top = documentHeight
-        for (index, row) in rows.enumerated() {
-            let height = row.frame.height
-            let y = isExpanded ? top - height : (index == 0 ? 0 : (rows.first?.frame.height ?? 0) - 10 + CGFloat(index - 1) * 38)
-            row.frame.origin = CGPoint(x: isExpanded ? 0 : CGFloat(index) * 4, y: y)
-            top -= height + 8
+        document.frame.size = NSSize(width: bounds.width, height: documentHeight)
+        materialGroup.frame = document.bounds
+        cardSurface.frame = materialGroup.bounds
+        if cardsNeedLayout { arrangeCards(animated: false); finishTransition() }
+    }
+}
+
+@MainActor
+private final class PetCardDocument: NSView {
+    override var isFlipped: Bool { true }
+}
+
+/// A task's persistent content and controls; the stack owns its target geometry.
+@MainActor
+private final class PetCardRow: NSView {
+    let taskID: String?
+    let bubble = PetBubbleView(frame: .zero)
+    private var openButton: CardOpenButton?
+    private var pinButton: CardButton?
+    private var dismissButton: CardButton?
+
+    init(taskID: String?) {
+        self.taskID = taskID
+        super.init(frame: .zero)
+        addSubview(bubble)
+    }
+    required init?(coder: NSCoder) { fatalError("Created in code") }
+
+    func configure(card: PetTaskCollection.Card, pinned: String?, strings: PetStrings,
+                   open: @escaping (String) -> Void, pin: @escaping (String) -> Void,
+                   dismiss: @escaping (String) -> Void) {
+        if openButton == nil {
+            let button = CardOpenButton(id: card.taskID, handler: open)
+            bubble.addInteraction(button)
+            openButton = button
+            let pin = CardButton(id: card.taskID, title: strings.petPin, handler: pin)
+            addSubview(pin); pinButton = pin
         }
-        if !isExpanded, let first = rows.first { document.addSubview(first, positioned: .above, relativeTo: nil) }
-        if scrollToTop {
-            scroll.contentView.scroll(to: CGPoint(x: 0, y: max(0, documentHeight - scroll.contentView.bounds.height)))
-            scroll.reflectScrolledClipView(scroll.contentView)
-            scrollToTop = false
+        openButton?.setAccessibilityLabel(bubble.content.title)
+        pinButton?.title = pinned == card.taskID ? strings.petAuto : strings.petPin
+        if card.unread && dismissButton == nil {
+            let button = CardButton(id: card.taskID, title: strings.dismiss, handler: dismiss)
+            addSubview(button); dismissButton = button
+        } else if !card.unread {
+            dismissButton?.removeFromSuperview(); dismissButton = nil
+        }
+    }
+
+    private var actionHeight: CGFloat { pinButton.map { max(24, $0.intrinsicContentSize.height) } ?? 0 }
+    var requiredHeight: CGFloat {
+        bubble.requiredHeight(width: PetBubbleStackView.bubbleWidth - 24, expanded: true) + (actionHeight > 0 ? actionHeight + 4 : 0)
+    }
+
+    func arrange(expanded: Bool, showsText: Bool, width: CGFloat, animated: Bool) {
+        let controlsHeight = expanded && actionHeight > 0 ? actionHeight + 4 : 0
+        let height = expanded ? bubble.requiredHeight(width: width, expanded: true) : 42
+        let proxy = animated ? bubble.animator() : bubble
+        proxy.frame = NSRect(x: 0, y: controlsHeight, width: width, height: height)
+        bubble.setExpanded(expanded, animated: animated, showsText: showsText)
+        for button in [pinButton, dismissButton].compactMap({ $0 }) {
+            button.isHidden = !expanded
+            button.isEnabled = expanded
+        }
+        let dismissWidth = dismissButton.map { min(width / 2, $0.intrinsicContentSize.width) } ?? 0
+        dismissButton?.frame = NSRect(x: width - dismissWidth - 4, y: 0, width: dismissWidth, height: actionHeight)
+        if let pinButton {
+            pinButton.frame = NSRect(x: 4, y: 0, width: min(width - dismissWidth - 16, pinButton.intrinsicContentSize.width), height: actionHeight)
         }
     }
 }
@@ -124,31 +226,43 @@ private final class CardButton: NSButton {
     init(id: String, title: String, handler: @escaping (String) -> Void) {
         self.id = id; self.handler = handler
         super.init(frame: .zero)
-        self.title = title; bezelStyle = .inline; target = self; action = #selector(activate)
+        self.title = title
+        if #available(macOS 26.0, *) {
+            bezelStyle = .glass
+            borderShape = .capsule
+        } else { bezelStyle = .accessoryBarAction }
+        controlSize = .small
+        font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        target = self; action = #selector(activate)
     }
     required init?(coder: NSCoder) { fatalError("Created in code") }
     @objc private func activate() { handler(id) }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+/// An accessible hit region; the surrounding card supplies its native glass.
+@MainActor
+private final class CardOpenButton: NSView {
+    private let id: String
+    private let handler: (String) -> Void
+    init(id: String, handler: @escaping (String) -> Void) {
+        self.id = id; self.handler = handler
+        super.init(frame: .zero)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+    }
+    required init?(coder: NSCoder) { fatalError("Created in code") }
+    override func accessibilityPerformPress() -> Bool { handler(id); return true }
     override func mouseDown(with event: NSEvent) {
         var ancestor = superview
         while ancestor != nil && !(ancestor is PetContentView) { ancestor = ancestor?.superview }
-        guard title.isEmpty, let content = ancestor as? PetContentView else { super.mouseDown(with: event); return }
+        guard let content = ancestor as? PetContentView else { handler(id); return }
         let id = self.id, handler = self.handler
         content.beginCardPress(with: event) { handler(id) }
         while let next = NSApp.nextEvent(matching: [.leftMouseDragged, .leftMouseUp], until: .distantFuture, inMode: .eventTracking, dequeue: true) {
             if next.type == .leftMouseUp { content.mouseUp(with: next); return }
             content.mouseDragged(with: next)
         }
-    }
-    override func draw(_ dirtyRect: NSRect) {
-        guard !title.isEmpty else { return }
-        NSColor.controlBackgroundColor.setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 6, yRadius: 6).fill()
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        paragraph.lineBreakMode = .byTruncatingTail
-        let text = NSAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.labelColor, .paragraphStyle: paragraph])
-        text.draw(in: NSRect(x: 4, y: (bounds.height - 15) / 2, width: bounds.width - 8, height: 15))
     }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }

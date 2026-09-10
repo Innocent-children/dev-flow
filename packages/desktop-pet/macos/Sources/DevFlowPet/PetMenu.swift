@@ -75,6 +75,7 @@ final class PetMenu: NSObject, NSMenuDelegate {
         appearancesMenu.addItem(.separator())
         let importItem = NSMenuItem(title: strings.importAppearance, action: #selector(importAppearance), keyEquivalent: "")
         importItem.target = self
+        importItem.image = NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: nil)
         appearancesMenu.addItem(importItem)
         openTaskListItem.title = strings.menuOpenTaskList
         retryConnectionItem.title = strings.menuRetryConnection
@@ -85,6 +86,7 @@ final class PetMenu: NSObject, NSMenuDelegate {
             item.state = (item.representedObject as? Double) == scale ? .on : .off
         }
         visibilityItem.title = isVisible ? strings.menuHide : strings.menuShow
+        visibilityItem.image = NSImage(systemSymbolName: isVisible ? "eye.slash" : "eye", accessibilityDescription: nil)
         quitItem.title = strings.menuQuit
 
         // Only a disconnected desktop may ask Core to start the local service.
@@ -133,6 +135,12 @@ final class PetMenu: NSObject, NSMenuDelegate {
         add(visibilityItem, action: #selector(toggleVisibility))
         add(quitItem, action: #selector(quit))
         statusItem.menu = menu
+        for (item, symbol) in [(chooseTaskItem, "pin"), (automaticItem, "arrow.triangle.2.circlepath"),
+            (appearanceItem, "face.smiling"), (openTaskListItem, "list.bullet.rectangle"),
+            (retryConnectionItem, "arrow.clockwise"), (animationsItem, "sparkles"),
+            (idleActivitiesItem, "figure.walk"), (sizeItem, "arrow.up.left.and.arrow.down.right"), (quitItem, "power")] {
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        }
     }
 
     private func add(_ item: NSMenuItem, action: Selector) {

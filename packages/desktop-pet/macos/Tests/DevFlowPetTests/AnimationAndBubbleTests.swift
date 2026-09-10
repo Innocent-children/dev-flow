@@ -126,7 +126,12 @@ final class AnimationAndBubbleTests: XCTestCase {
             "Assets/wave.png": try XCTUnwrap(Self.png(width: 8, height: 8))])
         let view = PetCharacterView(frame: .zero)
         view.configure(library: try AssetLibrary(resourceDirectory: directory), strings: .english)
-        defer { view.stopPlayback() }
+        let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 144, height: 144),
+            styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = view
+        window.isReleasedWhenClosed = false
+        window.orderFrontRegardless()
+        defer { view.stopPlayback(); window.orderOut(nil) }
         let finished = expectation(description: "finite clip finished")
         var completions = 0
         view.onPlaybackFinished = { clip in
@@ -256,7 +261,7 @@ final class AnimationAndBubbleTests: XCTestCase {
         XCTAssertEqual(window.content.character.bounds.size, CGSize(width: 288, height: 288))
         XCTAssertEqual(window.content.bubble.bounds.width, PetBubbleStackView.bubbleWidth)
         XCTAssertEqual(window.content.requiredSize.height, originalSize.height + 144)
-        XCTAssertEqual(window.content.referencePoint(atScale: 2), CGPoint(x: 144, y: 24))
+        XCTAssertEqual(window.content.referencePoint(atScale: 2), CGPoint(x: max(PetBubbleStackView.bubbleWidth, 288) / 2, y: 24))
         window.content.setScale(0.5)
         window.layout(atOrigin: CGPoint(x: 100, y: 100))
         window.content.layoutSubtreeIfNeeded()
@@ -527,13 +532,51 @@ final class AnimationAndBubbleTests: XCTestCase {
     }
 
     @MainActor
+    func testBriefHoverCancelsExpansionAndSettledHoverFinishesResize() async {
+        let window = PetWindow()
+        window.content.bubble.update(BubbleContent(title: "Hover transition", stage: "Implementation",
+            summary: "Hover transition details", taskUpdated: "Updated", lastSync: "Synced", blocker: nil))
+        window.layout(atOrigin: CGPoint(x: 100, y: 100))
+        window.orderFrontRegardless()
+        defer { window.stopBubbleTransitions(); window.orderOut(nil) }
+        window.setBubbleHovered(true)
+        XCTAssertFalse(window.content.bubble.isExpanded)
+        let scroll = window.content.bubble.subviews.compactMap { $0 as? NSScrollView }.first
+        XCTAssertEqual(scroll?.hasVerticalScroller, false)
+        window.setBubbleHovered(false)
+        try? await Task.sleep(nanoseconds: 350_000_000)
+        XCTAssertFalse(window.content.bubble.isExpanded)
+        window.setBubbleHovered(true)
+        try? await Task.sleep(nanoseconds: 900_000_000)
+        XCTAssertTrue(window.content.bubble.isExpanded)
+        XCTAssertEqual(scroll?.hasVerticalScroller, false)
+        XCTAssertEqual(window.frame.height, window.content.requiredSize.height, accuracy: 1)
+        window.setBubbleHovered(false)
+        try? await Task.sleep(nanoseconds: 750_000_000)
+        XCTAssertFalse(window.content.bubble.isExpanded)
+        XCTAssertEqual(window.frame.height, window.content.requiredSize.height, accuracy: 1)
+    }
+
+    @MainActor
     func testCollapsedBubbleLaysOutBothResidentLines() throws {
         let view = PetBubbleView(frame: .zero)
         view.update(BubbleContent(title: "A task", stage: "已取消", summary: nil,
                                   taskUpdated: nil, lastSync: nil, blocker: nil))
         view.setFrameSize(NSSize(width: 220, height: view.requiredHeight(width: 220)))
         view.layoutSubtreeIfNeeded()
-        let labels = try XCTUnwrap(view.subviews.first).subviews.compactMap { $0 as? NSTextField }
+        func textFields(in node: NSView) -> [NSTextField] {
+            node.subviews.flatMap { child in (child as? NSTextField).map { [$0] } ?? textFields(in: child) }
+        }
+        let labels = textFields(in: view)
+        if #available(macOS 27.0, *) {
+            let glass = try XCTUnwrap(view.subviews.compactMap { $0 as? NSGlassEffectView }.first)
+            XCTAssertTrue(glass.effectIsInteractive)
+            XCTAssertEqual(glass.cornerRadius, 21)
+            XCTAssertEqual(glass.style, .regular)
+            XCTAssertNil(glass.tintColor)
+            XCTAssertEqual(glass.alphaValue, 1)
+            XCTAssertFalse(view.subviews.contains { $0 is NSVisualEffectView })
+        }
         let stage = try XCTUnwrap(labels.first { $0.stringValue == "已取消" })
         XCTAssertFalse(stage.isHidden)
         XCTAssertGreaterThan(stage.frame.height, 10)

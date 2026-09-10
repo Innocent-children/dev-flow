@@ -134,31 +134,55 @@ enum BubbleRules {
 /// hovering expands the detail area while keeping the character in place.
 @MainActor
 final class PetBubbleView: NSView {
-    static let bubbleWidth: CGFloat = 220
+    static let bubbleWidth: CGFloat = 232
     static let characterSpacing: CGFloat = 8
 
-    private let container = NSVisualEffectView()
-    private let titleLabel = PetBubbleView.makeLabel(size: 13, weight: .semibold, lines: 1)
-    private let stageLabel = PetBubbleView.makeLabel(size: 12, weight: .regular, lines: 1)
+    private let container: NSView
+    private let surface = NSView()
+    private var interactionView: NSView?
+    private let symbol = NSImageView()
+    private let navigationHint = NSImageView()
+    private let titleLabel = PetBubbleView.makeLabel(size: 12, weight: .medium, lines: 1)
+    private let stageLabel = PetBubbleView.makeLabel(size: 10, weight: .regular, lines: 1)
     private let summaryLabel = PetBubbleView.makeLabel(size: 12, weight: .regular, lines: 4)
-    private let taskUpdatedLabel = PetBubbleView.makeLabel(size: 12, weight: .regular, lines: 1)
-    private let lastSyncLabel = PetBubbleView.makeLabel(size: 12, weight: .regular, lines: 1)
+    private let taskUpdatedLabel = PetBubbleView.makeLabel(size: 10, weight: .regular, lines: 1)
+    private let lastSyncLabel = PetBubbleView.makeLabel(size: 10, weight: .regular, lines: 1)
     private let blockerLabel = PetBubbleView.makeLabel(size: 12, weight: .regular, lines: 3)
 
     private(set) var content = BubbleContent(title: "", stage: nil, summary: nil, taskUpdated: nil, lastSync: nil, blocker: nil)
     private(set) var isExpanded = false
+    private var showsText = true
 
     override init(frame frameRect: NSRect) {
+        if #available(macOS 26.0, *) {
+            let glass = NSGlassEffectView()
+            glass.style = .regular
+            glass.tintColor = nil
+            glass.cornerRadius = 21
+            glass.contentView = surface
+            if #available(macOS 27.0, *) { glass.effectIsInteractive = true }
+            container = glass
+        } else {
+            let background = NSVisualEffectView()
+            background.material = .popover
+            background.state = .active
+            background.wantsLayer = true
+            background.layer?.cornerRadius = 20
+            background.layer?.masksToBounds = true
+            background.addSubview(surface)
+            container = background
+        }
         super.init(frame: frameRect)
-        container.material = .hudWindow
-        container.state = .active
-        container.blendingMode = .behindWindow
-        container.wantsLayer = true
-        container.layer?.cornerRadius = 10
-        container.layer?.masksToBounds = true
         addSubview(container)
+        symbol.image = NSImage(systemSymbolName: "sparkle", accessibilityDescription: nil)
+        symbol.contentTintColor = .controlAccentColor
+        navigationHint.image = NSImage(systemSymbolName: "arrow.up.right", accessibilityDescription: nil)
+        navigationHint.contentTintColor = .tertiaryLabelColor
+        surface.addSubview(symbol)
+        surface.addSubview(navigationHint)
+        stageLabel.textColor = .secondaryLabelColor
         for label in [titleLabel, stageLabel] + detailLabels {
-            container.addSubview(label)
+            surface.addSubview(label)
         }
         for label in detailLabels { label.textColor = .secondaryLabelColor }
         blockerLabel.textColor = .systemOrange
@@ -175,6 +199,8 @@ final class PetBubbleView: NSView {
 
     func update(_ next: BubbleContent) {
         content = next
+        symbol.isHidden = next.title.isEmpty
+        navigationHint.isHidden = next.title.isEmpty
         titleLabel.stringValue = next.title
         stageLabel.stringValue = next.stage ?? ""
         summaryLabel.stringValue = next.summary ?? ""
@@ -184,48 +210,71 @@ final class PetBubbleView: NSView {
         updateVisibility()
     }
 
-    func setExpanded(_ expanded: Bool) {
+    func setExpanded(_ expanded: Bool, animated: Bool = false, showsText: Bool = true) {
         isExpanded = expanded
-        updateVisibility()
+        self.showsText = showsText
+        titleLabel.maximumNumberOfLines = expanded ? 4 : 1
+        titleLabel.lineBreakMode = expanded ? .byWordWrapping : .byTruncatingTail
+        updateVisibility(animated: animated)
     }
 
-    private func updateVisibility() {
+    private func updateVisibility(animated: Bool = false) {
+        for view in [symbol, navigationHint, titleLabel, stageLabel] as [NSView] {
+            (animated ? view.animator() : view).alphaValue = showsText ? 1 : 0
+        }
         stageLabel.isHidden = stageLabel.stringValue.isEmpty
         for label in detailLabels {
-            label.isHidden = !isExpanded || label.stringValue.isEmpty
+            label.isHidden = label.stringValue.isEmpty || (label === summaryLabel && content.summary == content.title)
+            (animated ? label.animator() : label).alphaValue = isExpanded && showsText ? 1 : 0
         }
         needsLayout = true
     }
 
-    /// Measurement and placement share the same visible rows and line limits.
-    private var visibleRows: [(NSTextField, CGFloat)] {
+    func addInteraction(_ view: NSView) {
+        interactionView?.removeFromSuperview()
+        interactionView = view
+        surface.addSubview(view)
+    }
+
+    /// Measurement reads the target layout, independently of in-flight view geometry.
+    private func visibleRows(expanded: Bool) -> [(NSTextField, CGFloat)] {
         var rows: [(NSTextField, CGFloat)] = [(titleLabel, 0)]
-        if !stageLabel.isHidden { rows.append((stageLabel, 1)) }
-        var firstDetail = true
-        for label in detailLabels where !label.isHidden {
-            rows.append((label, firstDetail ? 6 : 3))
-            firstDetail = false
+        if !stageLabel.stringValue.isEmpty { rows.append((stageLabel, 1)) }
+        if expanded {
+            var firstDetail = true
+            for label in detailLabels where !label.stringValue.isEmpty {
+                if label === summaryLabel && content.summary == content.title { continue }
+                rows.append((label, firstDetail ? 6 : 3))
+                firstDetail = false
+            }
         }
         return rows
     }
 
-    func requiredHeight(width: CGFloat) -> CGFloat {
-        16 + visibleRows.reduce(0) { $0 + $1.1 + textHeight($1.0, width: max(width - 20, 40)) }
+    func requiredHeight(width: CGFloat, expanded: Bool? = nil) -> CGFloat {
+        let expanded = expanded ?? isExpanded
+        return max(42, 12 + visibleRows(expanded: expanded).reduce(0) {
+            $0 + $1.1 + textHeight($1.0, width: max(width - 58, 40), titleLines: expanded ? 4 : 1)
+        })
     }
 
     override func layout() {
         super.layout()
         container.frame = bounds
-        let width = max(bounds.width - 20, 40)
-        var top = bounds.height - 8
-        for (label, spacing) in visibleRows {
+        surface.frame = bounds
+        interactionView?.frame = bounds
+        let width = max(bounds.width - 58, 40)
+        symbol.frame = NSRect(x: 13, y: bounds.height - 29, width: 14, height: 14)
+        navigationHint.frame = NSRect(x: bounds.width - 22, y: bounds.height - 27, width: 9, height: 9)
+        var top = bounds.height - 6
+        for (label, spacing) in visibleRows(expanded: isExpanded) {
             let height = textHeight(label, width: width)
             top -= spacing + height
-            label.frame = NSRect(x: 10, y: top, width: width, height: height)
+            label.frame = NSRect(x: 36, y: top, width: width, height: height)
         }
     }
 
-    private func textHeight(_ label: NSTextField, width: CGFloat) -> CGFloat {
+    private func textHeight(_ label: NSTextField, width: CGFloat, titleLines: Int? = nil) -> CGFloat {
         let font = label.font ?? NSFont.systemFont(ofSize: 12)
         let lineHeight = ceil(font.ascender - font.descender + font.leading)
         let text = NSAttributedString(string: label.stringValue, attributes: [.font: font])
@@ -233,7 +282,8 @@ final class PetBubbleView: NSView {
             with: NSSize(width: width, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading]
         ).height
-        return min(max(ceil(measured), lineHeight), lineHeight * CGFloat(max(label.maximumNumberOfLines, 1)))
+        let lines = label === titleLabel ? (titleLines ?? label.maximumNumberOfLines) : label.maximumNumberOfLines
+        return min(max(ceil(measured), lineHeight), lineHeight * CGFloat(max(lines, 1)))
     }
 
     private static func makeLabel(size: CGFloat, weight: NSFont.Weight, lines: Int) -> NSTextField {

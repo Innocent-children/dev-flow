@@ -40,12 +40,12 @@ button:hover {
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
-  width: 284px;
+  width: 264px;
   max-height: 96px;
   padding: 10px 14px;
   background: #fffffff2;
   border: 1px solid #dbe4ee;
-  border-radius: 14px;
+  border-radius: 20px;
   box-shadow: 0 4px 18px #15294720;
   cursor: pointer;
 }
@@ -83,27 +83,28 @@ body.hover #primary {
   top: 8px;
   left: 50%;
   transform: translateX(-50%);
-  width: 292px;
+  width: 288px;
 }
 #primary { position: relative; top: 0; left: 0; transform: none; }
 #cards { position: relative; overflow: hidden; }
 body.hover #cards { overflow-y: auto; }
 .task-card {
   position: absolute;
-  width: calc(100% - 8px);
-  min-height: 82px;
-  padding: 4px 8px;
+  width: calc(100% - 24px);
+  height: 48px;
+  padding: 7px 14px;
   border: 1px solid #dbe4ee;
-  border-radius: 12px;
-  background: #f8fbff;
+  border-radius: 20px;
+  background: #fafafa;
   box-shadow: 0 2px 5px #15294720;
 }
-body.hover .task-card { position: relative; margin-bottom: 8px; }
+body.hover .task-card { position: relative; height: auto; min-height: 48px; margin: 0 12px 10px; }
 .card-open { display: block; width: 100%; padding: 3px 0; border: 0; background: transparent; text-align: left; }
-.card-open strong, .card-open small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 18px; }
+.card-open strong { font-size: 12px; font-weight: 500; }
+.card-open strong, .card-open small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 15px; }
 .card-open small, .card-detail { font-size: 11px; color: #586880; }
 .card-detail { display: block; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 130px; overflow-y: auto; margin: 4px 0; }
-#activityToggle { width: 100%; font-size: 11px; padding: 4px; }
+#activityToggle { display: block; width: max-content; max-width: 100%; margin: 4px auto 0; font-size: 11px; padding: 4px 12px; border: 0; border-radius: 14px; background: #fafafaf2; color: #687384; }
 body.hover #detail {
   white-space: pre-line;
   max-height: 154px;
@@ -112,9 +113,9 @@ body.hover #detail {
 #picker {
   position: absolute;
   inset: 8px;
-  background: #f8fbfff7;
+  background: #fafafaf7f7;
   border: 1px solid #d0dcea;
-  border-radius: 14px;
+  border-radius: 20px;
   padding: 14px;
   box-shadow: 0 4px 24px #15294730;
   z-index: 5;

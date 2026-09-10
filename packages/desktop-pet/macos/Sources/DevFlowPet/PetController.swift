@@ -86,7 +86,12 @@ final class PetController: PetWindowHandling {
         }
         window.content.bubble.onPin = { [weak self] id in Task { await self?.observer?.select(taskID: id) } }
         window.content.bubble.onDismiss = { [weak self] id in Task { await self?.observer?.acknowledge(taskID: id) } }
-        window.content.bubble.onResize = { [weak self] in self?.window.relayoutForBubble() }
+        window.content.bubble.onResize = { [weak self] in self?.window.relayoutForBubble(animated: true) }
+        window.content.character.onArtworkLayoutChanged = { [weak self] in
+            guard let self else { return }
+            self.window.content.updateArtworkSpacing()
+            self.window.relayoutForBubble(animated: true)
+        }
         window.content.character.configure(library: selection.library, strings: strings)
         activities.configure(catalog: selection.library?.catalog)
         window.content.character.onPlaybackFinished = { [weak self] clip in
@@ -103,6 +108,7 @@ final class PetController: PetWindowHandling {
         menu.onAction = { [weak self] action in self?.handle(action) }
         menu.onTrackingChanged = { [weak self] tracking in
             self?.menuTracking = tracking
+            if tracking { self?.window.stopBubbleTransitions() }
             self?.refreshActivities()
             if !tracking { self?.window.content.synchronizeHover() }
         }
@@ -157,6 +163,7 @@ final class PetController: PetWindowHandling {
 
     private func present(_ update: ObservationUpdate, allowPrompt: Bool = false) {
         guard window.isVisible, !sleeping, !exiting else { return }
+        window.motionEnabled = preferences.current.animationsEnabled && !NativeProcess.reduceMotionEnabled()
         let content: BubbleContent
         if let message = transientMessage {
             content = BubbleContent(title: message, stage: nil, summary: nil, taskUpdated: nil, lastSync: nil, blocker: nil)
@@ -168,17 +175,18 @@ final class PetController: PetWindowHandling {
                 language: language
             )
         }
-        window.content.bubble.maximumHeight = max(70, min(400, (window.screen?.visibleFrame.height ?? 700) - 144 * preferences.current.scale - 32))
+        window.content.bubble.maximumHeight = max(70, min(280, (window.screen?.visibleFrame.height ?? 700) - 144 * preferences.current.scale - 32))
         if transientMessage != nil { window.content.bubble.update(content) }
         else {
             window.content.bubble.update(cards: update.cards, pinned: update.pinnedTaskID, fallback: content,
                 sync: update.lastSyncAt, strings: strings, language: language)
         }
-        window.relayoutForBubble()
+        window.relayoutForBubble(animated: true)
         play(update.presentation, allowPrompt: allowPrompt)
     }
 
     private func play(_ result: PresentationRules.Result, allowPrompt: Bool) {
+        window.motionEnabled = preferences.current.animationsEnabled && !NativeProcess.reduceMotionEnabled()
         updateActivityGeometry()
         let current = preferences.current
         activities.update(result, taskID: lastUpdate?.selectedTaskID,
@@ -282,6 +290,7 @@ final class PetController: PetWindowHandling {
             Task { await observer?.retryConnection() }
         case .toggleAnimations:
             preferences.update { $0.animationsEnabled.toggle() }
+            window.motionEnabled = preferences.current.animationsEnabled && !NativeProcess.reduceMotionEnabled()
             refreshMenu()
             if let lastUpdate { present(lastUpdate) }
         case .toggleIdleActivities:
@@ -437,8 +446,7 @@ final class PetController: PetWindowHandling {
     func petWindowHoverChanged(_ hovering: Bool) {
         activities.windowHoverChanged(hovering)
         applyActivityOutput()
-        window.content.bubble.setExpanded(hovering)
-        window.relayoutForBubble()
+        window.setBubbleHovered(hovering)
         if hovering, !dragging, activities.currentActivity == nil, let clip = activities.playback?.clip {
             window.content.character.reactToHover(clip: clip)
         }
@@ -481,6 +489,7 @@ final class PetController: PetWindowHandling {
             applyVisibility(firstShow: true)
             Task { await observer?.beginObserving() }
         } else {
+            window.stopBubbleTransitions()
             window.orderOut(nil)
             window.content.character.stopPlayback()
             picker?.dismiss()
@@ -519,6 +528,7 @@ final class PetController: PetWindowHandling {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
+                self.window.motionEnabled = self.preferences.current.animationsEnabled && !NativeProcess.reduceMotionEnabled()
                 self.refreshMenu()
                 if let update = self.lastUpdate { self.present(update) }
             }
@@ -527,6 +537,7 @@ final class PetController: PetWindowHandling {
 
     private func handleSleep() {
         sleeping = true
+        window.stopBubbleTransitions()
         awaitingObservation = true
         refreshActivities()
         activities.resetInteractions()
@@ -725,6 +736,7 @@ final class PetController: PetWindowHandling {
     /// runtime record, and release the lock. A normal quit never force-kills
     /// another process and never stops the WebUI.
     func shutdown() {
+        window.stopBubbleTransitions()
         guard !runtime.isShutdownStarted else { return }
         runtime.beginShutdown()
         exiting = true

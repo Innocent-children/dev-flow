@@ -382,7 +382,13 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 
 `PresentationRules` 从 Core 快照决定任务展示和审核节点动作。`PetActivityController` 负责本地休闲动作、
 冷却与下一次截止时间；普通轮询保持已有动作和截止时间。`PetController` 连接窗口事件、一次性唤醒计时与播放请求，
-`PetCharacterView` 通知有限循环实际播放结束，`PetWindow` 只在散步期间更新临时位置。
+`PetAnimationTimeline` 按单调时间与素材时长计算当前帧；`PetCharacterView` 通过视图的 `CADisplayLink` 驱动播放，
+只在帧变化时替换图片，有限循环结束通知一次，并在停止播放时释放显示刷新回调。`PetWindow` 以原生动画更新临时散步位置。
+`PetMotion` 集中选择系统动画：macOS 15 及以上使用 `NSAnimationContext.animate` 与 SwiftUI 动画，macOS 14
+使用 `NSAnimationContext` 动画分组。`PetBubbleStackView` 保持卡片和滚动容器身份，由目标布局计算高度，
+在同一动画事务中调整卡片与窗口；序号隔离过期完成回调。macOS 26 的 `NSGlassEffectContainerView` 聚合卡片玻璃，
+`PetBubbleView` 将文字与交互区域放入 `NSGlassEffectView.contentView`，macOS 27 启用 `effectIsInteractive`。
+`PetController` 传入动画开关与系统减少动态效果选项，负责菜单、隐藏、睡眠和恢复的协调。
 角色悬停与气泡悬停分别处理，任务提示可中断休闲。只有手动拖动更新保存位置；动作顺序、冷却和临时位移均留在内存中。
 `PetMenu` 提供大小选择；`PetController` 保存缩放比例与位置后应用变更；`PetContentView` 调整角色约束并保持气泡文字大小，`PetActivityController` 按缩放比例计算行走速度。
 完整使用、形象格式与触发规则见[桌面宠物指南](DESKTOP-PETS.md)。

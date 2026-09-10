@@ -57,37 +57,85 @@ final class PetTaskCollectionTests: XCTestCase {
         let titles = ["视频转码：等待服务恢复", "完善接口自动化测试", "优化桌面宠物多任务气泡", "检查超长任务标题在展开视图中的换行与滚动表现，确保每个任务都可以独立打开", "同步使用说明"]
         tasks.update((0..<5).map { TestFixtures.summary(taskID: "task-\($0)", requestSummary: titles[$0], lifecycle: $0 == 0 ? .blocked : .active) }, readiness: .ready)
         let view = PetBubbleStackView(frame: .zero)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 284, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 256, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = view
         window.isReleasedWhenClosed = false
         window.orderFrontRegardless()
         defer { window.orderOut(nil) }
         view.update(cards: tasks.cards, pinned: nil, fallback: BubbleRules.content(result: tasks.focus, lastSyncAt: Date(), strings: .chinese, language: .chinese), sync: Date(), strings: .chinese, language: .chinese)
-        let collapsed = view.requiredHeight(width: 284)
-        window.setContentSize(CGSize(width: 284, height: collapsed))
-        view.frame.size = CGSize(width: 284, height: collapsed)
+        let collapsed = view.requiredHeight(width: 256)
+        window.setContentSize(CGSize(width: 256, height: collapsed))
+        view.frame.size = CGSize(width: 256, height: collapsed)
         view.layoutSubtreeIfNeeded()
         try render(view, name: "stacked")
+        let compactBubbles = descendants(view).compactMap { $0 as? PetBubbleView }.map(ObjectIdentifier.init)
         view.setExpanded(true)
-        XCTAssertGreaterThan(view.requiredHeight(width: 284), collapsed)
+        let expandedBubbles = descendants(view).compactMap { $0 as? PetBubbleView }.map(ObjectIdentifier.init)
+        XCTAssertTrue(compactBubbles.allSatisfy(expandedBubbles.contains), "expansion preserves native glass views")
+        XCTAssertGreaterThan(view.requiredHeight(width: 256), collapsed)
         view.maximumHeight = 320
-        window.setContentSize(CGSize(width: 284, height: 320))
-        view.frame.size.height = view.requiredHeight(width: 284)
+        window.setContentSize(CGSize(width: 256, height: 320))
+        view.frame.size.height = view.requiredHeight(width: 256)
         view.layoutSubtreeIfNeeded()
         XCTAssertLessThanOrEqual(view.frame.height, 320)
         try render(view, name: "expanded")
+        view.finishTransition()
+        let scroll = try XCTUnwrap(descendants(view).compactMap { $0 as? NSScrollView }.first)
+        XCTAssertFalse(scroll.hasVerticalScroller)
+        XCTAssertFalse(scroll.hasHorizontalScroller)
+        let originalScrollY = scroll.contentView.bounds.minY
+        scroll.contentView.scroll(to: CGPoint(x: 0, y: originalScrollY + 24))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        XCTAssertGreaterThan(scroll.contentView.bounds.minY, originalScrollY, "content still scrolls with hidden indicators")
         var opened: String?
         view.onOpen = { opened = $0 }
-        let buttons = descendants(view).compactMap { $0 as? NSButton }
-        let second = try XCTUnwrap(buttons.first { $0.accessibilityLabel() == titles[1] })
-        second.performClick(nil)
+        let second = try XCTUnwrap(descendants(view).first { $0.accessibilityLabel() == titles[1] && $0.accessibilityRole() == .button })
+        XCTAssertTrue(second.accessibilityPerformPress())
         XCTAssertEqual(opened, "task-1")
         for scale in [0.5, 0.75, 1, 1.25, 1.5, 2] {
-            let size = CGSize(width: max(284, 144 * scale), height: view.frame.height + 144 * scale + 8)
+            let size = CGSize(width: max(256, 144 * scale), height: view.frame.height + 144 * scale + 8)
             let screen = CGRect(x: 0, y: 0, width: 900, height: 700)
             let origin = PositionRules.constrain(position: .init(x: 895, y: 695), windowSize: size, visibleFrame: screen, fallbackInset: 24)
             XCTAssertTrue(screen.contains(CGRect(origin: origin, size: size)))
         }
+    }
+
+    @MainActor
+    func testPetAndNativeGlassOverTheSameBackground() throws {
+        guard #available(macOS 27.0, *) else { return }
+        let size = NSSize(width: 640, height: 200)
+        let scene = NSImage(size: size, flipped: false) { rect in
+            NSGradient(colors: [.systemBlue, .systemTeal, .systemOrange])!.draw(in: rect, angle: 15)
+            NSColor.white.withAlphaComponent(0.55).setFill()
+            for x in stride(from: 0, to: 640, by: 64) { NSRect(x: x, y: 0, width: 24, height: 200).fill() }
+            return true
+        }
+        let root = NSView(frame: NSRect(origin: .zero, size: size))
+        let background = NSImageView(frame: root.bounds)
+        background.image = scene
+        root.addSubview(background)
+        let window = NSWindow(contentRect: root.bounds, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.contentView = root
+        window.isReleasedWhenClosed = false
+        window.orderFrontRegardless()
+        defer { window.orderOut(nil) }
+        let pet = PetBubbleView(frame: NSRect(x: 32, y: 80, width: 264, height: 48))
+        pet.update(BubbleContent(title: "Pet component", stage: "Same background", summary: nil, taskUpdated: nil, lastSync: nil, blocker: nil))
+        root.addSubview(pet)
+        let native = NSGlassEffectView(frame: NSRect(x: 344, y: 80, width: 264, height: 48))
+        native.style = .regular
+        native.cornerRadius = 24
+        native.effectIsInteractive = true
+        let content = NSView()
+        let title = NSTextField(labelWithString: "Native NSGlassEffectView")
+        title.frame = NSRect(x: 16, y: 16, width: 232, height: 18)
+        content.addSubview(title)
+        native.contentView = content
+        root.addSubview(native)
+        root.layoutSubtreeIfNeeded()
+        try render(root, name: "same-window-comparison")
     }
 
     @MainActor

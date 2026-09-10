@@ -1,12 +1,12 @@
 import AppKit
 import Foundation
+import QuartzCore
 
 /// Renders the delivered frame animation of the current clip.
 ///
 /// The view owns frame timing and completion callbacks. `PresentationRules`,
 /// `PetActivityController`, and `PlaybackRules` select the artwork and playback.
-/// Every timer stops when the view is
-/// hidden or the desktop quits, so no animation keeps running in the background.
+/// The display link is active only while an animated clip is playing.
 @MainActor
 final class PetCharacterView: NSView {
     /// The delivered character size used for layout and clarity checks.
@@ -17,18 +17,54 @@ final class PetCharacterView: NSView {
 
     private var library: AssetLibrary?
     private var strings: PetStrings = .english
-    private var timer: Timer?
+    private var frameLink: CADisplayLink?
+    private var timeline: PetAnimationTimeline?
+    private var startedAt: TimeInterval = 0
+    private var requestedPlayback: ClipPlayback?
+    private var displayedFrame: Int?
+    private lazy var frameTarget = PetFrameTarget { [weak self] in self?.advance() }
     private var frames: ClipFrames?
     private var clipDescription: AnimationCatalog.Clip?
     private var currentClip: AnimationClip?
     private(set) var currentPlayback: ClipPlayback?
     var onPlaybackFinished: ((AnimationClip) -> Void)?
+    var onArtworkLayoutChanged: (() -> Void)?
+    private var topPadding: CGFloat = 0
+    private var clipTopPadding: [AnimationClip: CGFloat] = [:]
 
-    /// Remaining explicit frames before the loop or the static frame takes over.
-    private var sequence: [Int] = []
-    private var loopRange: ClosedRange<Int>?
-    private var restFrame: Int?
-    private var loopCursor = 0
+    /// Transparent headroom of the entire clip, including proportional fitting.
+    func topInset(in size: CGSize) -> CGFloat {
+        guard let catalog = library?.catalog else { return 0 }
+        let factor = min(size.width / CGFloat(catalog.canvas.width), size.height / CGFloat(catalog.canvas.height))
+        let height = CGFloat(catalog.canvas.height) * factor
+        return (size.height - height) / 2 + height * topPadding
+    }
+
+    /// A small alpha mask measures all poses once; vector artwork keeps its original representation.
+    static func transparentTopFraction(_ images: [NSImage]) -> CGFloat {
+        let side = 64
+        var top = side
+        for image in images {
+            guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+                  let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return 0 }
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = context
+            image.draw(in: NSRect(x: 0, y: 0, width: side, height: side), from: .zero,
+                       operation: .copy, fraction: 1)
+            NSGraphicsContext.restoreGraphicsState()
+            for y in 0..<top {
+                if (0..<side).contains(where: { (bitmap.colorAt(x: $0, y: y)?.alphaComponent ?? 0) > 0 }) {
+                    top = y
+                    break
+                }
+            }
+            if top == 0 { return 0 }
+        }
+        // Keep two sample rows around the silhouette for antialiasing and fine details.
+        return top == side ? 0 : CGFloat(max(0, top - 2)) / CGFloat(side)
+    }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -81,6 +117,9 @@ final class PetCharacterView: NSView {
         stopPlayback()
         self.library = library
         self.strings = strings
+        clipTopPadding = [:]
+        topPadding = 0
+        onArtworkLayoutChanged?()
         diagnosticLabel.stringValue = strings.assetsUnavailable
     }
 
@@ -111,48 +150,29 @@ final class PetCharacterView: NSView {
             return false
         }
 
-        let unchanged = currentClip == clip && clipDescription == description && currentPlayback == playback && !restart
+        let unchanged = currentClip == clip && clipDescription == description && requestedPlayback == playback && !restart
+        if unchanged { return true }
+        stopFrameLink()
         frames = decoded
         clipDescription = description
         currentClip = clip
         currentPlayback = playback
-        imageView.setAccessibilityIdentifier("pet-animation-\(clip.rawValue)")
-        switch playback {
-        case .rest(let frameIndex):
-            if unchanged { return true }
-            stopTimer()
-            sequence = []
-            loopRange = nil
-            restFrame = frameIndex
-            show(frameIndex)
-        case .loop(let range):
-            if unchanged { return true }
-            sequence = []
-            loopRange = range
-            restFrame = nil
-            loopCursor = range.lowerBound
-            show(loopCursor)
-            scheduleNextFrame(after: loopCursor)
-        case .introThenLoop(let intro, let loop):
-            if unchanged { return true }
-            sequence = Array(intro.lowerBound...intro.upperBound)
-            loopRange = loop
-            restFrame = nil
-            loopCursor = loop.lowerBound - 1
-            advance()
-        case .onceThenRest(let lastFrameIndex, let rest):
-            if unchanged { return true }
-            sequence = Array(0...max(lastFrameIndex, 0))
-            loopRange = nil
-            restFrame = rest
-            advance()
-        case .repeatThenRest(let cycles, let rest):
-            if unchanged { return true }
-            sequence = Array(repeating: Array(description.frames.indices), count: max(1, cycles)).flatMap { $0 }
-            loopRange = nil
-            restFrame = rest
-            advance()
+        requestedPlayback = playback
+        let padding = clipTopPadding[clip] ?? Self.transparentTopFraction(decoded.images)
+        clipTopPadding[clip] = padding
+        if topPadding != padding {
+            topPadding = padding
+            onArtworkLayoutChanged?()
         }
+        displayedFrame = nil
+        imageView.setAccessibilityIdentifier("pet-animation-\(clip.rawValue)")
+        timeline = PetAnimationTimeline(clip: description, playback: playback)
+        startedAt = CACurrentMediaTime()
+        show(timeline!.sample(at: 0).frame)
+        if case .rest = playback { return true }
+        let link = displayLink(target: frameTarget, selector: #selector(PetFrameTarget.tick))
+        link.add(to: .main, forMode: .common)
+        frameLink = link
         return true
     }
 
@@ -161,17 +181,17 @@ final class PetCharacterView: NSView {
     /// loop so hovering never repeats a blocked or disconnected prompt, and the
     /// celebration is never replayed.
     func reactToHover(clip: AnimationClip) {
-        guard timer != nil, sequence.isEmpty,
-              let description = clipDescription, description.loopRange != nil,
+        guard frameLink != nil, currentClip == clip,
+              let description = clipDescription, let loop = description.loopRange,
               let intro = description.introRange,
-              clip == .idle || clip == .working else {
-            return
-        }
-        sequence = Array(intro.lowerBound...intro.upperBound)
-        if let range = description.loopRange { loopCursor = range.lowerBound - 1 }
+              timeline?.sample(at: CACurrentMediaTime() - startedAt).looping == true,
+              clip == .idle || clip == .working else { return }
+        timeline = PetAnimationTimeline(clip: description, playback: .introThenLoop(intro: intro, loop: loop))
+        startedAt = CACurrentMediaTime()
+        advance()
     }
 
-    /// Stops every timer and releases the retained frames.
+    /// Stops display updates and releases the retained frames.
     func stopPlayback() {
         pausePlayback()
         frames = nil
@@ -183,15 +203,14 @@ final class PetCharacterView: NSView {
 
     /// Keeps the current picture while dragging or preparing a fresh observation.
     func pausePlayback() {
-        stopTimer()
-        sequence = []
-        loopRange = nil
-        restFrame = nil
+        stopFrameLink()
+        timeline = nil
         currentPlayback = nil
+        requestedPlayback = nil
     }
 
     private func showDiagnostic(clip: AnimationClip) {
-        stopTimer()
+        stopFrameLink()
         imageView.image = nil
         diagnosticLabel.stringValue = "\(strings.assetsUnavailable)\n\(clip.rawValue)"
         diagnosticLabel.isHidden = false
@@ -201,51 +220,39 @@ final class PetCharacterView: NSView {
         layer?.cornerRadius = 12
     }
 
-    private func scheduleNextFrame(after index: Int) {
-        stopTimer()
-        guard let description = clipDescription else { return }
-        let interval = PlaybackRules.frameDuration(description, index: index)
-        guard interval > 0 else { return }
-        let scheduled = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.advance()
-            }
-        }
-        RunLoop.main.add(scheduled, forMode: .common)
-        timer = scheduled
-    }
-
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+    private func stopFrameLink() {
+        frameLink?.invalidate()
+        frameLink = nil
         layer?.borderWidth = 0
     }
 
     private func advance() {
-        if !sequence.isEmpty {
-            let index = sequence.removeFirst()
-            show(index)
-            scheduleNextFrame(after: index)
-            return
+        guard let timeline else { return }
+        let sample = timeline.sample(at: CACurrentMediaTime() - startedAt)
+        show(sample.frame)
+        if sample.finished {
+            stopFrameLink()
+            self.timeline = nil
+            currentPlayback = .rest(frameIndex: sample.frame)
+            if let currentClip { onPlaybackFinished?(currentClip) }
+        } else if sample.looping, let range = clipDescription?.loopRange {
+            currentPlayback = .loop(range)
         }
-        guard let loopRange else {
-            stopTimer()
-            if let restFrame {
-                currentPlayback = .rest(frameIndex: restFrame)
-                show(restFrame)
-                self.restFrame = nil
-                if let currentClip { onPlaybackFinished?(currentClip) }
-            }
-            return
-        }
-        currentPlayback = .loop(loopRange)
-        loopCursor = loopCursor >= loopRange.upperBound ? loopRange.lowerBound : loopCursor + 1
-        show(loopCursor)
-        scheduleNextFrame(after: loopCursor)
     }
 
+    deinit { frameLink?.invalidate() }
+
     private func show(_ index: Int) {
-        guard let image = frames?.image(at: index) else { return }
+        guard displayedFrame != index, let image = frames?.image(at: index) else { return }
+        displayedFrame = index
         imageView.image = image
     }
+}
+
+/// A display-link target whose callback holds the view weakly.
+@MainActor
+private final class PetFrameTarget: NSObject {
+    private let callback: () -> Void
+    init(_ callback: @escaping () -> Void) { self.callback = callback }
+    @objc func tick() { callback() }
 }

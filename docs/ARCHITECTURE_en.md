@@ -425,8 +425,15 @@ frames and shows the current state without replaying prompts.
 
 `PresentationRules` derives task presentation and review-node artwork from Core snapshots. `PetActivityController` owns local idle activities,
 cooldowns, and the next deadline; ordinary polling preserves current activities and deadlines. `PetController` connects window events,
-one-shot wake timers, and playback requests. `PetCharacterView` reports actual finite-loop completion, and `PetWindow` updates temporary
-position only while walking. Character and bubble hover are handled separately, and task prompts can interrupt idle activities.
+one-shot wake timers, and playback requests. `PetAnimationTimeline` maps monotonic elapsed time and authored durations to frames.
+`PetCharacterView` drives playback with the view's `CADisplayLink`, changes the image only when its frame changes, reports finite
+completion once, and releases the display callback when stopped. `PetWindow` uses native animation for temporary walking positions.
+`PetMotion` selects system animations: `NSAnimationContext.animate` with SwiftUI animations on macOS 15 and later, and
+`NSAnimationContext` animation groups on macOS 14. `PetBubbleStackView` keeps card and scroll-container identity, measures the target
+layout, and updates cards and the window in one animation transaction; revisions isolate stale completion callbacks.
+The macOS 26 `NSGlassEffectContainerView` groups card glass. `PetBubbleView` places text and interaction views in
+`NSGlassEffectView.contentView` and enables `effectIsInteractive` on macOS 27. `PetController` supplies animation and system Reduce Motion
+settings and coordinates menus, hiding, sleep, and resuming. Character and bubble hover are handled separately, and task prompts can interrupt idle activities.
 Only manual dragging updates the saved position; activity order, cooldowns, and temporary movement stay in memory.
 `SVGArtwork` validates static vector contents and canvas dimensions; AppKit preserves the SVG representation and draws it at the display size. `PetCharacterView` converts the artwork anchor to AppKit coordinates.
 `PetMenu` exposes size selection; `PetController` applies changes after saving scale and position; `PetContentView` adjusts character constraints while keeping bubble text unchanged, and `PetActivityController` computes walking speed from scale.

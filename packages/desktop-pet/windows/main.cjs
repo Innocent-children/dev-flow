@@ -249,7 +249,7 @@ async function createDesktop(request) {
     const available = screen.getDisplayMatching({ x: Math.round(anchor.x), y: Math.round(anchor.y), width: 1, height: 1 }).workArea;
     bubbleHeight = Math.max(70, Math.min(requestedBubbleHeight, available.height - 144 * scale - 24));
     const factor = (144 * scale) / Math.max(canvas.width, canvas.height);
-    const width = Math.ceil(Math.max(320, 144 * scale + 24)),
+    const width = Math.ceil(Math.max(304, 144 * scale + 24)),
       height = Math.ceil(bubbleHeight + 144 * scale + 16);
     const bounds = {
       x: Math.round(

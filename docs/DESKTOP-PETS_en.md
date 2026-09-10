@@ -103,7 +103,7 @@ Reimport the same source folder to update a custom appearance. Switching appeara
 
 The menu bar entry uses a monochrome Dev Flow mark, with a clear gap between the crossbar and main curve at small sizes. The 18 pt vector icon is tinted by macOS for the menu bar appearance and selection state.
 
-By default, up to three task bubbles overlap: the front bubble shows the focused task, with names and stages visible on the others. The footer shows unfinished and blocked counts, plus a count for additional tasks. Hover or click the count to expand a scrollable list; each bubble opens its own task WebUI.
+By default, up to three task bubbles overlap: the front bubble shows the focused task, with the outlines of other task cards behind it. The footer shows unfinished and blocked counts, plus a count for additional tasks. Hover or click the count to expand a scrollable list; each bubble opens its own task WebUI.
 
 Every observation discovers unfinished tasks. Automatic focus prioritizes blocked tasks and remains stable among tasks with the same priority; a new focus is selected by most recent update. When the focused task completes, its prompt stays for about three seconds before focus moves to unfinished work. Completions observed continuously in this session remain in the expanded list until opened or dismissed. Cancelled, archived, or confirmed unavailable tasks also release automatic focus. With no remaining work, the pet becomes idle.
 
@@ -124,6 +124,23 @@ Ordinary Codex chats do not automatically become Dev Flow Tasks. A selected task
 
 Only `dev-flow pet start` and `dev-flow pet stop` are supported pet commands. Output is plain text, with exit codes `0` for success, `1` for runtime failure,
 and `2` for invalid arguments. There is no public `pet status` or `pet start --json`; use the error text and troubleshooting below.
+
+## macOS motion
+
+Bubble expansion and collapse use system animations and continue from the current appearance when the pointer changes direction.
+Cards and the scroll surface stay in place throughout the transition; expanded tasks remain clickable, pinnable, and scrollable.
+macOS 26 and later use system Liquid Glass materials, with native interactive glass feedback on macOS 27.
+Earlier supported systems use their corresponding AppKit materials and animations.
+
+Walks ease into motion and slow before arrival, keeping the overall distance and duration described below.
+Pointer entry, a press, or opening a menu interrupts walking. Turning off Animations or enabling the system's Reduce Motion
+setting applies the target bubble layout immediately and uses a still character frame. Hiding and sleep stop playback.
+
+Bubbles use the transparent headroom shared by all frames of the current clip to sit closer to the character, with a margin for fine details. Frame changes keep the layout stable while preserving character size and foot placement.
+
+Character frames retain their authored durations and update with the display refresh. After a brief main-thread delay,
+the player shows the frame for the current elapsed time. This improves timing without creating missing poses;
+low-frame-count artwork still has its original visual limits.
 
 ## Pet size
 
@@ -305,7 +322,7 @@ Active, blocked, unavailable, or unknown tasks and disconnected services use the
 | Animation | Trigger rules |
 | --- | --- |
 | Baseline idle | Wait a random 6–12 seconds after each short activity before selecting the next one. Ordinary reads of the same state preserve the current animation and deadline. |
-| Walk right, walk left | Initial weight: 25% each. With at least 40 pt available in the direction, move horizontally 40–80 pt at about `20 × scale` pt/second. Duration is distance divided by speed, or 2–4 seconds at 100% size. A finished walk has a 30% chance of continuing with one wave. |
+| Walk right, walk left | Initial weight: 25% each. With at least 40 pt available in the direction, move horizontally 40–80 pt at an average of about `20 × scale` pt/second. Duration is distance divided by speed, or 2–4 seconds at 100% size. A finished walk has a 30% chance of continuing with one wave. |
 | Wave | Random weight: 20%. Idle startup or showing the pet, hovering over the character for at least 0.4 seconds, and dropping it after a drag can also trigger a wave. Play 1–2 cycles with a shared 20-second cooldown. Continuous hover responds once; leaving for at least two seconds rearms it. |
 | Review / thinking at the computer | Random weight: 30%. During idle, play enough complete cycles to meet a randomly selected 3–5-second target, then return to idle. During an actual task's `COMPREHENSION_REVIEW` node, loop continuously; leaving that node restores working artwork. |
 
@@ -364,6 +381,7 @@ Use checks matching the affected component and environment, and retain the artif
 
 | Check | Environment and expected result |
 | --- | --- |
+| `swift test --package-path packages/desktop-pet/macos --filter 'PetMotionTests\|PetAnimationTimelineTests\|AnimationAndBubbleTests\|PetTaskCollectionTests\|PetActivityTests'` | macOS; native-window retargeting, interruption, screen constraints, scrolling and button hit testing, plus frame timing and activity rules; window checks use constructed task data |
 | `swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` | macOS; simulated Core/HTTP checks multi-task discovery, pinning, automatic handoff and late-response handling |
 | `swift test --package-path packages/desktop-pet/macos --filter PetAppearanceTests` | macOS; static/native/Codex import preserves supported frames and timing, and failed imports preserve the installed appearance |
 | `node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` | Simulated Electron, preferences and HTTP; verify discovery and selection rules |

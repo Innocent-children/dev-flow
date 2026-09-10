@@ -375,12 +375,18 @@ function renderCards() {
     const row = document.createElement("div");
     row.className = "task-card";
     row.style.zIndex = String(shown.length - index);
-    if (!hovered) row.style.top = (shown.length - index - 1) * 42 + "px";
+    if (!hovered) {
+      row.style.top = (shown.length - index - 1) * 8 + "px";
+      row.style.left = (12 + index * 4) + "px";
+      row.style.width = (264 - index * 8) + "px";
+    }
     const open = document.createElement("button");
     open.className = "card-open";
     const title = document.createElement("strong");
     title.textContent = card.result.summary?.request_summary ?? state.labels.missing;
+    if (!hovered && index > 0) title.style.visibility = "hidden";
     const status = document.createElement("small");
+    if (!hovered && index > 0) status.style.display = "none";
     status.textContent = [state.labels[card.result.phase] ?? card.result.phase,
       card.result.summary?.current_node, card.result.stale ? state.labels.stale : null,
       state.pinnedTaskID === card.taskID ? state.labels.pin : null].filter(Boolean).join(" · ");
@@ -408,13 +414,14 @@ function renderCards() {
     container.append(row);
   }
   const toggle = document.querySelector("#activityToggle");
-  toggle.hidden = !cards.length;
+  toggle.hidden = cards.length < 2 && !hovered;
   const unfinished = cards.filter(c => c.result.summary && !c.result.summary.archived && !["done", "cancelled"].includes(c.result.summary.lifecycle)).length;
   const blocked = cards.filter(c => c.result.summary?.lifecycle === "blocked").length;
   toggle.textContent = `${unfinished} ${state.labels.tasks} · ${blocked} ${state.labels.blocked}` +
     (!hovered && cards.length > 3 ? ` · +${cards.length - 3}` : "") + (hovered ? " ▴" : " ▾");
-  const contentHeight = cards.length ? (hovered ? Math.min(380, cards.length * 210) : 86 + Math.max(0, shown.length - 1) * 42) : (hovered ? 200 : 80);
-  const wanted = contentHeight + 44;
-  container.style.height = Math.max(30, Math.min(contentHeight, (state.bubbleHeight ?? wanted) - 44)) + "px";
+  const contentHeight = cards.length ? (hovered ? Math.min(260, cards.length * 180) : 48 + Math.max(0, shown.length - 1) * 8) : (hovered ? 200 : 80);
+  const footerHeight = toggle.hidden ? 16 : 40;
+  const wanted = contentHeight + footerHeight;
+  container.style.height = Math.max(30, Math.min(contentHeight, (state.bubbleHeight ?? wanted) - footerHeight)) + "px";
   if (wanted !== requestedBubbleHeight) { requestedBubbleHeight = wanted; command("bubble-height", wanted); }
 }
