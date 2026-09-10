@@ -20,6 +20,7 @@ const (
 	ErrorWorkspaceObservationUnstable ErrorCode = "WORKSPACE_OBSERVATION_UNSTABLE"
 	ErrorWorkspaceHistoryConflict     ErrorCode = "WORKSPACE_HISTORY_CONFLICT"
 	ErrorWorktreeProvisioningRequired ErrorCode = "WORKTREE_PROVISIONING_REQUIRED"
+	ErrorVerificationNotAllowed       ErrorCode = "VERIFICATION_NOT_ALLOWED"
 	ErrorVerificationBudgetExceeded   ErrorCode = "VERIFICATION_BUDGET_EXCEEDED"
 	ErrorTaskBlocked                  ErrorCode = "TASK_BLOCKED"
 	ErrorTaskTerminal                 ErrorCode = "TASK_TERMINAL"
@@ -36,7 +37,7 @@ func (c ErrorCode) IsValid() bool {
 	case ErrorInvalidArgument, ErrorNotGitRepository, ErrorTaskNotFound, ErrorActiveTaskConflict,
 		ErrorHostOwnershipConflict, ErrorRevisionConflict, ErrorActionStale, ErrorRepositoryDrift,
 		ErrorWorkspaceUnavailable, ErrorWorkspaceObservationUnstable, ErrorWorkspaceHistoryConflict, ErrorWorktreeProvisioningRequired,
-		ErrorVerificationBudgetExceeded, ErrorTaskBlocked, ErrorTaskTerminal,
+		ErrorVerificationNotAllowed, ErrorVerificationBudgetExceeded, ErrorTaskBlocked, ErrorTaskTerminal,
 		ErrorSchemaUnsupported, ErrorProcessUnsupported, ErrorTransitionNotAllowed, ErrorRecoveryUnavailable,
 		ErrorStorageUnavailable, ErrorInternal:
 		return true
@@ -51,67 +52,89 @@ func (c ErrorCode) IsValid() bool {
 type ViolationRule string
 
 const (
-	RuleEvidenceSourceInvalid         ViolationRule = "evidence_source_invalid"
-	RuleEvidenceStatusInvalid         ViolationRule = "evidence_status_invalid"
-	RuleNonAutomatedCommandCountZero  ViolationRule = "non_automated_command_count_zero"
-	RuleNonAutomatedFullSuiteFalse    ViolationRule = "non_automated_full_suite_false"
-	RuleFullSuiteReasonRequired       ViolationRule = "full_suite_reason_required"
-	RuleFullSuiteReasonEmpty          ViolationRule = "full_suite_reason_empty"
-	RuleAutomatedCommandCountPositive ViolationRule = "automated_command_count_positive"
-	RuleAutomatedCommandCountLimit    ViolationRule = "automated_command_count_limit"
-	RuleEvidenceNameDuplicate         ViolationRule = "evidence_name_duplicate"
-	RuleActionKindPayloadMismatch     ViolationRule = "action_kind_payload_mismatch"
-	RuleRequiredMemberMissing         ViolationRule = "required_member_missing"
-	RuleUnknownMember                 ViolationRule = "unknown_member"
-	RuleTextNotNormalized             ViolationRule = "text_not_normalized"
-	RuleStringListDuplicate           ViolationRule = "string_list_duplicate"
-	RuleStringListTooLong             ViolationRule = "string_list_too_long"
-	RuleRepositoryPathInvalid         ViolationRule = "repository_path_invalid"
-	RuleProblemClassNotValidForNode   ViolationRule = "problem_class_not_valid_for_node"
-	RuleArtifactRoleNotAllowed        ViolationRule = "artifact_role_not_allowed"
-	RuleArtifactManifestIncomplete    ViolationRule = "artifact_manifest_incomplete"
-	RuleCurrentValueRequired          ViolationRule = "current_value_required"
-	RuleCurrentSetRequired            ViolationRule = "current_set_required"
-	RuleAcceptanceSetCurrent          ViolationRule = "acceptance_set_current"
-	RuleRequiredCollectionNonEmpty    ViolationRule = "required_collection_non_empty"
-	RuleCollectionMustBeEmpty         ViolationRule = "collection_must_be_empty"
-	RulePassingStatusRequired         ViolationRule = "passing_status_required"
-	RuleUserConfirmationRequired      ViolationRule = "user_confirmation_required"
-	RuleKnownIdentifierRequired       ViolationRule = "known_identifier_required"
-	RuleBooleanFalseRequired          ViolationRule = "boolean_false_required"
-	RuleAcceptanceCoverageRequired    ViolationRule = "acceptance_coverage_required"
+	RuleArgumentsObjectRequired        ViolationRule = "arguments_object_required"
+	RuleEnumValueInvalid               ViolationRule = "enum_value_invalid"
+	RuleWorkspaceOriginRequired        ViolationRule = "workspace_origin_required"
+	RuleCreationMemberOnResume         ViolationRule = "creation_member_on_resume"
+	RuleKnownFailureAcceptanceRequired ViolationRule = "known_failure_acceptance_required"
+	RuleAutomaticBudgetExceeded        ViolationRule = "automatic_budget_exceeded"
+	RuleEvidenceCapacityExceeded       ViolationRule = "evidence_capacity_exceeded"
+	RuleFullSuiteNotAllowed            ViolationRule = "full_suite_not_allowed"
+	RuleManualHandoffNotAllowed        ViolationRule = "manual_handoff_not_allowed"
+	RuleBudgetChecksRequired           ViolationRule = "budget_checks_required"
+	RuleBudgetAdjustmentInvalid        ViolationRule = "budget_adjustment_invalid"
+	RuleEvidenceSourceInvalid          ViolationRule = "evidence_source_invalid"
+	RuleEvidenceStatusInvalid          ViolationRule = "evidence_status_invalid"
+	RuleNonAutomatedCommandCountZero   ViolationRule = "non_automated_command_count_zero"
+	RuleNonAutomatedFullSuiteFalse     ViolationRule = "non_automated_full_suite_false"
+	RuleFullSuiteReasonRequired        ViolationRule = "full_suite_reason_required"
+	RuleFullSuiteReasonEmpty           ViolationRule = "full_suite_reason_empty"
+	RuleAutomatedCommandCountPositive  ViolationRule = "automated_command_count_positive"
+	RuleAutomatedCommandCountLimit     ViolationRule = "automated_command_count_limit"
+	RuleEvidenceNameDuplicate          ViolationRule = "evidence_name_duplicate"
+	RuleActionKindPayloadMismatch      ViolationRule = "action_kind_payload_mismatch"
+	RuleRequiredMemberMissing          ViolationRule = "required_member_missing"
+	RuleUnknownMember                  ViolationRule = "unknown_member"
+	RuleTextNotNormalized              ViolationRule = "text_not_normalized"
+	RuleStringListDuplicate            ViolationRule = "string_list_duplicate"
+	RuleStringListTooLong              ViolationRule = "string_list_too_long"
+	RuleRepositoryPathInvalid          ViolationRule = "repository_path_invalid"
+	RuleProblemClassNotValidForNode    ViolationRule = "problem_class_not_valid_for_node"
+	RuleArtifactRoleNotAllowed         ViolationRule = "artifact_role_not_allowed"
+	RuleArtifactManifestIncomplete     ViolationRule = "artifact_manifest_incomplete"
+	RuleCurrentValueRequired           ViolationRule = "current_value_required"
+	RuleCurrentSetRequired             ViolationRule = "current_set_required"
+	RuleAcceptanceSetCurrent           ViolationRule = "acceptance_set_current"
+	RuleRequiredCollectionNonEmpty     ViolationRule = "required_collection_non_empty"
+	RuleCollectionMustBeEmpty          ViolationRule = "collection_must_be_empty"
+	RulePassingStatusRequired          ViolationRule = "passing_status_required"
+	RuleUserConfirmationRequired       ViolationRule = "user_confirmation_required"
+	RuleKnownIdentifierRequired        ViolationRule = "known_identifier_required"
+	RuleBooleanFalseRequired           ViolationRule = "boolean_false_required"
+	RuleAcceptanceCoverageRequired     ViolationRule = "acceptance_coverage_required"
 )
 
 var violationMessages = map[ViolationRule]string{
-	RuleEvidenceSourceInvalid:         "source must be automated, user, static or host_observed",
-	RuleEvidenceStatusInvalid:         "status must be passed, failed, skipped, not_run or observed",
-	RuleNonAutomatedCommandCountZero:  "command_count must equal 0 when source is user, static or host_observed",
-	RuleNonAutomatedFullSuiteFalse:    "full_suite must be false when source is user, static or host_observed",
-	RuleFullSuiteReasonRequired:       "full_suite_reason must give the concrete risk this full suite covers",
-	RuleFullSuiteReasonEmpty:          "full_suite_reason must be empty when full_suite is false",
-	RuleAutomatedCommandCountPositive: "command_count must be at least 1 when source is automated",
-	RuleAutomatedCommandCountLimit:    "command_count must not exceed the automatic verification limit",
-	RuleEvidenceNameDuplicate:         "name must be unique within one evidence set",
-	RuleActionKindPayloadMismatch:     "action_kind must match the payload branch of the current node",
-	RuleRequiredMemberMissing:         "the closed contract requires this member",
-	RuleUnknownMember:                 "the closed contract does not declare this member",
-	RuleTextNotNormalized:             "text must be non-empty, trimmed and within the declared limit",
-	RuleStringListDuplicate:           "the bounded list must not repeat an item",
-	RuleStringListTooLong:             "the bounded list exceeds its item limit",
-	RuleRepositoryPathInvalid:         "the repository contract path is invalid",
-	RuleProblemClassNotValidForNode:   "problem_class is not allowed for the current node",
-	RuleArtifactRoleNotAllowed:        "the current Action does not allow this artifact role",
-	RuleArtifactManifestIncomplete:    "classify every observed change and declare all permitted process artifacts before resubmitting",
-	RuleCurrentValueRequired:          "the member must equal the current value returned by Core",
-	RuleCurrentSetRequired:            "the list must equal the current set returned by Core",
-	RuleAcceptanceSetCurrent:          "acceptance must cover current requirements in order and link completed matching work items to passed current Test evidence",
-	RuleRequiredCollectionNonEmpty:    "the current transition requires at least one item",
-	RuleCollectionMustBeEmpty:         "the current transition requires this collection to be empty",
-	RulePassingStatusRequired:         "the current transition requires every submitted status to be passed",
-	RuleUserConfirmationRequired:      "the current transition requires explicit passed user confirmation",
-	RuleKnownIdentifierRequired:       "the identifier must be present in the current Core record",
-	RuleBooleanFalseRequired:          "the current transition requires this member to be false",
-	RuleAcceptanceCoverageRequired:    "work items must cover every current acceptance criterion",
+	RuleArgumentsObjectRequired:        "MCP arguments must be a valid JSON object",
+	RuleEnumValueInvalid:               "use a value declared by the current request schema",
+	RuleWorkspaceOriginRequired:        "workspace_origin must identify the confirmed workspace preparation and its receipt",
+	RuleCreationMemberOnResume:         "resume omits workspace_origin, primary_repository_key and additional_repositories; creation includes new_task",
+	RuleKnownFailureAcceptanceRequired: "acceptance must cover exactly the current automated failures, reference a passed automated comparison, and leave no pending checks",
+	RuleAutomaticBudgetExceeded:        "existing plus submitted automatic commands exceed the current limit",
+	RuleEvidenceCapacityExceeded:       "existing plus submitted evidence records exceed the retention limit",
+	RuleFullSuiteNotAllowed:            "the current verification budget does not allow full suites",
+	RuleManualHandoffNotAllowed:        "the current verification budget does not allow pending manual checks",
+	RuleBudgetChecksRequired:           "additional_checks must include at least one check name and a specific explanation, including for a permission-only adjustment",
+	RuleBudgetAdjustmentInvalid:        "the adjustment requires a valid basis, bounded nonnegative increment, unique explained checks and an actual capacity or permission increase",
+	RuleEvidenceSourceInvalid:          "source must be automated, user, static or host_observed",
+	RuleEvidenceStatusInvalid:          "status must be passed, failed, skipped, not_run or observed",
+	RuleNonAutomatedCommandCountZero:   "command_count must equal 0 when source is user, static or host_observed",
+	RuleNonAutomatedFullSuiteFalse:     "full_suite must be false when source is user, static or host_observed",
+	RuleFullSuiteReasonRequired:        "full_suite_reason must give the concrete risk this full suite covers",
+	RuleFullSuiteReasonEmpty:           "full_suite_reason must be empty when full_suite is false",
+	RuleAutomatedCommandCountPositive:  "command_count must be at least 1 when source is automated",
+	RuleAutomatedCommandCountLimit:     "command_count must not exceed the automatic verification limit",
+	RuleEvidenceNameDuplicate:          "name must be unique within one evidence set",
+	RuleActionKindPayloadMismatch:      "action_kind must match the payload branch of the current node",
+	RuleRequiredMemberMissing:          "the closed contract requires this member",
+	RuleUnknownMember:                  "the closed contract does not declare this member",
+	RuleTextNotNormalized:              "text must be non-empty, trimmed and within the declared limit",
+	RuleStringListDuplicate:            "the bounded list must not repeat an item",
+	RuleStringListTooLong:              "the bounded list exceeds its item limit",
+	RuleRepositoryPathInvalid:          "the repository contract path is invalid",
+	RuleProblemClassNotValidForNode:    "problem_class is not allowed for the current node",
+	RuleArtifactRoleNotAllowed:         "the current Action does not allow this artifact role",
+	RuleArtifactManifestIncomplete:     "classify every observed change and declare all permitted process artifacts before resubmitting",
+	RuleCurrentValueRequired:           "the member must equal the current value returned by Core",
+	RuleCurrentSetRequired:             "the list must equal the current set returned by Core",
+	RuleAcceptanceSetCurrent:           "acceptance must cover current requirements in order and link completed matching work items to passed current Test evidence",
+	RuleRequiredCollectionNonEmpty:     "the current transition requires at least one item",
+	RuleCollectionMustBeEmpty:          "the current transition requires this collection to be empty",
+	RulePassingStatusRequired:          "the current transition requires every submitted status to be passed",
+	RuleUserConfirmationRequired:       "the current transition requires explicit passed user confirmation",
+	RuleKnownIdentifierRequired:        "the identifier must be present in the current Core record",
+	RuleBooleanFalseRequired:           "the current transition requires this member to be false",
+	RuleAcceptanceCoverageRequired:     "work items must cover every current acceptance criterion",
 }
 
 func (r ViolationRule) IsValid() bool {
@@ -176,10 +199,18 @@ type GuardFailure struct {
 	Failures []ContractViolation `json:"failures"`
 }
 
+// BudgetFailure exposes non-sensitive quantities for one exceeded limit.
+type BudgetFailure struct {
+	Used      int `json:"used"`
+	Requested int `json:"requested"`
+	Limit     int `json:"limit"`
+}
+
 // Error is a stable, typed, non-sensitive domain failure.
 type Error struct {
 	Code    ErrorCode
 	Message string
+	Budget  *BudgetFailure
 	// Violations is the closed field-level detail of a contract failure.
 	Violations []ContractViolation
 	// RepositoryPaths contains Core-observed paths missing from an artifact manifest.
@@ -388,7 +419,8 @@ var (
 	ErrWorkspaceUnavailable         = &Error{Code: ErrorWorkspaceUnavailable, Message: "the task worktree instance is unavailable"}
 	ErrWorkspaceObservationUnstable = &Error{Code: ErrorWorkspaceObservationUnstable, Message: "the task repository scope changed during observation"}
 	ErrWorkspaceHistoryConflict     = &Error{Code: ErrorWorkspaceHistoryConflict, Message: "the task worktree history conflicts with its retained state"}
-	ErrWorktreeProvisioningRequired = &Error{Code: ErrorWorktreeProvisioningRequired, Message: "a confirmed dedicated worktree is required before opening a task"}
+	ErrWorktreeProvisioningRequired = &Error{Code: ErrorWorktreeProvisioningRequired, Message: "confirmed workspace preparation is required before opening a task"}
+	ErrVerificationNotAllowed       = &Error{Code: ErrorVerificationNotAllowed, Message: "verification requires a specific permission"}
 	ErrVerificationBudgetExceeded   = &Error{Code: ErrorVerificationBudgetExceeded, Message: "the verification budget was exceeded"}
 	ErrTaskBlocked                  = &Error{Code: ErrorTaskBlocked, Message: "the task is blocked"}
 	ErrTaskTerminal                 = &Error{Code: ErrorTaskTerminal, Message: "the task is terminal"}

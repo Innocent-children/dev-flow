@@ -357,7 +357,7 @@ func phase5ProblemClass(transition string) string {
 		"design_ready":       "none", "design_requires_requirements": "requirement_gap",
 		"tasks_ready": "none", "tasks_plan_saved": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
 		"implementation_ready_for_test": "none", "implementation_requires_design": "design_gap", "implementation_requires_requirements": "requirement_gap", "implementation_needs_refactor": "code_complexity",
-		"tests_passed": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
+		"tests_passed": "none", "tests_accepted_with_known_failures": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
 		"verification_budget_increased": "none",
 		"comprehension_passed":          "none", "implementation_defect": "implementation_defect", "code_too_complex": "code_complexity", "design_too_complex": "design_complexity", "evidence_insufficient": "verification_gap", "requirement_unclear": "requirement_gap",
 		"refactor_ready_for_test": "none", "refactor_requires_design": "design_change", "refactor_requires_requirements": "requirement_change",

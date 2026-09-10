@@ -167,13 +167,16 @@ func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.Tr
 	if err := workflow.EvaluateVerificationBudget(budget, task.TaskPlan.Revision, task.Evidence, result.Checks, result.ManualHandoffItems); err != nil {
 		return err
 	}
-	passing := transition.TransitionID == "tests_passed"
-	if passing {
-		if len(result.Checks) == 0 || len(result.FailedItems) != 0 || len(result.Findings) != 0 {
+	if a := result.KnownFailureAcceptance; a != nil && (a.ContentDigest != workspace.Content || a.TaskPlanRevision != task.TaskPlan.Revision) {
+		return domain.TransitionGuardFailure(transition.Guard, domain.GuardViolation("payload.node_result.known_failure_acceptance", domain.GuardUserConfirmationRequired))
+	}
+	completed := transition.Destination == domain.NodeComprehensionReview
+	if completed {
+		if len(result.Checks) == 0 || (result.KnownFailureAcceptance == nil && len(result.FailedItems) != 0) || len(result.Findings) != 0 {
 			return domain.ErrTransitionNotAllowed
 		}
 		for _, check := range result.Checks {
-			if check.Status != domain.EvidencePassed {
+			if check.Status != domain.EvidencePassed && result.KnownFailureAcceptance == nil {
 				return domain.ErrTransitionNotAllowed
 			}
 		}
@@ -188,7 +191,7 @@ func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.Tr
 	if err := recordVerificationAttempt(task, transition, result, evidence, now); err != nil {
 		return err
 	}
-	if !passing {
+	if !completed {
 		task.Test = nil
 		return invalidateForDestination(task, transition.Destination)
 	}
@@ -200,7 +203,7 @@ func (s *Service) applyTestResult(task *domain.ProcessTask, transition domain.Tr
 	for i := range evidence {
 		ids[i] = evidence[i].EvidenceID
 	}
-	task.Test = &domain.TestRecord{RecordID: recordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, ContentDigest: workspace.Content, EvidenceIDs: ids, UnverifiedItems: result.UnverifiedItems, ManualHandoffItems: result.ManualHandoffItems, PassedAt: now}
+	task.Test = &domain.TestRecord{RecordID: recordID, RequirementsRevision: task.Requirements.Revision, DesignRevision: task.Design.Revision, TaskPlanRevision: task.TaskPlan.Revision, ContentDigest: workspace.Content, EvidenceIDs: ids, UnverifiedItems: result.UnverifiedItems, ManualHandoffItems: result.ManualHandoffItems, CompletedAt: now, KnownFailureAcceptance: result.KnownFailureAcceptance}
 	task.Comprehension = nil
 	return nil
 }
@@ -363,8 +366,11 @@ func deliveryEvidenceCurrent(task *domain.ProcessTask, automated, manual []domai
 	expectedManual := []domain.ID{}
 	for _, id := range task.Test.EvidenceIDs {
 		item, ok := byID[id]
-		if !ok || item.Status != domain.EvidencePassed {
+		if !ok || !domain.TestEvidenceEligible(task.Test, item) {
 			return false
+		}
+		if item.Status != domain.EvidencePassed {
+			continue
 		}
 		switch item.Source {
 		case domain.EvidenceSourceAutomated:

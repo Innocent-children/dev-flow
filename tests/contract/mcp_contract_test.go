@@ -3,6 +3,7 @@ package contract_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Innocent-children/dev-flow/internal/domain"
 	core "github.com/Innocent-children/dev-flow/internal/mcp"
@@ -179,7 +180,7 @@ func TestMCPOpenTaskSingleAndMultiRepositoryInputBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := core.ValidateToolInput(core.ToolOpenTask, []byte(`{"host":"codex","repository_path":"/core",`+newTask+`}`)); err != domain.ErrWorktreeProvisioningRequired {
+	if err := core.ValidateToolInput(core.ToolOpenTask, []byte(`{"host":"codex","repository_path":"/core",`+newTask+`}`)); !errors.Is(err, domain.ErrWorktreeProvisioningRequired) {
 		t.Fatalf("missing workspace origin error=%v", err)
 	}
 	for _, raw := range [][]byte{

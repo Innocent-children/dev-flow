@@ -273,19 +273,23 @@ func (r ImplementationRecord) Validate() error {
 }
 
 type TestRecord struct {
-	RecordID             ID        `json:"record_id"`
-	RequirementsRevision uint32    `json:"requirements_revision"`
-	DesignRevision       uint32    `json:"design_revision"`
-	TaskPlanRevision     uint32    `json:"task_plan_revision"`
-	ContentDigest        Digest    `json:"content_digest"`
-	EvidenceIDs          []ID      `json:"evidence_ids"`
-	UnverifiedItems      []string  `json:"unverified_items"`
-	ManualHandoffItems   []string  `json:"manual_handoff_items"`
-	PassedAt             time.Time `json:"passed_at"`
+	KnownFailureAcceptance *KnownFailureAcceptance `json:"known_failure_acceptance,omitempty"`
+	RecordID               ID                      `json:"record_id"`
+	RequirementsRevision   uint32                  `json:"requirements_revision"`
+	DesignRevision         uint32                  `json:"design_revision"`
+	TaskPlanRevision       uint32                  `json:"task_plan_revision"`
+	ContentDigest          Digest                  `json:"content_digest"`
+	EvidenceIDs            []ID                    `json:"evidence_ids"`
+	UnverifiedItems        []string                `json:"unverified_items"`
+	ManualHandoffItems     []string                `json:"manual_handoff_items"`
+	CompletedAt            time.Time               `json:"completed_at"`
 }
 
 func (r TestRecord) Validate() error {
-	if validateID(r.RecordID) != nil || r.RequirementsRevision == 0 || r.DesignRevision == 0 || r.TaskPlanRevision == 0 || !r.ContentDigest.IsValid() || validateUTC(r.PassedAt) != nil || validateNormalizedList(r.UnverifiedItems) != nil || validateNormalizedList(r.ManualHandoffItems) != nil {
+	if r.KnownFailureAcceptance != nil && (r.KnownFailureAcceptance.Validate() != nil || r.KnownFailureAcceptance.TaskPlanRevision != r.TaskPlanRevision || r.KnownFailureAcceptance.ContentDigest != r.ContentDigest) {
+		return ErrInvalidArgument
+	}
+	if validateID(r.RecordID) != nil || r.RequirementsRevision == 0 || r.DesignRevision == 0 || r.TaskPlanRevision == 0 || !r.ContentDigest.IsValid() || validateUTC(r.CompletedAt) != nil || validateNormalizedList(r.UnverifiedItems) != nil || validateNormalizedList(r.ManualHandoffItems) != nil {
 		return ErrInvalidArgument
 	}
 	seen := map[ID]bool{}

@@ -197,7 +197,7 @@ func invalidationMatrixTask(t *testing.T) ProcessTask {
 	automated := EvidenceSummary{EvidenceID: "automated", TaskPlanRevision: 1, Source: EvidenceSourceAutomated, Name: "targeted", Status: EvidencePassed, Summary: "Targeted tests passed", Digest: digest, CommandCount: 1, RecordedAt: now}
 	user := EvidenceSummary{EvidenceID: "user", TaskPlanRevision: 1, Source: EvidenceSourceUser, Name: "confirmation", Status: EvidencePassed, Summary: "User confirmed understanding", Digest: digest, RecordedAt: now}
 	task.Evidence = []EvidenceSummary{automated, user}
-	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, EvidenceIDs: []ID{"automated"}, PassedAt: now}
+	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, EvidenceIDs: []ID{"automated"}, CompletedAt: now}
 	task.Comprehension = &ComprehensionAssessment{RecordID: "comprehension", TestRecordID: "test", RequirementsRevision: 2, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
 	task.CurrentNode = NodeDelivery
 	task.CurrentAction.Kind = ActionCompleteDelivery

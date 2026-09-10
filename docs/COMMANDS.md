@@ -560,3 +560,13 @@ Codex 与 DeepSeek 的 Core 交互说明和完整示例统一维护于 `skills/d
 [Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
 
 DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill 目录>/scripts/artifacts.mjs collect` 或 `prepare` 调用同一套 Core 只读文件准备命令。输入与返回结构与本文相同，`host` 使用 `deepseek`；脚本复用 Adapter 的运行时和数据目录解析，不创建存储。通过实际 DSH Skill 的 `resourceBase` 取得脚本路径。`--help` 不读取 stdin 或解析运行时。该脚本不是独立的 `dev-flow-deepseek` CLI，也不增加 `workspace_coordinator` 操作。
+
+## Core 响应和既有失败验收
+
+所有工具的成功/失败结构、错误字段和下一步操作遵守 [Core 响应规范](CORE-RESPONSES.md)。`ok=true` 只包含 result，`ok=false` 只包含 error/recovery；二者均有 request_id/tool。数量超限返回 VERIFICATION_BUDGET_EXCEEDED 和 error.budget 的 used/requested/limit；权限限制返回 VERIFICATION_NOT_ALLOWED 和具体字段。空的 budget_adjustment.additional_checks 返回字段详情；Core 确认零写入后允许在同一 Action 内按 allowed_paths 纠正一次。
+
+`dev_flow_submit_test` 新增 `tests_accepted_with_known_failures` → COMPREHENSION_REVIEW，要求具体 reason，原始 failed 检查和单独 passed 的自动比较检查，以及 `node_result.known_failure_acceptance`：source=user、summary、failed_checks、comparison_check、task_plan_revision、content_digest。用户确认绑定其所见内容；失败集合必须完整，其余检查通过，无待办或未执行检查。其他转换省略该字段或传 null。普通 tests_passed 仍只接受通过检查。具体保存和交付规则见 [架构说明](ARCHITECTURE.md#既有失败验收)。
+
+`allow_manual_handoff` 仅限制待办人工检查；已完成用户检查和独立验收可如实记录。仅调整权限时 additional_automatic_commands 可以为 0，additional_checks 仍需说明涉及的检查。恢复探针复制保存的完整操作；其工具 Schema 压缩部分必填声明以保留字段结构，Core 仍核对全部身份和 payload，不能用省略字段重建操作。
+
+MCP 参数纠错分为 `correct_current_action`（普通节点提交）和 `correct_request`（握手、读取、创建及生命周期请求）。二者均要求 Core 确认零写入，并用 allowed_paths 限定本次纠正。`correct_request` 保留原请求身份和已有授权，不要求先取得一个尚不存在的 Action。两端 Skill 为每个请求提供完整成功响应的链接，以及经过代码比对的具体错误响应与实现位置。历史恢复分别在 `history_resolution.choice` 和 `history_resolution.reason` 上报告枚举错误和文本错误。

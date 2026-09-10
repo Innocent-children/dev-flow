@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -107,7 +108,7 @@ func TestResolveBlockerInputUsesClosedPayloadAndNoDestination(t *testing.T) {
 	}
 	value["destination"] = "REFACTOR"
 	bad, _ := json.Marshal(value)
-	if err := ValidateToolInput(ToolResolveBlocker, bad); err != domain.ErrInvalidArgument {
+	if err := ValidateToolInput(ToolResolveBlocker, bad); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("destination error=%v", err)
 	}
 }

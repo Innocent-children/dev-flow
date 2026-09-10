@@ -118,3 +118,9 @@ See the [Support Matrix](SUPPORT-MATRIX_en.md) for stable support and unverified
 Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
 
 [Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
+
+## Acceptance with known failures
+
+When related checks pass and an automated comparison finds no new or changed failures, developers may explicitly accept the listed existing failures. Core retains actual test results separately from acceptance; failed checks stay failed and delivery shows the accepted scope. Decisions apply only to the content and plan the user saw and require reassessment after either changes. Completion criteria still reference actual passed checks; unexecuted checks and new problems cannot pass as known failures.
+
+Completed user checks are separate from pending manual execution. Errors identify affected fields, permission restrictions or actual usage. Hosts correct parameter mistakes from established facts within Core's returned scope and ask only for missing user decisions.

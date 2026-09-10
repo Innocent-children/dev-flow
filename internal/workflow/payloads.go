@@ -86,13 +86,14 @@ type ImplementationResult struct {
 	Findings             []string     `json:"findings"`
 }
 type TestResult struct {
-	ProblemClass       ProblemClass                       `json:"problem_class"`
-	Checks             []EvidenceInput                    `json:"checks"`
-	FailedItems        []string                           `json:"failed_items"`
-	UnverifiedItems    []string                           `json:"unverified_items"`
-	ManualHandoffItems []string                           `json:"manual_handoff_items"`
-	Findings           []string                           `json:"findings"`
-	BudgetAdjustment   *VerificationBudgetAdjustmentInput `json:"budget_adjustment"`
+	KnownFailureAcceptance *domain.KnownFailureAcceptance     `json:"known_failure_acceptance,omitempty"`
+	ProblemClass           ProblemClass                       `json:"problem_class"`
+	Checks                 []EvidenceInput                    `json:"checks"`
+	FailedItems            []string                           `json:"failed_items"`
+	UnverifiedItems        []string                           `json:"unverified_items"`
+	ManualHandoffItems     []string                           `json:"manual_handoff_items"`
+	Findings               []string                           `json:"findings"`
+	BudgetAdjustment       *VerificationBudgetAdjustmentInput `json:"budget_adjustment"`
 }
 type VerificationBudgetAdjustmentInput struct {
 	Basis                       domain.VerificationBudgetAdjustmentBasis `json:"basis"`
@@ -569,10 +570,19 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
+		if err := validateKnownFailureAcceptance(transition, value); err != nil {
+			return err
+		}
 		adjusting := envelope.TransitionID == "verification_budget_increased"
 		if adjusting {
-			if value.BudgetAdjustment == nil || value.BudgetAdjustment.Validate() != nil {
-				return domain.ErrInvalidArgument
+			if value.BudgetAdjustment == nil {
+				return domain.InvalidArgumentViolations(domain.Violation("payload.node_result.budget_adjustment", domain.RuleRequiredMemberMissing))
+			}
+			if len(value.BudgetAdjustment.AdditionalChecks) == 0 {
+				return domain.InvalidArgumentViolations(domain.Violation("payload.node_result.budget_adjustment.additional_checks", domain.RuleBudgetChecksRequired))
+			}
+			if value.BudgetAdjustment.Validate() != nil {
+				return domain.InvalidArgumentViolations(domain.Violation("payload.node_result.budget_adjustment", domain.RuleBudgetAdjustmentInvalid))
 			}
 			if len(value.Checks) != 0 || len(value.FailedItems) != 0 || len(value.UnverifiedItems) != 0 ||
 				len(value.ManualHandoffItems) != 0 || len(value.Findings) != 0 {
@@ -800,6 +810,7 @@ var problemClassByTransition = map[domain.TransitionID]ProblemClass{
 	"tests_expose_design_issue":            ProblemDesignFailure,
 	"tests_expose_requirement_issue":       ProblemRequirementGap,
 	"verification_budget_increased":        ProblemNone,
+	"tests_accepted_with_known_failures":   ProblemNone,
 	"comprehension_passed":                 ProblemNone,
 	"implementation_defect":                ProblemImplementationDefect,
 	"code_too_complex":                     ProblemCodeComplexity,

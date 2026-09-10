@@ -68,6 +68,47 @@ Condition: `none`; Core guard `current_user_comprehension_confirmed`. Use an emp
 }
 ```
 
+Complete successful request and response: [view every returned field](../successes/dev_flow_submit_comprehension-comprehension_passed.md).
+
+Possible error for this request: Assume the retained Task and Action are current. `node_result.user_confirmation.summary` is omitted from the request.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/workflow/action_schema.go` — `ValidateSubmissionNodeResult`;
+`internal/workflow/payloads.go` — `requiredMemberViolations`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"remove","path":"node_result.user_confirmation.summary"} -->
+<!-- example:mcp-output dev_flow_submit_comprehension comprehension_passed-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_submit_comprehension",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "node_result.user_confirmation.summary",
+        "rule": "required_member_missing",
+        "message": "the closed contract requires this member"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_current_action",
+    "message": "Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails.",
+    "allowed_paths": [
+      "node_result.user_confirmation.summary"
+    ]
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](../tool-results.md). Reuse confirmed facts; ask only for a missing user decision.
+
+
 On a committed result, the Task is in `result`; the expected next node for this edge is `DELIVERY`. Read the complete `result.current_action` and any blocker/outcome.
 
 ### implementation_defect
@@ -116,6 +157,47 @@ Condition: `implementation_defect`; Core guard `implementation_defect_identified
   }
 }
 ```
+
+Complete successful request and response: [view every returned field](../successes/dev_flow_submit_comprehension-implementation_defect.md).
+
+Possible error for this request: Assume the retained Task and Action are current. `node_result.findings` is empty while this transition reports a problem requiring remediation.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/workflow/payloads.go` — `ValidatePayload, validateProblemClass`;
+`internal/workflow/standard_process.go` — `standardTransitions`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"node_result.findings","value":[]} -->
+<!-- example:mcp-output dev_flow_submit_comprehension implementation_defect-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_submit_comprehension",
+  "error": {
+    "code": "TRANSITION_NOT_ALLOWED",
+    "message": "The transition guard was not satisfied.",
+    "guard": {
+      "guard_id": "implementation_defect_identified",
+      "failures": [
+        {
+          "path": "node_result.findings",
+          "rule": "problem_findings_present",
+          "message": "findings must not be empty when problem_class is not none"
+        }
+      ]
+    }
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_next_action",
+    "message": "Read the complete current transition set."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](../tool-results.md). Reuse confirmed facts; ask only for a missing user decision.
+
 
 On a committed result, the Task is in `result`; the expected next node for this edge is `IMPLEMENT`. Read the complete `result.current_action` and any blocker/outcome.
 
@@ -168,6 +250,47 @@ Condition: `code_complexity`; Core guard `code_complexity_identified`. The requi
 }
 ```
 
+Complete successful request and response: [view every returned field](../successes/dev_flow_submit_comprehension-code_too_complex.md).
+
+Possible error for this request: Assume the retained Task and Action are current. `node_result.findings` is empty while this transition reports a problem requiring remediation.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/workflow/payloads.go` — `ValidatePayload, validateProblemClass`;
+`internal/workflow/standard_process.go` — `standardTransitions`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"node_result.findings","value":[]} -->
+<!-- example:mcp-output dev_flow_submit_comprehension code_too_complex-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_submit_comprehension",
+  "error": {
+    "code": "TRANSITION_NOT_ALLOWED",
+    "message": "The transition guard was not satisfied.",
+    "guard": {
+      "guard_id": "code_complexity_identified",
+      "failures": [
+        {
+          "path": "node_result.findings",
+          "rule": "problem_findings_present",
+          "message": "findings must not be empty when problem_class is not none"
+        }
+      ]
+    }
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_next_action",
+    "message": "Read the complete current transition set."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](../tool-results.md). Reuse confirmed facts; ask only for a missing user decision.
+
+
 On a committed result, the Task is in `result`; the expected next node for this edge is `REFACTOR`. Read the complete `result.current_action` and any blocker/outcome.
 
 ### design_too_complex
@@ -219,6 +342,47 @@ Condition: `design_complexity`; Core guard `design_complexity_identified`. The r
 }
 ```
 
+Complete successful request and response: [view every returned field](../successes/dev_flow_submit_comprehension-design_too_complex.md).
+
+Possible error for this request: Assume the retained Task and Action are current. `node_result.findings` is empty while this transition reports a problem requiring remediation.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/workflow/payloads.go` — `ValidatePayload, validateProblemClass`;
+`internal/workflow/standard_process.go` — `standardTransitions`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"node_result.findings","value":[]} -->
+<!-- example:mcp-output dev_flow_submit_comprehension design_too_complex-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_submit_comprehension",
+  "error": {
+    "code": "TRANSITION_NOT_ALLOWED",
+    "message": "The transition guard was not satisfied.",
+    "guard": {
+      "guard_id": "design_complexity_identified",
+      "failures": [
+        {
+          "path": "node_result.findings",
+          "rule": "problem_findings_present",
+          "message": "findings must not be empty when problem_class is not none"
+        }
+      ]
+    }
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_next_action",
+    "message": "Read the complete current transition set."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](../tool-results.md). Reuse confirmed facts; ask only for a missing user decision.
+
+
 On a committed result, the Task is in `result`; the expected next node for this edge is `DESIGN`. Read the complete `result.current_action` and any blocker/outcome.
 
 ### evidence_insufficient
@@ -267,6 +431,47 @@ Condition: `verification_gap`; Core guard `verification_gap_identified`. The req
   }
 }
 ```
+
+Complete successful request and response: [view every returned field](../successes/dev_flow_submit_comprehension-evidence_insufficient.md).
+
+Possible error for this request: Assume the retained Task and Action are current. `node_result.findings` is empty while this transition reports a problem requiring remediation.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/workflow/payloads.go` — `ValidatePayload, validateProblemClass`;
+`internal/workflow/standard_process.go` — `standardTransitions`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"node_result.findings","value":[]} -->
+<!-- example:mcp-output dev_flow_submit_comprehension evidence_insufficient-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_submit_comprehension",
+  "error": {
+    "code": "TRANSITION_NOT_ALLOWED",
+    "message": "The transition guard was not satisfied.",
+    "guard": {
+      "guard_id": "verification_gap_identified",
+      "failures": [
+        {
+          "path": "node_result.findings",
+          "rule": "problem_findings_present",
+          "message": "findings must not be empty when problem_class is not none"
+        }
+      ]
+    }
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_next_action",
+    "message": "Read the complete current transition set."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](../tool-results.md). Reuse confirmed facts; ask only for a missing user decision.
+
 
 On a committed result, the Task is in `result`; the expected next node for this edge is `TEST`. Read the complete `result.current_action` and any blocker/outcome.
 
@@ -318,6 +523,47 @@ Condition: `requirement_gap`; Core guard `comprehension_requirement_gap_identifi
   }
 }
 ```
+
+Complete successful request and response: [view every returned field](../successes/dev_flow_submit_comprehension-requirement_unclear.md).
+
+Possible error for this request: Assume the retained Task and Action are current. `node_result.findings` is empty while this transition reports a problem requiring remediation.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/workflow/payloads.go` — `ValidatePayload, validateProblemClass`;
+`internal/workflow/standard_process.go` — `standardTransitions`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"node_result.findings","value":[]} -->
+<!-- example:mcp-output dev_flow_submit_comprehension requirement_unclear-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_submit_comprehension",
+  "error": {
+    "code": "TRANSITION_NOT_ALLOWED",
+    "message": "The transition guard was not satisfied.",
+    "guard": {
+      "guard_id": "comprehension_requirement_gap_identified",
+      "failures": [
+        {
+          "path": "node_result.findings",
+          "rule": "problem_findings_present",
+          "message": "findings must not be empty when problem_class is not none"
+        }
+      ]
+    }
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_next_action",
+    "message": "Read the complete current transition set."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](../tool-results.md). Reuse confirmed facts; ask only for a missing user decision.
+
 
 On a committed result, the Task is in `result`; the expected next node for this edge is `REQUIREMENTS`. Read the complete `result.current_action` and any blocker/outcome.
 

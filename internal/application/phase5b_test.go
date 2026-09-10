@@ -33,7 +33,7 @@ func TestTestTransitionsEvidenceBudgetAndRecord(t *testing.T) {
 	s, _, _ := phase5Service(t)
 	task := phase5TaskAtTest(t, s)
 	passed := applyPhase5(t, s, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted-test", 1, false)}, nil, nil, nil))
-	if passed.CurrentNode != domain.NodeComprehensionReview || passed.Test == nil || len(passed.Test.EvidenceIDs) != 1 || len(passed.Evidence) != 1 || passed.Evidence[0].EvidenceID == "" || passed.Evidence[0].Digest == passed.Process.DefinitionDigest || !passed.Evidence[0].RecordedAt.Equal(passed.Test.PassedAt) {
+	if passed.CurrentNode != domain.NodeComprehensionReview || passed.Test == nil || len(passed.Test.EvidenceIDs) != 1 || len(passed.Evidence) != 1 || passed.Evidence[0].EvidenceID == "" || passed.Evidence[0].Digest == passed.Process.DefinitionDigest || !passed.Evidence[0].RecordedAt.Equal(passed.Test.CompletedAt) {
 		t.Fatal("tests_passed did not create current Core-owned evidence and TestRecord")
 	}
 
@@ -43,7 +43,7 @@ func TestTestTransitionsEvidenceBudgetAndRecord(t *testing.T) {
 		want   error
 	}{
 		{"budget exceeded", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "too-many", 5, false)}, nil, nil, nil), domain.ErrVerificationBudgetExceeded},
-		{"full suite unauthorized", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "full", 1, true)}, nil, nil, nil), domain.ErrVerificationBudgetExceeded},
+		{"full suite unauthorized", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "full", 1, true)}, nil, nil, nil), domain.ErrVerificationNotAllowed},
 		{"invalid source", testNodeResult([]map[string]any{evidenceCheck("other", "passed", "bad-source", 0, false)}, nil, nil, nil), domain.ErrInvalidArgument},
 		{"invalid status", testNodeResult([]map[string]any{evidenceCheck("automated", "other", "bad-status", 1, false)}, nil, nil, nil), domain.ErrInvalidArgument},
 		{"non-automated command", testNodeResult([]map[string]any{evidenceCheck("static", "passed", "bad-command", 1, false)}, nil, nil, nil), domain.ErrInvalidArgument},

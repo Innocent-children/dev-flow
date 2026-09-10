@@ -29,6 +29,25 @@ test("an artifact rejection displays omitted files separately from editable fiel
   assert.equal(find(tree, (node) => node.type === "recovery"), undefined);
 });
 
+test("a correctable check explanation displays Core's field requirement", async () => {
+  const hooks = scheduler();
+  class APIError extends Error {
+    failure = { workflow_write_state: "not_committed", error: { message: "Invalid check explanation", field_paths: ["payload.node_result.budget_adjustment.additional_checks"], guard_id: null, details: [{ path: "payload.node_result.budget_adjustment.additional_checks", rule: "budget_checks_required", message: "Include the check name and reason." }] } };
+  }
+  const module = await load("components/ActionPanel.tsx", {
+    react: hooks.react, "react/jsx-runtime": jsx, "../lib/i18n": i18n,
+    "../lib/api": { APIError, submitCurrentAction: async () => { throw new APIError(); } },
+    "./RecoveryPanel": { RecoveryPanel: "recovery" }, "./SchemaField": { SchemaField: "schema", defaultValue: () => ({}) },
+  });
+  const props = { taskID: "task", revision: 1, action: action(), disabled: false, onChanged() {}, pendingActionID: null };
+  let tree = hooks.render(module.ActionPanel, props);
+  find(tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+  await tick(); tree = hooks.render(module.ActionPanel, props);
+  assert.ok(JSON.stringify(tree).includes("Include the check name and reason."));
+  assert.ok(find(tree, (node) => node.type === "form"));
+  assert.equal(find(tree, (node) => node.type === "recovery"), undefined);
+});
+
 test("HTTP submission and recovery carry semantic content and stable Action references", async () => {
   const sent = [];
   const api = await load("lib/api.ts", { "./i18n": i18n }, {

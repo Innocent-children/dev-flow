@@ -68,6 +68,8 @@ The current direct user message must contain the exact text:
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/workspace-workspace_coordinator-prepare_cleanup.md).
+
 Result shape: status cleanup_relaunch_required, changed false, launch_id, repository_key, and
 relaunch {command,arguments,cwd}. Forward the returned descriptor unchanged; it starts DSH at the
 surviving source checkout. The returned resume-cleanup prompt asks for the next exact cleanup
@@ -92,6 +94,8 @@ After relaunch at the surviving checkout, the user separately sends:
   "revision": 9
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/workspace-workspace_coordinator-cleanup_worktree.md).
 
 Success shape: {status:"worktree_removed",changed:true,launch_id,repository_key,branch_retained:true}.
 An already removed worktree returns changed false with its saved status. The tool concludes the
@@ -118,6 +122,8 @@ After completed worktree cleanup, the user separately sends:
   "source_repository_path": "/work/project"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/workspace-workspace_coordinator-cleanup_branch.md).
 
 The source path is transient and must be within the current Workspace Root in the same Git group.
 The coordinator verifies terminal/local/remote HEAD and that the branch is not checked out, then uses

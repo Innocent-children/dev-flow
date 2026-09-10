@@ -158,7 +158,7 @@ func TestPhase5BReasonRulesMatchAllStandardTransitions(t *testing.T) {
 		"implementation_ready_for_test": true, "tests_passed": true, "comprehension_passed": true,
 		"refactor_ready_for_test": true, "delivery_complete": true,
 	}
-	if len(standardTransitions) != 31 {
+	if len(standardTransitions) != 32 {
 		t.Fatalf("transition count=%d", len(standardTransitions))
 	}
 	for _, transition := range standardTransitions {

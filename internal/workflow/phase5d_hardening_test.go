@@ -8,7 +8,7 @@ import (
 )
 
 func TestProblemClassMappingsCoverAllCurrentTransitions(t *testing.T) {
-	if len(standardTransitions) != 31 || len(problemClassByTransition) != 31 {
+	if len(standardTransitions) != 32 || len(problemClassByTransition) != 32 {
 		t.Fatalf("transitions=%d mappings=%d", len(standardTransitions), len(problemClassByTransition))
 	}
 	for _, transition := range standardTransitions {
@@ -16,7 +16,7 @@ func TestProblemClassMappingsCoverAllCurrentTransitions(t *testing.T) {
 		if !ok || !problemClassValidForNode(transition.Source, class) {
 			t.Fatalf("missing/invalid class for %s", transition.TransitionID)
 		}
-		if transition.TransitionID != "verification_budget_increased" && transition.ReasonRequired == (class == ProblemNone) {
+		if transition.TransitionID != "verification_budget_increased" && transition.TransitionID != "tests_accepted_with_known_failures" && transition.ReasonRequired == (class == ProblemNone) {
 			t.Fatalf("reason/class mismatch for %s", transition.TransitionID)
 		}
 	}

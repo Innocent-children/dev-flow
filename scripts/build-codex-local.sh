@@ -189,6 +189,77 @@ plugin/skills/dev-flow/references/task-handoff.md
 plugin/skills/dev-flow/references/tool-results.md
 plugin/skills/dev-flow/references/transport.md
 plugin/skills/dev-flow/references/verification.md
+plugin/skills/dev-flow/references/successes/dev_flow_abandon_task-abandon.md
+plugin/skills/dev-flow/references/successes/dev_flow_cancel_task-cancel.md
+plugin/skills/dev-flow/references/successes/dev_flow_get_next_action-guarded-read.md
+plugin/skills/dev-flow/references/successes/dev_flow_get_task-read.md
+plugin/skills/dev-flow/references/successes/dev_flow_open_task-create.md
+plugin/skills/dev-flow/references/successes/dev_flow_open_task-multiple.md
+plugin/skills/dev-flow/references/successes/dev_flow_open_task-resume.md
+plugin/skills/dev-flow/references/successes/dev_flow_prepare_task_relocation-prepare.md
+plugin/skills/dev-flow/references/successes/dev_flow_recover_action-saved-operation.md
+plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-allow_once.md
+plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-expand_scope.md
+plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-history.md
+plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-reject.md
+plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-relocation.md
+plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-verification-or-recovery.md
+plugin/skills/dev-flow/references/successes/dev_flow_server_info-handshake.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-code_too_complex.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-comprehension_passed.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-design_too_complex.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-evidence_insufficient.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-implementation_defect.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-requirement_unclear.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_complete.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_comprehension.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_design.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_implementation.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_requirements.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_test.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_design-design_ready.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_design-design_requires_requirements.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_needs_refactor.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_ready_for_test.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_requires_design.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_requires_requirements.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_ready_for_test.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_requires_design.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_requires_requirements.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_requirements-requirements_ready.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_plan_saved.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_ready.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_require_design.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_require_requirements.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_accepted_with_known_failures.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_expose_design_issue.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_expose_requirement_issue.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_failed_implementation.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_passed.md
+plugin/skills/dev-flow/references/successes/dev_flow_submit_test-verification_budget_increased.md
+plugin/skills/dev-flow/references/successes/host-bootstrap-managed.md
+plugin/skills/dev-flow/references/successes/host-cleanup-branch-remove-branch.md
+plugin/skills/dev-flow/references/successes/host-cleanup-decision-keep.md
+plugin/skills/dev-flow/references/successes/host-cleanup-worktree-remove-worktree.md
+plugin/skills/dev-flow/references/successes/host-cli-provision-single.md
+plugin/skills/dev-flow/references/successes/host-dispatch-call-managed.md
+plugin/skills/dev-flow/references/successes/host-dispatch-reconcile-lookup.md
+plugin/skills/dev-flow/references/successes/host-dispatch-recover-not-called.md
+plugin/skills/dev-flow/references/successes/host-dispatch-result-queued.md
+plugin/skills/dev-flow/references/successes/host-dispatch-result-ready.md
+plugin/skills/dev-flow/references/successes/host-dispatch-start-managed.md
+plugin/skills/dev-flow/references/successes/host-handoff-result-record.md
+plugin/skills/dev-flow/references/successes/host-handoff-start-start.md
+plugin/skills/dev-flow/references/successes/host-handoff-status-pending.md
+plugin/skills/dev-flow/references/successes/host-handoff-status-succeeded.md
+plugin/skills/dev-flow/references/successes/host-inspect-single.md
+plugin/skills/dev-flow/references/successes/host-local-provision-current-session.md
+plugin/skills/dev-flow/references/successes/host-prepare-local-branch.md
+plugin/skills/dev-flow/references/successes/host-prepare-local-managed.md
+plugin/skills/dev-flow/references/successes/host-prepare-remote-cli.md
+plugin/skills/dev-flow/references/successes/host-scope-multiple.md
+plugin/skills/dev-flow/references/successes/host-scope-single.md
+plugin/skills/dev-flow/references/successes/host-status-launch.md
 lib/worktree-snapshot.mjs'
 
 printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
@@ -278,6 +349,77 @@ const expected = [
   "plugin/skills/dev-flow/references/tool-results.md",
   "plugin/skills/dev-flow/references/transport.md",
   "plugin/skills/dev-flow/references/verification.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_abandon_task-abandon.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_cancel_task-cancel.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_get_next_action-guarded-read.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_get_task-read.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_open_task-create.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_open_task-multiple.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_open_task-resume.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_prepare_task_relocation-prepare.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_recover_action-saved-operation.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-allow_once.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-expand_scope.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-history.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-reject.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-relocation.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-verification-or-recovery.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_server_info-handshake.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-code_too_complex.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-comprehension_passed.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-design_too_complex.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-evidence_insufficient.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-implementation_defect.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-requirement_unclear.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_complete.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_comprehension.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_design.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_implementation.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_requirements.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_test.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_design-design_ready.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_design-design_requires_requirements.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_needs_refactor.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_ready_for_test.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_requires_design.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_requires_requirements.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_ready_for_test.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_requires_design.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_requires_requirements.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_requirements-requirements_ready.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_plan_saved.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_ready.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_require_design.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_require_requirements.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_accepted_with_known_failures.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_expose_design_issue.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_expose_requirement_issue.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_failed_implementation.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_passed.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-verification_budget_increased.md",
+  "plugin/skills/dev-flow/references/successes/host-bootstrap-managed.md",
+  "plugin/skills/dev-flow/references/successes/host-cleanup-branch-remove-branch.md",
+  "plugin/skills/dev-flow/references/successes/host-cleanup-decision-keep.md",
+  "plugin/skills/dev-flow/references/successes/host-cleanup-worktree-remove-worktree.md",
+  "plugin/skills/dev-flow/references/successes/host-cli-provision-single.md",
+  "plugin/skills/dev-flow/references/successes/host-dispatch-call-managed.md",
+  "plugin/skills/dev-flow/references/successes/host-dispatch-reconcile-lookup.md",
+  "plugin/skills/dev-flow/references/successes/host-dispatch-recover-not-called.md",
+  "plugin/skills/dev-flow/references/successes/host-dispatch-result-queued.md",
+  "plugin/skills/dev-flow/references/successes/host-dispatch-result-ready.md",
+  "plugin/skills/dev-flow/references/successes/host-dispatch-start-managed.md",
+  "plugin/skills/dev-flow/references/successes/host-handoff-result-record.md",
+  "plugin/skills/dev-flow/references/successes/host-handoff-start-start.md",
+  "plugin/skills/dev-flow/references/successes/host-handoff-status-pending.md",
+  "plugin/skills/dev-flow/references/successes/host-handoff-status-succeeded.md",
+  "plugin/skills/dev-flow/references/successes/host-inspect-single.md",
+  "plugin/skills/dev-flow/references/successes/host-local-provision-current-session.md",
+  "plugin/skills/dev-flow/references/successes/host-prepare-local-branch.md",
+  "plugin/skills/dev-flow/references/successes/host-prepare-local-managed.md",
+  "plugin/skills/dev-flow/references/successes/host-prepare-remote-cli.md",
+  "plugin/skills/dev-flow/references/successes/host-scope-multiple.md",
+  "plugin/skills/dev-flow/references/successes/host-scope-single.md",
+  "plugin/skills/dev-flow/references/successes/host-status-launch.md",
   "runtime/darwin-arm64/dev-flow",
   "runtime/win32-x64/dev-flow.exe"
 ].sort();

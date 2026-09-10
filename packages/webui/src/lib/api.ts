@@ -222,7 +222,7 @@ export interface FailureResponse {
   ok: false;
   request_id: string;
   workflow_write_state: "not_committed" | "unknown";
-  error: { code: string; message: string; field_paths: string[]; guard_id: string | null; repository_paths?: string[] };
+  error: { code: string; message: string; field_paths: string[]; details?: { path: string; rule: string; message: string }[]; budget?: { used: number; requested: number; limit: number }; guard_id: string | null; repository_paths?: string[] };
   recovery: RecoveryAdvice;
 }
 

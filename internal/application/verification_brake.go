@@ -48,7 +48,8 @@ func recordVerificationAttempt(task *domain.ProcessTask, transition domain.Trans
 	if err != nil {
 		return domain.ErrInternal
 	}
-	failed := testFailureFactsPresent(result)
+	// Known-failure acceptance completes TEST; the failure brake tracks remediation attempts.
+	failed := testFailureFactsPresent(result) && result.KnownFailureAcceptance == nil
 	var failureDigest domain.Digest
 	if failed {
 		failureDigest, err = digestCanonical(verificationFailureFingerprint{

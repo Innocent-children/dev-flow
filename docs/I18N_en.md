@@ -14,7 +14,7 @@ When root README content changes, all nine languages are updated together. Detai
 keeps paired English and Simplified Chinese files, including:
 
 - `docs/PRODUCT*`, `docs/DEMO*`, `docs/ROADMAP*`, and `docs/PROJECT-STATUS*`;
-- `docs/ARCHITECTURE*`, `docs/COMMANDS*`, `docs/WEBUI*`, and `docs/SUPPORT-MATRIX*`;
+- `docs/CORE-RESPONSES*`, `docs/ARCHITECTURE*`, `docs/COMMANDS*`, `docs/WEBUI*`, and `docs/SUPPORT-MATRIX*`;
 - `MANIFEST*`, `CONTRIBUTING*`, and this I18n policy;
 - the existing Chinese and English Codex and DeepSeek Host guides.
 

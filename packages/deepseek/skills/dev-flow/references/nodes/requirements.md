@@ -72,6 +72,47 @@ Condition: `none`; Core guard `requirements_baseline_complete`. Use an empty rea
 }
 ```
 
+Complete successful request and response: [view every returned field](../successes/dev_flow_submit_requirements-requirements_ready.md).
+
+Possible error for this request: Assume the retained Task and Action are current. `node_result.baseline.goal` is omitted from the request.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/workflow/action_schema.go` — `ValidateSubmissionNodeResult`;
+`internal/workflow/payloads.go` — `requiredMemberViolations`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"remove","path":"node_result.baseline.goal"} -->
+<!-- example:mcp-output dev_flow_submit_requirements requirements_ready-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_submit_requirements",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "node_result.baseline.goal",
+        "rule": "required_member_missing",
+        "message": "the closed contract requires this member"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_current_action",
+    "message": "Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails.",
+    "allowed_paths": [
+      "node_result.baseline.goal"
+    ]
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](../tool-results.md). Reuse confirmed facts; ask only for a missing user decision.
+
+
 On a committed result, the Task is in `result`; the expected next node for this edge is `DESIGN`. Read the complete `result.current_action` and any blocker/outcome.
 
 ## Refusal or lost response

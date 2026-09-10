@@ -15,7 +15,7 @@ Products evolve independently. Releasing one product changes only its version fi
 the copies that must match it. Codex and DeepSeek may package a different Core version; build and release checks
 read it from the actual Core executable.
 
-SQLite additionally has one Core-owned database Schema version, currently `0.6.0`. It identifies
+SQLite additionally has one Core-owned database Schema version, currently `0.7.0`. It identifies
 the one supported persisted layout and changes with that current layout.
 
 Internal protocols, limits, snapshots, process definitions, payload contracts,

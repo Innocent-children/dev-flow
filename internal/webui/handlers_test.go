@@ -29,6 +29,28 @@ func TestActionErrorShowsMissingRepositoryPathsAndCorrection(t *testing.T) {
 	}
 }
 
+func TestActionErrorShowsCheckExplanationAndBudgetDetails(t *testing.T) {
+	failure := domain.InvalidArgumentViolations(domain.Violation("payload.node_result.budget_adjustment.additional_checks", domain.RuleBudgetChecksRequired))
+	response := httptest.NewRecorder()
+	writeActionError(response, "check-explanation", failure, true)
+	var body FailureResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if !body.Recovery.RetrySafe || body.Recovery.Action != RecoveryCorrectCurrentAction || len(body.Error.Details) != 1 || body.Error.Details[0].Rule != domain.RuleBudgetChecksRequired {
+		t.Fatalf("body=%s", response.Body.String())
+	}
+	failure = &domain.Error{Code: domain.ErrorVerificationBudgetExceeded, Message: "Automatic commands exceed the limit.", Budget: &domain.BudgetFailure{Used: 8, Requested: 6, Limit: 13}}
+	response = httptest.NewRecorder()
+	writeActionError(response, "budget-exceeded", failure, true)
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Error.Budget == nil || body.Error.Budget.Limit != 13 {
+		t.Fatalf("body=%s", response.Body.String())
+	}
+}
+
 func TestLifecycleHandlersCP2(t *testing.T) {
 	mutator := &stubControlCenterMutator{}
 	api, err := NewAPI(&stubControlCenterReader{}, mutator, func() SystemStatusResponse { return SystemStatusResponse{Readiness: ReadinessReady} })

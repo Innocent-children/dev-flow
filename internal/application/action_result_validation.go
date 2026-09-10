@@ -85,6 +85,13 @@ func validateActionResultAgainstTask(task domain.ProcessTask, transition domain.
 			}
 		}
 	case *workflow.TestResult:
+		if value.KnownFailureAcceptance != nil {
+			a := value.KnownFailureAcceptance
+			digests, err := task.EffectiveWorkspaceDigests()
+			if err != nil || task.TaskPlan == nil || a.TaskPlanRevision != task.TaskPlan.Revision || a.ContentDigest != digests.Content {
+				guard("known_failure_acceptance", domain.GuardUserConfirmationRequired)
+			}
+		}
 		if transition.TransitionID == "tests_passed" {
 			if len(value.Checks) == 0 {
 				guard("checks", domain.GuardRequiredCollectionNonEmpty)
@@ -177,8 +184,11 @@ func currentDeliveryEvidence(task domain.ProcessTask) ([]domain.ID, []domain.ID,
 	var automated, manual []domain.ID
 	for _, id := range task.Test.EvidenceIDs {
 		item, ok := byID[id]
-		if !ok || item.Status != domain.EvidencePassed {
+		if !ok || !domain.TestEvidenceEligible(task.Test, item) {
 			return nil, nil, false
+		}
+		if item.Status != domain.EvidencePassed {
+			continue
 		}
 		switch item.Source {
 		case domain.EvidenceSourceAutomated:

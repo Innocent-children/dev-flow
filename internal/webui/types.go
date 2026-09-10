@@ -1,5 +1,7 @@
 package webui
 
+import "github.com/Innocent-children/dev-flow/internal/domain"
+
 import (
 	"encoding/json"
 	"time"
@@ -304,11 +306,13 @@ type MutationResponse struct {
 }
 
 type ErrorResponse struct {
-	RepositoryPaths []string `json:"repository_paths,omitempty"`
-	Code            string   `json:"code"`
-	Message         string   `json:"message"`
-	FieldPaths      []string `json:"field_paths"`
-	GuardID         *string  `json:"guard_id"`
+	Details         []domain.ContractViolation `json:"details,omitempty"`
+	Budget          *domain.BudgetFailure      `json:"budget,omitempty"`
+	RepositoryPaths []string                   `json:"repository_paths,omitempty"`
+	Code            string                     `json:"code"`
+	Message         string                     `json:"message"`
+	FieldPaths      []string                   `json:"field_paths"`
+	GuardID         *string                    `json:"guard_id"`
 }
 
 type FailureResponse struct {

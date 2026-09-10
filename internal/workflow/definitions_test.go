@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("0ba692471aab33a3bfed9f96d8db7de9752422927d480befb9ef002c5ec439ec"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -27,7 +27,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 			t.Fatalf("node %d=%s", i, definition.Nodes[i].NodeID)
 		}
 	}
-	if len(definition.Transitions) != 31 {
+	if len(definition.Transitions) != 32 {
 		t.Fatalf("transitions=%d", len(definition.Transitions))
 	}
 	for _, node := range definition.Nodes {
@@ -62,7 +62,7 @@ func TestSemanticMethodCatalogExact(t *testing.T) {
 		domain.NodeTest: {
 			{StepID: "test.run_budgeted_checks", Purpose: "Choose the closest necessary checks and record a justified budget increase before any extra command runs.", Required: true},
 			{StepID: "test.record_evidence", Purpose: "Record actual evidence sources and outcomes, or the exact pre-run budget adjustment.", Required: true},
-			{StepID: "test.classify_failure", Purpose: "Classify failures as implementation, design, or requirement problems.", Required: true},
+			{StepID: "test.classify_failure", Purpose: "Classify new versus known failures, record their comparison and obtain explicit acceptance of the exact known-failure set when appropriate.", Required: true},
 		},
 		domain.NodeComprehensionReview: {
 			{StepID: "comprehension.explain", Purpose: "Explain the current behavior, design, and code path in developer-readable terms.", Required: true},

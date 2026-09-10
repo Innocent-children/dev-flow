@@ -86,11 +86,15 @@ func toolOutputSchema(name string) map[string]any {
 	default:
 		result = outputTaskSchema()
 	}
-	return obj([]string{"ok", "request_id", "tool"}, map[string]any{
-		"ok": map[string]any{"type": "boolean"}, "request_id": str(), "tool": str(), "result": result,
-		"error":    outputRecord("On ok=false, code, message and optional details/guard."),
-		"recovery": outputRecord("On error, retry_safe, action, message and optional allowed_paths; this differs from result.recovery_assessment."),
+	success := obj([]string{"ok", "request_id", "tool", "result"}, map[string]any{
+		"ok": map[string]any{"const": true}, "request_id": str(), "tool": map[string]any{"const": name}, "result": result,
 	})
+	failure := obj([]string{"ok", "request_id", "tool", "error", "recovery"}, map[string]any{
+		"ok": map[string]any{"const": false}, "request_id": str(), "tool": map[string]any{"const": name},
+		"error": outputErrorSchema(), "recovery": outputFailureRecoverySchema(name),
+	})
+	return map[string]any{"type": "object", "oneOf": []any{success, failure}}
+
 }
 
 func outputDescription(name string) string {
@@ -106,4 +110,33 @@ func outputDescription(name string) string {
 	default:
 		return " Success: result is the Task itself; the next Action is result.current_action. A terminal Task has no current Action."
 	}
+}
+
+func outputViolationSchema() map[string]any {
+	return obj([]string{"path", "rule", "message"}, map[string]any{"path": str(), "rule": str(), "message": str()})
+}
+func outputErrorSchema() map[string]any {
+	details := map[string]any{"type": "array", "minItems": 1, "items": outputViolationSchema()}
+	quantity := map[string]any{"type": "integer", "minimum": 0}
+	return obj([]string{"code", "message"}, map[string]any{
+		"code": str(), "message": str(), "details": details,
+		"guard":            obj([]string{"guard_id", "failures"}, map[string]any{"guard_id": str(), "failures": details}),
+		"repository_paths": list(),
+		"budget":           obj([]string{"used", "requested", "limit"}, map[string]any{"used": quantity, "requested": quantity, "limit": quantity}),
+	})
+}
+func outputFailureRecoverySchema(tool string) map[string]any {
+	correctionAction := correctRequest
+	if _, ordinary := submissionKindForTool(tool); ordinary {
+		correctionAction = correctCurrentAction
+	}
+	correction := obj([]string{"action", "retry_safe", "message", "allowed_paths"}, map[string]any{
+		"action": map[string]any{"const": correctionAction}, "retry_safe": map[string]any{"const": true},
+		"message": str(), "allowed_paths": map[string]any{"type": "array", "minItems": 1, "items": str()},
+	})
+	other := obj([]string{"action", "retry_safe", "message"}, map[string]any{
+		"action":     map[string]any{"enum": []string{"none", "read_task", "read_next_action", "retry_read", "resolve_blocker", "restore_or_abandon", "use_origin_host", "provision_worktree", "repair_storage", "report_internal_error"}},
+		"retry_safe": map[string]any{"const": false}, "message": str(),
+	})
+	return map[string]any{"oneOf": []any{correction, other}}
 }

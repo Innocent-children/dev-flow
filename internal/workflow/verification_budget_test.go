@@ -67,14 +67,13 @@ func TestEvaluateVerificationBudgetEnforcesFullSuiteAndManualPermissions(t *test
 		manual   []string
 	}{
 		{name: "full suite", incoming: []NormalizedEvidenceInput{{Source: domain.EvidenceSourceAutomated, Name: "suite", Status: domain.EvidencePassed, Summary: "suite passed", CommandCount: 1, FullSuite: true, FullSuiteReason: "The shared contract affects every package."}}},
-		{name: "user evidence", incoming: []NormalizedEvidenceInput{{Source: domain.EvidenceSourceUser, Name: "manual", Status: domain.EvidencePassed, Summary: "user checked"}}},
 		{name: "manual handoff item", manual: []string{"user must verify UI"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			budget := verificationTestBudget()
 			budget.AllowManualHandoff = false
-			requireWorkflowError(t, EvaluateVerificationBudget(budget, 1, nil, tt.incoming, tt.manual), domain.ErrVerificationBudgetExceeded)
+			requireWorkflowError(t, EvaluateVerificationBudget(budget, 1, nil, tt.incoming, tt.manual), domain.ErrVerificationNotAllowed)
 		})
 	}
 }
@@ -122,7 +121,7 @@ func TestEvaluateVerificationBudgetChecksExistingFullSuiteButDoesNotReclassifyRe
 	fullSuite.FullSuiteReason = "The shared contract affects every package."
 	budget := verificationTestBudget()
 	budget.AllowFullSuite = false
-	requireWorkflowError(t, EvaluateVerificationBudget(budget, 1, []domain.EvidenceSummary{fullSuite}, nil, nil), domain.ErrVerificationBudgetExceeded)
+	requireWorkflowError(t, EvaluateVerificationBudget(budget, 1, []domain.EvidenceSummary{fullSuite}, nil, nil), domain.ErrVerificationNotAllowed)
 
 	manual := verificationExistingEvidence("manual", domain.EvidenceSourceUser, 0)
 	budget = verificationTestBudget()

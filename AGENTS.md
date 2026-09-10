@@ -40,6 +40,7 @@ to them from user guides when needed.
 | `docs/PRODUCT*` | Product readers: target users, problems, user-visible behavior rules, product scope, and non-goals. |
 | `docs/DEMO*`, `docs/WEBUI*`, `docs/DESKTOP-PETS*` | Users following a walkthrough or operating a specific interface; detailed interface and artwork guidance stays here. |
 | `docs/ARCHITECTURE*`, `docs/ARTIFACTS*`, `docs/WORKTREE-SOURCES*`, `docs/THREAT-MODEL*` | Developers and integrators: component responsibilities, protocols, state and data rules, implementation design, and trust boundaries. |
+| `docs/CORE-RESPONSES*` | Core and Host developers: success/failure envelopes, structured error detail, recovery instructions and response validation. |
 | `docs/COMMANDS*` | Users and integrators needing exact commands, options, selectors, environment variables, and MCP inputs and results. |
 | `docs/SUPPORT-MATRIX*`, `docs/PROJECT-STATUS*`, `docs/WINDOWS-ADAPTATION*` | Readers checking supported environments, delivered capability, recorded verification, and remaining limitations. |
 | `docs/ROADMAP*` | Product readers: future outcomes and priorities, clearly distinguished from delivered capability. |
@@ -121,6 +122,16 @@ For documentation-only changes, check affected links, Markdown structure, retain
 examples, translation consistency, and agreement between maintenance rules. Run additional tests
 only when required by an affected executable contract; do not run the full product suite solely
 because Markdown changed.
+
+## Core Response Maintenance
+
+Core responses follow `docs/CORE-RESPONSES.md` / `docs/CORE-RESPONSES_en.md`. Update the producer,
+output Schema, error classifications and shared Host response examples together. Success and failure
+have exclusive envelopes. Identified validation failures name the exact member and requirement;
+quantity limits include counters, while permission restrictions have a separate error category.
+Recovery actions and their messages must agree. A bounded correction requires proof of zero writes,
+preserved request identity and exact allowed fields; ordinary node submissions also retain the current Action. User decisions are obtained from the user. Every complete shipped MCP request example must have an adjacent same-tool error example with a concrete trigger and implementation references. Tests must reproduce that trigger and compare the complete encoded error response. Tests
+validate actual error responses as well as successful results against the published output Schema.
 
 ## Requirement Scope
 

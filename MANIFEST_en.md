@@ -18,6 +18,7 @@ executable tests decide current behavior, and the documentation must be correcte
 | `docs/ROADMAP_en.md` | Future user outcomes and priorities; not a current capability inventory |
 | `docs/PROJECT-STATUS_en.md` | Delivered capability, stable/source/unverified status, existing records, and product gaps |
 | `docs/ARCHITECTURE_en.md` | Core, Adapter, Workflow, Store, Recovery, Git Observer, and protocol design |
+| [docs/CORE-RESPONSES_en.md](docs/CORE-RESPONSES_en.md) | Core success/failure envelopes, error detail and recovery guidance |
 | `docs/COMMANDS_en.md` | Complete lifecycle, Host, Core, selector, and MCP entrypoint reference |
 | `docs/WEBUI_en.md` | Local visualization, diagnostics, supported page operations and security boundaries |
 | `docs/SUPPORT-MATRIX_en.md` | Verified package, platform, and Host coverage |

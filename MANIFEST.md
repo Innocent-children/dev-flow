@@ -17,6 +17,7 @@
 | `docs/ROADMAP.md` | 未来希望改善的用户结果和优先级；不是当前能力清单 |
 | `docs/PROJECT-STATUS.md` | 当前已交付能力、稳定/源码/未验证状态、现有记录和产品缺口 |
 | `docs/ARCHITECTURE.md` | Core、Adapter、Workflow、Store、Recovery、Git Observer 和协议原理 |
+| [docs/CORE-RESPONSES.md](docs/CORE-RESPONSES.md) | Core 成功/失败响应、错误详情与恢复指引 |
 | `docs/COMMANDS.md` | lifecycle、Host、Core、selector 和 MCP 工具的完整可执行入口 |
 | `docs/WEBUI.md` | 本机可视化与诊断入口的使用、支持的页面操作和安全边界 |
 | `docs/SUPPORT-MATRIX.md` | 已验证 package、平台和 Host 范围 |

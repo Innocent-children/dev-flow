@@ -436,3 +436,30 @@ Codex 携带本地改动时，会在 REQUIREMENTS 中记录保留要求，在 TA
 ## 已有检查的验证额度
 
 增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。
+
+## 既有失败验收
+
+开发者需要在相关检查通过、完整套件无新增失败时接受已有问题。Core 保存真实的失败结果、比较检查和明确验收。Core 负责唯一的 Task 状态；Host 负责实际执行比较并取得用户决定。比较记录提供检查名称、来源、结果和说明，Core 核对引用、当前内容和计划；Core 不自行解释测试日志。
+
+`standard-development` 保留 11 个节点，定义摘要由更新后的完整定义计算。TEST 完整出边为：
+
+| transition | 目标 | guard | reason |
+| --- | --- | --- | --- |
+| `tests_passed` | COMPREHENSION_REVIEW | current_tests_pass | 可空 |
+| `tests_accepted_with_known_failures` | COMPREHENSION_REVIEW | current_known_failures_accepted | 必填 |
+| `tests_failed_implementation` | IMPLEMENT | implementation_failure_identified | 必填 |
+| `tests_expose_design_issue` | DESIGN | test_design_failure_identified | 必填 |
+| `tests_expose_requirement_issue` | REQUIREMENTS | test_requirement_gap_identified | 必填 |
+| `verification_budget_increased` | TEST | verification_budget_adjustment_justified | 必填 |
+
+TEST 进入条件仍为当前实现、仓库绑定和验证计划有效；允许读取仓库、运行检查、编辑流程产物和请求用户决定。完成时全部检查分类、额度有效、无未执行或待办检查。既有 `test.run_budgeted_checks`、`test.record_evidence`、`test.classify_failure` 分别执行必要检查、保存真实结果和区分新增/既有失败；后者同时取得确切失败集合的用户验收。
+
+TEST 结果增加可选 `known_failure_acceptance`，只用于新增转换：`source=user`、`summary`、`failed_checks`、`comparison_check`、`task_plan_revision`、`content_digest`。失败集合必须恰好覆盖本次所有 failed 检查；失败检查须来自实际自动检查，其余检查全部 passed。比较引用必须指向本次单独的 automated/passed 检查；Host 的比较说明应明确失败项与错误内容没有新增或变化。用户确认绑定所见的计划轮次和内容摘要，Core 核对当前值。未比较、新增失败、缺少明确验收、过期确认、skipped/not_run/observed 均不能由此路径放行。
+
+Core 将验收与原始检查一起原子保存在当前 TestRecord，时间字段为 `completed_at`，验收引用在记录内由检查名称关联 evidence IDs。失败仍为 failed，不生成伪造的用户 passed 检查。通过检查负责证明本次需求已满足；接受失败的记录负责保存已知问题，不能充当通过检查。
+
+COMPREHENSION_REVIEW 和 DELIVERY 的进入条件改为当前测试已完成并满足普通通过或既有失败验收规则。它们的完整出边和各 guard/reason 保持上表之前的流程定义：理解确认可到 DELIVERY、IMPLEMENT、REFACTOR、DESIGN、TEST、REQUIREMENTS；交付可到 DONE、IMPLEMENT、TEST、COMPREHENSION_REVIEW、DESIGN、REQUIREMENTS。交付继续逐项关联真实通过的检查；失败集合和验收随 TestRecord 展示，自动/人工结果清单只列 passed 检查。内容或计划变化沿用当前失效处理，同时使附属验收失效。
+
+保存布局同步提升当前 Schema；不读取历史布局或增加迁移。MCP、CLI 和 WebUI 返回相同记录和转换，错误遵守 [Core 响应规范](CORE-RESPONSES.md)。
+
+验收使用 Core 单元和保存边界集成测试：全通过、已有失败且明确验收、缺少比较/确认、新失败遗漏、确认过期、重启后交付、真实数量超限、已完成用户检查、权限限制及检查说明为空后的零写入纠正。共享 Skill 示例验证两种 Host。该方案增加一个明确转换和附属记录，收益是保持失败事实并正常交付；不增加节点、第二套状态、自动测试日志解析、通用豁免或发布流程。实现范围是 workflow/domain/application/store、MCP/WebUI 直接消费者及维护文档和 Skills。

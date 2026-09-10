@@ -63,7 +63,7 @@ type standardTransitionCase struct {
 func TestStandardProcessAllTransitionsAndGuards(t *testing.T) {
 	definition := workflow.StandardProcess()
 	cases := standardTransitionCases()
-	if len(definition.Nodes) != 11 || len(definition.Transitions) != 31 || len(cases) != 31 {
+	if len(definition.Nodes) != 11 || len(definition.Transitions) != 32 || len(cases) != 32 {
 		t.Fatalf("nodes=%d transitions=%d cases=%d", len(definition.Nodes), len(definition.Transitions), len(cases))
 	}
 	seen := map[domain.TransitionID]bool{}
@@ -230,26 +230,27 @@ func standardTransitionCases() []standardTransitionCase {
 		r(9, domain.NodeImplement, "implementation_requires_design", "DESIGN", "implementation_exposes_design_gap", true, "design finding", "empty findings", "task_plan", "implementation", "test", "comprehension"),
 		r(10, domain.NodeImplement, "implementation_requires_requirements", "REQUIREMENTS", "material_requirement_gap", true, "requirement finding", "empty findings", "design", "task_plan", "implementation", "test", "comprehension"),
 		r(11, domain.NodeImplement, "implementation_needs_refactor", "REFACTOR", "implementation_complexity_identified", true, "complexity finding", "empty findings", "test", "comprehension"),
-		r(12, domain.NodeTest, "tests_passed", "COMPREHENSION_REVIEW", "current_tests_pass", false, "passing current check", "failed check", "comprehension"),
-		r(13, domain.NodeTest, "tests_failed_implementation", "IMPLEMENT", "implementation_failure_identified", true, "failed implementation check", "no failure facts", "test", "comprehension"),
-		r(14, domain.NodeTest, "tests_expose_design_issue", "DESIGN", "test_design_failure_identified", true, "design failure", "no failure facts", "task_plan", "implementation", "test", "comprehension"),
-		r(15, domain.NodeTest, "tests_expose_requirement_issue", "REQUIREMENTS", "test_requirement_gap_identified", true, "requirement failure", "no failure facts", "design", "task_plan", "implementation", "test", "comprehension"),
-		r(16, domain.NodeTest, "verification_budget_increased", "TEST", "verification_budget_adjustment_justified", true, "specific new risk and exact increase", "missing adjustment"),
-		r(17, domain.NodeComprehensionReview, "comprehension_passed", "DELIVERY", "current_user_comprehension_confirmed", false, "user passed", "missing user confirmation"),
-		r(18, domain.NodeComprehensionReview, "implementation_defect", "IMPLEMENT", "implementation_defect_identified", true, "implementation finding", "empty findings", "test", "comprehension"),
-		r(19, domain.NodeComprehensionReview, "code_too_complex", "REFACTOR", "code_complexity_identified", true, "unnecessary abstraction", "no complexity facts", "test", "comprehension"),
-		r(20, domain.NodeComprehensionReview, "design_too_complex", "DESIGN", "design_complexity_identified", true, "unnecessary abstraction", "no complexity facts", "task_plan", "implementation", "test", "comprehension"),
-		r(21, domain.NodeComprehensionReview, "evidence_insufficient", "TEST", "verification_gap_identified", true, "unresolved verification question", "no verification facts", "test", "comprehension"),
-		r(22, domain.NodeComprehensionReview, "requirement_unclear", "REQUIREMENTS", "comprehension_requirement_gap_identified", true, "unresolved requirement", "no requirement facts", "design", "task_plan", "implementation", "test", "comprehension"),
-		r(23, domain.NodeRefactor, "refactor_ready_for_test", "TEST", "refactor_report_complete", false, "simplification without behavior change", "missing simplification", "test", "comprehension"),
-		r(24, domain.NodeRefactor, "refactor_requires_design", "DESIGN", "refactor_design_change_required", true, "design finding", "empty findings", "task_plan", "implementation", "test", "comprehension"),
-		r(25, domain.NodeRefactor, "refactor_requires_requirements", "REQUIREMENTS", "refactor_requirement_change_required", true, "requirement finding", "empty findings", "design", "task_plan", "implementation", "test", "comprehension"),
-		r(26, domain.NodeDelivery, "delivery_complete", "DONE", "delivery_current_and_complete", false, "current records and evidence", "unverified item"),
-		r(27, domain.NodeDelivery, "delivery_needs_implementation", "IMPLEMENT", "delivery_implementation_gap_identified", true, "implementation finding", "empty findings", "test", "comprehension"),
-		r(28, domain.NodeDelivery, "delivery_needs_test", "TEST", "delivery_test_gap_identified", true, "test finding", "empty findings", "test", "comprehension"),
-		r(29, domain.NodeDelivery, "delivery_needs_comprehension", "COMPREHENSION_REVIEW", "delivery_comprehension_gap_identified", true, "comprehension finding", "empty findings", "comprehension"),
-		r(30, domain.NodeDelivery, "delivery_needs_design", "DESIGN", "delivery_design_gap_identified", true, "design finding", "empty findings", "task_plan", "implementation", "test", "comprehension"),
-		r(31, domain.NodeDelivery, "delivery_needs_requirements", "REQUIREMENTS", "delivery_requirement_gap_identified", true, "requirement finding", "empty findings", "design", "task_plan", "implementation", "test", "comprehension"),
+		r(12, domain.NodeTest, "tests_accepted_with_known_failures", "COMPREHENSION_REVIEW", "current_known_failures_accepted", true, "accepted exact known failures", "missing acceptance", "comprehension"),
+		r(13, domain.NodeTest, "tests_passed", "COMPREHENSION_REVIEW", "current_tests_pass", false, "passing current check", "failed check", "comprehension"),
+		r(14, domain.NodeTest, "tests_failed_implementation", "IMPLEMENT", "implementation_failure_identified", true, "failed implementation check", "no failure facts", "test", "comprehension"),
+		r(15, domain.NodeTest, "tests_expose_design_issue", "DESIGN", "test_design_failure_identified", true, "design failure", "no failure facts", "task_plan", "implementation", "test", "comprehension"),
+		r(16, domain.NodeTest, "tests_expose_requirement_issue", "REQUIREMENTS", "test_requirement_gap_identified", true, "requirement failure", "no failure facts", "design", "task_plan", "implementation", "test", "comprehension"),
+		r(17, domain.NodeTest, "verification_budget_increased", "TEST", "verification_budget_adjustment_justified", true, "specific new risk and exact increase", "missing adjustment"),
+		r(18, domain.NodeComprehensionReview, "comprehension_passed", "DELIVERY", "current_user_comprehension_confirmed", false, "user passed", "missing user confirmation"),
+		r(19, domain.NodeComprehensionReview, "implementation_defect", "IMPLEMENT", "implementation_defect_identified", true, "implementation finding", "empty findings", "test", "comprehension"),
+		r(20, domain.NodeComprehensionReview, "code_too_complex", "REFACTOR", "code_complexity_identified", true, "unnecessary abstraction", "no complexity facts", "test", "comprehension"),
+		r(21, domain.NodeComprehensionReview, "design_too_complex", "DESIGN", "design_complexity_identified", true, "unnecessary abstraction", "no complexity facts", "task_plan", "implementation", "test", "comprehension"),
+		r(22, domain.NodeComprehensionReview, "evidence_insufficient", "TEST", "verification_gap_identified", true, "unresolved verification question", "no verification facts", "test", "comprehension"),
+		r(23, domain.NodeComprehensionReview, "requirement_unclear", "REQUIREMENTS", "comprehension_requirement_gap_identified", true, "unresolved requirement", "no requirement facts", "design", "task_plan", "implementation", "test", "comprehension"),
+		r(24, domain.NodeRefactor, "refactor_ready_for_test", "TEST", "refactor_report_complete", false, "simplification without behavior change", "missing simplification", "test", "comprehension"),
+		r(25, domain.NodeRefactor, "refactor_requires_design", "DESIGN", "refactor_design_change_required", true, "design finding", "empty findings", "task_plan", "implementation", "test", "comprehension"),
+		r(26, domain.NodeRefactor, "refactor_requires_requirements", "REQUIREMENTS", "refactor_requirement_change_required", true, "requirement finding", "empty findings", "design", "task_plan", "implementation", "test", "comprehension"),
+		r(27, domain.NodeDelivery, "delivery_complete", "DONE", "delivery_current_and_complete", false, "current records and evidence", "unverified item"),
+		r(28, domain.NodeDelivery, "delivery_needs_implementation", "IMPLEMENT", "delivery_implementation_gap_identified", true, "implementation finding", "empty findings", "test", "comprehension"),
+		r(29, domain.NodeDelivery, "delivery_needs_test", "TEST", "delivery_test_gap_identified", true, "test finding", "empty findings", "test", "comprehension"),
+		r(30, domain.NodeDelivery, "delivery_needs_comprehension", "COMPREHENSION_REVIEW", "delivery_comprehension_gap_identified", true, "comprehension finding", "empty findings", "comprehension"),
+		r(31, domain.NodeDelivery, "delivery_needs_design", "DESIGN", "delivery_design_gap_identified", true, "design finding", "empty findings", "task_plan", "implementation", "test", "comprehension"),
+		r(32, domain.NodeDelivery, "delivery_needs_requirements", "REQUIREMENTS", "delivery_requirement_gap_identified", true, "requirement finding", "empty findings", "design", "task_plan", "implementation", "test", "comprehension"),
 	}
 }
 
@@ -337,7 +338,7 @@ func standardProblemClass(transition domain.TransitionID) string {
 		"design_ready":       "none", "design_requires_requirements": "requirement_gap",
 		"tasks_ready": "none", "tasks_plan_saved": "none", "tasks_require_design": "design_gap", "tasks_require_requirements": "requirement_gap",
 		"implementation_ready_for_test": "none", "implementation_requires_design": "design_gap", "implementation_requires_requirements": "requirement_gap", "implementation_needs_refactor": "code_complexity",
-		"tests_passed": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
+		"tests_passed": "none", "tests_accepted_with_known_failures": "none", "tests_failed_implementation": "implementation_failure", "tests_expose_design_issue": "design_failure", "tests_expose_requirement_issue": "requirement_gap",
 		"verification_budget_increased": "none",
 		"comprehension_passed":          "none", "implementation_defect": "implementation_defect", "code_too_complex": "code_complexity", "design_too_complex": "design_complexity", "evidence_insufficient": "verification_gap", "requirement_unclear": "requirement_gap",
 		"refactor_ready_for_test": "none", "refactor_requires_design": "design_change", "refactor_requires_requirements": "requirement_change",
@@ -389,6 +390,14 @@ func validNodeResult(task domain.ProcessTask, transition domain.TransitionID) an
 		}
 		return map[string]any{"task_plan_revision": task.TaskPlan.Revision, "completed_work_item_ids": []string{"work"}, "deviations": []string{}, "findings": findings}
 	case domain.NodeTest:
+		if transition == "tests_accepted_with_known_failures" {
+			workspace, _ := task.EffectiveWorkspaceDigests()
+			return map[string]any{"checks": []map[string]any{
+				{"source": "automated", "name": "suite", "status": "failed", "summary": "Existing failure.", "command_count": 1, "full_suite": false, "full_suite_reason": ""},
+				{"source": "automated", "name": "comparison", "status": "passed", "summary": "No new failures.", "command_count": 1, "full_suite": false, "full_suite_reason": ""},
+			}, "failed_items": []string{"suite"}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "budget_adjustment": nil,
+				"known_failure_acceptance": domain.KnownFailureAcceptance{Source: domain.EvidenceSourceUser, Summary: "User accepts the existing failure.", FailedChecks: []string{"suite"}, ComparisonCheck: "comparison", TaskPlanRevision: task.TaskPlan.Revision, ContentDigest: workspace.Content}}
+		}
 		if transition == "verification_budget_increased" {
 			return map[string]any{"checks": []map[string]any{}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "budget_adjustment": map[string]any{"basis": "new_risk", "additional_checks": []map[string]any{{"name": "shared-contract-check", "rationale": "A newly identified shared caller needs a focused check."}}, "additional_automatic_commands": 1, "allow_full_suite": false, "allow_manual_handoff": false}}
 		}
@@ -461,6 +470,10 @@ func invalidNodeResult(task domain.ProcessTask, transition domain.TransitionID) 
 			m["findings"] = []string{}
 		}
 	case domain.NodeTest:
+		if transition == "tests_accepted_with_known_failures" {
+			delete(m, "known_failure_acceptance")
+			return m
+		}
 		if transition == "verification_budget_increased" {
 			m["budget_adjustment"] = nil
 		} else if transition == "tests_passed" {

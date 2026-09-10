@@ -11,12 +11,8 @@ Core returns submission_tool dev_flow_submit_test; invoke mcp__dev_flow__dev_flo
 the complete TEST input. The common examples' marker/tool field remains a Core raw name; the DSH
 call name is qualified and every input uses host deepseek.
 
-Example current direct user message: “/dev-flow continue Task task-example.” A saved-state read is:
-
-```text
-tool: mcp__dev_flow__dev_flow_get_task
-arguments: {"host":"deepseek","task_id":"task-example"}
-```
+For a current direct user message such as “/dev-flow continue Task task-example”, use the complete [saved Task read request and response](tool-results.md#read-saved-state-and-the-next-action),
+invoked as `mcp__dev_flow__dev_flow_get_task` with `host:"deepseek"`.
 
 Use the actual Task ID, not the sample. Every Core call requires a current user selector even when
 the Skill was selected implicitly. The guard derives this from DSH session events and the current
@@ -34,19 +30,12 @@ JSON envelope; it checks the wrapper's isError and envelope.ok before accessing 
 ordinary Agent work retain the original DSH result first, then interpret the shared ok/result/error/
 recovery contract. A DSH error wrapper does not erase a complete Core rejection.
 
-Success projection for a read:
+The [complete successful Task read](successes/dev_flow_get_task-read.md) includes the resolved
+request and every returned field. For a rejection, use the executable
+[guard-rejection response](tool-results.md#complete-rejections-and-bounded-corrections), including
+its `guard.failures` and the exact `recovery.message` returned by Core.
 
-```json
-{"ok":true,"request_id":"request-example","tool":"dev_flow_get_task","result":{"task":{"task_id":"task-example","revision":4},"recovery_assessment":null}}
-```
-
-Rejection projection:
-
-```json
-{"ok":false,"request_id":"request-example","tool":"dev_flow_submit_test","error":{"code":"TRANSITION_NOT_ALLOWED","message":"The transition guard was not satisfied."},"recovery":{"retry_safe":false,"action":"read_next_action","message":"Read the current Action."}}
-```
-
-In the second case read the current qualified get_next_action once. Do not extract result from the
+For that guard rejection read the current qualified get_next_action once. Do not extract result from the
 rejection, replay the submission, or attribute an older IMPLEMENT recovery assessment to it. Use
 [Core result handling](tool-results.md#submission-response-handling) for success paths and
 [uncertain recovery](tool-results.md#uncertain-action-recovery) only if the original outcome is genuinely

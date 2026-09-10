@@ -482,3 +482,30 @@ When Codex carries local changes, it records their preservation in REQUIREMENTS 
 ## Verification capacity for existing checks
 
 When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.
+
+## Accepting known failures
+
+Developers need to accept existing failures when related checks pass and a full-suite comparison shows no new failures. Core retains actual failures, the comparison and explicit acceptance. Core owns the only Task state; the Host performs the comparison and obtains the decision. Core verifies check references, current content and plan, rather than interpreting test logs.
+
+`standard-development` retains 11 nodes and computes its digest from the updated complete definition. TEST has the complete outgoing set:
+
+| transition | destination | guard | reason |
+| --- | --- | --- | --- |
+| `tests_passed` | COMPREHENSION_REVIEW | current_tests_pass | optional |
+| `tests_accepted_with_known_failures` | COMPREHENSION_REVIEW | current_known_failures_accepted | required |
+| `tests_failed_implementation` | IMPLEMENT | implementation_failure_identified | required |
+| `tests_expose_design_issue` | DESIGN | test_design_failure_identified | required |
+| `tests_expose_requirement_issue` | REQUIREMENTS | test_requirement_gap_identified | required |
+| `verification_budget_increased` | TEST | verification_budget_adjustment_justified | required |
+
+TEST still requires a current implementation, repository binding and verification plan. Effects permit reading the repository, running checks, editing process artifacts and requesting a user decision. Completion requires classified checks, valid capacity and no unexecuted or pending checks. Existing method steps run necessary checks, retain actual results, and classify new versus known failures; classification also obtains acceptance of the exact known-failure set.
+
+TEST adds optional `known_failure_acceptance` for the new transition only: `source=user`, `summary`, `failed_checks`, `comparison_check`, `task_plan_revision`, `content_digest`. Its failure set must exactly cover all submitted failed checks, which must be automated; every other check must pass. The comparison must reference a separate automated/passed check in the same submission. Its Host explanation states that neither failure identities nor error contents changed. Acceptance binds the plan revision and content the user saw. Missing comparisons, new failures, missing decisions, stale acceptance, and skipped/not_run/observed results cannot pass this edge.
+
+Core atomically saves acceptance with the original checks in the current TestRecord, using `completed_at`. Names resolve to evidence IDs within that record. Failures remain failed; acceptance produces no synthetic user/passed check. Passed checks demonstrate fulfilled requirements, while acceptance retains known problems and cannot substitute for a passed check.
+
+COMPREHENSION_REVIEW and DELIVERY require a current completed Test satisfying ordinary passing or known-failure acceptance. Their full outgoing transitions, guards and reasons remain those in the existing definition: comprehension goes to DELIVERY, IMPLEMENT, REFACTOR, DESIGN, TEST or REQUIREMENTS; delivery goes to DONE, IMPLEMENT, TEST, COMPREHENSION_REVIEW, DESIGN or REQUIREMENTS. Delivery links each criterion to actual passed checks. TestRecord displays failures and acceptance; automated/manual result lists contain only passed checks. Existing content/plan invalidation also invalidates the attached acceptance.
+
+The current persisted Schema changes without historical readers or migration. MCP, CLI and WebUI expose the same record and transitions. Errors follow the [Core response contract](CORE-RESPONSES_en.md).
+
+Acceptance uses targeted Core and storage integration checks: ordinary passing, accepted known failures, missing comparison/decision, omitted new failures, stale acceptance, restart then delivery, actual limits, completed user checks, permission restrictions, and zero-write correction of missing check explanations. Shared Skill examples cover both Hosts. One transition and attached record preserve truthful results and allow delivery; no additional node, second cursor, automatic log parser, generic waiver or release workflow is introduced. Scope covers workflow/domain/application/store, direct MCP/WebUI consumers, docs and Skills.

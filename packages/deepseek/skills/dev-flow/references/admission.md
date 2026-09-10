@@ -87,7 +87,7 @@ Profile, not the Core method_profile. Each repository source path comes from can
 inspection inside the current Workspace Root. The coordinator freezes the current HEAD for local modes, or the selected local/fetched branch for
 dedicated worktrees, plus any accepted initial snapshot; do not run its Git mutations through Bash.
 
-<!-- example:workspace workspace_coordinator provision -->
+<!-- example:workspace workspace_coordinator provision-worktree -->
 ```json
 {
   "operation": "provision",
@@ -107,6 +107,8 @@ dedicated worktrees, plus any accepted initial snapshot; do not run its Git muta
   ]
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/workspace-workspace_coordinator-provision-worktree.md).
 
 For the dedicated-worktree selection above, the success projection is:
 
@@ -132,7 +134,7 @@ For a default local launch, the exact confirmation is:
 repository=primary;mode=new_branch;source=local;carry=true;remote=;base=main;target=feature/endpoint-field
 ```
 
-<!-- example:workspace workspace_coordinator provision -->
+<!-- example:workspace workspace_coordinator provision-local -->
 ```json
 {
   "operation": "provision",
@@ -150,6 +152,8 @@ repository=primary;mode=new_branch;source=local;carry=true;remote=;base=main;tar
   }]
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/workspace-workspace_coordinator-provision-local.md).
 
 The result has `status:"ready"`, `workspace_root:"/work/project"` and the complete `open_task` repository
 arguments, including `workspace_origin.mode:"new_branch"`. It has no `relaunch`. Call Core once in
@@ -198,6 +202,8 @@ launch identity:
   "launch_id": "11111111-1111-4111-8111-111111111111"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/workspace-workspace_coordinator-consume.md).
 
 The coordinator checks the receipt Workspace Root, every worktree's repository group, target branch,
 HEAD equal to the frozen base commit, and read/write access. It requires a clean worktree when

@@ -57,24 +57,9 @@ string for prepare and the handoff. `inspect` canonicalizes paths; duplicate roo
 }
 ```
 
-Output example (complete helper result):
+Complete successful request and response: [view every returned field](successes/host-inspect-single.md).
 
-<!-- example:host-output inspect single -->
-```json
-{
-  "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
-  "repositories": [
-    {
-      "repository_key": "primary",
-      "canonical_root": "/work/project",
-      "head": "1111111111111111111111111111111111111111",
-      "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
-      "dirty_paths": [],
-      "dirty_paths_truncated": false
-    }
-  ]
-}
-```
+The linked response includes the complete helper result and its retained assessment anchor.
 
 Keep this entire object as `assessment.anchor` and later `prepare.assessment.anchor`. The helper
 hashes HEAD/status observations, not working-file contents. Equal status digests do not prove an
@@ -239,6 +224,8 @@ of the same Task. `workspace_mode` is always explicit in the helper input and sa
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/host-prepare-local-managed.md).
+
 For a remote CLI launch, the complete input is:
 
 <!-- example:host prepare remote-cli -->
@@ -302,6 +289,8 @@ For a remote CLI launch, the complete input is:
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/host-prepare-remote-cli.md).
+
 The helper saves the receipt and, for dedicated worktrees, the handoff material. It resolves the
 local branch or fetches only the selected remote branch, freezes `base_commit`, and captures `snapshot_commit` only for confirmed local carry.
 It preserves the source checkout/index/stash. Read `receipt.launch_id`, `repository_key`, `base_commit`,
@@ -319,6 +308,8 @@ Implementation: `packages/codex/bin/dev-flow-codex.mjs` — `runHostLaunchComman
   "repository_key": "primary"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-status-launch.md).
 
 Read `receipt` and its `operation_status`; a missing record returns `receipt:null`. Example:
 `{"receipt_path":"/private/tmp/receipt.json","receipt":null}` means no record was found, not that
@@ -387,6 +378,8 @@ creation may be repeated. Status does not retry preparation, dispatch, Handoff o
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/host-prepare-local-branch.md).
+
 After `prepared`, call `local-provision` with the saved identity. It rechecks Core availability,
 creates the selected local branch or keeps the current branch, and verifies the HEAD, directory and
 staged state. It saves the attempt before branch mutation; failures/uncertainty retain the directory
@@ -396,6 +389,8 @@ and receipt. Inspect an unfinished operation rather than running another branch 
 ```json
 {"launch_id":"launch-example","repository_key":"primary"}
 ```
+
+Complete successful request and response: [view every returned field](successes/host-local-provision-current-session.md).
 
 Read `receipt.operation_status.phase` and `workspace_origin`. Once all receipts are `provisioned`,
 use `scope`, perform the server handshake and create one Core Task in the current execution session.
@@ -425,6 +420,8 @@ reject partial isolation rather than pretending separate child sessions share wr
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/host-dispatch-start-managed.md).
+
 Result: `should_dispatch:false`, receipt phase `dispatch_prepared`, and complete `host_request`.
 Keep `receipt.operation_status.dispatch_attempt_id`. Re-reading start/status returns the saved request;
 it does not grant a creation call.
@@ -439,6 +436,8 @@ it does not grant a creation call.
   "dispatch_attempt_id": "3333333333333333333333333333333333333333333333333333333333333333"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-dispatch-call-managed.md).
 
 Use the attempt ID from the preceding receipt. Only this invocation's `should_dispatch:true` permits
 one Host `create_thread`. The exact `host_request` contains prompt, title and
@@ -469,6 +468,8 @@ again because a response was queued, timed out, truncated in display or missing.
   }
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-dispatch-result-queued.md).
 <!-- example:host dispatch-result ready -->
 ```json
 {
@@ -480,6 +481,8 @@ again because a response was queued, timed out, truncated in display or missing.
   }
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-dispatch-result-ready.md).
 
 The complete original Host wrapper is also accepted; forward it instead of constructing the sample
 object. Read `receipt.operation_status.host_client_thread_id`, `host_thread_id`, phase and `changed`.
@@ -501,6 +504,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `recoverUncalledManaged
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/host-dispatch-recover-not-called.md).
+
 Use only after checking the actual call sequence and stopping the previous caller. Empty Host IDs
 alone prove nothing. Output retains the request, rotates the attempt ID and has `should_dispatch:false`;
 use the new ID in `dispatch-call`. An actual call or unknown outcome follows reconciliation instead.
@@ -521,6 +526,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `reconcileManagedTaskDi
   ]
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-dispatch-reconcile-lookup.md).
 
 Replace `initial_prompt` with the complete actual initial message. Search current/archived Host tasks
 using launch/repository title hints, then inspect prompts; titles can be renamed. Supply all actual
@@ -552,6 +559,8 @@ Raw managed Host creation alone has not completed provisioning. For first manage
   "worktree_path": "/work/tasks/endpoint-field"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-bootstrap-managed.md).
 
 Use the actual destination path from Host/Git. Read `receipt.operation_status.phase` and
 `workspace_origin`; only `provisioned` supplies Core creation fields. A failed/unverifiable bootstrap
@@ -587,6 +596,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `provisionCliTask, buil
   "additional_worktree_paths": []
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-cli-provision-single.md).
 
 Requires a prepared `cli_worktree` receipt. The CLI parser takes `source_repository_path` and passes
 it as a helper option. Supply already provisioned additional roots when building the primary relaunch.
@@ -672,6 +683,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `readOpenTaskRepository
   "primary_repository_key": "primary"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-scope-single.md).
 <!-- example:host scope multiple -->
 ```json
 {
@@ -683,6 +696,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `readOpenTaskRepository
   "primary_repository_key": "api"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-scope-multiple.md).
 
 Call only after every selected repository has a provisioned receipt belonging to the same launch and
 request. Read the complete result as the repository fields of `dev_flow_open_task`: `repository_path`,

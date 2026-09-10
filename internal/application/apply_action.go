@@ -259,7 +259,7 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 		err = domain.ErrTransitionNotAllowed
 	}
 	if err != nil {
-		if errors.Is(err, domain.ErrTransitionNotAllowed) || errors.Is(err, domain.ErrRepositoryDrift) || errors.Is(err, domain.ErrVerificationBudgetExceeded) {
+		if errors.Is(err, domain.ErrTransitionNotAllowed) || errors.Is(err, domain.ErrRepositoryDrift) || errors.Is(err, domain.ErrVerificationBudgetExceeded) || errors.Is(err, domain.ErrVerificationNotAllowed) {
 			return store.TaskMutation{}, domain.WithoutZeroWriteProof(err)
 		}
 		return store.TaskMutation{}, domain.ErrInvalidArgument

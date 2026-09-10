@@ -282,9 +282,18 @@ func (t ProcessTask) Validate() error {
 	if t.Test != nil {
 		for _, id := range t.Test.EvidenceIDs {
 			item, ok := evidenceByID[id]
-			if !ok || item.TaskPlanRevision != t.Test.TaskPlanRevision || item.Status != EvidencePassed {
+			if !ok || item.TaskPlanRevision != t.Test.TaskPlanRevision || !TestEvidenceEligible(t.Test, item) {
 				return ErrInvalidArgument
 			}
+		}
+	}
+	if t.Test != nil && t.Test.KnownFailureAcceptance != nil {
+		var checks []EvidenceSummary
+		for _, id := range t.Test.EvidenceIDs {
+			checks = append(checks, evidenceByID[id])
+		}
+		if !KnownFailuresAccepted(t.Test.KnownFailureAcceptance, checks, t.Test.TaskPlanRevision, t.Test.ContentDigest) {
+			return ErrInvalidArgument
 		}
 	}
 	if t.TaskPlan != nil && !taskPlanAcceptanceIndexesValid(*t.TaskPlan, t.Requirements) {
@@ -625,8 +634,11 @@ func completedOutcomeMatchesTask(t ProcessTask, evidence map[ID]EvidenceSummary)
 	expectedManual := []ID{}
 	for _, id := range t.Test.EvidenceIDs {
 		item, ok := evidence[id]
-		if !ok || item.Status != EvidencePassed {
+		if !ok || !TestEvidenceEligible(t.Test, item) {
 			return false
+		}
+		if item.Status != EvidencePassed {
+			continue
 		}
 		switch item.Source {
 		case EvidenceSourceAutomated:

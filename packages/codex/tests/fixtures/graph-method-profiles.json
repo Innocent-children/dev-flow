@@ -3,7 +3,7 @@
   "evidence_class": "simulated_static_adapter_journey",
   "server_info": {
     "product": "dev-flow",
-    "version": "0.13.0",
+    "version": "0.14.0",
     "transport": "stdio",
     "health": "ready",
     "supported_hosts": [
@@ -13,7 +13,7 @@
     "supported_processes": [
       {
         "process_id": "standard-development",
-        "definition_digest": "0ba692471aab33a3bfed9f96d8db7de9752422927d480befb9ef002c5ec439ec",
+        "definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
         "new_task_supported": true
       }
     ],
@@ -58,7 +58,7 @@
       "action_kind": "COMPLETE_REQUIREMENTS",
       "submission_tool": "dev_flow_submit_requirements",
       "process_id": "standard-development",
-      "process_definition_digest": "0ba692471aab33a3bfed9f96d8db7de9752422927d480befb9ef002c5ec439ec",
+      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
       "current_node": "REQUIREMENTS",
       "node_purpose": "Transform the immutable initial intent into the current requirements authority.",
       "entry_conditions": [
@@ -132,7 +132,7 @@
       "action_kind": "COMPLETE_TEST",
       "submission_tool": "dev_flow_submit_test",
       "process_id": "standard-development",
-      "process_definition_digest": "0ba692471aab33a3bfed9f96d8db7de9752422927d480befb9ef002c5ec439ec",
+      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
       "current_node": "TEST",
       "node_purpose": "Verify the current repository behavior within the analyzed plan and record any justified budget increase before more commands run.",
       "entry_conditions": [
@@ -149,7 +149,8 @@
       "allowed_effects": [
         "read_repository",
         "run_verification_commands",
-        "edit_process_artifacts"
+        "edit_process_artifacts",
+        "request_user_decision"
       ],
       "required_evidence": [
         {
@@ -175,7 +176,7 @@
         },
         {
           "step_id": "test.classify_failure",
-          "purpose": "Classify failures as implementation, design, or requirement problems.",
+          "purpose": "Classify new versus known failures, record their comparison and obtain explicit acceptance of the exact known-failure set when appropriate.",
           "required": true
         }
       ],
@@ -187,6 +188,14 @@
           "description": "Move from TEST to COMPREHENSION_REVIEW after completing the declared node obligations.",
           "selection_condition": "Choose this transition only when the current tests pass condition is satisfied.",
           "reason_required": false
+        },
+        {
+          "transition_id": "tests_accepted_with_known_failures",
+          "destination_node": "COMPREHENSION_REVIEW",
+          "guard_id": "current_known_failures_accepted",
+          "description": "Move from TEST to COMPREHENSION_REVIEW after completing the declared node obligations.",
+          "selection_condition": "Choose this transition only when the current known failures accepted condition is satisfied.",
+          "reason_required": true
         },
         {
           "transition_id": "tests_failed_implementation",
@@ -236,11 +245,11 @@
       "action_kind": "COMPLETE_COMPREHENSION_REVIEW",
       "submission_tool": "dev_flow_submit_comprehension",
       "process_id": "standard-development",
-      "process_definition_digest": "0ba692471aab33a3bfed9f96d8db7de9752422927d480befb9ef002c5ec439ec",
+      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
       "current_node": "COMPREHENSION_REVIEW",
       "node_purpose": "Verify that the developer can explain and maintain the current design and implementation.",
       "entry_conditions": [
-        "test_current_and_passed",
+        "test_current_and_completed",
         "repository_binding_current",
         "requirements_design_plan_current"
       ],

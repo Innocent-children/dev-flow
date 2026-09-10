@@ -129,6 +129,15 @@ func validateSkillMCPExamples(t *testing.T, host string) {
 // result validation. Production hydration remains owned by Application.
 func validateSkillNodeFacts(t *testing.T, kind domain.ActionKind, raw []byte) domain.TransitionID {
 	t.Helper()
+	transition, err := skillNodeFactsError(t, kind, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return transition
+}
+
+func skillNodeFactsError(t *testing.T, kind domain.ActionKind, raw []byte) (domain.TransitionID, error) {
+	t.Helper()
 	var input struct {
 		TransitionID  domain.TransitionID `json:"transition_id"`
 		Summary       string              `json:"summary"`
@@ -187,12 +196,9 @@ func validateSkillNodeFacts(t *testing.T, kind domain.ActionKind, raw []byte) do
 	}
 	envelope, result, err := workflow.DecodeStandardPayload(node.NodeID, canonical)
 	if err != nil {
-		t.Fatal(err)
+		return input.TransitionID, err
 	}
-	if err := workflow.ValidatePayload(workflow.StandardProcess(), node.NodeID, envelope, result, node.SemanticMethodSteps); err != nil {
-		t.Fatal(err)
-	}
-	return input.TransitionID
+	return input.TransitionID, workflow.ValidatePayload(workflow.StandardProcess(), node.NodeID, envelope, result, node.SemanticMethodSteps)
 }
 
 func TestCodexSkillHostExamplesMatchPublishedHelp(t *testing.T) {

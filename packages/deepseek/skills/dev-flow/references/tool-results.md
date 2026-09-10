@@ -7,6 +7,20 @@ Implementation: `internal/mcp/schemas.go` — `buildCatalog`;
 `internal/mcp/results.go` — `Envelope`, `EncodeSuccess`, `EncodeError`;
 `internal/mcp/output_schemas.go` — `toolOutputSchema`.
 
+## Reading the paired request and response examples
+
+Every complete MCP request below or in a node reference links its complete successful response,
+including the resolved request with current Task values, and is immediately followed by one possible
+error response, its exact trigger and implementation references. Successful examples are executed
+through the Core application and store with fixed repository observations; the paired errors use
+the same valid Task prerequisites. Generated IDs, timestamps and operation digests use stable sample
+values while fields, statuses, messages and cross-references are compared. The preceding request shows the accepted shape;
+the failure condition describes a changed field or a failing runtime condition. These are concrete cases, not an exhaustive list of
+errors. Other conditions may fail earlier, so follow the actual response rather than predicting it
+from an example. Identifiers and counts are sample values; messages, fields and recovery actions
+are checked against Core's production validation and response encoder. For node examples, assume
+the retained Task/Action and repository prerequisites are otherwise valid.
+
 ## MCP transport and value sources
 
 Use the actual tool name and result retention procedure in [Host transport](transport.md).
@@ -21,6 +35,88 @@ request_id. `result.recovery_assessment` concerns retained Action operations and
 error-envelope `recovery`. Output examples labeled projection show only the fields being discussed;
 retain the complete real Task/Action before choosing another operation.
 
+## Core response contract
+
+Core success and failure envelopes are exclusive. Success requires `ok:true`, `request_id`, `tool`
+and `result`; failure requires `ok:false`, `request_id`, `tool`, `error`, `recovery` and excludes `result`.
+The output schema validates both branches. Core owns error classification and permitted recovery;
+Host instructions own retaining the response and executing that recovery.
+
+`error.details[]` gives `path`, `rule`, `message` for identified field failures. Guard failures instead
+use `error.guard.guard_id` and `failures[]`. Read these fields before deciding what to change.
+`VERIFICATION_BUDGET_EXCEEDED` describes actual quantities: `error.budget.used`, `requested`, `limit`.
+`VERIFICATION_NOT_ALLOWED` describes a permission restriction and identifies the field. Completed user
+checks and explicit known-failure acceptance are independent of pending manual-handoff permission.
+Never increase command counts to solve a permission restriction.
+
+`recovery.action` determines the next operation. `retry_safe:false` does not prove a write happened;
+`read_task`, `read_next_action` and `retry_read` authorize the specified read without another user
+confirmation. `none` stops automatic resubmission. Only `correct_current_action` and `correct_request` carry
+`retry_safe:true` and nonempty `allowed_paths`, grounded in a proven zero-write failure. Correct only
+those fields using established facts and submit once. A user's missing or outdated acceptance is a
+real decision, not a field value the Host may manufacture or refresh.
+
+The following complete failures illustrate quantity diagnostics and correcting an existing check
+explanation. Their counters, IDs and paths are examples; use the full actual response.
+
+<!-- example:mcp-output dev_flow_submit_test budget-exceeded -->
+```json
+{
+  "ok": false,
+  "request_id": "request-example",
+  "tool": "dev_flow_submit_test",
+  "error": {
+    "code": "VERIFICATION_BUDGET_EXCEEDED",
+    "budget": {
+      "used": 8,
+      "requested": 6,
+      "limit": 13
+    },
+    "message": "The submitted evidence exceeds the current verification budget.",
+    "details": [
+      {
+        "path": "verification.current_budget.max_automatic_commands",
+        "rule": "automatic_budget_exceeded",
+        "message": "existing plus submitted automatic commands exceed the current limit"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_next_action",
+    "message": "Return to the current TEST Action and submit only a specifically justified verification budget increase before running more automatic checks."
+  }
+}
+```
+
+<!-- example:mcp-output dev_flow_submit_test budget-checks-correction -->
+```json
+{
+  "ok": false,
+  "request_id": "request-example",
+  "tool": "dev_flow_submit_test",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "node_result.budget_adjustment.additional_checks",
+        "rule": "budget_checks_required",
+        "message": "additional_checks must include at least one check name and a specific explanation, including for a permission-only adjustment"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_current_action",
+    "message": "Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails.",
+    "allowed_paths": [
+      "node_result.budget_adjustment.additional_checks"
+    ]
+  }
+}
+```
+
 ## Server handshake
 
 Implementation: `internal/mcp/server.go` — `dispatch`;
@@ -33,6 +129,45 @@ After admission/provisioning or on explicit resume, the first Core call is `dev_
 ```json
 {}
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_server_info-handshake.md).
+
+Possible error for this request: `host` is added to the handshake arguments; this tool accepts an empty object.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"host","value":"deepseek"} -->
+<!-- example:mcp-output dev_flow_server_info handshake-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_server_info",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "host",
+        "rule": "unknown_member",
+        "message": "the closed contract does not declare this member"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_request",
+    "message": "Correct only allowed_paths using established values and user decisions. Keep the same tool and existing request identity fields unless listed. Do not add the response request_id to tools that do not accept it. Submit once; ask only for missing facts or decisions, and stop if the corrected request fails.",
+    "allowed_paths": [
+      "host"
+    ]
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 
 Read `result.product`, `version`, `transport`, `health`, `supported_hosts`, `supported_processes`,
 `method_profiles`, `tools`, and `host_preferences.deepseek.codebase_memory`. Require product `dev-flow`,
@@ -109,6 +244,42 @@ or OpenSpec intent, otherwise plain. No verification budget is selected at creat
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/dev_flow_open_task-create.md).
+
+Possible error for this request: `new_task` is present but the primary `workspace_origin` preparation receipt is omitted.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"remove","path":"workspace_origin"} -->
+<!-- example:mcp-output dev_flow_open_task create-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_open_task",
+  "error": {
+    "code": "WORKTREE_PROVISIONING_REQUIRED",
+    "message": "A confirmed workspace origin is required before opening a Task.",
+    "details": [
+      {
+        "path": "workspace_origin",
+        "rule": "workspace_origin_required",
+        "message": "workspace_origin must identify the confirmed workspace preparation and its receipt"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "provision_worktree",
+    "message": "Read the confirmed workspace preparation receipt and submit its exact origin; prepare the workspace only if preparation has not completed."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
+
 For a complete confirmed multi-repository Scope, the call includes both origins. These fields come
 from one verified Host launch descriptor after both selected workspaces are prepared and writable:
 
@@ -161,6 +332,42 @@ from one verified Host launch descriptor after both selected workspaces are prep
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/dev_flow_open_task-multiple.md).
+
+Possible error for this request: `new_task` is present but the primary `workspace_origin` preparation receipt is omitted.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"remove","path":"workspace_origin"} -->
+<!-- example:mcp-output dev_flow_open_task multiple-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_open_task",
+  "error": {
+    "code": "WORKTREE_PROVISIONING_REQUIRED",
+    "message": "A confirmed workspace origin is required before opening a Task.",
+    "details": [
+      {
+        "path": "workspace_origin",
+        "rule": "workspace_origin_required",
+        "message": "workspace_origin must identify the confirmed workspace preparation and its receipt"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "provision_worktree",
+    "message": "Read the confirmed workspace preparation receipt and submit its exact origin; prepare the workspace only if preparation has not completed."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
+
 For an existing Task, return to its original worktree instance, preserve its immutable Scope/profile,
 and omit all creation members:
 
@@ -171,6 +378,45 @@ and omit all creation members:
   "repository_path": "/work/tasks/endpoint-field"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_open_task-resume.md).
+
+Possible error for this request: a creation-only `workspace_origin` member is retained in a resume request without `new_task`.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"workspace_origin","value":{}} -->
+<!-- example:mcp-output dev_flow_open_task resume-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_open_task",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "workspace_origin",
+        "rule": "creation_member_on_resume",
+        "message": "resume omits workspace_origin, primary_repository_key and additional_repositories; creation includes new_task"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_request",
+    "message": "Correct only allowed_paths using established values and user decisions. Keep the same tool and existing request identity fields unless listed. Do not add the response request_id to tools that do not accept it. Submit once; ask only for missing facts or decisions, and stop if the corrected request fails.",
+    "allowed_paths": [
+      "workspace_origin"
+    ]
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 
 Success projection: `{"ok":true,"result":{"created":false,"task":{"task_id":"task-example",
 "revision":4,"current_cursor":"IMPLEMENT","current_action":{"action_id":"action-example"}},
@@ -197,6 +443,37 @@ Implementation: `internal/mcp/server.go` — `dispatch`.
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/dev_flow_get_task-read.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_get_task read-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_get_task",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
+
 Success projection: `{"ok":true,"result":{"task":{"task_id":"task-example","revision":4},
 "recovery_assessment":null}}`. Read the full `result.task`, including baselines, verification,
 `test.evidence_ids`, evidence, blocker, outcome and last_operation. Do not fabricate `operation_probe`;
@@ -211,6 +488,37 @@ Before new repository work following a saved-state read, obtain the guarded Acti
   "task_id": "task-example"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_get_next_action-guarded-read.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_get_next_action guarded-read-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_get_next_action",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 
 Success projection: `{"ok":true,"result":{"action":{"action_id":"action-example"},
 "blocker":null,"outcome":null,"recovery_assessment":null}}`. This operation observes Git and may
@@ -255,7 +563,7 @@ Example rejection (an error envelope, not a successful Task):
         {
           "path": "node_result.findings",
           "rule": "problem_findings_present",
-          "message": "Problem findings must be present."
+          "message": "findings must not be empty when problem_class is not none"
         }
       ]
     }
@@ -263,7 +571,7 @@ Example rejection (an error envelope, not a successful Task):
   "recovery": {
     "retry_safe": false,
     "action": "read_next_action",
-    "message": "Read the current Action and its transitions."
+    "message": "Read the complete current transition set."
   }
 }
 ```
@@ -273,12 +581,13 @@ read, not replay of the rejected input. The previous IMPLEMENT operation is not 
 rejected TEST submission. `retry_safe:false`/`action:none` stops. Internal errors and uncertain writes
 never authorize payload guessing.
 
-A correctable zero-write rejection explicitly has `action:correct_current_action`, `retry_safe:true`
-and `allowed_paths`. Example projection:
-
-```json
-{"ok":false,"error":{"code":"INVALID_ARGUMENT","details":[{"path":"node_result.findings","rule":"required_member_missing","message":"A required member is missing."}]},"recovery":{"retry_safe":true,"action":"correct_current_action","message":"Correct only the listed fields.","allowed_paths":["node_result.findings"]}}
-```
+A correctable zero-write rejection has `retry_safe:true` and `allowed_paths`.
+Ordinary node submissions use `action:correct_current_action`; handshake, reads, creation and
+lifecycle request-field corrections use `action:correct_request`. The latter requires no new Action
+lookup: keep the same tool and existing request identity fields unless listed, retain existing
+authorization, and correct only the listed fields. The response request_id is not an argument for
+tools that do not accept it.
+See the complete paired examples after the handshake above and [TEST](nodes/test.md#tests_passed).
 
 Confirm the same current Action/tool, reread its schema, and change only listed fields from facts
 already established. For a failed implementation check, `findings` describes the actual defect; failed
@@ -326,6 +635,37 @@ Recovery call example for either of the first two returned instructions:
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/dev_flow_recover_action-saved-operation.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_recover_action saved-operation-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_recover_action",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
+
 Success is the complete Task in `result`, with next `result.current_action` or terminal outcome.
 Follow it; do not resubmit the old node payload. An unknown instruction stops. This table applies
 Core's returned advice; it does not recompute recovery classification from file state.
@@ -352,6 +692,45 @@ answer for this exact write. The three complete input alternatives are:
   "reason": "The user allows this exact prepared write."
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_resolve_blocker-allow_once.md).
+
+Possible error for this request: `choice:"allow_once"` is submitted with an empty `reason`.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"reason","value":""} -->
+<!-- example:mcp-output dev_flow_resolve_blocker allow_once-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_resolve_blocker",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "reason",
+        "rule": "text_not_normalized",
+        "message": "text must be non-empty, trimmed and within the declared limit"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_request",
+    "message": "Correct only allowed_paths using established values and user decisions. Keep the same tool and existing request identity fields unless listed. Do not add the response request_id to tools that do not accept it. Submit once; ask only for missing facts or decisions, and stop if the corrected request fails.",
+    "allowed_paths": [
+      "reason"
+    ]
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 <!-- example:mcp dev_flow_resolve_blocker expand_scope -->
 ```json
 {
@@ -362,6 +741,45 @@ answer for this exact write. The three complete input alternatives are:
   "reason": "The user requested a plan update for this path."
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_resolve_blocker-expand_scope.md).
+
+Possible error for this request: `choice:"expand_scope"` is submitted with an empty `reason`.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"reason","value":""} -->
+<!-- example:mcp-output dev_flow_resolve_blocker expand_scope-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_resolve_blocker",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "reason",
+        "rule": "text_not_normalized",
+        "message": "text must be non-empty, trimmed and within the declared limit"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_request",
+    "message": "Correct only allowed_paths using established values and user decisions. Keep the same tool and existing request identity fields unless listed. Do not add the response request_id to tools that do not accept it. Submit once; ask only for missing facts or decisions, and stop if the corrected request fails.",
+    "allowed_paths": [
+      "reason"
+    ]
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 <!-- example:mcp dev_flow_resolve_blocker reject -->
 ```json
 {
@@ -372,6 +790,45 @@ answer for this exact write. The three complete input alternatives are:
   "reason": "The user rejected the write and the retained content has been restored."
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_resolve_blocker-reject.md).
+
+Possible error for this request: `choice:"reject"` is submitted with an empty `reason`.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"reason","value":""} -->
+<!-- example:mcp-output dev_flow_resolve_blocker reject-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_resolve_blocker",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "reason",
+        "rule": "text_not_normalized",
+        "message": "text must be non-empty, trimmed and within the declared limit"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_request",
+    "message": "Correct only allowed_paths using established values and user decisions. Keep the same tool and existing request identity fields unless listed. Do not add the response request_id to tools that do not accept it. Submit once; ask only for missing facts or decisions, and stop if the corrected request fails.",
+    "allowed_paths": [
+      "reason"
+    ]
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 
 `allow_once` is restricted to the same prepared intent/path set; `expand_scope` returns to TASKS to
 save revised expected paths with tasks_plan_saved and explicitly confirm that current plan before tasks_ready (use its requirements return only for a requirement change); `reject` resumes
@@ -391,6 +848,37 @@ repository condition is restored, use only identity fields:
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/dev_flow_resolve_blocker-verification-or-recovery.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_resolve_blocker verification-or-recovery-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_resolve_blocker",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
+
 For a workspace-history blocker, complete the separately authorized Git operation first, then:
 
 <!-- example:mcp dev_flow_resolve_blocker history -->
@@ -405,6 +893,43 @@ For a workspace-history blocker, complete the separately authorized Git operatio
   }
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_resolve_blocker-history.md).
+
+Possible error for this request: `history_resolution.choice` is valid but `history_resolution.reason` is empty.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/domain/blocker.go` — `WorkspaceHistoryResolutionInput, Validate`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"history_resolution.reason","value":""} -->
+<!-- example:mcp-output dev_flow_resolve_blocker history-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_resolve_blocker",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "history_resolution.reason",
+        "rule": "text_not_normalized",
+        "message": "text must be non-empty, trimmed and within the declared limit"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "none",
+    "message": "Inspect the reported fields and current schema. This response does not authorize automatic resubmission."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 
 Success returns the full Task directly; continue only from its current Action. Rejection leaves the
 condition unresolved. Relocation uses the distinct [relocation input](#complete-relocation);
@@ -430,6 +955,37 @@ directory; end or resume that Task there. Core rejects local relocation before c
   "revision": 8
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_prepare_task_relocation-prepare.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_prepare_task_relocation prepare-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_prepare_task_relocation",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 
 Success projection: `{"ok":true,"result":{"relocation_id":"relocation-example",
 "task":{"task_id":"task-example","current_cursor":"BLOCKED"}}}`. Retain the complete returned
@@ -460,6 +1016,45 @@ After actual Host success, use the current blocked Action, saved relocation ID a
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/dev_flow_resolve_blocker-relocation.md).
+
+Possible error for this request: `relocation_id` is present but `relocation_destinations` is empty.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"relocation_destinations","value":[]} -->
+<!-- example:mcp-output dev_flow_resolve_blocker relocation-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_resolve_blocker",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "relocation_destinations",
+        "rule": "required_collection_non_empty",
+        "message": "the current transition requires at least one item"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_request",
+    "message": "Correct only allowed_paths using established values and user decisions. Keep the same tool and existing request identity fields unless listed. Do not add the response request_id to tools that do not accept it. Submit once; ask only for missing facts or decisions, and stop if the corrected request fails.",
+    "allowed_paths": [
+      "relocation_destinations"
+    ]
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
+
 Core checks repository group, frozen base, equivalent content/surface and claim conflicts, then replaces bindings together. Success returns the complete Task directly; follow its current_action. Failed or uncertain Host movement keeps the original binding and claims and does not permit this resolution.
 
 ## Cancellation
@@ -480,6 +1075,37 @@ cancellation request ID. Retain it before the call; use the actual user reason.
   "reason": "The user cancelled this endpoint change."
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_cancel_task-cancel.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_cancel_task cancel-error -->
+```json
+{
+  "ok": false,
+  "request_id": "cancel-request-example",
+  "tool": "dev_flow_cancel_task",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 
 Success returns the complete Task directly: `result.current_cursor` is CANCELLED,
 `result.current_action` is null and `result.outcome` explains termination. It does not delete Git data.
@@ -504,6 +1130,37 @@ Task instead of restoring that instance. Core attempts an observation to establi
   "reason": "The original worktree is unavailable and the user explicitly abandoned the Task."
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_abandon_task-abandon.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_abandon_task abandon-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_abandon_task",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+Follow this response’s `recovery.action` and the [response rules](#core-response-contract). Reuse confirmed facts; ask only for a missing user decision.
+
 
 Success returns the CANCELLED Task and releases its claims while retaining the last known binding.
 After a lost result, get_task and verify the terminal outcome, `last_operation.kind=abandon_task`

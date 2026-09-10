@@ -181,8 +181,14 @@ func rejectDuplicateMembers(raw []byte) error {
 	return walk()
 }
 func ValidateToolInput(tool string, raw []byte) error {
+	if trimmed := bytes.TrimSpace(raw); len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(trimmed) || !utf8.Valid(trimmed) {
+		return domain.InvalidArgumentViolations(domain.Violation("arguments", domain.RuleArgumentsObjectRequired))
+	}
 	if kind, ok := submissionKindForTool(tool); ok {
 		return validateSubmitActionInput(kind, raw)
+	}
+	if violations := toolRequestMemberViolations(tool, raw); len(violations) != 0 {
+		return domain.InvalidArgumentViolations(violations...)
 	}
 	switch tool {
 	case ToolServerInfo:
@@ -214,11 +220,18 @@ func ValidateToolInput(tool string, raw []byte) error {
 			keys[repository.Key] = true
 		}
 		if v.NewTask == nil && hasAnyKey(raw, "workspace_origin", "primary_repository_key", "additional_repositories") {
-			return domain.ErrInvalidArgument
+			var violations []domain.ContractViolation
+			for _, name := range []string{"workspace_origin", "primary_repository_key", "additional_repositories"} {
+				if hasAnyKey(raw, name) {
+					violations = append(violations, domain.Violation(name, domain.RuleCreationMemberOnResume))
+				}
+			}
+			return domain.InvalidArgumentViolations(violations...)
 		}
 		if v.NewTask != nil {
 			if v.WorkspaceOrigin == nil || !validWorkspaceOriginWire(*v.WorkspaceOrigin) {
-				return domain.ErrWorktreeProvisioningRequired
+				return &domain.Error{Code: domain.ErrorWorktreeProvisioningRequired, Message: domain.ErrWorktreeProvisioningRequired.Message, ZeroWrite: true,
+					Violations: []domain.ContractViolation{domain.Violation("workspace_origin", domain.RuleWorkspaceOriginRequired)}}
 			}
 			intent := domain.TaskIntent{Request: v.NewTask.Request, InitialScope: v.NewTask.InitialScope, InitialOutOfScope: v.NewTask.InitialOutOfScope, KnownAcceptanceCriteria: v.NewTask.KnownAcceptanceCriteria, MethodProfile: v.NewTask.MethodProfile}
 			if intent.Validate() != nil {
@@ -274,14 +287,35 @@ func ValidateToolInput(tool string, raw []byte) error {
 			if v.Reason != "" {
 				return domain.ErrInvalidArgument
 			}
-		} else if (domain.FileScopeDecisionInput{Choice: v.Choice, Reason: v.Reason}).Validate() != nil {
+		} else {
+			var violations []domain.ContractViolation
+			if !v.Choice.IsValid() {
+				violations = append(violations, domain.Violation("choice", domain.RuleEnumValueInvalid))
+			}
+			if strings.TrimSpace(v.Reason) != v.Reason || v.Reason == "" || len(v.Reason) > domain.MaxReasonBytes {
+				violations = append(violations, domain.Violation("reason", domain.RuleTextNotNormalized))
+			}
+			if len(violations) != 0 {
+				return domain.InvalidArgumentViolations(violations...)
+			}
+		}
+		if v.RelocationID != "" && !v.RelocationID.IsValid() {
 			return domain.ErrInvalidArgument
 		}
-		if v.RelocationID != "" && (!v.RelocationID.IsValid() || len(v.RelocationDestinations) == 0) {
-			return domain.ErrInvalidArgument
+		if v.RelocationID != "" && len(v.RelocationDestinations) == 0 {
+			return domain.InvalidArgumentViolations(domain.Violation("relocation_destinations", domain.RuleRequiredCollectionNonEmpty))
 		}
-		if v.HistoryResolution != nil && v.HistoryResolution.Validate() != nil {
-			return domain.ErrInvalidArgument
+		if history := v.HistoryResolution; history != nil {
+			var violations []domain.ContractViolation
+			if history.Choice != "accept_current_history" {
+				violations = append(violations, domain.Violation("history_resolution.choice", domain.RuleEnumValueInvalid))
+			}
+			if !utf8.ValidString(history.Reason) || strings.TrimSpace(history.Reason) != history.Reason || history.Reason == "" || len(history.Reason) > domain.MaxReasonBytes {
+				violations = append(violations, domain.Violation("history_resolution.reason", domain.RuleTextNotNormalized))
+			}
+			if len(violations) != 0 {
+				return domain.InvalidArgumentViolations(violations...)
+			}
 		}
 		return nil
 	case ToolRecoverAction:
@@ -475,4 +509,40 @@ func toSubmitAction(w submitActionWire, requestID domain.ID, kind domain.ActionK
 		TransitionID: w.TransitionID, Summary: w.Summary, Reason: w.Reason, CurrentArtifacts: current,
 		OtherProcessArtifacts: other, MethodResults: methods, NodeResult: append(json.RawMessage(nil), w.NodeResult...),
 	}
+}
+
+// toolRequestMemberViolations uses the published envelope to identify missing or
+// unknown top-level fields before any Task lookup or workspace preparation.
+func toolRequestMemberViolations(tool string, raw []byte) []domain.ContractViolation {
+	for _, definition := range catalog {
+		if definition.Name != tool {
+			continue
+		}
+		var schema struct {
+			Required   []string                   `json:"required"`
+			Properties map[string]json.RawMessage `json:"properties"`
+		}
+		if json.Unmarshal(definition.InputSchema, &schema) != nil {
+			return nil
+		}
+		violations := missingRequestMembers(raw, schema.Required...)
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(raw, &fields) != nil {
+			return violations
+		}
+		names := make([]string, 0, len(fields))
+		for name := range fields {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			if _, known := schema.Properties[name]; !known {
+				if violation := domain.Violation(name, domain.RuleUnknownMember); violation.Path != "" {
+					violations = append(violations, violation)
+				}
+			}
+		}
+		return violations
+	}
+	return nil
 }

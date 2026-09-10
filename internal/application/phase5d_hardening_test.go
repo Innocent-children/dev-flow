@@ -69,14 +69,11 @@ func TestManualHandoffBudgetDoesNotBlockComprehensionConfirmation(t *testing.T) 
 	memory.task = &task
 	task = applyPhase5(t, service, task, "implementation_ready_for_test", "", implementationNodeResult(1, []string{"work-a"}, true, nil))
 
-	before := memory.commits
-	assertApplyFails(t, service, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("user", "passed", "manual-test", 0, false)}, nil, nil, nil), domain.ErrVerificationBudgetExceeded)
-	if memory.commits != before {
-		t.Fatal("forbidden TEST user evidence wrote state")
-	}
-	task = applyPhase5(t, service, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false)}, nil, nil, nil))
+	task = applyPhase5(t, service, task, "tests_passed", "", testNodeResult([]map[string]any{evidenceCheck("automated", "passed", "targeted", 1, false), evidenceCheck("user", "passed", "manual-test", 0, false)}, nil, nil, nil))
 	task = applyPhase5(t, service, task, "comprehension_passed", "", comprehensionNodeResult([]string{"component"}, nil, nil, "user", "passed", nil))
-	task = applyPhase5(t, service, task, "delivery_complete", "", deliveryCompleteNodeResult(task))
+	delivery := deliveryCompleteNodeResult(task)
+	delivery["manual_evidence_ids"] = []domain.ID{task.Test.EvidenceIDs[1], task.Comprehension.UserEvidenceID}
+	task = applyPhase5(t, service, task, "delivery_complete", "", delivery)
 	if task.CurrentNode != domain.NodeDone || task.Outcome == nil {
 		t.Fatal("comprehension confirmation was blocked by TEST manual-handoff budget")
 	}

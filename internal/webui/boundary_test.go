@@ -53,7 +53,7 @@ func TestWebBoundaryCP1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer response.Body.Close()
+		defer closeBoundaryResponse(t, response)
 		if response.StatusCode != http.StatusForbidden {
 			t.Fatalf("status=%d", response.StatusCode)
 		}
@@ -67,7 +67,7 @@ func TestWebBoundaryCP1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer response.Body.Close()
+		defer closeBoundaryResponse(t, response)
 		if response.StatusCode != http.StatusForbidden {
 			t.Fatalf("status=%d", response.StatusCode)
 		}
@@ -78,7 +78,7 @@ func TestWebBoundaryCP1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		response.Body.Close()
+		closeBoundaryResponse(t, response)
 		if response.StatusCode != http.StatusBadRequest {
 			t.Fatalf("unknown query status=%d", response.StatusCode)
 		}
@@ -86,7 +86,7 @@ func TestWebBoundaryCP1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		unknown.Body.Close()
+		closeBoundaryResponse(t, unknown)
 		if unknown.StatusCode != http.StatusNotFound {
 			t.Fatalf("unknown status=%d", unknown.StatusCode)
 		}
@@ -98,7 +98,7 @@ func TestWebBoundaryCP1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mutation.Body.Close()
+		closeBoundaryResponse(t, mutation)
 		if mutation.StatusCode != http.StatusNotFound {
 			t.Fatalf("unknown mutation status=%d", mutation.StatusCode)
 		}
@@ -133,7 +133,7 @@ func getTaskRevision(t *testing.T, target string) uint64 {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer closeBoundaryResponse(t, response)
 	raw, err := io.ReadAll(response.Body)
 	if err != nil {
 		t.Fatal(err)
@@ -146,4 +146,16 @@ func getTaskRevision(t *testing.T, target string) uint64 {
 		t.Fatal(err)
 	}
 	return body.Summary.Revision
+}
+
+// Read complete responses before closing so the client's connection reuse and
+// the server's graceful shutdown observe completed requests.
+func closeBoundaryResponse(t *testing.T, response *http.Response) {
+	t.Helper()
+	if _, err := io.Copy(io.Discard, response.Body); err != nil {
+		t.Error(err)
+	}
+	if err := response.Body.Close(); err != nil {
+		t.Error(err)
+	}
 }

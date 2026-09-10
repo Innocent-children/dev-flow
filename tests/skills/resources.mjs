@@ -33,6 +33,16 @@ export async function assertSkillResources({ skillRoot, packageRoot, repositoryR
   for (const [path, markdown] of texts) {
     const packaged = relative(packageRoot, path).split("\\").join("/");
     assert.ok(manifest.files.includes(packaged), packaged);
+    for (const block of markdown.matchAll(/```json\n([\s\S]*?)\n```/gu)) {
+      const value = JSON.parse(block[1]);
+      const coreRequest = value?.host !== undefined && value?.task_id !== undefined;
+      const coreResponse = typeof value?.tool === "string" && value.tool.startsWith("dev_flow_");
+      if (coreRequest || coreResponse) {
+        const preceding = markdown.slice(0, block.index);
+        assert.match(preceding, /<!-- example:[a-z-]+ [a-z_-]+ [a-z_-]+ -->\n$/u,
+          `${path}: complete Core requests and responses must participate in example checks`);
+      }
+    }
     const links = [];
     for (const match of markdown.matchAll(/\[[^\]]+\]\(([^)]+)\)/gu)) {
       if (/^https?:/u.test(match[1])) continue;

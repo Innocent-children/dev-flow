@@ -26,7 +26,7 @@ func EvaluateVerificationBudget(
 		return domain.ErrInvalidArgument
 	}
 	if len(existing)+len(incoming) > domain.MaxRetainedEvidenceItems {
-		return domain.ErrVerificationBudgetExceeded
+		return budgetExceeded("verification.usage.evidence_items", domain.RuleEvidenceCapacityExceeded, len(existing), len(incoming), domain.MaxRetainedEvidenceItems)
 	}
 
 	automaticCommands := 0
@@ -45,7 +45,7 @@ func EvaluateVerificationBudget(
 		if item.Source == domain.EvidenceSourceAutomated {
 			automaticCommands += item.CommandCount
 			if item.FullSuite && !budget.AllowFullSuite {
-				return domain.ErrVerificationBudgetExceeded
+				return verificationNotAllowed("verification.current_budget.allow_full_suite", domain.RuleFullSuiteNotAllowed)
 			}
 		}
 	}
@@ -62,23 +62,28 @@ func EvaluateVerificationBudget(
 		if item.Source == domain.EvidenceSourceAutomated {
 			automaticCommands += item.CommandCount
 			if item.FullSuite && !budget.AllowFullSuite {
-				return domain.ErrVerificationBudgetExceeded
+				return verificationNotAllowed("verification.current_budget.allow_full_suite", domain.RuleFullSuiteNotAllowed)
 			}
 		}
-		if item.Source == domain.EvidenceSourceUser && !budget.AllowManualHandoff {
-			return domain.ErrVerificationBudgetExceeded
-		}
 	}
-	if automaticCommands > budget.MaxAutomaticCommands ||
-		(len(normalizedManualItems) != 0 && !budget.AllowManualHandoff) {
-		return domain.ErrVerificationBudgetExceeded
+	if automaticCommands > budget.MaxAutomaticCommands {
+		requested := 0
+		for _, item := range incoming {
+			if item.Source == domain.EvidenceSourceAutomated {
+				requested += item.CommandCount
+			}
+		}
+		return budgetExceeded("verification.current_budget.max_automatic_commands", domain.RuleAutomaticBudgetExceeded, automaticCommands-requested, requested, budget.MaxAutomaticCommands)
+	}
+	if len(normalizedManualItems) != 0 && !budget.AllowManualHandoff {
+		return verificationNotAllowed("node_result.manual_handoff_items", domain.RuleManualHandoffNotAllowed)
 	}
 	return nil
 }
 
 func ValidateComprehensionConfirmation(existing []domain.EvidenceSummary, input NormalizedEvidenceInput) error {
 	if len(existing)+1 > domain.MaxRetainedEvidenceItems {
-		return domain.ErrVerificationBudgetExceeded
+		return budgetExceeded("verification.usage.evidence_items", domain.RuleEvidenceCapacityExceeded, len(existing), 1, domain.MaxRetainedEvidenceItems)
 	}
 	seen := make(map[domain.ID]bool, len(existing))
 	for _, item := range existing {
@@ -195,4 +200,11 @@ func sameStrings(left, right []string) bool {
 		}
 	}
 	return true
+}
+
+func budgetExceeded(path string, rule domain.ViolationRule, used, requested, limit int) error {
+	return &domain.Error{Code: domain.ErrorVerificationBudgetExceeded, Message: rule.Message(), Violations: []domain.ContractViolation{domain.Violation(path, rule)}, Budget: &domain.BudgetFailure{Used: used, Requested: requested, Limit: limit}}
+}
+func verificationNotAllowed(path string, rule domain.ViolationRule) error {
+	return &domain.Error{Code: domain.ErrorVerificationNotAllowed, Message: rule.Message(), Violations: []domain.ContractViolation{domain.Violation(path, rule)}}
 }

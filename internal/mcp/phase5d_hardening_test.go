@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -58,7 +59,7 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 	}
 	for _, tc := range invalid {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := ValidateToolInput(tc.tool, []byte(tc.raw)); err != domain.ErrInvalidArgument {
+			if err := ValidateToolInput(tc.tool, []byte(tc.raw)); !errors.Is(err, domain.ErrInvalidArgument) {
 				t.Fatalf("error=%v", err)
 			}
 		})
@@ -68,7 +69,7 @@ func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {
 		additional[index] = map[string]any{"key": string(rune('a' + index)), "repository_path": fmt.Sprintf("/%c", 'a'+index), "workspace_origin": map[string]any{"mode": "dedicated_worktree", "source_type": "remote", "carry_changes": false, "remote_name": "origin", "base_branch": "main", "base_commit": strings.Repeat("a", 40), "task_branch": fmt.Sprintf("feature/%c", 'a'+index), "provisioning_receipt_id": fmt.Sprintf("receipt-%c", 'a'+index)}}
 	}
 	eighth, _ := json.Marshal(map[string]any{"host": "codex", "repository_path": "/core", "workspace_origin": json.RawMessage(origin), "additional_repositories": additional, "new_task": map[string]any{"request": "Build feature", "initial_scope": []any{}, "initial_out_of_scope": []any{}, "known_acceptance_criteria": []any{}, "method_profile": "plain"}})
-	if err := ValidateToolInput(ToolOpenTask, eighth); err != domain.ErrInvalidArgument {
+	if err := ValidateToolInput(ToolOpenTask, eighth); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("eighth additional repository error=%v", err)
 	}
 }

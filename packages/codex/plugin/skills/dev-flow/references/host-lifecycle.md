@@ -35,6 +35,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `beginTaskHandoff`.
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/host-handoff-start-start.md).
+
 Copy launch/repository from the provisioned receipt and relocation ID from Core. Only
 `should_dispatch:true` permits one Host call, using the complete returned `host_request`:
 
@@ -61,6 +63,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `recordTaskHandoff`.
   }
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-handoff-result-record.md).
 
 Forward the complete actual Host response, including its wrapper; the sample shows its inner shape.
 Read `receipt.operation_status.host_operation_id` and `host_operation_revision`; valid values produce
@@ -92,6 +96,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `recordTaskHandoffStatu
   "worktree_path": null
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-handoff-status-pending.md).
 <!-- example:host handoff-status succeeded -->
 ```json
 {
@@ -102,6 +108,8 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `recordTaskHandoffStatu
   "worktree_path": "/work/tasks/relocated-endpoint"
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-handoff-status-succeeded.md).
 
 Use the Host operation revision, not the Core revision. Record failed status in the same shape with
 `status:"failed"` and the observed path or null. Output retains receipt/changed/relocation_id. Only
@@ -148,6 +156,8 @@ Read fresh Core/Git facts and query eligibility; this command grants no deletion
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/host-cleanup-decision-keep.md).
+
 Output members are `automatic_cleanup` (always false), `worktree_cleanup` and `branch_cleanup`.
 Keep active, dirty, uncertain or unpushed resources under the returned decision. Managed-worktree
 cleanup belongs to the Host; do not replace it with shell Git commands. An authorized terminal
@@ -171,6 +181,8 @@ comes from a fresh Core result and `authorized` from that user decision; they ar
 }
 ```
 
+Complete successful request and response: [view every returned field](successes/host-cleanup-worktree-remove-worktree.md).
+
 The helper saves the attempt before removal, verifies the exact receipt-owned repository/worktree,
 and removes without force. Read changed/uncertain and receipt cleanup status. A requested-but-uncertain
 attempt is inspected, not retried blindly. The branch remains until a separate decision.
@@ -191,6 +203,8 @@ After completed worktree cleanup and separate current branch-deletion authorizat
   "authorized": true
 }
 ```
+
+Complete successful request and response: [view every returned field](successes/host-cleanup-branch-remove-branch.md).
 
 Success records completed branch cleanup. The helper uses non-force `git branch -d`; an unmerged
 branch remains on Git refusal. A missing identity, wrong repository, prior uncertain attempt or

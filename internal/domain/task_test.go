@@ -67,7 +67,7 @@ func TestProcessTaskWorkspaceEvidenceUsesContentDigest(t *testing.T) {
 	task.TaskPlan.Confirmation = &PlanConfirmation{Source: EvidenceSourceUser, Status: EvidencePassed, Summary: "Fixture user approved the complete plan.", RequirementsDigest: task.Requirements.Digest, DesignDigest: task.Design.Digest, TaskPlanDigest: task.TaskPlan.Digest, TaskPlanRevision: task.TaskPlan.Revision}
 	task.TaskPlan.ConfirmedAt = &now
 	task.Implementation = &ImplementationRecord{Revision: 1, TaskPlanRevision: 1, ContentDigest: task.Repository.ContentDigest, CompletedWorkItemIDs: []ID{"work"}, ActionChangedPaths: []string{"src/main.go"}, Summary: "Implemented.", CreatedAt: now}
-	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: task.Repository.ContentDigest, EvidenceIDs: []ID{"automated"}, PassedAt: now}
+	task.Test = &TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: task.Repository.ContentDigest, EvidenceIDs: []ID{"automated"}, CompletedAt: now}
 	task.Evidence = []EvidenceSummary{{EvidenceID: "automated", TaskPlanRevision: 1, Source: EvidenceSourceAutomated, Name: "test", Status: EvidencePassed, Summary: "Passed.", Digest: matrixDigest('4'), CommandCount: 1, RecordedAt: now}}
 	task.CurrentNode = NodeComprehensionReview
 	task.Revision = 2

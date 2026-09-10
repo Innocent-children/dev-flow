@@ -413,7 +413,8 @@ func schemaNumber(value any) (int, bool) {
 // object below its collapse depth, and finally every node carrying a
 // composition keyword. The published projection keeps every top-level member,
 // type and object closure, and keeps only the enumerations and required sets
-// that a caller cannot read from the current Action. The exact
+// that a caller cannot read from the current Action. Recovery-probe payload
+// completeness is checked by Core against the saved operation. The exact
 // per-action-kind and per-evidence-source contract stays Core-owned and is
 // reported as field-level violations. Large verification-plan and adjustment
 // objects are collapsed only inside the nested recovery probe; their ordinary
@@ -422,6 +423,7 @@ var (
 	projectedCollapsedPaths = map[string]bool{
 		"payload.node_result.baseline.verification_plan": true,
 		"payload.node_result.budget_adjustment":          true,
+		"payload.node_result.known_failure_acceptance":   true,
 	}
 	projectedEnumPaths = map[string]bool{
 		"host":       true,
@@ -432,8 +434,7 @@ var (
 		"payload.node_result.checks[].source": true,
 	}
 	projectedRequiredPaths = map[string]bool{
-		"":        true,
-		"payload": true,
+		"": true,
 	}
 	// Rule text that must survive projection lives in the tool description,
 	// which is projected in full and is not charged against the schema budget.
@@ -512,7 +513,9 @@ func buildCatalog() []ToolDefinition {
 	payloads, _ := graphPayloads()
 	standardPayload := map[string]any{"oneOf": payloads}
 	payload := map[string]any{"anyOf": []any{standardPayload, map[string]any{"type": "null"}}}
-	probe := obj([]string{"operation_id", "process_id", "process_definition_digest", "source_cursor", "expected_revision", "action_id", "action_kind", "repository_binding_digest", "issuance_identity_digest", "issuance_history_digest", "issuance_content_digest", "payload"}, map[string]any{"operation_id": id(), "process_id": map[string]any{"const": "standard-development"}, "process_definition_digest": digest(), "source_cursor": id(), "expected_revision": map[string]any{"type": "integer", "minimum": 1}, "action_id": id(), "action_kind": id(), "repository_binding_digest": digest(), "issuance_identity_digest": digest(), "issuance_history_digest": digest(), "issuance_content_digest": digest(), "payload": projectForHostBudget(projectableUnion([]any{payload, map[string]any{"type": "null"}}), "payload")})
+	// Recovery probes copy saved operations. Core validates all identity fields;
+	// the Host projection retains their types and the three primary required members.
+	probe := obj([]string{"operation_id", "action_id", "payload"}, map[string]any{"operation_id": id(), "process_id": map[string]any{"const": "standard-development"}, "process_definition_digest": digest(), "source_cursor": id(), "expected_revision": map[string]any{"type": "integer", "minimum": 1}, "action_id": id(), "action_kind": id(), "repository_binding_digest": digest(), "issuance_identity_digest": digest(), "issuance_history_digest": digest(), "issuance_content_digest": digest(), "payload": projectForHostBudget(projectableUnion([]any{payload, map[string]any{"type": "null"}}), "payload")})
 	read := obj([]string{"host", "task_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "operation_probe": projectableUnion([]any{probe, map[string]any{"type": "null"}})})
 	repositoryKey := map[string]any{"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"}
 	workspaceOrigin := obj([]string{"mode", "source_type", "carry_changes", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"}, map[string]any{"mode": map[string]any{"enum": []string{"new_branch", "current_branch", "dedicated_worktree"}}, "source_type": map[string]any{"enum": []string{"local", "remote"}}, "carry_changes": map[string]any{"type": "boolean"}, "remote_name": map[string]any{"type": "string", "maxLength": 128}, "base_branch": str(), "base_commit": map[string]any{"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}, "task_branch": str(), "provisioning_receipt_id": id()})

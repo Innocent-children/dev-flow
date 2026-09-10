@@ -134,3 +134,5 @@ WebUI 的语义提交和恢复回归使用 `pnpm --dir packages/webui test`，�
 ## 共享 Skill 引用
 
 Core 通用说明和示例只在 `skills/dev-flow/core/` 编辑。执行 `node scripts/sync-skill-references.mjs` 生成 Codex 与 DeepSeek 包内副本；副本供源码阅读和本地加载，文件头标明来源。`node scripts/sync-skill-references.mjs --check` 检查副本是否与共享源一致。Codex 本地构建和 `stageAndPack` 都在临时 staging 中重新生成引用，安装包不依赖仓库外的共享目录。共享说明只替换 `host` 值，Host 操作说明分别维护。校验还覆盖两边 MCP Schema、当前节点转移、DSH 确认文本及实际包内文件。
+
+完整响应示例由定向测试维护。修改共享请求后先同步包内引用。更新 Core 示例运行 `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 go test ./internal/mcp -run TestSkillSuccessExamplesMatchExecution -count=1`，再运行共享引用同步命令。更新 Host 示例运行 `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 node --test packages/codex/tests/skill-success-examples.test.mjs packages/deepseek/tests/skill-success-examples.test.mjs`。正常测试不写文件，而是逐字段比较已保存的请求和响应；修改示例字段时须检查差异，新增文件时同步包清单与 staging 清单。Node 测试的读取、稳定值替换和比较辅助函数位于 `tests/skills/executed-examples.mjs`。

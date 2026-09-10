@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -23,8 +24,9 @@ type Envelope struct {
 	Recovery  *RecoveryGuidance `json:"recovery,omitempty"`
 }
 type ErrorResult struct {
-	Code    domain.ErrorCode `json:"code"`
-	Message string           `json:"message"`
+	Code    domain.ErrorCode      `json:"code"`
+	Budget  *domain.BudgetFailure `json:"budget,omitempty"`
+	Message string                `json:"message"`
 	// Details names safe field-level contract failures when available.
 	Details []domain.ContractViolation `json:"details,omitempty"`
 	// Guard is the closed transition-guard detail.
@@ -40,9 +42,10 @@ type RecoveryGuidance struct {
 	AllowedPaths []string `json:"allowed_paths,omitempty"`
 }
 
-// correctCurrentAction is the only recovery action that permits resubmitting the
-// same Action.
+// Ordinary node submissions retain their Action identity during correction.
+// Other tools correct their request envelope without inventing an Action.
 const correctCurrentAction = "correct_current_action"
+const correctRequest = "correct_request"
 
 type EncodedResult struct {
 	JSON    []byte
@@ -52,6 +55,10 @@ type EncodedResult struct {
 var fallbackBytes = mustEncode(Envelope{OK: false, RequestID: "request-unavailable", Tool: ToolServerInfo, Error: &ErrorResult{Code: domain.ErrorInternal, Message: "The Core could not complete the operation."}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: "report_internal_error", Message: "Report the bounded failure and stop this operation."}})
 
 func EncodeSuccess(id, tool string, result any) EncodedResult {
+	value := reflect.ValueOf(result)
+	if !value.IsValid() || ((value.Kind() == reflect.Pointer || value.Kind() == reflect.Map || value.Kind() == reflect.Slice || value.Kind() == reflect.Interface) && value.IsNil()) {
+		return EncodeError(id, tool, domain.ErrInternal)
+	}
 	if !domain.ID(id).IsValid() || !isToolName(tool) {
 		return fixedFallback()
 	}
@@ -75,6 +82,9 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		message = typed.Message
 	}
 	result := &ErrorResult{Code: code, Message: message}
+	if code == domain.ErrorVerificationBudgetExceeded && typed != nil && typed.Budget != nil && typed.Budget.Used >= 0 && typed.Budget.Requested >= 0 && typed.Budget.Limit >= 0 {
+		result.Budget = typed.Budget
+	}
 	guard := publicGuardFailure(code, typed)
 	if guard != nil {
 		guard.Failures = projectSubmissionViolationPaths(tool, guard.Failures)
@@ -90,6 +100,8 @@ func EncodeError(id, tool string, err error) EncodedResult {
 	recoveryResult := &RecoveryGuidance{RetrySafe: false, Action: action, Message: guidance}
 	if paths := boundedCorrectionPaths(tool, typed, result); len(paths) != 0 {
 		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: boundedCorrectionMessage, AllowedPaths: paths}
+	} else if paths := requestCorrectionPaths(tool, typed, result); len(paths) != 0 {
+		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctRequest, Message: requestCorrectionMessage, AllowedPaths: paths}
 	}
 	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: result, Recovery: recoveryResult})
 	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
@@ -112,7 +124,7 @@ func projectSubmissionViolationPaths(tool string, violations []domain.ContractVi
 
 // publicViolations keeps only closed, safe field detail for a contract failure.
 func publicViolations(code domain.ErrorCode, typed *domain.Error) []domain.ContractViolation {
-	if code != domain.ErrorInvalidArgument || typed == nil {
+	if (code != domain.ErrorInvalidArgument && code != domain.ErrorVerificationBudgetExceeded && code != domain.ErrorVerificationNotAllowed && code != domain.ErrorWorktreeProvisioningRequired) || typed == nil {
 		return nil
 	}
 	return retainedViolations(typed.Violations)
@@ -143,6 +155,11 @@ func retainedViolations(violations []domain.ContractViolation) []domain.Contract
 		if !domain.ValidViolationPath(violation.Path) || violation.Message == "" {
 			continue
 		}
+		if violation.Rule.IsValid() {
+			violation.Message = violation.Rule.Message()
+		} else {
+			violation.Message = domain.GuardRule(violation.Rule).Message()
+		}
 		out = append(out, violation)
 	}
 	if len(out) == 0 {
@@ -168,6 +185,9 @@ func boundedCorrectionPaths(tool string, typed *domain.Error, result *ErrorResul
 		return nil
 	}
 	_, submissionTool := submissionKindForTool(tool)
+	if !submissionTool {
+		return nil
+	}
 	entries := append([]domain.ContractViolation(nil), result.Details...)
 	if result.Guard != nil {
 		entries = append(entries, result.Guard.Failures...)
@@ -199,7 +219,7 @@ func boundedCorrectionPaths(tool string, typed *domain.Error, result *ErrorResul
 // node submission tool may correct it once; the same rule outside a submission
 // tool keeps non-retryable guidance.
 func boundedCorrectionRule(rule domain.ViolationRule, submissionTool bool) bool {
-	if rule == domain.RuleRequiredMemberMissing || rule == domain.RuleArtifactManifestIncomplete {
+	if rule == domain.RuleRequiredMemberMissing || rule == domain.RuleArtifactManifestIncomplete || rule == domain.RuleBudgetChecksRequired {
 		return submissionTool
 	}
 	switch rule {
@@ -257,9 +277,9 @@ func mustEncode(v Envelope) []byte {
 }
 func publicFailure(code domain.ErrorCode) (string, string, string) {
 	m := map[domain.ErrorCode][3]string{
-		domain.ErrorInvalidArgument:              {"The request does not match the closed Core contract.", "none", "Correct the request before submitting it again."},
+		domain.ErrorInvalidArgument:              {"The request does not match the closed Core contract.", "none", "Inspect the reported fields and current schema. This response does not authorize automatic resubmission."},
 		domain.ErrorNotGitRepository:             {"The requested path is not a Git repository.", "none", "Choose a valid local Git repository."},
-		domain.ErrorTaskNotFound:                 {"The task was not found.", "read_task", "Confirm the retained task identity before continuing."},
+		domain.ErrorTaskNotFound:                 {"The task was not found.", "read_task", "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."},
 		domain.ErrorActiveTaskConflict:           {"The worktree instance already has an active task.", "read_task", "Resume the active task or choose another provisioned worktree."},
 		domain.ErrorHostOwnershipConflict:        {"The task belongs to another host.", "use_origin_host", "Resume the task from its origin host."},
 		domain.ErrorRevisionConflict:             {"The submitted task revision is stale.", "read_task", "Read the authoritative task before another mutation."},
@@ -268,10 +288,11 @@ func publicFailure(code domain.ErrorCode) (string, string, string) {
 		domain.ErrorWorkspaceUnavailable:         {"The retained Task worktree instance is unavailable.", "restore_or_abandon", "Restore the original worktree instance or explicitly abandon the Task."},
 		domain.ErrorWorkspaceObservationUnstable: {"The Task repository scope changed during observation.", "retry_read", "Wait for repository activity to settle, then read the Task again."},
 		domain.ErrorWorkspaceHistoryConflict:     {"The Task worktree history conflicts with its retained state.", "resolve_blocker", "Restore the retained history or resolve the prepared history decision."},
-		domain.ErrorWorktreeProvisioningRequired: {"A clean dedicated worktree is required before opening a Task.", "provision_worktree", "Complete Host worktree provisioning and submit its exact origin."},
+		domain.ErrorWorktreeProvisioningRequired: {"A confirmed workspace origin is required before opening a Task.", "provision_worktree", "Read the confirmed workspace preparation receipt and submit its exact origin; prepare the workspace only if preparation has not completed."},
 		domain.ErrorTransitionNotAllowed:         {"The transition is not allowed from the current node.", "read_next_action", "Read the complete current transition set."},
 		domain.ErrorProcessUnsupported:           {"The process definition is unsupported.", "repair_storage", "Use storage created by this graph Core."},
 		domain.ErrorRecoveryUnavailable:          {"Recovery is unavailable for this operation.", "none", "Do not automatically retry; use only a supported graph recovery route."},
+		domain.ErrorVerificationNotAllowed:       {"The requested verification is not allowed by the current plan.", "read_next_action", "Read the current TEST Action and adjust only the specifically required permission with a check explanation."},
 		domain.ErrorVerificationBudgetExceeded:   {"The submitted evidence exceeds the current verification budget.", "read_next_action", "Return to the current TEST Action and submit only a specifically justified verification budget increase before running more automatic checks."},
 		domain.ErrorTaskBlocked:                  {"The task is blocked.", "read_next_action", "Read the blocker-resolution action."},
 		domain.ErrorTaskTerminal:                 {"The task is terminal.", "read_task", "Read the retained terminal outcome."},
@@ -375,3 +396,52 @@ func projectRecoveryAssessment(assessment *recovery.RecoveryAssessment) any {
 }
 
 func WithinResultEnvelopeLimit(raw []byte) bool { return len(raw) <= domain.MaxResultEnvelopeBytes }
+
+const requestCorrectionMessage = "Correct only allowed_paths using established values and user decisions. Keep the same tool and existing request identity fields unless listed. Do not add the response request_id to tools that do not accept it. Submit once; ask only for missing facts or decisions, and stop if the corrected request fails."
+
+// requestCorrectionPaths handles envelope mistakes before an ordinary node Action
+// exists. Only fields belonging to this tool's request can authorize correction.
+func requestCorrectionPaths(tool string, typed *domain.Error, result *ErrorResult) []string {
+	if typed == nil || !typed.ZeroWrite || typed.Code != domain.ErrorInvalidArgument {
+		return nil
+	}
+	if _, ordinary := submissionKindForTool(tool); ordinary {
+		return nil
+	}
+	var properties map[string]json.RawMessage
+	for _, definition := range catalog {
+		if definition.Name == tool {
+			var schema struct {
+				Properties map[string]json.RawMessage `json:"properties"`
+			}
+			if json.Unmarshal(definition.InputSchema, &schema) != nil {
+				return nil
+			}
+			properties = schema.Properties
+		}
+	}
+	if properties == nil || len(result.Details) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(result.Details))
+	for _, detail := range result.Details {
+		if strings.ContainsAny(detail.Path, ".[") {
+			return nil
+		}
+		_, declared := properties[detail.Path]
+		switch detail.Rule {
+		case domain.RuleUnknownMember:
+			if declared {
+				return nil
+			}
+		case domain.RuleRequiredMemberMissing, domain.RuleTextNotNormalized, domain.RuleRequiredCollectionNonEmpty, domain.RuleCreationMemberOnResume:
+			if !declared {
+				return nil
+			}
+		default:
+			return nil
+		}
+		paths = append(paths, detail.Path)
+	}
+	return paths
+}

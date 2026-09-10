@@ -316,7 +316,7 @@ func fullGraphTask(t *testing.T) domain.ProcessTask {
 		{EvidenceID: "automated", TaskPlanRevision: 1, Source: domain.EvidenceSourceAutomated, Name: "targeted", Status: domain.EvidencePassed, Summary: "Targeted tests passed", Digest: digest, CommandCount: 1, RecordedAt: now},
 		{EvidenceID: "user", TaskPlanRevision: 1, Source: domain.EvidenceSourceUser, Name: "confirmation", Status: domain.EvidencePassed, Summary: "User confirmed understanding", Digest: digest, RecordedAt: now},
 	}
-	task.Test = &domain.TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, EvidenceIDs: []domain.ID{"automated"}, PassedAt: now}
+	task.Test = &domain.TestRecord{RecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, EvidenceIDs: []domain.ID{"automated"}, CompletedAt: now}
 	task.Comprehension = &domain.ComprehensionAssessment{RecordID: "comprehension", TestRecordID: "test", RequirementsRevision: 1, DesignRevision: 1, TaskPlanRevision: 1, ContentDigest: digest, ExplainedComponents: []string{"component"}, UserEvidenceID: "user", ConfirmedAt: now}
 	task.CurrentNode = domain.NodeDelivery
 	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), task.CurrentNode, task.TaskID, task.Revision, digest, task.Intent.MethodProfile, "delivery-action", now)
