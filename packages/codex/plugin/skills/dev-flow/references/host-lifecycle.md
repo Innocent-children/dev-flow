@@ -12,6 +12,9 @@ Their readback uses the same retained Task and lifecycle identity, separately fr
 
 ## Relocation
 
+Relocation applies only when every participating repository uses `dedicated_worktree`. Local branch
+Tasks retain their original directory; do not prepare relocation or invoke Host handoff for them.
+
 Use [Core relocation preparation](tool-results.md#prepare-relocation) after user authorization.
 It retains the source binding and relocation blocker before the Host move. Readback of uncertain
 preparation and cancellation/abandonment is defined in [Core lifecycle](tool-results.md#cancellation).
@@ -119,6 +122,10 @@ Git merge/rebase/commit/push and cross-machine transfers require their own opera
 
 Implementation: `internal/application/apply_action_results.go` — `applyDeliveryResult`.
 Implementation: `packages/codex/lib/worktree-lifecycle.mjs` — `terminalCleanupDecision`.
+
+For local branch modes, retain the original directory, branch and all modifications.
+`cleanup-decision` with `surface:"current_session"` returns `not_applicable` for both deletion choices.
+A later Task sees any still-uncommitted work as initial content; obtain its acceptance again.
 
 On DONE/CANCELLED, present the actual source/base/base commit, task branch/current HEAD, worktree path,
 clean/dirty state, current changed paths, performed checks and remaining risks. Example: “Task is DONE.

@@ -18,7 +18,7 @@ l’avancement et les résultats pour poursuivre le travail après la fin d’un
 
 - **Clarifier le périmètre :** enregistrez les fichiers prévus et comparez les modifications réelles au plan.
 - **Planifier les tests :** choisissez les contrôles utiles et fixez une limite à l’effort de vérification.
-- **Reprendre le travail :** poursuivez la même tâche et le travail restant depuis son worktree d’origine.
+- **Reprendre le travail :** poursuivez la même tâche et le travail restant depuis son répertoire d’origine.
 - **Consulter les résultats :** suivez l’avancement, les contrôles et les problèmes à traiter.
 
 Il convient aux travaux sur un dépôt qui s’étendent sur plusieurs sessions ou nécessitent des limites
@@ -60,20 +60,27 @@ Ou dans **DeepSeek Harness** :
 Envoyez ces messages dans la conversation, pas dans un terminal. Précisez l’objectif, les critères
 d’acceptation, le périmètre des fichiers et la limite de tests.
 
-La première réponse évalue la demande et propose de travailler directement ou avec Dev Flow.
-Si vous choisissez Dev Flow, confirmez la source locale ou distante, la branche de départ, la nouvelle
-branche de tâche et la reprise éventuelle des modifications locales existantes.
+La première réponse évalue la demande et propose de travailler directement ou avec Dev Flow. En
+choisissant Dev Flow, une nouvelle branche de tâche est créée par défaut depuis le HEAD actuel dans
+le répertoire actuel. Confirmez la branche et l’inclusion des modifications non commitées existantes.
+Les dépendances, la configuration locale, les fichiers et l’état de l’index sont conservés ; la même
+session continue si elle peut accéder à tous les répertoires concernés.
 
-Le travail se déroule ensuite dans un worktree Git dédié, un répertoire distinct pour la tâche.
-Codex l’ouvre si l’application hôte le permet ; DeepSeek fournit une commande pour redémarrer depuis
-le nouveau répertoire.
+Vous pouvez aussi choisir explicitement la branche actuelle ou un worktree Git dédié. Pour un worktree,
+précisez également la source locale ou distante et la branche de départ. Codex ouvre le nouveau
+répertoire si l’hôte le permet ; DeepSeek fournit la commande de redémarrage correspondante.
+
+Un répertoire ne peut accueillir qu’une seule Task active. Les modifications manuelles ou provenant
+d’autres outils sont également observées, et changer de branche pendant la tâche suspend le processus.
+Les répertoires et branches locaux sont conservés à la fin ; les modifications non commitées doivent
+être prises en compte au lancement de la tâche suivante.
 
 Avant l’implémentation, examinez et discutez les exigences, la conception, les tâches, les fichiers prévus et le plan de vérification. Le développement commence après votre accord explicite sur le plan complet. Toute révision du plan ou extension du périmètre des fichiers demande un nouvel accord. Choisir Dev Flow ou un worktree ne remplace pas cet accord.
 
 ### 3. Reprendre et consulter l’avancement
 
-Après un redémarrage de session, revenez au worktree d’origine et demandez de poursuivre la tâche.
-Dev Flow reprend l’avancement enregistré. Si ce worktree a disparu ou a été remplacé, la tâche reste
+Après un redémarrage de session, revenez au répertoire d’origine et demandez de poursuivre la tâche.
+Dev Flow reprend l’avancement enregistré. Si ce répertoire a disparu ou a été remplacé, la tâche reste
 en pause jusqu’à sa restauration ou jusqu’à ce que vous l’abandonniez explicitement.
 
 Dans DeepSeek Harness, incluez `/dev-flow` dans le message demandant de reprendre la tâche.

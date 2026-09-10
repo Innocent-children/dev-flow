@@ -279,7 +279,7 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 	if provisioned {
 		commonDigest := digestGitDirectory(commonDir, commonDirectoryIdentity, commonDirectoryDigestDomain)
 		gitDigest := digestWorktreeGitDirectory(gitDir, worktreeGitDirectoryIdentity)
-		if origin.Validate() != nil || gitDir == commonDir || commonDigest != origin.SourceRepositoryGroupDigest || gitDigest != origin.WorktreeGitDirDigest {
+		if origin.Validate() != nil || selection.Mode == domain.WorkspaceModeDedicatedWorktree && gitDir == commonDir || commonDigest != origin.SourceRepositoryGroupDigest || gitDigest != origin.WorktreeGitDirDigest {
 			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, ErrProvisioningRequired
 		}
 		if previous == nil && (detached || branch == nil || *branch != selection.TaskBranch || head != selection.BaseCommit || !selection.CarryChanges && (len(changedEntries) != 0 || len(taskSurface) != 0)) {
@@ -299,7 +299,10 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 }
 
 func ValidWorkspaceOriginSelection(s WorkspaceOriginSelection) bool {
-	return s.Mode == domain.WorkspaceModeDedicatedWorktree && domain.ValidWorkspaceSource(s.SourceType, s.RemoteName, s.CarryChanges) && validBranchRefName(s.BaseBranch) &&
+	return s.Mode.IsValid() && (s.Mode == domain.WorkspaceModeDedicatedWorktree || s.SourceType == "local") &&
+		(s.Mode != domain.WorkspaceModeCurrentBranch || s.BaseBranch == s.TaskBranch) &&
+		(s.Mode != domain.WorkspaceModeNewBranch || s.BaseBranch != s.TaskBranch) &&
+		domain.ValidWorkspaceSource(s.SourceType, s.RemoteName, s.CarryChanges) && validBranchRefName(s.BaseBranch) &&
 		validBranchRefName(s.TaskBranch) && validGitObjectID(s.BaseCommit) && s.ProvisioningReceiptID.IsValid()
 }
 

@@ -98,10 +98,12 @@ export function validateProvisioningReceipt(value) {
 
 function validateRepositoryReceipt(value) {
   assertExactKeys(value, [
-    "source_repository_identity", "repository_key", "source_type", "carry_changes", "snapshot_commit", "remote_name",
+    "source_repository_identity", "repository_key", "workspace_mode", "source_type", "carry_changes", "snapshot_commit", "remote_name",
     "base_branch", "target_branch", "base_commit", "worktree_path", "operation_status", "created_at",
   ], "provisioning repository receipt");
   assertDigest(value.source_repository_identity, "source repository identity");
+  if (!["new_branch", "current_branch", "dedicated_worktree"].includes(value.workspace_mode)) throw new Error("workspace mode is invalid");
+  if (value.workspace_mode !== "dedicated_worktree" && value.source_type !== "local" || value.workspace_mode === "current_branch" && value.base_branch !== value.target_branch || value.workspace_mode === "new_branch" && value.base_branch === value.target_branch) throw new Error("workspace mode does not match the branch selection");
   if (typeof value.repository_key !== "string" || !/^[a-z0-9][a-z0-9._-]{0,127}$/u.test(value.repository_key)) {
     throw new Error("provisioning repository key is invalid");
   }

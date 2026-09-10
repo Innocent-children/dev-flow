@@ -1,11 +1,46 @@
-# 工作树来源与本地改动
+# 工作位置、分支与本地改动
 
 [中文](WORKTREE-SOURCES.md) | [English](WORKTREE-SOURCES_en.md)
 
 ## 使用场景
 
-开发者希望从指定的本地分支或远端分支开始任务，并自行决定是否带上尚未提交的本地内容。
-Host 在创建工作树前询问来源、起始分支、携带改动的选择及目标分支，已有明确选择继续有效。
+开发者希望复用当前目录中的依赖、本地配置和构建输出，并让 Dev Flow 保存开发进度。默认在当前
+目录从当前 HEAD 新建任务分支；也可以明确选择继续当前分支，或创建独立工作树。
+Host 在创建 Task 前展示实际目录、分支和未提交修改，沿用已有明确选择。
+
+## 工作位置与默认行为
+
+`workspace_mode` 必填，Host 在用户未选择其他方式时使用 `new_branch`：
+
+| 模式 | Host 准备 | Core 保存的 `workspace_origin.mode` |
+| --- | --- | --- |
+| `new_branch`（默认） | 在原目录从当前 HEAD 创建并切换到确认的新分支 | `new_branch` |
+| `current_branch` | 使用原目录及当前具名分支 | `current_branch` |
+| `dedicated_worktree` | 按下文来源规则准备独立目录 | `dedicated_worktree` |
+
+两个本地模式要求 `source_type=local`、`remote_name=""`、`base_branch` 为启动时的当前分支，
+`base_commit` 为启动时 HEAD。`current_branch` 的目标分支等于当前分支，`new_branch` 的目标分支必须
+尚不存在。创建前已提交的内容属于起始代码；已确认的未提交内容和之后的改动进入 Task 修改范围。
+`carry_changes` 在本地模式中表示接受原目录的初始修改，保留 index、文件及 ignored 内容，不应用复制快照。
+有初始修改但未接受时停止准备；不自动 stash、清理或忽略其他需求的修改。
+
+Host 在本地分支操作前调用 Core 的只读 `host-check workspace-available`，输入
+`{"repository_path":"<canonical root>"}`，读取 `available`、`repository_path` 和可选 `task_id`。
+活动 Task 占用时停止，失败或无法读取时也停止。检查不预占目录；Core 创建仍在 transaction 中取得
+全部目录的唯一占用。用户和其他工具负责避免在准备期间启动另一个写入者。
+
+当前会话已获全部目录权限时，本地模式在原会话继续。Codex 使用 `current_session` surface 和
+`local-provision`；其 `prepare.handoff_file=null`，启动记录的 `handoff_digest=null`。只有会话交接才
+保存需求交接材料。DeepSeek 全部使用本地模式时返回 `ready` 及完整 `open_task`，无需 relaunch/consume。
+同一 Task 的仓库可以有不同选择，但执行会话必须实际覆盖每个目录；DeepSeek 混合模式从共同父目录
+重启，原会话权限不扩大。任何仓库失败均不创建部分 Core Task；本地分支及修改保留供检查。
+
+本地模式沿用原目录实例恢复，切分支、历史异常、内容变化、文件范围和验证规则保持有效。
+本地模式不提供工作区迁移或辅助删除目录、分支；DONE/CANCELLED 只结束 Task 并释放占用。上一 Task
+结束后仍未提交的内容会再次出现在下一 Task 的初始修改中。界面按模式展示可用的生命周期操作。
+
+`standard-development` 的定义摘要、节点、全部出边、guard、Action allowed effects 和验证要求保持不变。
+本次改变创建与工作区生命周期约定，不增加流程节点或第二个 Task 状态。
 
 ## 可用数据与职责
 
@@ -16,7 +51,7 @@ Host 负责 Git 创建和内容复制；Core 只读核对工作树身份、来�
 本地来源的 `remote_name` 为空字符串，`base_branch` 是本地分支；远端来源要求有效的 remote 名称，
 且 `carry_changes=false`。`target_branch` 是待创建的任务分支。省略来源或携带选择不会采用默认值。
 
-## 处理规则
+## 独立工作树来源规则
 
 1. 用户明确上述选择后才开始准备。远端执行精确 fetch；本地直接解析 `refs/heads/<base>`，无需联网。
 2. Host 保存 `base_commit`，随后从该 commit 创建独立工作树；Codex managed dispatch 也使用这个固定 commit。
@@ -34,17 +69,17 @@ Host 负责 Git 创建和内容复制；Core 只读核对工作树身份、来�
 
 ## 启动记录与 Task 状态
 
-Host 启动记录增加 `source_type`、`carry_changes`、`snapshot_commit`，使用 `base_commit` 保存起点。
+Host 启动记录保存 `workspace_mode`、`source_type`、`carry_changes`、`snapshot_commit`，使用 `base_commit` 保存起点。
 准备阶段为 `confirmed -> resolving -> prepared`，随后进入现有派发与工作树准备阶段。
 失败或结果不确定继续使用 `failed`、`uncertain`。这属于 Host 操作记录，不增加 Core 流程节点。
 
 `WorkspaceOrigin` 及 CLI/MCP/WebUI 投影包含 `source_type` 和 `carry_changes`，其余身份、恢复及流程
 规则继续由 Core 管理。当前 `standard-development` 的定义摘要、节点、出边、guard、Action 和
-验证要求不变；仅 Task 创建入口允许用户已确认携带的本地修改。`tasks.snapshot` 保存新的来源字段。
+验证要求不变；`tasks.snapshot` 保存工作区模式及来源字段，SQL 表结构保持不变。
 
 ## 预期结果与影响
 
-本地仓库可以离线开始任务，未提交内容由用户决定是否复制。应用失败不会改动源 checkout，也不会产生
+本地分支可以离线复用现有开发环境；独立工作树的未提交内容由用户决定是否复制。应用失败不会改动源 checkout，也不会产生
 误报成功的 Task。复制的内容计入 Task 修改面，不能作为已经完成的工作或已通过的验证。
 
 ## 验收方式
@@ -53,6 +88,8 @@ Host 启动记录增加 `source_type`、`carry_changes`、`snapshot_commit`，�
   忽略文件排除、源内容保留、快照冻结、不同起始分支、managed bootstrap 及冲突保留。
 - DeepSeek `workspace-coordinator.test.mjs`：验证明确选择、本地离线创建、二进制新增文件及重启后 consume。
 - Core `workspace_observer_test.go`：验证本地来源无需 remote、初始修改须明确携带、远端拒绝携带、实际修改面保存。
+- Core `workspace_check_test.go`：真实 Git 和 SQLite 验证本地创建、接受初始修改、唯一占用、相同内容提交、恢复、切分支阻塞、拒绝迁移及取消后保留文件；只读占用检查不创建缺失的数据库。
+- 本地 Host 测试验证两种分支模式、暂存及 ignored 文件保留、原会话 ready 结果、活动 Task 拒绝及 provisioned 重读不修改 Git。
 - 包清单、CLI/MCP 输入及存储检查确认新字段和快照模块完整进入当前约定。
 
 以上测试使用本机临时仓库和 Host helper。managed dispatch 使用模拟 Host 创建结果；不代表已完成实际

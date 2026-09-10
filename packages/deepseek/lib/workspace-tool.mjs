@@ -22,7 +22,7 @@ export function registerWorkspaceCoordinator(ctx, options) {
   });
   const disposeTool = ctx.tools.register(defineTool({
     name: WORKSPACE_COORDINATOR_TOOL,
-    description: "Provision, consume, or separately clean up a user-confirmed isolated Dev Flow worktree launch. Every mutation requires its exact current-turn confirmation.",
+    description: "Prepare a confirmed Dev Flow workspace: default to a new branch in the current directory, or explicitly use the current branch or a dedicated worktree. Local launches return ready for the current session. Every mutation requires its exact current-turn confirmation.",
     parameters: {
       operation: { type: "string", required: true, enum: ["provision", "consume", "prepare_cleanup", "cleanup_worktree", "cleanup_branch"] },
       request: { type: "string", description: "Exact admitted development request for a new provision operation." },
@@ -40,6 +40,7 @@ export function registerWorkspaceCoordinator(ctx, options) {
           additionalProperties: false,
           properties: {
             repository_key: { type: "string", required: true },
+            workspace_mode: { type: "string", required: true, enum: ["new_branch", "current_branch", "dedicated_worktree"], default: "new_branch" },
             source_repository_path: { type: "string", required: true },
             source_type: { type: "string", required: true, enum: ["local", "remote"] },
             carry_changes: { type: "boolean", required: true },

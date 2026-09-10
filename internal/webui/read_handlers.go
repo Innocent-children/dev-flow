@@ -265,8 +265,10 @@ func projectRepository(key domain.RepositoryKey, role string, origin domain.Work
 }
 
 func projectWorkspace(task domain.ProcessTask) WorkspaceView {
+	hasWorktree := task.WorkspaceOrigin.Mode == domain.WorkspaceModeDedicatedWorktree
 	conflict := task.Repository.HistoryRelation != domain.RepositoryHistoryExact && task.Repository.HistoryRelation != domain.RepositoryHistoryLinearAdvance
 	for _, repository := range task.AdditionalRepositories {
+		hasWorktree = hasWorktree || repository.Origin.Mode == domain.WorkspaceModeDedicatedWorktree
 		conflict = conflict || repository.Binding.HistoryRelation != domain.RepositoryHistoryExact && repository.Binding.HistoryRelation != domain.RepositoryHistoryLinearAdvance
 	}
 	var relocationID, resumeNode *string
@@ -285,8 +287,8 @@ func projectWorkspace(task domain.ProcessTask) WorkspaceView {
 		ProvisioningStatus:  provisioningStatus,
 		CurrentChangedPaths: append([]string{}, task.CurrentChangedPaths...),
 		HistoryConflict:     conflict || task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseWorkspaceHistoryConflict,
-		Relocation:          RelocationView{Pending: pending, RelocationID: relocationID, ResumeNode: resumeNode},
-		Cleanup:             CleanupView{Automatic: false, HostActionRequired: true, SeparateWorktreeAndBranch: true, Terminal: task.CurrentNode.Terminal()},
+		Relocation:          RelocationView{Available: application.WorkspaceRelocationSupported(task), Pending: pending, RelocationID: relocationID, ResumeNode: resumeNode},
+		Cleanup:             CleanupView{Automatic: false, HostActionRequired: hasWorktree, SeparateWorktreeAndBranch: hasWorktree, Terminal: task.CurrentNode.Terminal()},
 	}
 }
 

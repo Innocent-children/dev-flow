@@ -140,24 +140,41 @@ Implementation: `packages/codex/lib/worktree-lifecycle.mjs` — `preflightWorktr
 
 `prepare` requires the complete `assessment` and `user_choice:{source:"user",mode:"dev_flow",summary}`. It validates the assessment, exact assessed root set, resolved unknowns, current anchor and explicit choice before saving a receipt or preparing Git. The receipt retains both under `admission`; a conflicting resubmission is rejected. A valid small-change recommendation may still be followed by the user choosing Dev Flow. Display the assessment before receiving the choice; validation cannot authenticate the conversation itself.
 
-After the Dev Flow choice, obtain each missing selection: repository key; `source_type` local/remote;
-`base_branch`; `remote_name` for remote; `carry_changes` for local; new `target_branch`. Show the
-source checkout/dirty paths and the complete selection. Example: “Use local main, create
-codex/endpoint-field, and carry the displayed staged/unstaged/untracked changes?” A local source
-uses `remote_name=""`; a remote source uses `carry_changes=false`. The presence of origin selects
-nothing. Previously supplied explicit choices remain valid.
+After the Dev Flow choice, use `workspace_mode:"new_branch"` by default: create a confirmed task
+branch from the current HEAD in the existing directory. The user can instead select `current_branch`
+or `dedicated_worktree`. Show every repository's canonical path, observed current branch and dirty
+paths. Reuse valid choices and authorization; ask only for an unresolved target branch or acceptance
+of existing changes. A workspace choice still does not approve an unseen implementation plan.
 
-Before `prepare`, choose a launch surface that the current Host can actually complete. For managed
-creation, check task-creation support and provisioning/authorization of every selected root. For CLI,
-check the installed `codex` executable, a process API with an interactive terminal (TTY/PTY), and a
-way to retain and inspect the running session. Multiple repositories alone do not establish that CLI
-launch is available. If neither route is available, report the missing capability before provisioning;
-reuse the confirmed repository choices when a usable launch surface becomes available.
+For `new_branch` and `current_branch`, use `source_type:"local"`, `remote_name:""`, the observed
+current branch as `base_branch`, `surface:"current_session"`, `worktree_path:repository_path`, and
+`handoff_file:null`. With `current_branch`, `target_branch` is also the observed current branch;
+with `new_branch`, it is a new local branch. Both keep the current directory, index, ignored files
+and environment. `carry_changes:true` explicitly includes initial staged/unstaged/non-ignored untracked
+content in the Task. Dirty content with `carry_changes:false` stops preparation. Existing commits
+before the frozen starting HEAD are starting code, not newly completed Task work.
 
-Write the [handoff JSON](task-handoff.md) outside assessed roots only after confirmation.
-`surface` follows the actual Host capability; `worktree_path` is null for managed creation and an
-explicit absolute destination for CLI. All selections must be present; `launch_id` alone is optional
-on the first prepare. For additional repositories reuse its returned launch ID and the complete anchor.
+Both `prepare` and `local-provision` ask Core's read-only `host-check workspace-available` to check
+for an active Task in the directory. An occupied directory stops preparation before switching branches;
+resume or resolve the existing Task. This check does not reserve the directory, and the Host must keep
+one execution owner during preparation. Core still acquires every Task claim atomically at creation.
+
+Check that the execution session can access every selected directory. When all directories are already
+authorized, continue the same session; local mode requires no child task, TTY, relaunch or handoff JSON.
+For a multi-repository selection containing dedicated worktrees, establish a real Host surface that can
+authorize every resulting root before preparing any repository. Separate child sessions are not one
+shared writable scope. Read `scope` only after every repository is ready.
+
+For an explicitly selected `dedicated_worktree`, obtain local/remote `source_type`, `base_branch`,
+`remote_name` for remote, `carry_changes` for local, and the new `target_branch`. Local sources use
+`remote_name:""`; remote sources use `carry_changes:false`. Select `managed_worktree` only when the
+Host can create and authorize the selected roots, or `cli_worktree` when an installed Codex CLI and
+usable interactive terminal are available. Missing capability stops that selected operation.
+Write the [handoff JSON](task-handoff.md) outside assessed roots after confirmation. Managed creation
+uses `worktree_path:null`; CLI creation names the explicit absolute destination.
+
+The first prepare may omit `launch_id`. Reuse its returned launch ID for all remaining repositories
+of the same Task. `workspace_mode` is always explicit in the helper input and saved receipt.
 
 ### prepare
 
@@ -167,6 +184,7 @@ on the first prepare. For additional repositories reuse its returned launch ID a
   "request": "Return the requested field from the endpoint.",
   "repository_key": "primary",
   "repository_path": "/work/project",
+  "workspace_mode": "dedicated_worktree",
   "source_type": "local",
   "carry_changes": false,
   "remote_name": "",
@@ -229,6 +247,7 @@ For a remote CLI launch, the complete input is:
   "request": "Return the requested field from the endpoint.",
   "repository_key": "primary",
   "repository_path": "/work/project",
+  "workspace_mode": "dedicated_worktree",
   "source_type": "remote",
   "carry_changes": false,
   "remote_name": "origin",
@@ -283,8 +302,8 @@ For a remote CLI launch, the complete input is:
 }
 ```
 
-The helper saves the receipt/material, resolves the local branch or fetches only the selected remote
-branch, freezes `base_commit`, and captures `snapshot_commit` only for confirmed local carry.
+The helper saves the receipt and, for dedicated worktrees, the handoff material. It resolves the
+local branch or fetches only the selected remote branch, freezes `base_commit`, and captures `snapshot_commit` only for confirmed local carry.
 It preserves the source checkout/index/stash. Read `receipt.launch_id`, `repository_key`, `base_commit`,
 `snapshot_commit`, `operation_status.phase`, `resumed`, and `fetch_performed`; only `prepared` proceeds.
 A stale assessment, branch collision, unsupported source, snapshot failure or partial setup stops
@@ -304,6 +323,86 @@ Implementation: `packages/codex/bin/dev-flow-codex.mjs` — `runHostLaunchComman
 Read `receipt` and its `operation_status`; a missing record returns `receipt:null`. Example:
 `{"receipt_path":"/private/tmp/receipt.json","receipt":null}` means no record was found, not that
 creation may be repeated. Status does not retry preparation, dispatch, Handoff or cleanup.
+
+## Continue in the current directory
+
+<!-- example:host prepare local-branch -->
+```json
+{
+  "request": "Return the requested field from the endpoint.",
+  "repository_key": "primary",
+  "repository_path": "/work/project",
+  "workspace_mode": "new_branch",
+  "source_type": "local",
+  "carry_changes": false,
+  "remote_name": "",
+  "base_branch": "main",
+  "target_branch": "codex/endpoint-field",
+  "surface": "current_session",
+  "worktree_path": "/work/project",
+  "handoff_file": null,
+  "assessment": {
+    "change_level": "standard",
+    "observed_repositories": [
+      "/work/project"
+    ],
+    "candidate_components": [
+      "Endpoint response"
+    ],
+    "candidate_paths": [
+      "src/endpoint.js"
+    ],
+    "public_contract_flags": [
+      "Response field changes"
+    ],
+    "persistence_or_state_flags": [],
+    "host_or_platform_flags": [],
+    "verification_shape": [
+      "Endpoint response check"
+    ],
+    "unknowns": [],
+    "recommendation": "dev_flow",
+    "reasons": [
+      "The response is a public contract."
+    ],
+    "anchor": {
+      "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
+      "repositories": [
+        {
+          "repository_key": "primary",
+          "canonical_root": "/work/project",
+          "head": "1111111111111111111111111111111111111111",
+          "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "dirty_paths": [],
+          "dirty_paths_truncated": false
+        }
+      ]
+    }
+  },
+  "user_choice": {
+    "source": "user",
+    "mode": "dev_flow",
+    "summary": "The user selected Dev Flow after reading the assessment."
+  }
+}
+```
+
+After `prepared`, call `local-provision` with the saved identity. It rechecks Core availability,
+creates the selected local branch or keeps the current branch, and verifies the HEAD, directory and
+staged state. It saves the attempt before branch mutation; failures/uncertainty retain the directory
+and receipt. Inspect an unfinished operation rather than running another branch command.
+
+<!-- example:host local-provision current-session -->
+```json
+{"launch_id":"launch-example","repository_key":"primary"}
+```
+
+Read `receipt.operation_status.phase` and `workspace_origin`. Once all receipts are `provisioned`,
+use `scope`, perform the server handshake and create one Core Task in the current execution session.
+A provisioned retry returns retained data without Git changes; inspect current directories and let
+Core verify creation/resume. A known or uncertain Core open uses the existing Task resume path.
+Never reapply the snapshot to a local directory. Initial content needs preservation checks and new
+work still needs its own implementation and verification.
 
 ## Managed dispatch
 
@@ -438,8 +537,9 @@ Read the saved material and `host-launch status` for every confirmed repository 
 | Receipt state | Destination operation |
 | --- | --- |
 | `managed_worktree` with `dispatching`, `queued`, `dispatched` or `uncertain`, and the actual managed destination is known | Use `bootstrap` below for first initialization. It checks the Git common group, distinct worktree Git directory, frozen HEAD and clean initial status, creates/switches the target branch, then applies the selected snapshot. |
+| `current_session` with `prepared` | Run `local-provision` in the existing directory, then continue the current session. |
 | `cli_worktree` with `prepared` | The coordinator completes `cli-provision` for every root before launching the destination. |
-| Either surface with `provisioned` | Initialization is already recorded. Inspect the existing worktrees and follow the continuation procedure below; preserve carried content and subsequent work. |
+| Any surface with `provisioned` | Initialization is already recorded. Inspect the existing worktrees and follow the continuation procedure below; preserve carried content and subsequent work. |
 | Other, missing or uncertain provisioning state | Inspect the saved operation and actual destination before further mutation. |
 
 Raw managed Host creation alone has not completed provisioning. For first managed initialization:

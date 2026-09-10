@@ -71,6 +71,27 @@ export async function preflightWorktreeSelection({
   return source;
 }
 
+export async function preflightLocalBranchSelection({ repositoryPath, workspaceMode, baseBranch, targetBranch, carryChanges, runGit = defaultRunGit }) {
+  const source = await inspectSourceRepository(repositoryPath, { runGit });
+  if (source.canonical_root !== repositoryPath) throw new Error("local mode requires the canonical repository root");
+  if (!["new_branch", "current_branch"].includes(workspaceMode)) throw new Error("local branch mode is invalid");
+  if (!source.branch || source.branch !== baseBranch) throw new Error("local mode requires the current named branch as its base");
+  if (!source.clean && carryChanges !== true) throw new Error("initial local changes require explicit acceptance");
+  await validateBranchName(targetBranch, runGit, source.canonical_root, "target branch");
+  if (workspaceMode === "current_branch" && targetBranch !== source.branch) throw new Error("current_branch must keep the current branch");
+  if (workspaceMode === "new_branch" && await refExists(source.canonical_root, `refs/heads/${targetBranch}`, runGit)) throw new Error(`target branch ${targetBranch} already exists locally`);
+  return source;
+}
+
+export async function prepareLocalBranch({ repositoryPath, workspaceMode, baseBranch, targetBranch, baseCommit, sourceRepositoryIdentity, carryChanges, runGit = defaultRunGit }) {
+  const source = await preflightLocalBranchSelection({ repositoryPath, workspaceMode, baseBranch, targetBranch, carryChanges, runGit });
+  if (source.head !== baseCommit || source.source_repository_identity !== sourceRepositoryIdentity) throw new Error("local workspace changed after preparation");
+  if (workspaceMode === "new_branch") await runGit(["-C", source.canonical_root, "switch", "-c", targetBranch, baseCommit]);
+  const result = await inspectSourceRepository(source.canonical_root, { runGit });
+  if (result.canonical_root !== source.canonical_root || result.worktree_git_dir !== source.worktree_git_dir || result.head !== baseCommit || result.branch !== targetBranch || result.status_digest !== source.status_digest) throw new Error("local branch preparation could not be verified; inspect the retained workspace");
+  return result;
+}
+
 export async function resolveFrozenBase({
   repositoryPath,
   remoteName,
@@ -240,6 +261,9 @@ export function terminalCleanupDecision({
   pushed,
   stateCertain,
 } = {}) {
+  if (surface === "current_session") {
+    return Object.freeze({ automatic_cleanup: false, worktree_cleanup: "not_applicable", branch_cleanup: "not_applicable" });
+  }
   if (!["DONE", "CANCELLED"].includes(lifecycle)) {
     return Object.freeze({ automatic_cleanup: false, worktree_cleanup: "blocked_active", branch_cleanup: "blocked_active" });
   }

@@ -31,6 +31,31 @@ prove that an already dirty file's contents remained unchanged.
 
 Implementation: `packages/deepseek/lib/workspace-coordinator.mjs` — `observeSourceRepository`, `validateRepositoryRequests`.
 
+## Workspace choice and confirmation
+
+After the user chooses Dev Flow, default to `workspace_mode:"new_branch"`: create a task branch
+from the current HEAD in the original directory. Explicit alternatives are `current_branch` and
+`dedicated_worktree`. Show the current directory, branch and dirty paths. Reuse valid choices;
+obtain only missing target-branch or initial-content decisions.
+
+Local modes use `source_type:"local"`, `remote_name:""` and the actual current branch as `base_branch`.
+`new_branch` requires an unused target branch; `current_branch` uses that same current branch as its
+target. `carry_changes:true` accepts initial staged/unstaged/non-ignored untracked changes for Task
+tracking. Preserve index, file contents, ignored configuration and installed dependencies in place.
+Unaccepted dirty contents stop preparation. Core's read-only workspace-available check stops an
+occupied directory before any branch change, and Core acquires all claims again when creating Task.
+The check is not a directory reservation; keep a single preparation/execution owner.
+
+When all roots use local modes, `provision` returns `status:"ready"` and `open_task` in the existing
+Workspace Root. Perform the server handshake, then open one Core Task using this complete descriptor;
+continue the same DSH session without `consume` or relaunch. Treat a known/uncertain Core open as a
+resume. Initial modifications require preservation checks and do not count as verified new work.
+
+An explicit dedicated-worktree choice keeps the source/base/target/carry preparation below. Mixed
+selections use a new session rooted at the common parent of the existing Workspace Root and prepared
+sibling worktrees. Every selected root must be writable in that actual session. Any repository failure
+prevents the complete Core open; keep local branches/modifications and inspect the saved operation.
+
 ## Confirmation and tool shape
 
 The current workspace_coordinator tool has exactly five operations: provision, consume,
@@ -44,8 +69,8 @@ For the complete provision example below, the user's message is:
 
 <!-- workspace-confirmation:provision -->
 ```text
-/dev-flow confirm-worktree
-repository=primary;source=local;carry=true;remote=;base=main;target=feature/endpoint-field
+/dev-flow confirm-workspace
+repository=primary;mode=dedicated_worktree;source=local;carry=true;remote=;base=main;target=feature/endpoint-field
 ```
 
 Use one line per repository, primary first. For local sources remote_name is empty and carry_changes
@@ -59,8 +84,8 @@ Implementation: `packages/deepseek/lib/workspace-coordinator.mjs` — `workspace
 
 The request string carries the actual admitted requirements/constraints; profile is the running DSH
 Profile, not the Core method_profile. Each repository source path comes from canonical read-only
-inspection inside the current Workspace Root. The coordinator freezes the local or fetched remote
-base and optional carried snapshot; do not run its Git mutations through Bash.
+inspection inside the current Workspace Root. The coordinator freezes the current HEAD for local modes, or the selected local/fetched branch for
+dedicated worktrees, plus any accepted initial snapshot; do not run its Git mutations through Bash.
 
 <!-- example:workspace workspace_coordinator provision -->
 ```json
@@ -71,6 +96,7 @@ base and optional carried snapshot; do not run its Git mutations through Bash.
   "repositories": [
     {
       "repository_key": "primary",
+      "workspace_mode": "dedicated_worktree",
       "source_repository_path": "/work/project",
       "source_type": "local",
       "carry_changes": true,
@@ -82,13 +108,13 @@ base and optional carried snapshot; do not run its Git mutations through Bash.
 }
 ```
 
-Success projection:
+For the dedicated-worktree selection above, the success projection is:
 
 ```json
 {"status":"relaunch_required","launch_id":"11111111-1111-4111-8111-111111111111","request_digest":"<returned digest>","workspace_root":"/work/.dev-flow-worktrees/11111111-1111-4111-8111-111111111111/primary","source_dirty_paths":{"primary":["notes/change.md"]},"source_dirty_paths_truncated":{"primary":false},"relaunch":{"command":"dsh","arguments":["--profile","web","<complete returned resume-worktree prompt>"],"cwd":"/work/.dev-flow-worktrees/11111111-1111-4111-8111-111111111111/primary"}}
 ```
 
-Preserve the complete actual relaunch command/arguments/cwd and show it unchanged. The source session
+Preserve the complete actual relaunch command/arguments/cwd and show it unchanged. For `status:"relaunch_required"`, the source session
 stops for a new DSH session at that cwd; it cannot widen its running Root. The returned prompt carries
 the admitted request directly. DeepSeek does not accept Codex handoff_file or host_request fields.
 
@@ -97,6 +123,38 @@ resources it can prove safe. An interrupted/timed-out operation may be uncertain
 and filesystem for inspection, without another provision. There is no status/reconcile operation in
 the five-operation tool; report that limit rather than calling Codex helpers or guessing a new launch.
 A failed repository prevents a partial multi-repository Core open.
+
+For a default local launch, the exact confirmation is:
+
+<!-- workspace-confirmation:provision -->
+```text
+/dev-flow confirm-workspace
+repository=primary;mode=new_branch;source=local;carry=true;remote=;base=main;target=feature/endpoint-field
+```
+
+<!-- example:workspace workspace_coordinator provision -->
+```json
+{
+  "operation": "provision",
+  "request": "Return the requested endpoint field and preserve the confirmed local content.",
+  "profile": "web",
+  "repositories": [{
+    "repository_key": "primary",
+    "workspace_mode": "new_branch",
+    "source_repository_path": "/work/project",
+    "source_type": "local",
+    "carry_changes": true,
+    "remote_name": "",
+    "base_branch": "main",
+    "target_branch": "feature/endpoint-field"
+  }]
+}
+```
+
+The result has `status:"ready"`, `workspace_root:"/work/project"` and the complete `open_task` repository
+arguments, including `workspace_origin.mode:"new_branch"`. It has no `relaunch`. Call Core once in
+this session after the handshake. `current_branch` uses the same shape with both branch fields set
+to the observed current branch and creates no branch.
 
 ## First launch or Task recovery
 
@@ -113,7 +171,7 @@ following route while preserving the confirmed request and repository choices:
 | Provisioning itself is incomplete or uncertain | Preserve its receipt and destinations and follow the provisioning failure rule above. Core resume cannot substitute for unfinished workspace preparation. |
 
 The Core calls require `/dev-flow` in the current direct user turn. An existing Task resume does not
-require a new `confirm-worktree` or `resume-worktree` confirmation. The exact consume confirmation
+require a new `confirm-workspace` or `resume-worktree` confirmation. The exact consume confirmation
 applies only when that operation is needed. Use the complete [Core creation/resume inputs and
 uncertain-creation rules](tool-results.md#open-or-resume-a-task).
 

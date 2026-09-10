@@ -1,12 +1,55 @@
-# Worktree sources and local changes
+# Working directories, branches and local changes
 
 [中文](WORKTREE-SOURCES.md) | [English](WORKTREE-SOURCES_en.md)
 
 ## Use case
 
-Developers choose a local or remote starting branch and whether to include uncommitted local content.
-Before creating a worktree, the Host asks for the source, base branch, content choice and target branch.
-Explicit choices already supplied for this request remain valid.
+Developers can reuse the dependencies, local configuration and build outputs in an existing directory
+while Dev Flow retains development progress. The default creates a task branch from the current HEAD
+in the current directory. Explicit alternatives retain the current branch or create a dedicated worktree.
+The Host shows the actual directories, branches and initial changes, and retains valid user choices.
+
+## Workspace choices and defaults
+
+`workspace_mode` is required. The Host uses `new_branch` unless the user selects another mode:
+
+| Mode | Host preparation | Retained `workspace_origin.mode` |
+| --- | --- | --- |
+| `new_branch` (default) | Create and switch to the confirmed branch from current HEAD in the original directory | `new_branch` |
+| `current_branch` | Retain the directory and current named branch | `current_branch` |
+| `dedicated_worktree` | Prepare a separate directory using the source rules below | `dedicated_worktree` |
+
+Local modes require `source_type=local`, `remote_name=""`, the starting current branch as `base_branch`,
+and its HEAD as `base_commit`. `current_branch` keeps that branch; `new_branch` requires an unused target.
+Previously committed contents are starting code. Confirmed uncommitted contents and later changes
+belong to the Task surface. Here `carry_changes` accepts initial local changes while keeping the index,
+files and ignored contents in place; the snapshot is not applied to the original directory. Unaccepted
+initial changes stop preparation. The Host does not automatically stash, clean or ignore other work.
+
+Before local branch operations, the Host calls Core's read-only `host-check workspace-available` with
+`{"repository_path":"<canonical root>"}` and reads `available`, `repository_path` and optional `task_id`.
+An active claim or an unavailable check stops preparation. This check does not reserve the directory;
+Core acquires all unique directory claims in the creation transaction. Users and external tools must
+avoid starting another writer during preparation.
+
+When the current session has every required directory permission, local modes continue there. Codex
+uses the `current_session` surface and `local-provision`, with `prepare.handoff_file=null` and retained
+`handoff_digest=null`. Requirements handoff files are needed only for a session handoff. An all-local
+DeepSeek launch returns `ready` and the full `open_task` descriptor without relaunch or consume.
+Repositories may choose different modes, but the actual execution session must cover every root.
+DeepSeek mixed launches restart from their common parent; the running session does not gain broader
+permissions. Any repository failure prevents a partial Core Task. Retain local branches and changes
+for inspection.
+
+Local resume uses the original directory instance. Branch/history conflicts, content invalidation,
+file scope and verification rules remain in effect. Local modes support neither workspace relocation
+nor assisted deletion of the directory or branch. DONE/CANCELLED releases claims and retains work.
+Uncommitted contents remaining after one Task become initial changes for the next Task.
+The UI presents the lifecycle operations supported by each mode.
+
+The `standard-development` definition digest, nodes, full outgoing edges, guards, Action allowed effects
+and verification requirements are unchanged. This changes workspace creation and lifecycle contracts,
+without adding a process node or another Task state.
 
 ## Available data and responsibilities
 
@@ -18,7 +61,7 @@ branch, HEAD and actual changes read-only, then creates the Task.
 Local sources use an empty `remote_name` and a local `base_branch`. Remote sources require a valid remote
 name and `carry_changes=false`. `target_branch` names the new task branch. Missing choices have no defaults.
 
-## Behavior rules
+## Dedicated-worktree source rules
 
 1. Preparation starts only after the choices are explicit. Remote sources fetch the exact ref; local
    sources resolve `refs/heads/<base>` without network access.
@@ -43,19 +86,18 @@ local creation does not gain a remote dependency.
 
 ## Launch records and Task state
 
-Host receipts add `source_type`, `carry_changes` and `snapshot_commit`, and retain the starting point as
+Host receipts retain `workspace_mode`, `source_type`, `carry_changes` and `snapshot_commit`, and retain the starting point as
 `base_commit`. Preparation follows `confirmed -> resolving -> prepared`, then the existing dispatch and
 worktree provisioning phases. Failures and uncertain results retain `failed` and `uncertain`. These
 are Host operation records, not additional Core process nodes.
 
 `WorkspaceOrigin` and CLI/MCP/WebUI projections include `source_type` and `carry_changes`. Core continues
 to own identity, recovery and process rules. The current `standard-development` definition digest, nodes,
-outgoing edges, guards, Actions and verification requirements are unchanged. Only Task admission now
-allows explicitly selected local content. `tasks.snapshot` retains the new origin fields.
+outgoing edges, guards, Actions and verification requirements are unchanged. `tasks.snapshot` retains the selected workspace mode and origin fields; the SQL table layout is unchanged.
 
 ## Expected result and impact
 
-Local repositories can start Tasks offline, with uncommitted content copied only by user choice. An
+Local branches reuse the existing environment offline. Dedicated worktrees copy uncommitted content only by user choice. An
 application failure preserves the source checkout and does not report a successful Task. Carried content
 counts toward the Task surface; it is not completed work or a passed verification result.
 
@@ -68,6 +110,8 @@ counts toward the Task surface; it is not completed work or a passed verificatio
   and consume after relaunch.
 - Core `workspace_observer_test.go`: local admission without a remote, required carry authorization for
   initial changes, rejection of remote carry, and retained actual Task surface.
+- Core `workspace_check_test.go`: real Git and SQLite cover local creation, accepted initial changes, unique claims, same-content commits, resume, branch-switch blocking, relocation rejection and cancellation without deleting local files. The availability check creates no database when none exists.
+- Local Host tests cover both branch modes, index/ignored-file retention, ready-in-session output, active-Task refusal and provisioned retries without Git mutation.
 - Package, CLI/MCP input and storage checks cover the new fields and packaged snapshot modules.
 
 These checks use native temporary repositories and Host helpers. Managed dispatch uses simulated Host

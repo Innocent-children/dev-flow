@@ -183,7 +183,7 @@ export interface RepositoryView {
   role: "primary" | "additional";
   repository_group_id: string;
   workspace_origin: {
-    mode: "dedicated_worktree";
+    mode: "new_branch" | "current_branch" | "dedicated_worktree";
     source_type: "local" | "remote";
     carry_changes: boolean;
     remote_name: string;
@@ -214,8 +214,8 @@ export interface WorkspaceView {
   provisioning_status: "last_known" | "unavailable";
   current_changed_paths: string[];
   history_conflict: boolean;
-  relocation: { pending: boolean; relocation_id: string | null; resume_node: string | null };
-  cleanup: { automatic: false; host_action_required: true; separate_worktree_and_branch: true; terminal: boolean };
+  relocation: { available: boolean; pending: boolean; relocation_id: string | null; resume_node: string | null };
+  cleanup: { automatic: false; host_action_required: boolean; separate_worktree_and_branch: boolean; terminal: boolean };
 }
 
 export interface FailureResponse {

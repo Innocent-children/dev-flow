@@ -442,7 +442,7 @@ function workspaceOriginSchema() {
     additionalProperties: false,
     required: ["mode", "source_type", "carry_changes", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"],
     properties: {
-      mode: { const: "dedicated_worktree" },
+      mode: { enum: ["new_branch", "current_branch", "dedicated_worktree"] },
       source_type: { enum: ["local", "remote"] },
       carry_changes: { type: "boolean" },
       remote_name: { type: "string" },

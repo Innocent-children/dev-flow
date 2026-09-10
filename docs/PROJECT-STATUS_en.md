@@ -30,7 +30,7 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 | User-visible capability | Current content |
 | --- | --- |
 | New-request assessment | The Host performs a read-only `small|standard|large|uncertain` assessment and waits for a choice; an exact selector cannot skip it |
-| Worktree first | The developer confirms source, branch and local content choices; the Host resolves the base, applies confirmed content, and verifies the dedicated worktree before Task creation |
+| Workspace selection | Default new branch in the current directory, with current-branch and dedicated-worktree alternatives; check claims, accept initial content and prepare all roots before Task creation. Targeted checks cover local Host helpers and real Core/Git/SQLite; actual Host-session end-to-end coverage remains as stated below |
 | Durable Task | Locally retain request, scope, current stage, the post-analysis verification plan, current budget/usage, increase reasons, records, blockers, and outcome |
 | Continue after interruption | Codex and DeepSeek resume the current stage and next step from the same Task |
 | Scope and verification limits | TASKS retains the initial verification plan; Core counts the current Task Plan revision, accepts concretely justified TEST increases, and applies ExpectedPaths plus record invalidation |

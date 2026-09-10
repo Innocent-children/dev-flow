@@ -3,7 +3,7 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` gives Codex one durable Core Task in a dedicated worktree. New requests are assessed
+`dev-flow-codex` gives Codex one durable Core Task, defaulting to a new branch in the current directory. New requests are assessed
 before Core is contacted; selected requests start from a developer-confirmed source/base/target/carry, and
 Core derives the current change surface from read-only Git.
 
@@ -65,12 +65,15 @@ recommendation, and reasons. It waits when a developer choice is still required.
 tool call, Task, claim, Git write, provisioning receipt, or child dispatch. A changed request,
 canonical root, HEAD, or status invalidates the assessment.
 
-After choosing Dev Flow, the developer selects a local or remote source, base and target branches,
-and whether to carry local staged, unstaged and non-ignored untracked content. Local preparation
-works offline. The Host freezes the selected commit and snapshot, creates the dedicated worktree,
-and applies confirmed contents while preserving the source checkout.
+After selection, default to `new_branch` from current HEAD in the existing directory. Explicit options
+are `current_branch` and `dedicated_worktree`. Local modes show the actual directory/branch/initial
+changes and preserve files, index, ignored configuration and dependencies. Core checks directory claims
+before branch changes; continue the current session when it has every required root. Local launches
+use `current_session`, `handoff_file:null`, `prepare`, `local-provision` and `scope`, then open one Task.
+Dedicated-worktree choices additionally select local/remote source, base, target and content copying.
+All repositories must be ready before Core creation. See [working directories and branches](WORKTREE-SOURCES_en.md).
 
-In Codex App, managed-worktree and snapshot behavior remains Host-owned. The coordinator creates one
+For an explicitly selected dedicated worktree, managed-worktree and snapshot behavior remains Host-owned. The coordinator creates one
 task from the frozen base commit and records one launch; queued, timed-out, or uncertain creation is
 read from that launch rather than dispatched again. The child verifies HEAD, creates/switches to the
 confirmed target branch, applies the selected snapshot and verifies worktree identity, then calls Core. Codex CLI uses
@@ -105,7 +108,9 @@ Test-code changes should protect stable behavior, public interfaces, important f
 
 See the [Command Reference](COMMANDS_en.md) for submission fields.
 
-## Handoff and terminal worktrees
+## Handoff and terminal workspaces
+
+Local branch Tasks resume in the original directory and support neither workspace relocation nor assisted directory/branch deletion. Completion retains local work; uncommitted contents become initial changes for the next Task. Relocation requires every repository to use a dedicated worktree.
 
 Same-machine relocation starts with Core `dev_flow_prepare_task_relocation`, which retains source bindings,
 claims, base, content, surface, and resume node. Codex performs one Host handoff. Destination paths and

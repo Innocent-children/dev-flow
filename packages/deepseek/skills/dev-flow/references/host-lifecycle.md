@@ -1,5 +1,9 @@
 # DeepSeek Host lifecycle
 
+Local `new_branch`/`current_branch` Tasks retain their directory and branch. Do not invoke worktree
+cleanup, branch cleanup or workspace relocation for these modes. DONE/CANCELLED releases the Core
+claim and preserves files; uncommitted content appears as initial work in the next Task.
+
 Implementation: `packages/deepseek/lib/workspace-tool.mjs` — `registerWorkspaceCoordinator`;
 `packages/deepseek/lib/workspace-coordinator.mjs` — `workspaceCleanupText`, `createWorkspaceCoordinator`.
 

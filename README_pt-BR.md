@@ -18,7 +18,7 @@ resultados para você continuar depois que a sessão terminar.
 
 - **Definir o escopo:** registre os arquivos previstos e compare as alterações reais com o plano.
 - **Planejar os testes:** escolha verificações pertinentes e limite o esforço de validação.
-- **Retomar o trabalho:** continue a mesma tarefa e o trabalho restante no worktree original.
+- **Retomar o trabalho:** continue a mesma tarefa e o trabalho restante no diretório original.
 - **Consultar resultados:** acompanhe o progresso, as verificações e os problemas que precisam de atenção.
 
 É útil para trabalhos em repositórios que atravessam sessões ou precisam de limites claros de
@@ -61,18 +61,25 @@ Envie essas mensagens na conversa, não no terminal. Descreva o objetivo, os cri
 o escopo de arquivos e o limite de testes.
 
 A primeira resposta avalia o pedido e pergunta se você quer trabalhar diretamente ou usar o Dev Flow.
-Se escolher o Dev Flow, confirme a origem local ou remota, o branch inicial, o novo branch da tarefa
-e se deseja trazer as alterações locais existentes.
+Ao escolher o Dev Flow, o padrão é criar um novo branch de tarefa a partir do HEAD atual no diretório
+atual. Confirme o branch e se as alterações existentes ainda não commitadas fazem parte da tarefa.
+As dependências, configurações locais, arquivos e estado do índice são preservados; a mesma sessão
+continua quando consegue acessar todos os diretórios participantes.
 
-O trabalho segue em um worktree Git dedicado, um diretório separado para a tarefa. O Codex o abre
-quando o ambiente hospedeiro oferece suporte; o DeepSeek fornece um comando para reiniciar no novo diretório.
+Você também pode escolher explicitamente usar o branch atual ou criar um worktree Git dedicado. Para
+um worktree, selecione também a origem local ou remota e o branch inicial. O Codex abre o novo diretório
+quando o ambiente permite; o DeepSeek fornece o comando de reinício correspondente.
+
+Cada diretório admite apenas uma Task ativa. Edições manuais ou de outras ferramentas também são
+observadas, e mudar de branch durante a tarefa pausa o processo. Diretórios e branches locais são
+preservados ao concluir; alterações não commitadas precisam ser consideradas ao iniciar a próxima tarefa.
 
 Antes da implementação, revise e discuta os requisitos, o projeto, as tarefas, os arquivos previstos e o plano de verificação. O desenvolvimento começa após sua aprovação explícita do plano completo. Alterações no plano ou ampliação do conjunto de arquivos exigem nova aprovação. Escolher Dev Flow ou um worktree não substitui essa aprovação.
 
 ### 3. Retome e acompanhe o progresso
 
-Depois de reiniciar a sessão, volte ao worktree original e peça para continuar a tarefa. O Dev Flow
-retoma o progresso salvo. Se esse worktree sumiu ou foi substituído, a tarefa fica pausada até que
+Depois de reiniciar a sessão, volte ao diretório original e peça para continuar a tarefa. O Dev Flow
+retoma o progresso salvo. Se esse diretório sumiu ou foi substituído, a tarefa fica pausada até que
 você o restaure ou abandone explicitamente a tarefa.
 
 No DeepSeek Harness, inclua `/dev-flow` na mensagem que pede para retomar a tarefa.

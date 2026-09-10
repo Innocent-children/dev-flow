@@ -2,7 +2,7 @@
 
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
-> 本文说明当前工作树优先实现、协议和持久化。判断是否适合使用，请先读
+> 本文说明当前工作区与分支实现、协议和持久化。判断是否适合使用，请先读
 > [README](../README_zh-CN.md) 和[产品定义](PRODUCT.md)。完整命令见[命令参考](COMMANDS.md)。
 
 ## 核心原则
@@ -17,8 +17,8 @@ flowchart TB
     H --> A[只读改动量评估]
     A --> C{选择 Dev Flow?}
     C -->|否| D[直接开发 · 无 Core Task]
-    C -->|是| P[确认 source/base/target/carry]
-    P --> W[Host provisioning receipt + dedicated worktree]
+    C -->|是| P[选择工作位置 · 默认原目录新分支]
+    P --> W[Host 启动记录与工作区准备]
     W --> M[Local STDIO MCP · 17 tools]
     M --> S[Application Service]
     S --> G[Read-only Git Observer]
@@ -54,15 +54,25 @@ Codex 沿用当前请求和评估下仍有效的明确选择与授权；没有�
 评估绑定 request、canonical root、HEAD 和 status digest。等待选择期间任一项变化都要重新评估。明确
 resume 是唯一跳过评估的入口。
 
-用户选择 Dev Flow 后，逐仓确认 `source_type`、`base_branch`、`carry_changes` 和新的 `target_branch`。
-远端来源还需确认 `remote_name`，随后以参数数组执行精确 fetch；本地来源的 `remote_name` 为空，直接
-解析 `refs/heads/<base>`，不访问网络。Host 固定 `base_commit`，并在携带本地改动时保存 `snapshot_commit`。
-创建独立工作树、目标分支并核对身份和 HEAD 后，Host 应用快照并保留暂存状态。Core 只对明确携带本地
-改动的创建接受初始修改。源 checkout 保持原样；冲突停止 Task 创建并保留现场。
-完整内容规则和验收范围见[工作树来源](WORKTREE-SOURCES.md)。
+用户选择 Dev Flow 后，`workspace_mode` 默认采用 `new_branch`，从当前 HEAD 在原目录新建任务
+分支；显式选项还有 `current_branch` 与 `dedicated_worktree`。Core `WorkspaceOrigin.mode` 保存同一
+选择。本地模式使用本地来源、当前起始分支和 HEAD；新分支创建由 Host 负责，Core 只读验证。
+`carry_changes` 明确接受初始改动，本地模式保留文件及 index，不应用复制快照。准备前和切分支前
+由 Core 的 `host-check workspace-available` 只读检查占用；创建仍由 Core 一次取得全部 claims。
+检查不预占目录，Host 保持单一执行者。新模式复用现有内容、历史及实例摘要，不修改 SQL 表结构。
+
+Codex 本地模式使用 `current_session` surface：`prepare -> local-provision -> scope -> open_task`。
+`handoff_file` 和 `handoff_digest` 为 null，当前会话已获全部目录权限时直接继续。DeepSeek 全本地
+选择返回 `ready` 与 `open_task`，在原 Workspace Root 继续；含独立工作树时仍 relaunch/consume，
+混合选择从共同父目录启动并检查全部目录权限。
+
+明确选择 `dedicated_worktree` 时，逐仓确认 `source_type`、`base_branch`、`carry_changes` 和新的
+`target_branch`。远端来源确认 `remote_name` 后执行精确 fetch；本地来源直接解析本地 ref。Host 固定
+`base_commit`，按选择保存并应用快照，核对独立工作树和 HEAD。源目录保持原样；冲突停止 Task 创建
+并保留现场。完整规则见[工作位置与分支](WORKTREE-SOURCES.md)。
 
 Host 在第一次 Git 写入前保存窄 provisioning receipt：launch/host/request digest、`handoff_digest`、源仓库身份、repository
-key、source/base/target/carry、frozen commit、worktree path、operation status 与时间。它不保存凭据、remote
+key、workspace mode、source/base/target/carry、frozen commit、worktree path、operation status 与时间。它不保存凭据、remote
 URL、文件内容或流程节点。结果不确定时读取 receipt/Host 状态，禁止盲目再次 dispatch。
 
 Codex 创建结果由 Host Adapter 解析，包括完整返回值中单个文本块的 JSON。`clientThreadId` 写入 `host_client_thread_id` 并进入 `queued`；相同启动记录补交有效结果可从 `uncertain` 恢复到 `queued`，再由就绪结果进入 `dispatched`。这两个转换保留原派发标识，`dispatch-start` 继续拒绝重复派发；Core Task 状态不受这些 Host 记录转换影响。
@@ -173,7 +183,7 @@ identity/history/content digests，Recovery 也使用这些事实。
 
 | 观察 | 结果 |
 | --- | --- |
-| 源 checkout 变化 | 与 Task 无关 |
+| 目录内的其他修改 | 本地模式计入观察；独立工作树的源 checkout 修改与 Task 分开 |
 | task branch 线性前进 | 重新计算 surface，继续 |
 | 相同内容被 commit | 保留 Test/Comprehension |
 | 内容变化 | 使对应下游记录失效 |
@@ -184,7 +194,7 @@ identity/history/content digests，Recovery 也使用这些事实。
 
 结构化工具写计划外路径前仍调用 `host-check pre-file-write`；`allow_once` 绑定 source Action、精确路径
 和 intent，`expand_scope` 回到 TASKS，reject/restore 要求实际恢复。Bash 或外部进程可能先写，Core 在
-下一次观察中用当前内容摘要建立同样的范围决定。专属工作树没有“外部改动可忽略”分支。
+下一次观察中用当前内容摘要建立同样的范围决定。两种目录形态都没有“外部改动可忽略”分支。
 
 ## Action 提交
 
@@ -270,6 +280,7 @@ Core 保存调整前后预算和原因，并签发新的 TEST Action。无具体
 
 ## Relocation、取消和终态
 
+工作区迁移只接受全部采用 `dedicated_worktree` 的 Task，本地模式在进入 BLOCKED 前拒绝迁移。
 `dev_flow_prepare_task_relocation` 把当前 Task 放入 `BLOCKED`，保存 relocation ID、源 bindings、base、
 content、surface 和 resume node，源 claims 继续有效。Host 执行一次同机 handoff。随后
 `dev_flow_resolve_blocker` 提交 relocation ID 与目标 repository paths；Core 验证同一 repository group、
@@ -279,7 +290,7 @@ base、等价 surface 和 claim 可用性，在一个 transaction 中替换全�
 `dev_flow_abandon_task(host, task_id, revision, reason)` 可以保存最后已知 binding、进入 CANCELLED 并释放
 claims；它不访问或删除 Git 对象。
 
-DONE/CANCELLED 只结束 Task 和释放 claims。终态投影 source/base/base commit、task branch/current
+DONE/CANCELLED 只结束 Task 和释放 claims。本地目录与分支保留，cleanup 不适用。终态投影 source/base/base commit、task branch/current
 HEAD、worktree path、clean/dirty、当前 paths 和验证记录。keep/review/handoff/worktree cleanup/branch
 cleanup 是 Host 后续操作，其中两个 cleanup 分别授权。
 
@@ -312,15 +323,15 @@ revision CAS。claim key 使用可直接
 观察的 worktree instance identity，使写前 hook 即使遇到非法 branch switch 仍能找到 Task。
 
 WebUI 是 loopback HTTP Adapter，只投影 WorkspaceOrigin、当前 observation/surface、blocker、relocation、
-verification plan、当前预算/消耗、调整原因和 cleanup choices。它不再从任意 checkout 创建新 Task，
+verification plan、当前预算/消耗、调整原因和 cleanup choices。它展示三种工作区模式及对应的迁移、清理操作；创建仍从 Host 启动入口进行，
 也不执行 Git 或 Host handoff。
 
 ## Host 差异
 
-- Codex App 使用原生 managed worktree、snapshot、task creation 和 handoff；Skill 保存一次 launch 状态，
+- 独立工作树模式中，Codex App 使用原生 managed worktree、snapshot、task creation 和 handoff；Skill 保存一次 launch 状态，
   child 初始化目标分支后才 open Core。Codex CLI 使用
   `codex -C <worktree> [--add-dir <additional-worktree>] -- <prompt>` relaunch。
-- DeepSeek 的 Workspace Root 在进程启动时固定。WorkspaceCoordinator 创建安全 sibling worktree，输出
+- DeepSeek 的 Workspace Root 在进程启动时固定。本地模式沿用原会话；独立模式由 WorkspaceCoordinator 创建安全 sibling worktree，输出
   `{command,arguments,cwd}` relaunch descriptor；新会话消费 receipt 后才 open Core。它不扩大旧会话权限，
   也不在源仓库内嵌套 worktree。
 - 多仓库 Task 要求所有 roots 全部 provision、授权和验证；任一失败时不创建部分 Task 或 claims。

@@ -162,6 +162,7 @@ type WorkspaceObservationView struct {
 }
 
 type RelocationView struct {
+	Available    bool    `json:"available"`
 	Pending      bool    `json:"pending"`
 	RelocationID *string `json:"relocation_id"`
 	ResumeNode   *string `json:"resume_node"`

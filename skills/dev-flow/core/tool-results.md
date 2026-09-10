@@ -68,7 +68,10 @@ MCP server or inspect binaries to bypass the result. Setup owns installed-resour
 
 Implementation: `internal/application/open_task.go` — `OpenTask`.
 
-For new creation, all receipts/worktrees must be verified first. Copy the complete verified repository descriptor from [Host admission](admission.md)
+For new creation, all receipts/workspaces must be verified first. The default mode is `new_branch` in the current
+directory; `current_branch` keeps the existing branch, and `dedicated_worktree` uses an isolated directory.
+Local modes use local source/current base branch/starting HEAD, and accept initial modifications only
+with `carry_changes:true`. The Host checks directory availability before local branch preparation. Copy the complete verified repository descriptor from [Host admission](admission.md)
 into the repository members. `new_task.request` is the admitted request string; scope/exclusions/
 known acceptance are arrays derived from the actual request. Profile follows explicit plain, Spec Kit
 or OpenSpec intent, otherwise plain. No verification budget is selected at creation.
@@ -105,7 +108,7 @@ or OpenSpec intent, otherwise plain. No verification budget is selected at creat
 ```
 
 For a complete confirmed multi-repository Scope, the call includes both origins. These fields come
-from one verified Host launch descriptor after both worktrees are provisioned and writable:
+from one verified Host launch descriptor after both selected workspaces are prepared and writable:
 
 <!-- example:mcp dev_flow_open_task multiple -->
 ```json
@@ -413,6 +416,9 @@ Implementation: `internal/application/relocation.go` — `PrepareTaskRelocation`
 
 First verify that [Host lifecycle](host-lifecycle.md#relocation) supplies an available, authorized
 relocation procedure. The Core tool alone does not supply a Host move. After explicit user authority, retain the current Core Task ID/revision and prepare once:
+
+Relocation requires every repository to use `dedicated_worktree`. Local modes retain their original
+directory; end or resume that Task there. Core rejects local relocation before changing Task state.
 
 <!-- example:mcp dev_flow_prepare_task_relocation prepare -->
 ```json

@@ -1,7 +1,7 @@
 {
   "name": "dev-flow-codex",
   "version": "0.9.9",
-  "description": "Worktree-first Dev Flow lifecycle integration for Codex.",
+  "description": "Dev Flow tasks in local branches or dedicated worktrees for Codex.",
   "author": {
     "name": "Dev Flow"
   },
@@ -11,8 +11,8 @@
   "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Dev Flow for Codex",
-    "shortDescription": "Assess and isolate Dev Flow tasks",
-    "longDescription": "Assess development requests before the user chooses direct work or Dev Flow, then provision every new Dev Flow Task from a confirmed remote and base in a dedicated named-branch worktree. The $dev-flow-codex:dev-flow selector does not skip assessment; explicit resume returns to the original worktree.",
+    "shortDescription": "Assess and continue Dev Flow tasks",
+    "longDescription": "Assess development requests before choosing direct work or Dev Flow. Default to a new task branch in the current directory; explicitly choose the current branch or a dedicated worktree when needed. Preserve confirmed initial content and resume the same Core Task in its original directory. The $dev-flow-codex:dev-flow selector does not skip assessment.",
     "developerName": "Dev Flow",
     "category": "Productivity",
     "capabilities": [

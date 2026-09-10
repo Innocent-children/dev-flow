@@ -7,9 +7,9 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` 让 Codex 在独立工作树中使用一个持久 Core Task。新请求先评估、再接触 Core；用户
-选择 Dev Flow 后，Task 从确认的来源、起始分支、目标分支和携带选择 开始，Core 通过只读 Git 推导当前
-改动面。
+`dev-flow-codex` 让 Codex 使用一个持久 Core Task。新请求先只读评估；选择 Dev Flow 后，默认在
+当前目录从当前 HEAD 新建任务分支，也可明确选择当前分支或独立工作树。Core 通过只读 Git 观察
+实际改动，保存进度和恢复信息。
 
 ## 支持范围
 
@@ -62,7 +62,7 @@ marketplace、Plugin 与 MCP。桌面宠物另按本文的本地开发包说明�
 Codex 沿用当前请求和评估下仍有效的明确选择与授权；没有待决定事项或必需输入时直接继续，不为进度说明或技能规则解释增加“确认后继续”的暂停。需要输入时，在同一回复中提出具体问题；开发方式、工作树参数、理解确认、独立操作授权及阻塞处理仍按各自规则执行。
 
 仓库调查遵循当前用户指令和适用的 `AGENTS.md`。需要项目索引时，Codex 在现有权限内只读检查索引、
-候选项目说明及相关代码与配置，形成完整候选范围，再逐仓确认并准备工作树；Task 创建后范围固定。
+候选项目说明及相关代码与配置，形成完整候选范围，再逐仓确认并准备工作区；Task 创建后范围固定。
 选择代码检索工具时，这些指令优先于 `host_preferences.codex.codebase_memory` 默认偏好。
 
 在 Git 仓库中描述实现、缺陷修复、重构、定向测试或开发交付请求后，Codex 先只读检查候选代码、
@@ -77,9 +77,11 @@ $dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run 
 这不是 shell 命令。`$dev-flow` 不是它的别名；精确 selector 也不会跳过评估和用户选择。只解释、
 只查询状态、方案讨论、普通问答和含糊请求不会创建 Task。
 
-用户选择 Dev Flow 后，Codex 逐仓询问本地或远端来源、起始分支、目标分支，并在选择本地时询问是否
-携带暂存、未暂存和非 ignored 的未跟踪内容。Host 固定起点后建立独立工作树，按选择复制内容并验证；
-本地创建无需 remote 或联网，源工作区保持原样。规则与验收见[工作树来源](../../docs/WORKTREE-SOURCES.md)。
+选择 Dev Flow 后，默认在原目录新建任务分支，也可以明确选择使用当前分支或独立工作树。
+本地模式展示当前目录、分支及未提交修改，保留文件、暂存状态、ignored 配置和已有依赖；通过 Core
+占用检查后，当前会话有全部目录权限时直接继续。两个本地模式都不需要新会话或需求交接文件。
+选择独立工作树时才继续确认本地或远端来源、起始分支、新目标分支及是否复制初始内容。
+全部仓库准备成功后创建一个 Task。规则与验收见[工作位置与分支](../../docs/WORKTREE-SOURCES.md)。
 
 新 Task 从需求阶段开始，只保存最初请求、范围、验收条件和 method profile，不在分析前冻结最终
 verification budget。可以在创建时选择 `plain`、`spec-kit` 或 `openspec`，但当前没有 OpenSpec /
@@ -87,7 +89,7 @@ Spec Kit artifact importer。
 
 ## 恢复已有 Task
 
-明确恢复已有 Task 时不重新评估或选择 profile。回到同一个已参与的物理 worktree，在新 Codex 会话
+明确恢复已有 Task 时不重新评估或选择 profile。回到同一个已参与的工作目录，在新 Codex 会话
 中继续原任务或使用精确 selector；Adapter 读取 Core 状态并恢复当前阶段、revision、范围、剩余验证、
 Blocker 和 Recovery。原 worktree 丢失或已被另一个实例替换时会得到 `WORKSPACE_UNAVAILABLE`，不会
 按同名路径或 branch 猜测未提交内容。
@@ -167,10 +169,12 @@ npm uninstall -g dev-flow-codex
 - selector 不绕过仓库权限、当前 Action、Git 写入授权或发布确认；
 - 工作树是源码改动归属边界，不是进程、网络、凭据、端口、数据库或容器沙箱；
 - 多仓库 Task 只有在每个 root 都独立 provision 并授权后才创建，部分隔离会整体拒绝；
-- 共享目录 sub-agent 不能替代独立 Host worktree，`ACTIVE_TASK_CONFLICT` 返回后停止创建；
+- 同一目录只允许一个活动 Task；手工和其他工具的修改也会被观察。独立并行任务需使用不同目录或按顺序执行，`ACTIVE_TASK_CONFLICT` 返回后停止创建；
 - 可选代码索引只帮助检索，不能扩大 Scope 或决定 Recovery 和流程状态。
 
-## 高级多仓库与 worktree
+## 高级多仓库与独立工作树
+
+本地分支 Task 在原目录恢复，保留目录和分支，不进入工作区迁移或辅助删除。完成后尚未提交的内容会成为下一 Task 的初始修改。
 
 启动新会话前，原会话保存本次需求的相关讨论原文和结构化交接材料，保留确定要求、术语、范围限制、
 代码调查、工作要求，并单独列出未采纳建议、假设和待确定问题。已有开发及工作树确认不会把助手建议
@@ -183,13 +187,13 @@ npm uninstall -g dev-flow-codex
 child dispatch。Codex 只有在 Host 能为每个项目提供独立 worktree-backed task/thread 时才分派；每个
 child 有一个 Host task、一个 worktree 和一个 Core Task。`ACTIVE_TASK_CONFLICT` 返回后停止，由用户处理现有任务。
 
-Codex App managed worktree 从固定 `base_commit` 创建，child 在 Core 调用前建立用户
+明确选择独立工作树后，Codex App managed worktree 从固定 `base_commit` 创建，child 在 Core 调用前建立用户
 确认的 target branch。无 task creation 能力的 Codex CLI 使用 receipt 返回的 `codex -C` / `--add-dir`
 argv descriptor 重新进入。managed worktree 的 snapshot、Handoff 和清理由 Codex Host 负责；CLI
 工作树与 branch 的删除分别需要用户授权，且不会使用 force。
 
 同机 relocation 先由 Core 的 `dev_flow_prepare_task_relocation` 保存 blocker，再由另一个 coordinator
-执行一次 Codex Handoff；结果不确定时只读 receipt 和 Host 状态，不重复 Handoff。工作树确实丢失且
+对全部仓库均为独立工作树的 Task 执行一次 Codex Handoff；结果不确定时只读 receipt 和 Host 状态，不重复 Handoff。工作树确实丢失且
 无法恢复时，用户可以通过 `dev_flow_abandon_task` 释放 claim。`DONE` / `CANCELLED` 本身不会删除
 branch 或 worktree。
 

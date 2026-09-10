@@ -13,6 +13,19 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
+// WorkspaceRelocationSupported limits Host handoff to dedicated Task worktrees.
+func WorkspaceRelocationSupported(task domain.ProcessTask) bool {
+	if task.WorkspaceOrigin.Mode != domain.WorkspaceModeDedicatedWorktree {
+		return false
+	}
+	for _, entry := range task.AdditionalRepositories {
+		if entry.Origin.Mode != domain.WorkspaceModeDedicatedWorktree {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Service) PrepareTaskRelocation(ctx context.Context, request PrepareTaskRelocationRequest) (PrepareTaskRelocationResult, error) {
 	if !s.valid() || ctx == nil || !request.RequestID.IsValid() || !request.Host.IsValid() || !request.TaskID.IsValid() || request.ExpectedRevision == 0 {
 		return PrepareTaskRelocationResult{}, domain.ErrInvalidArgument
@@ -20,6 +33,9 @@ func (s *Service) PrepareTaskRelocation(ctx context.Context, request PrepareTask
 	task, err := s.loadOwned(ctx, request.Host, request.TaskID)
 	if err != nil {
 		return PrepareTaskRelocationResult{}, err
+	}
+	if !WorkspaceRelocationSupported(task) {
+		return PrepareTaskRelocationResult{}, domain.ErrInvalidArgument
 	}
 	if task.CurrentNode == domain.NodeBlocked && task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseTaskRelocationPending && task.Relocation != nil && request.ExpectedRevision+1 == task.Revision {
 		return PrepareTaskRelocationResult{Task: task, RelocationID: task.Relocation.RelocationID}, nil

@@ -27,6 +27,7 @@ import {
 } from "../lib/paths.mjs";
 import { runHook } from "../plugin/hooks/pre-tool-use.mjs";
 import { assertNoDuplicateJSONMembers } from "../lib/json.mjs";
+import { execPortableCommand } from "../lib/command.mjs";
 import { inspectAdmissionAnchor } from "../lib/task-admission.mjs";
 import { HOST_LAUNCH_OPERATIONS, hostLaunchHelp } from "../lib/host-launch-contract.mjs";
 import { ARTIFACT_OPERATIONS, artifactsHelp } from "../lib/artifacts-help.mjs";
@@ -42,6 +43,7 @@ import {
   prepareTaskLaunch,
   readOpenTaskRepositoryScope,
   provisionCliTask,
+  provisionLocalTask,
   recordManagedTaskDispatch,
   recordTaskHandoff,
   recordTaskHandoffStatus,
@@ -69,7 +71,7 @@ export async function runCLI(arguments_, dependencies = {}) {
   let setupAttempted = false;
 
   if (Array.isArray(arguments_) && arguments_.length === 1 && arguments_[0] === "--help") {
-    stdout.write("Usage: dev-flow-codex status|setup|remove [--json]\n       dev-flow-codex --version\n       dev-flow-codex mcp\n       dev-flow-codex artifacts <collect|prepare> [--help]\n       dev-flow-codex hook pre-tool-use\n       dev-flow-codex host-check pre-file-write\n\n" + artifactsHelp() + "\n" + hostLaunchHelp());
+    stdout.write("Usage: dev-flow-codex status|setup|remove [--json]\n       dev-flow-codex --version\n       dev-flow-codex mcp\n       dev-flow-codex artifacts <collect|prepare> [--help]\n       dev-flow-codex hook pre-tool-use\n       dev-flow-codex host-check pre-file-write\n       dev-flow-codex host-check workspace-available\n\n" + artifactsHelp() + "\n" + hostLaunchHelp());
     return { code: 0, signal: null };
   }
   if (Array.isArray(arguments_) && arguments_[0] === "host-launch" && (
@@ -88,7 +90,7 @@ export async function runCLI(arguments_, dependencies = {}) {
   }
 
   if (!isProductionCommand(arguments_)) {
-    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, artifacts <collect|prepare>, hook pre-tool-use, host-check pre-file-write, host-launch <operation>, --version, or --help\n");
+    stderr.write("dev-flow-codex: invalid arguments; expected status [--json], setup [--json], remove [--json], mcp, artifacts <collect|prepare>, hook pre-tool-use, host-check <pre-file-write|workspace-available>, host-launch <operation>, --version, or --help\n");
     return { code: 2, signal: null };
   }
 
@@ -117,8 +119,8 @@ export async function runCLI(arguments_, dependencies = {}) {
         signalSource: dependencies.signalSource ?? process,
       });
     }
-    if (arguments_.length === 2 && arguments_[0] === "host-check" && arguments_[1] === "pre-file-write") {
-      return await launchPackagedCore(paths, ["host-check", "pre-file-write"], {
+    if (arguments_.length === 2 && arguments_[0] === "host-check") {
+      return await launchPackagedCore(paths, arguments_, {
         environment,
         spawnImpl: dependencies.spawnImpl ?? spawn,
         signalSource: dependencies.signalSource ?? process,
@@ -364,7 +366,7 @@ function isProductionCommand(arguments_) {
   if (arguments_.length === 2 && arguments_[0] === "artifacts" && ["collect", "prepare"].includes(arguments_[1])) return true;
   if (arguments_.length === 1 && ["mcp", "--version"].includes(arguments_[0])) return true;
   if (arguments_.length === 2 && arguments_[0] === "hook" && arguments_[1] === "pre-tool-use") return true;
-  if (arguments_.length === 2 && arguments_[0] === "host-check" && arguments_[1] === "pre-file-write") return true;
+  if (arguments_.length === 2 && arguments_[0] === "host-check" && ["pre-file-write", "workspace-available"].includes(arguments_[1])) return true;
   if (arguments_.length === 2 && arguments_[0] === "host-launch" && HOST_LAUNCH_OPERATIONS.includes(arguments_[1])) return true;
   return (
     (arguments_.length === 1 || arguments_.length === 2 && arguments_[1] === "--json") &&
@@ -377,6 +379,16 @@ async function runHostLaunchCommand(operation, input, paths, dependencies) {
     productSupportRoot: paths.productSupportRoot,
     enforcePrivateModes: paths.enforcePrivateModes,
     runGit: dependencies.runGit,
+    checkWorkspaceAvailable: dependencies.checkWorkspaceAvailable ?? (async (repositoryPath) => {
+      if (paths.usesDefaultDataDirectory) await (dependencies.ensureDefaultDataDirectory ?? ensureDefaultDataDirectory)(paths);
+      const result = await execPortableCommand(paths.runtimePath, ["host-check", "workspace-available"], {
+        cwd: paths.packageRoot,
+        env: { ...(dependencies.environment ?? process.env), DEV_FLOW_DATA_DIR: paths.dataDirectory },
+        input: `${JSON.stringify({ repository_path: repositoryPath })}\n`,
+        encoding: "utf8", timeout: 30_000, maxBuffer: 1024 * 1024,
+      });
+      return JSON.parse(result.stdout);
+    }),
   };
   if (operation === "inspect") {
     assertClosedObject(input, ["request", "repositories"], "host-launch inspect input");
@@ -390,6 +402,7 @@ async function runHostLaunchCommand(operation, input, paths, dependencies) {
     });
   }
   if (operation === "scope") return await readOpenTaskRepositoryScope(input, common);
+  if (operation === "local-provision") return await provisionLocalTask(input, common);
   if (operation === "status") {
     assertClosedObject(input, ["launch_id", "repository_key"], "host-launch status input");
     const receiptPath = provisioningReceiptPath(paths.productSupportRoot, input.launch_id, input.repository_key);

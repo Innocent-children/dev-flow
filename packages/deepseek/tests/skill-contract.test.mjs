@@ -64,12 +64,12 @@ test("all workspace examples match registered operations and exact current-turn 
       assert.equal(example.operation, WORKSPACE_COORDINATOR_TOOL);
       assert.ok(registered.parameters.properties.operation.enum.includes(args.operation));
       for (const key of Object.keys(args)) assert.ok(Object.hasOwn(registered.parameters.properties, key), key);
-      const message = text.match(new RegExp(`<!-- workspace-confirmation:${args.operation} -->\\n\x60\x60\x60text\\n([\\s\\S]*?)\\n\x60\x60\x60`, "u"))?.[1];
-      assert.ok(message, args.operation);
+      const messages = [...text.matchAll(new RegExp(`<!-- workspace-confirmation:${args.operation} -->\\n\x60\x60\x60text\\n([\\s\\S]*?)\\n\x60\x60\x60`, "gu"))].map((match) => match[1]);
       const expected = args.operation === "provision" ? workspaceConfirmationText(args.repositories)
         : args.operation === "consume" ? workspaceResumeText(args.launch_id)
           : workspaceCleanupText(args.operation, { launchID: args.launch_id, repositoryKey: args.repository_key, taskID: args.task_id, revision: args.revision });
-      assert.equal(message, expected);
+      assert.ok(messages.includes(expected), `missing exact confirmation for ${args.operation}`);
+      const message = expected;
       assert.doesNotThrow(() => authorizeWorkspaceExecution(execution(message, WORKSPACE_COORDINATOR_TOOL, args)));
       assert.throws(() => authorizeWorkspaceExecution(execution("/dev-flow continue", WORKSPACE_COORDINATOR_TOOL, args)), /REQUIRED/u);
       seen.add(args.operation);

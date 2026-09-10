@@ -18,7 +18,7 @@ los resultados para que puedas continuar después de cerrar una sesión.
 
 - **Aclarar el alcance:** registra los archivos previstos y compara los cambios reales con el plan.
 - **Planificar las pruebas:** elige comprobaciones pertinentes y limita el esfuerzo de verificación.
-- **Retomar el trabajo:** continúa la misma tarea y el trabajo pendiente desde su worktree original.
+- **Retomar el trabajo:** continúa la misma tarea y el trabajo pendiente desde su directorio original.
 - **Consultar resultados:** revisa el progreso, las comprobaciones y los problemas que requieren atención.
 
 Resulta útil para trabajo de repositorio que abarca varias sesiones o necesita límites claros de
@@ -61,19 +61,25 @@ Envía estos mensajes en la conversación, no en una terminal. Describe el objet
 aceptación, el alcance de archivos y el límite de pruebas.
 
 La primera respuesta evalúa la solicitud y pregunta si quieres trabajar directamente o usar Dev Flow.
-Si eliges Dev Flow, confirma la fuente local o remota, la rama inicial, la nueva rama de tarea y si
-quieres incorporar los cambios locales existentes.
+Al elegir Dev Flow, se crea por defecto una nueva rama de tarea desde el HEAD actual en el directorio
+actual. Confirma la rama y si los cambios sin confirmar existentes forman parte de la tarea. Se conservan
+las dependencias, la configuración local, los archivos y el estado del índice; la sesión continúa si puede
+acceder a todos los directorios participantes.
 
-El trabajo continúa en un worktree de Git dedicado, un directorio independiente para la tarea.
-Codex lo abre cuando el entorno anfitrión lo permite; DeepSeek proporciona un comando para reiniciar
-desde el nuevo directorio.
+También puedes elegir explícitamente usar la rama actual o crear un worktree de Git dedicado. Para un
+worktree se seleccionan además una fuente local o remota y una rama inicial. Codex abre el nuevo
+directorio cuando el entorno lo permite; DeepSeek proporciona el comando de reinicio correspondiente.
+
+Cada directorio admite una sola Task activa. También se observan las ediciones manuales o de otras
+herramientas, y cambiar de rama durante la tarea pausa el proceso. Los directorios y ramas locales se
+conservan al terminar; los cambios sin confirmar deben tenerse en cuenta al iniciar la siguiente tarea.
 
 Antes de implementar, revisa y comenta los requisitos, el diseño, las tareas, los archivos previstos y el plan de verificación. El desarrollo comienza tras tu aprobación explícita del plan completo. Los cambios de plan o la ampliación del alcance de archivos requieren una nueva aprobación. Elegir Dev Flow o un worktree no sustituye esa aprobación.
 
 ### 3. Retoma y consulta el progreso
 
-Después de reiniciar la sesión, vuelve al worktree original y solicita continuar la tarea. Dev Flow
-retoma el progreso guardado. Si ese worktree desapareció o fue reemplazado, la tarea se pausa hasta
+Después de reiniciar la sesión, vuelve al directorio original y solicita continuar la tarea. Dev Flow
+retoma el progreso guardado. Si ese directorio desapareció o fue reemplazado, la tarea se pausa hasta
 que lo restaures o abandones explícitamente la tarea.
 
 En DeepSeek Harness, incluye `/dev-flow` en el mensaje que solicita retomar la tarea.

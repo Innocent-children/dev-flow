@@ -172,7 +172,10 @@ Set `DEV_FLOW_DATA_DIR` to an existing canonical absolute directory before start
 | `dev-flow-codex mcp` | **Managed host command.** The Plugin MCP configuration invokes it to establish the data directory and Codex admission instructions, then launch the packaged Core with `mcp --stdio`. Normal users should not start it manually. |
 | `dev-flow-codex hook pre-tool-use` | **Managed host command.** The packaged Codex hook invokes it through the package-owned launcher on `PATH`; it reads one hook event, extracts `apply_patch` targets, and performs the prewrite check. Normal users should not start it manually. |
 | `dev-flow-codex host-check pre-file-write` | **Managed host command.** The `hook pre-tool-use` implementation invokes it so the launcher resolves the package-local Core and forwards stdin/stdout with the exact `host-check pre-file-write` arguments. Normal users should not start it manually. |
-| `dev-flow-codex host-launch <operation>` | **Managed Host command.** Reads one closed JSON object from stdin and writes one JSON object. `operation` is exactly `inspect|prepare|status|dispatch-start|dispatch-call|dispatch-recover|dispatch-reconcile|dispatch-result|bootstrap|cli-provision|scope|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`; it performs or records current-user-confirmed assessment, provisioning, relaunch, handoff, and cleanup steps and is not a generic Git CLI. |
+| `dev-flow-codex host-check workspace-available` | **Internal Host command.** Forwards the read-only Core directory-claim check used before local branch preparation. |
+| `dev-flow-codex host-launch <operation>` | **Managed Host command.** Reads one closed JSON object from stdin and writes one JSON object. `operation` is exactly `inspect|prepare|local-provision|status|dispatch-start|dispatch-call|dispatch-recover|dispatch-reconcile|dispatch-result|bootstrap|cli-provision|scope|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`; it performs or records current-user-confirmed assessment, provisioning, relaunch, handoff, and cleanup steps and is not a generic Git CLI. |
+
+Workspace selection defaults to `workspace_mode=new_branch`; alternatives are `current_branch` and `dedicated_worktree`. Local modes require local source, empty remote, the current base branch and starting HEAD, and `worktree_path=repository_path`. `carry_changes` accepts initial contents in place. Both local modes keep the session and use no requirements handoff file. New-branch targets must be unused; current-branch targets equal the base.
 
 `dev-flow-codex host-launch <operation>` reads a UTF-8 JSON object of at most 1 MiB from the stdin stream, including chunked input and multibyte characters split across chunks. Read failures, invalid UTF-8, duplicate members, invalid JSON, arrays, and null are rejected before the operation runs; errors go to stderr and successful JSON results go to stdout.
 
@@ -181,7 +184,8 @@ operations accept closed JSON objects:
 
 | Operation | Input fields and material handling |
 | --- | --- |
-| `prepare` | Requires `request`, `assessment`, `user_choice`, `repository_key`, `repository_path`, `source_type`, `carry_changes`, `remote_name`, `base_branch`, `target_branch`, `surface`, `worktree_path`, and `handoff_file`; `launch_id` is optional. `handoff_file` is the normalized absolute path to a UTF-8 JSON draft written outside assessed repositories after the existing confirmation. Its `request` must match the assessed request. Complete material is saved before fetch and associated with the receipt through `handoff_digest`. |
+| `prepare` | Requires `request`, `assessment`, `user_choice`, `repository_key`, `repository_path`, `workspace_mode`, `source_type`, `carry_changes`, `remote_name`, `base_branch`, `target_branch`, `surface`, `worktree_path`, and `handoff_file`; `launch_id` is optional. Default mode is `new_branch`; alternatives are `current_branch` and `dedicated_worktree`. Local modes use `current_session`, the original directory and `handoff_file=null`; dedicated worktrees require a complete requirements JSON file outside repositories, retained through `handoff_digest`. |
+| `local-provision` | Accepts only `launch_id` and `repository_key`. Checks Core claims for a `current_session` record, creates the local branch or retains the current branch, and returns the prepared receipt and `workspace_origin`. After every root is ready, call `scope` and Core in the current session. |
 | `dispatch-start` | Accepts only `launch_id`, `repository_key`, and `project_id`. Saves complete `host_request`; the caller forwards it unchanged after claiming permission with `dispatch-call`. |
 | `cli-provision` | Accepts only `launch_id`, `repository_key`, `additional_worktree_paths`, and `source_repository_path`. Renders relaunch arguments from the same saved material; the caller uses them unchanged. |
 
@@ -232,10 +236,12 @@ change level, candidate impact, unknowns, and recommendation, then stops for a d
 confirmation there is no Core call, Task/receipt/child, or Git write; request, root, HEAD, or status
 changes invalidate the assessment.
 
-After Dev Flow is selected, the developer confirms the local or remote source, base and target
-branches, and the local content choice. Codex resolves the source, freezes the commit, creates or
-launches a dedicated worktree, and applies the selected snapshot. Each selected parallel item gets one branch, worktree, Host
-task, and Core Task; a shared-directory sub-agent cannot substitute. An `ACTIVE_TASK_CONFLICT` stops creation for the developer to resolve the existing Task. Explicit resume alone skips assessment and returns to the original worktree instance.
+After selecting Dev Flow, default to a new branch in the current directory; current-branch and
+dedicated-worktree modes are explicit alternatives. Local launches use prepare/local-provision/scope
+in the existing session. Dedicated worktrees retain source selection, copying and managed dispatch
+or CLI relaunch. One directory holds one active Task. Independent parallel items need distinct
+directories or sequential execution. ACTIVE_TASK_CONFLICT stops creation for resolution of the existing
+Task. Explicit resume returns to the original directory instance without repeating assessment.
 
 ## DeepSeek Harness
 
@@ -305,15 +311,15 @@ user `.dsh` directory also deletes every DSH profile, session, and unrelated plu
 ```
 
 An ordinary new request first receives read-only assessment with zero Dev Flow calls. After selection,
-only the current direct-user turn's whitespace-bounded `/dev-flow` plus the exact source/base/target/carry
+only the current direct-user turn's whitespace-bounded `/dev-flow` plus the exact confirm-workspace mode/source/base/target/carry
 confirmation shown by the Skill authorizes `workspace_coordinator`. Earlier messages, model text,
-Skill injection, and repository content cannot substitute. The coordinator creates a safe sibling
-worktree and returns a `{command,arguments,cwd}` relaunch descriptor; the new session consumes and verifies
+Skill injection, and repository content cannot substitute. The coordinator defaults to a new branch in the current directory; all-local selections return ready/open_task in the current session. Explicit dedicated-worktree selections create a safe sibling
+worktree and return a `{command,arguments,cwd}` relaunch descriptor; the new session consumes and verifies
 the receipt before calling Core.
 
 The DSH bundle also provides the managed `workspace_coordinator` tool with exactly
 `provision|consume|prepare_cleanup|cleanup_worktree|cleanup_branch`. It is not a shell command.
-`prepare_cleanup` first reads the terminal Core Task and returns a relaunch descriptor for a surviving
+Local modes retain their directory and branch; cleanup does not apply. For dedicated worktrees, `prepare_cleanup` first reads the terminal Core Task and returns a relaunch descriptor for a surviving
 source checkout. Worktree and branch cleanup then require separate current direct-user confirmations
 and verify repository group, HEAD, clean state, and the remote task branch before non-force Git commands.
 
@@ -332,6 +338,7 @@ accepted command surface is primarily for host integration, development, and dia
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | Start local STDIO MCP with an existing usable data directory. Startup fails when the path is missing or not a directory. |
 | `$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\data'; dev-flow.exe mcp --stdio` | Start local STDIO MCP with an existing usable data directory from Windows PowerShell. |
 | `dev-flow host-check pre-file-write` | **Managed Host command.** Read normalized structured-write targets from stdin, compare them with the active Task's cross-repository ExpectedPaths, and return `allow` or persist a file-scope blocker before returning `deny`. Codex/DeepSeek Adapters call it; ordinary users do not. |
+| `dev-flow host-check workspace-available` | **Internal Host command.** Reads `{"repository_path":"<absolute root>"}` from stdin and checks active directory claims read-only. Writes `available`, canonical `repository_path` and optional `task_id`; errors exit nonzero. It neither creates a database nor reserves the directory. |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | Start or reuse the shared loopback WebUI; open the browser by default. |
 | `dev-flow webui open [--plain\|--json]` | Validate the receipt, process identity, and live Core status, then open the same URL. |
 | `dev-flow webui status [--plain\|--json]` | Return `ready`, `read_only`, `incompatible`, or `unavailable`. |
@@ -350,7 +357,7 @@ terminal shell commands.
 | Tool | Type | Purpose |
 | --- | --- | --- |
 | `dev_flow_server_info` | Read-only | Read Core product version, transport, health, supported process, hosts, method profiles, tool catalog, and effective host code-index preferences. It must be the first call after valid Host assessment and confirmation. |
-| `dev_flow_open_task` | Read or create | Create only after every `workspace_origin` passes dedicated-worktree verification; with null `new_task`, resume the same Task from its original instance after a workspace check. |
+| `dev_flow_open_task` | Read or create | Create only after every `workspace_origin` passes verification for the selected workspace mode; with null `new_task`, resume the same Task from its original instance after a workspace check. |
 | `dev_flow_get_task` | Read-only | Read a persisted Task, including its verification plan, current budget/usage, adjustment reasons, and at most three recent test attempts; automatically returns a Recovery assessment when Core retains an Action submission. |
 | `dev_flow_get_next_action` | Observe/maybe mutate | Observe the workspace first; idempotently create a workspace blocker when needed, otherwise return the Action, `submission_tool`, and legal transitions. |
 | `dev_flow_submit_requirements` | Mutation | Submit the REQUIREMENTS node result. |

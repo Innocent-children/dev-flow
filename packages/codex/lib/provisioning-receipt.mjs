@@ -58,6 +58,7 @@ export function createProvisioningReceipt({
   handoffDigest,
   sourceRepositoryIdentity,
   repositoryKey,
+  workspaceMode,
   remoteName,
   sourceType,
   carryChanges,
@@ -75,6 +76,7 @@ export function createProvisioningReceipt({
     handoff_digest: handoffDigest,
     source_repository_identity: sourceRepositoryIdentity,
     repository_key: repositoryKey,
+    workspace_mode: workspaceMode,
     remote_name: remoteName,
     source_type: sourceType,
     carry_changes: carryChanges,
@@ -109,7 +111,7 @@ export function validateProvisioningReceipt(value) {
     "request_digest",
     "handoff_digest",
     "source_repository_identity",
-    "repository_key",
+    "repository_key", "workspace_mode",
     "remote_name", "source_type", "carry_changes", "snapshot_commit",
     "base_branch",
     "target_branch",
@@ -126,7 +128,8 @@ export function validateProvisioningReceipt(value) {
   assertLaunchID(value.launch_id);
   if (value.host !== "codex") throw new Error("provisioning receipt host must equal codex");
   if (!digestPattern.test(value.request_digest)) throw new Error("provisioning receipt request_digest is invalid");
-  if (!digestPattern.test(value.handoff_digest)) throw new Error("provisioning receipt handoff_digest is invalid");
+  if (!["new_branch", "current_branch", "dedicated_worktree"].includes(value.workspace_mode)) throw new Error("workspace mode is invalid");
+  if (value.workspace_mode === "dedicated_worktree" ? !digestPattern.test(value.handoff_digest) : value.handoff_digest !== null) throw new Error("provisioning receipt handoff_digest is invalid");
   if (!digestPattern.test(value.source_repository_identity)) {
     throw new Error("provisioning receipt source_repository_identity is invalid");
   }
@@ -141,6 +144,8 @@ export function validateProvisioningReceipt(value) {
   }
   if (value.worktree_path !== null) assertNormalizedAbsolutePath(value.worktree_path, "worktree_path");
   validateOperationStatus(value.operation_status);
+  if (value.workspace_mode !== "dedicated_worktree" && (value.source_type !== "local" || value.operation_status.surface !== "current_session" || value.worktree_path === null) || value.workspace_mode === "dedicated_worktree" && value.operation_status.surface === "current_session") throw new Error("workspace mode does not match the launch surface");
+  if (value.workspace_mode === "current_branch" && value.base_branch !== value.target_branch || value.workspace_mode === "new_branch" && value.base_branch === value.target_branch) throw new Error("workspace mode does not match the selected branch");
   if (!Number.isFinite(Date.parse(value.created_at))) throw new Error("provisioning receipt created_at is invalid");
   if (!["confirmed", "resolving", "failed"].includes(value.operation_status.phase) && value.base_commit === null) {
     throw new Error("provisioning receipt phase requires base_commit");
@@ -356,7 +361,7 @@ function validateOperationStatus(value) {
     throw new Error("dispatch_recovery_reason is invalid");
   }
   if (!PROVISIONING_PHASES.includes(value.phase)) throw new Error("provisioning operation phase is invalid");
-  if (!["managed_worktree", "cli_worktree"].includes(value.surface)) {
+  if (!["managed_worktree", "cli_worktree", "current_session"].includes(value.surface)) {
     throw new Error("provisioning surface is invalid");
   }
   for (const field of [

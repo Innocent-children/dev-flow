@@ -18,7 +18,7 @@ lokal, damit du nach dem Ende einer Sitzung weiterarbeiten kannst.
 
 - **Umfang festhalten:** Erfasse die vorgesehenen Dateien und gleiche die tatsächlichen Änderungen mit dem Plan ab.
 - **Tests planen:** Wähle passende Prüfungen und begrenze den Prüfaufwand.
-- **Arbeit fortsetzen:** Setze dieselbe Aufgabe und die verbleibende Arbeit im ursprünglichen Worktree fort.
+- **Arbeit fortsetzen:** Setze dieselbe Aufgabe und die verbleibende Arbeit im ursprünglichen Verzeichnis fort.
 - **Ergebnisse ansehen:** Prüfe Fortschritt, Testergebnisse und Probleme, die Aufmerksamkeit benötigen.
 
 Das eignet sich für Arbeiten an einem Repository, die mehrere Sitzungen dauern oder klare Grenzen
@@ -61,20 +61,27 @@ Sende diese Nachrichten im Gespräch, nicht im Terminal. Beschreibe Ziel, Abnahm
 Dateiumfang und Testgrenze.
 
 Die erste Antwort bewertet die Anfrage und fragt, ob du direkt oder mit Dev Flow arbeiten möchtest.
-Wenn du Dev Flow wählst, bestätige die lokale oder entfernte Quelle, den Ausgangsbranch, den neuen
-Aufgabenbranch und ob vorhandene lokale Änderungen übernommen werden sollen.
+Bei Dev Flow wird standardmäßig im aktuellen Verzeichnis ein neuer Aufgabenbranch vom aktuellen HEAD
+erstellt. Bestätige den Branch und ob vorhandene, noch nicht committete Änderungen zur Aufgabe gehören.
+Abhängigkeiten, lokale Konfiguration, Dateien und Index bleiben erhalten. Die Sitzung wird fortgesetzt,
+wenn sie auf alle beteiligten Verzeichnisse zugreifen kann.
 
-Die Arbeit läuft anschließend in einem eigenen Git-Worktree, einem separaten Verzeichnis für die
-Aufgabe. Codex öffnet ihn, wenn der Host dies unterstützt; DeepSeek zeigt einen Befehl zum Neustart
-im neuen Verzeichnis.
+Du kannst ausdrücklich den aktuellen Branch weiterverwenden oder einen eigenen Git-Worktree erstellen.
+Für einen Worktree wählst du zusätzlich die lokale oder entfernte Quelle und den Ausgangsbranch. Codex
+öffnet das neue Verzeichnis, wenn der Host dies unterstützt; DeepSeek liefert den passenden Neustartbefehl.
+
+Pro Verzeichnis ist nur eine aktive Task möglich. Auch manuelle Änderungen und Änderungen anderer
+Werkzeuge werden erfasst; ein Branchwechsel während der Aufgabe hält den Ablauf an. Lokale Verzeichnisse
+und Branches bleiben nach Abschluss erhalten. Noch nicht committete Änderungen müssen beim Start der
+nächsten Aufgabe berücksichtigt werden.
 
 Besprich vor der Implementierung die Anforderungen, den Entwurf, die Arbeitsschritte, die vorgesehenen Dateien und den Prüfplan. Die Entwicklung beginnt erst nach deiner ausdrücklichen Zustimmung zum gesamten Plan. Änderungen am Plan oder ein erweiterter Dateiumfang erfordern eine erneute Zustimmung. Die Wahl von Dev Flow oder eines Worktrees ersetzt diese Zustimmung nicht.
 
 ### 3. Fortsetzen und Fortschritt ansehen
 
-Kehre nach einem Sitzungsneustart zum ursprünglichen Worktree zurück und bitte darum, die Aufgabe
-fortzusetzen. Dev Flow arbeitet ab dem gespeicherten Fortschritt weiter. Fehlt der Worktree oder
-wurde er ersetzt, pausiert die Aufgabe, bis du ihn wiederherstellst oder die Aufgabe ausdrücklich aufgibst.
+Kehre nach einem Sitzungsneustart zum ursprünglichen Verzeichnis zurück und bitte darum, die Aufgabe
+fortzusetzen. Dev Flow arbeitet ab dem gespeicherten Fortschritt weiter. Fehlt das Verzeichnis oder
+wurde es ersetzt, pausiert die Aufgabe, bis du es wiederherstellst oder die Aufgabe ausdrücklich aufgibst.
 
 Füge in DeepSeek Harness auch der Nachricht zum Fortsetzen `/dev-flow` hinzu.
 

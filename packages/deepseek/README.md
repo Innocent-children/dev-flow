@@ -7,9 +7,9 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/deepseek/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/DEEPSEEK_en.md)
 
-`dev-flow-deepseek` 让 DeepSeek Harness（DSH）在独立工作树中运行一个持久 Core Task。普通开发请求
-先只读评估，不调用 Dev Flow；后续精确确认才授权创建工作树和重启会话。Core 随后通过只读 Git
-观察计算当前 Task surface，DSH 继续负责用户授权的 fetch、branch、worktree、文件修改和命令执行。
+`dev-flow-deepseek` 让 DeepSeek Harness（DSH）运行一个持久 Core Task。普通开发请求先只读评估；
+选择 Dev Flow 后，默认在当前目录新建任务分支，也可明确选择当前分支或独立工作树。全本地选择
+在原会话继续；Core 只读观察 Git，DSH 负责获授权的分支、文件和命令操作。
 
 ## 支持范围
 
@@ -80,27 +80,28 @@ Task 创建后范围固定。选择代码检索工具时，这些指令优先于
 `small|standard|large|uncertain`、已经找到的影响面、未知项和建议；这一轮不调用 Core、不修改 Git、
 不运行测试，也不创建 Task。即使第一条消息已经包含 `/dev-flow`，新请求也不能跳过评估和确认。
 
-选择 Dev Flow 后，逐仓确认 来源、起始分支、新目标分支和本地携带选择。确认消息必须使用 Adapter
-显示的精确形式，例如：
+选择 Dev Flow 后，默认在当前目录从当前 HEAD 新建任务分支，或明确选择当前分支、独立工作树。
+本地模式确认新目标分支和初始修改选择，保留文件、暂存、ignored 配置及已有依赖。确认消息使用
+Adapter 显示的精确形式，例如：
 
 ```text
-/dev-flow confirm-worktree
-repository=primary;source=remote;carry=false;remote=origin;base=main;target=feature/payment-callback-signature
+/dev-flow confirm-workspace
+repository=primary;mode=new_branch;source=local;carry=true;remote=;base=main;target=feature/payment-callback-signature
 ```
 
-WorkspaceCoordinator 随后解析本地或远端起点，冻结 commit，并从该 commit 创建独立、
-具名分支的 worktree。源 checkout 可以 dirty；本地来源按明确选择复制 staged、tracked dirty 和非 ignored 的 untracked 内容，源 checkout 保持原样。
-fetch、分支校验或 worktree 创建失败时不会创建 Core Task。
+本地分支操作前由 Core 只读检查目录占用。全部选择本地模式时，WorkspaceCoordinator 返回 `ready`
+和完整 `open_task`，原会话检查 Core 后直接创建并继续任务，无需 relaunch/consume。`current_branch`
+保留当前分支，其 base 和 target 相同。有未提交内容但未接受时停止，不自动清理或忽略其他工作。
 
-DSH 的 Workspace Root 在进程启动时固定，因此 Adapter 不会扩大当前 Root。它返回由 command、argv 和
-cwd 分开的 relaunch 信息；新会话从隔离 workspace 启动，使用返回的
-`/dev-flow resume-worktree launch=<launch_id>` 消费 receipt，复核 branch、HEAD 和 clean 状态，然后
-才创建 Task。新 Task 保存最初请求、范围、验收条件和 method profile，不在分析前冻结最终
-verification budget；profile 可以是 `plain`、`spec-kit` 或 `openspec`。
+独立工作树额外选择本地或远端来源及起始分支，固定 commit 后在 sibling 目录创建工作树，并按选择
+复制初始内容。DSH 的 Workspace Root 在启动时固定，独立工作树返回 `{command,arguments,cwd}`
+重启描述；混合模式从包含原目录和工作树的共同父目录启动，新会话验证全部目录权限后 consume。
+任一仓库准备失败都不创建部分 Task，本地分支和修改保留供检查。新 Task 保存原请求、范围、验收和
+method profile，不在分析前冻结最终验证预算。完整规则见[工作位置与分支](../../docs/WORKTREE-SOURCES.md)。
 
 ## 恢复已有 Task
 
-回到 Task 原来绑定的同一 worktree 实例，并在当前直接用户消息中再次使用 `/dev-flow`。Adapter 会先
+回到 Task 原来绑定的同一工作目录实例，并在当前直接用户消息中再次使用 `/dev-flow`。Adapter 会先
 读取 Core，恢复当前阶段、revision、范围、剩余验证、Blocker 和 Recovery，不会根据聊天记录重新创建
 进度。原 worktree 丢失或被替换时进入 `WORKSPACE_UNAVAILABLE`；同路径重建目录或同名 branch 不能冒充
 原实例。此时只能恢复原实例，或明确 abandon Task。
@@ -180,7 +181,7 @@ dsh --profile "$PROFILE" --dump-config
 
 `DONE` 和 `CANCELLED` 只结束 Core Task并释放 claim，不会 commit、push、创建 PR、handoff 或删除
 worktree/branch。终态会显示 source/base/frozen commit、task branch/HEAD、路径、clean 状态、当前改动和
-验证结果。worktree 删除与 branch 删除需要两次独立授权；active、dirty、未推送或状态不确定的资源不
+验证结果。本地模式保留目录和分支，不支持工作区迁移或辅助清理；独立 worktree 删除与 branch 删除需要两次独立授权；active、dirty、未推送或状态不确定的资源不
 自动清理。
 
 DeepSeek 的清理仍由 WorkspaceCoordinator 执行。它先在不删除资源的 `prepare_cleanup` 操作中核对
@@ -192,11 +193,10 @@ terminal HEAD 已精确推送的 worktree，并保留 task branch。第二次独
 
 ## 高级多仓库
 
-当前源码支持一个主仓库和最多七个显式附加仓库。每个仓库都要分别确认 来源、携带选择、起始分支和唯一
-target branch；只有全部仓库完成 fetch、独立 worktree 创建和验证后，才一次创建一个 Core Task。
-新 DSH 会话使用 Coordinator 返回的非 Git 共同 Workspace Root，所有 worktree 和 symlink 解析结果
-都必须位于该 Root 内。任一仓库失败时不能只使用部分 Scope、退回共享 checkout 或留下部分 Core
-claim。Scope 创建后不可变，系统不会扫描父目录、相邻目录、依赖或索引结果扩大范围。
+当前源码支持一个主仓库和最多七个显式附加仓库。逐仓保存工作位置、分支和初始修改选择；全部
+仓库准备并验证成功后才创建一个 Core Task。全本地模式沿用原 Workspace Root，独立或混合模式使用
+返回的重启描述。所有目录和 symlink 解析结果必须位于实际会话授权的 Root 内。失败时不创建部分
+Core claim，Scope 创建后固定，不自动扩大仓库范围。
 
 使用前请阅读[项目状态](../../docs/PROJECT-STATUS.md)确认多仓库属于稳定还是源码范围。精确
 Repository Scope、路径格式和协议规则见[架构](../../docs/ARCHITECTURE.md)与

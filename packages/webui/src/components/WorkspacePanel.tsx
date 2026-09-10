@@ -11,7 +11,7 @@ export function WorkspacePanel({ task }: { task: TaskDetailResponse }) {
     {workspace.history_conflict && <div className="notice warning"><strong>{t("workspace.historyConflict")}</strong></div>}
     {workspace.relocation.pending && <div className="notice warning"><strong>{t("workspace.relocationPending", { id: workspace.relocation.relocation_id ?? "unknown" })}</strong></div>}
     <div className="workspace-repositories">{task.repositories.map((repository) => <article key={repository.key} className="workspace-repository">
-      <div className="section-heading"><div><p className="eyebrow">{repository.role}</p><h3>{repository.key}</h3></div><code>{repository.workspace_origin.mode}</code></div>
+      <div className="section-heading"><div><p className="eyebrow">{repository.role}</p><h3>{repository.key}</h3></div><span>{t(`workspace.mode.${repository.workspace_origin.mode}`)}</span></div>
       <dl className="fact-grid">
         <div><dt>{t("workspace.remoteBase")}</dt><dd><code>{repository.workspace_origin.source_type === "local" ? t("workspace.local") : repository.workspace_origin.remote_name}/{repository.workspace_origin.base_branch}</code></dd></div>
         <div><dt>{t("workspace.baseCommit")}</dt><dd><code title={repository.workspace_origin.base_commit}>{short(repository.workspace_origin.base_commit)}</code></dd></div>
@@ -21,10 +21,11 @@ export function WorkspacePanel({ task }: { task: TaskDetailResponse }) {
         <div><dt>{t("workspace.content")}</dt><dd><code title={repository.workspace_observation.content_digest}>{short(repository.workspace_observation.content_digest)}</code></dd></div>
       </dl>
       <code className="workspace-path">{repository.path}</code>
+      {repository.workspace_origin.mode !== "dedicated_worktree" && <p>{t("workspace.localBranchNote")}</p>}
       {repository.workspace_observation.task_surface.length > 0 && <details><summary>{t("workspace.currentSurface")} ({repository.workspace_observation.task_surface.length})</summary><ul>{repository.workspace_observation.task_surface.map((entry) => <li key={`${entry.path}-${entry.change_type}`}><code>{entry.path}</code> <span>{entry.change_type}</span></li>)}</ul></details>}
     </article>)}</div>
     <div className={`notice ${workspace.current_changed_paths.length === 0 ? "success" : "warning"}`}><strong>{workspace.current_changed_paths.length === 0 ? t("workspace.clean") : t("workspace.changed", { count: workspace.current_changed_paths.length })}</strong>{workspace.current_changed_paths.length > 0 && <ul>{workspace.current_changed_paths.map((path) => <li key={path}><code>{path}</code></li>)}</ul>}</div>
-    {workspace.cleanup.terminal && <div className="workspace-cleanup"><h3>{t("workspace.cleanupTitle")}</h3><p>{t("workspace.cleanupBody")}</p></div>}
+    {workspace.cleanup.terminal && <div className="workspace-cleanup"><h3>{t("workspace.cleanupTitle")}</h3><p>{t(workspace.cleanup.host_action_required ? "workspace.cleanupBody" : "workspace.localCleanupBody")}</p></div>}
   </section>;
 }
 

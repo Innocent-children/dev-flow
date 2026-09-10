@@ -32,9 +32,15 @@ func (k RepositoryKey) IsValid() bool {
 
 type WorkspaceMode string
 
-const WorkspaceModeDedicatedWorktree WorkspaceMode = "dedicated_worktree"
+const (
+	WorkspaceModeNewBranch         WorkspaceMode = "new_branch"
+	WorkspaceModeCurrentBranch     WorkspaceMode = "current_branch"
+	WorkspaceModeDedicatedWorktree WorkspaceMode = "dedicated_worktree"
+)
 
-func (m WorkspaceMode) IsValid() bool { return m == WorkspaceModeDedicatedWorktree }
+func (m WorkspaceMode) IsValid() bool {
+	return m == WorkspaceModeNewBranch || m == WorkspaceModeCurrentBranch || m == WorkspaceModeDedicatedWorktree
+}
 
 // WorkspaceOrigin is the immutable origin of one Task worktree. The Host
 // supplies the selection fields and Core fills the three observed location
@@ -58,6 +64,11 @@ func (o WorkspaceOrigin) Validate() error {
 		validateObjectID(o.BaseCommit) != nil || validateDigest(o.SourceRepositoryGroupDigest) != nil ||
 		validateCanonicalPath(o.CanonicalWorktreeRoot) != nil || validateDigest(o.WorktreeGitDirDigest) != nil ||
 		validateID(o.ProvisioningReceiptID) != nil {
+		return ErrInvalidArgument
+	}
+	if o.Mode != WorkspaceModeDedicatedWorktree && (o.SourceType != "local" ||
+		o.Mode == WorkspaceModeCurrentBranch && o.BaseBranch != o.TaskBranch ||
+		o.Mode == WorkspaceModeNewBranch && o.BaseBranch == o.TaskBranch) {
 		return ErrInvalidArgument
 	}
 	return nil

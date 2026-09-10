@@ -2,7 +2,7 @@
 
 [中文](WEBUI.md) | [English](WEBUI_en.md)
 
-> Dev Flow 持久 Task、专属工作树和恢复状态的本地可视化与诊断入口。
+> Dev Flow 持久 Task、工作目录和恢复状态的本地可视化与诊断入口。
 
 Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task。浏览器不保存第二份流程
 状态，也不执行 fetch、branch、worktree、handoff 或清理。
@@ -25,7 +25,10 @@ Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task
 
 ## 可执行操作的边界
 
-新 Task 由 Codex 或 DeepSeek 完成只读评估、用户确认、来源解析及专属工作树准备，再从目标 Host 创建；页面负责展示和处理已有任务。
+工作区卡片显示原目录新分支、当前分支或独立工作树。本地模式说明共享目录的修改都会被观察，
+结束后保留目录和分支；只在全部仓库均为独立工作树时展示工作区迁移操作。
+
+新 Task 由 Codex 或 DeepSeek 完成只读评估、用户确认、工作位置选择及准备，再从执行 Host 创建；页面负责展示和处理已有任务。
 
 页面可以使用 Core 当前返回的任务和操作标识，提交以下操作：
 
@@ -40,7 +43,7 @@ Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task
 自动清理 active、dirty、未推送、来源不明或状态不确定的对象。
 
 计划外结构化写入仍由 Host 在写前调用 Core。Bash、外部进程或其他工具的写入可能先发生，Core 在
-下一次 Task 读取或 Action 前从 Git 观察中发现。专属工作树内没有“忽略外部改动”的选项。
+下一次 Task 读取或 Action 前从 Git 观察中发现。本地模式和独立工作树都没有“忽略外部改动”的选项。
 
 ## 完成条件与操作恢复
 

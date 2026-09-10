@@ -27,6 +27,8 @@ import {
   initializeManagedWorktree,
   inspectSourceRepository,
   preflightWorktreeSelection,
+  preflightLocalBranchSelection,
+  prepareLocalBranch,
   removeCliWorktree,
   removeTaskBranch,
 } from "./worktree-lifecycle.mjs";
@@ -35,6 +37,7 @@ export async function prepareTaskLaunch(input, {
   productSupportRoot,
   enforcePrivateModes = true,
   runGit,
+  checkWorkspaceAvailable,
   now = () => new Date(),
   createLaunchId = randomUUID,
 } = {}) {
@@ -47,8 +50,9 @@ export async function prepareTaskLaunch(input, {
   if (assessmentAnchor.request_digest !== currentRequestDigest) {
     throw new Error("launch request changed after suitability assessment");
   }
-  const handoff = await readTaskHandoffDraft(input.handoff_file, input.request);
-  const handoffDigest = taskHandoffDigest(handoff);
+  const local = input.workspace_mode !== "dedicated_worktree";
+  const handoff = local ? null : await readTaskHandoffDraft(input.handoff_file, input.request);
+  const handoffDigest = local ? null : taskHandoffDigest(handoff);
   const assessedRepository = assessmentAnchor.repositories.find((entry) => entry.repository_key === input.repository_key);
   if (assessedRepository === undefined) throw new Error("launch repository was not present in the suitability assessment");
   const path = provisioningReceiptPath(productSupportRoot, launchId, input.repository_key);
@@ -59,14 +63,17 @@ export async function prepareTaskLaunch(input, {
       return Object.freeze({ receipt_path: path, receipt: existing, resumed: true, fetch_performed: false });
     }
   }
-  const source = await preflightWorktreeSelection({
+  const source = await (local ? preflightLocalBranchSelection : preflightWorktreeSelection)({
     repositoryPath: input.repository_path,
     remoteName: input.remote_name,
     sourceType: input.source_type,
     baseBranch: input.base_branch,
     targetBranch: input.target_branch,
+    workspaceMode: input.workspace_mode,
+    carryChanges: input.carry_changes,
     runGit,
   });
+  if (local) await requireAvailableWorkspace(source.canonical_root, checkWorkspaceAvailable);
   const currentSource = await inspectSourceRepository(source.canonical_root, { runGit });
   if (
     assessedRepository.canonical_root !== currentSource.canonical_root ||
@@ -84,6 +91,7 @@ export async function prepareTaskLaunch(input, {
       handoffDigest,
       sourceRepositoryIdentity: source.source_repository_identity,
       repositoryKey: input.repository_key,
+      workspaceMode: input.workspace_mode,
       remoteName: input.remote_name,
       sourceType: input.source_type,
       carryChanges: input.carry_changes,
@@ -117,7 +125,7 @@ export async function prepareTaskLaunch(input, {
         return Object.freeze({ receipt_path: path, receipt: current, resumed: true, fetch_performed: false });
       }
       assertInputMatchesReceipt(current, receiptInput, currentRequestDigest, handoffDigest);
-      await writeTaskHandoff(path, handoff, { enforcePrivateModes });
+      if (handoff !== null) await writeTaskHandoff(path, handoff, { enforcePrivateModes });
       const resolving = updateProvisioningReceipt(current, { phase: "resolving", values: {} });
       await writeProvisioningReceiptAtomic(path, resolving, { productSupportRoot, enforcePrivateModes });
       try {
@@ -369,6 +377,38 @@ export async function provisionCliTask(input, options = {}) {
   });
 }
 
+export async function provisionLocalTask(input, options = {}) {
+  assertExactKeys(input, ["launch_id", "repository_key"], "local provision input");
+  return await withLockedReceipt(input, options, async (state) => {
+    const receipt = state.receipt;
+    if (receipt.operation_status.surface !== "current_session") throw new Error("local provisioning requires a current-session receipt");
+    if (receipt.operation_status.phase === "provisioned") return Object.freeze({ receipt_path: state.path, receipt, workspace_origin: workspaceOriginFromReceipt(receipt) });
+    if (receipt.operation_status.phase !== "prepared") throw new Error("local provisioning is incomplete or uncertain; inspect the retained operation before continuing");
+    await requireAvailableWorkspace(receipt.worktree_path, options.checkWorkspaceAvailable);
+    const provisioning = updateProvisioningReceipt(receipt, { phase: "provisioning", values: {} });
+    await persistReceipt(state.path, provisioning, options);
+    try {
+      await prepareLocalBranch({
+        repositoryPath: receipt.worktree_path, workspaceMode: receipt.workspace_mode,
+        baseBranch: receipt.base_branch, targetBranch: receipt.target_branch, baseCommit: receipt.base_commit,
+        sourceRepositoryIdentity: receipt.source_repository_identity, carryChanges: receipt.carry_changes, runGit: options.runGit,
+      });
+      const complete = updateProvisioningReceipt(provisioning, { phase: "provisioned", values: {} });
+      await persistReceipt(state.path, complete, options);
+      return Object.freeze({ receipt_path: state.path, receipt: complete, workspace_origin: workspaceOriginFromReceipt(complete) });
+    } catch (error) {
+      await persistReceipt(state.path, updateProvisioningReceipt(provisioning, { phase: "uncertain", values: {} }), options).catch(() => {});
+      throw error;
+    }
+  });
+}
+
+async function requireAvailableWorkspace(root, check) {
+  if (typeof check !== "function") throw new Error("Core workspace availability check is required before local branch preparation");
+  const result = await check(root);
+  if (result?.available !== true || result.repository_path !== root) throw new Error("workspace is unavailable or already has an active Dev Flow Task; resume or resolve that Task before changing branches");
+}
+
 function cliProvisionResult(path, receipt, input, handoff) {
   return Object.freeze({
     receipt_path: path,
@@ -390,7 +430,7 @@ export function workspaceOriginFromReceipt(receipt) {
   const value = validateProvisioningReceipt(receipt);
   if (value.operation_status.phase !== "provisioned") throw new Error("workspace origin requires a provisioned receipt");
   return Object.freeze({
-    mode: "dedicated_worktree",
+    mode: value.workspace_mode,
     source_type: value.source_type,
     carry_changes: value.carry_changes,
     remote_name: value.remote_name,
@@ -487,6 +527,7 @@ export async function beginTaskHandoff(input, options = {}) {
   assertNonEmpty(input.thread_id, "thread_id");
   return await withLockedReceipt(input, options, async (state) => {
     const receipt = state.receipt;
+    if (receipt.workspace_mode !== "dedicated_worktree") throw new Error("local branch Tasks retain their original directory and do not support worktree handoff");
     if (["handoff_dispatching", "handoff_pending"].includes(receipt.operation_status.phase)) {
       return Object.freeze({ should_dispatch: false, receipt_path: state.path, receipt });
     }
@@ -570,6 +611,7 @@ export async function cleanupCliTaskWorktree(input, options = {}) {
     throw new Error("worktree cleanup requires terminal state and explicit authorization");
   }
   return await withLockedReceipt(input, options, async (state) => {
+    if (state.receipt.workspace_mode !== "dedicated_worktree") throw new Error("local Task directories and branches are retained; workspace cleanup does not apply");
     if (state.receipt.operation_status.surface !== "cli_worktree") {
       throw new Error("managed worktree cleanup belongs to the Codex Host");
     }
@@ -616,6 +658,7 @@ export async function cleanupTaskBranch(input, options = {}) {
     throw new Error("branch cleanup requires separate explicit authorization");
   }
   return await withLockedReceipt(input, options, async (state) => {
+    if (state.receipt.workspace_mode !== "dedicated_worktree") throw new Error("local Task directories and branches are retained; workspace cleanup does not apply");
     if (state.receipt.operation_status.surface !== "cli_worktree") {
       throw new Error("managed branch cleanup belongs to the Codex Host");
     }
@@ -707,20 +750,23 @@ function normalizedStructuredResult(value) {
 
 function validatePrepareInput(value) {
   const keys = [
-    "request", "assessment", "user_choice", "repository_key", "repository_path", "source_type", "carry_changes", "remote_name", "base_branch", "target_branch",
+    "request", "assessment", "user_choice", "repository_key", "repository_path", "workspace_mode", "source_type", "carry_changes", "remote_name", "base_branch", "target_branch",
     "surface", "worktree_path", "handoff_file",
   ];
   if (Object.hasOwn(value ?? {}, "launch_id")) keys.push("launch_id");
   assertExactKeys(value, keys, "launch preparation input");
   assertNonEmpty(value.request, "request");
-  assertAbsolutePath(value.handoff_file, "handoff_file");
+  if (!["new_branch", "current_branch", "dedicated_worktree"].includes(value.workspace_mode)) throw new Error("workspace_mode is invalid");
+  if (value.workspace_mode === "dedicated_worktree") assertAbsolutePath(value.handoff_file, "handoff_file");
+  else if (value.handoff_file !== null) throw new Error("current-session launch requires handoff_file=null");
   assertNonEmpty(value.repository_key, "repository_key");
   assertAbsolutePath(value.repository_path, "repository_path");
   if (!["local", "remote"].includes(value.source_type) || typeof value.carry_changes !== "boolean" || value.source_type === "remote" && value.carry_changes || value.source_type === "local" && value.remote_name !== "") throw new Error("invalid workspace source selection");
   if (value.source_type === "remote") assertNonEmpty(value.remote_name, "remote_name");
   assertNonEmpty(value.base_branch, "base_branch");
   assertNonEmpty(value.target_branch, "target_branch");
-  if (!["managed_worktree", "cli_worktree"].includes(value.surface)) throw new Error("surface is invalid");
+  if (!["managed_worktree", "cli_worktree", "current_session"].includes(value.surface)) throw new Error("surface is invalid");
+  if (value.workspace_mode !== "dedicated_worktree" && (value.surface !== "current_session" || value.source_type !== "local" || value.worktree_path !== value.repository_path) || value.workspace_mode === "dedicated_worktree" && value.surface === "current_session") throw new Error("workspace mode does not match the launch surface");
   if (value.surface === "cli_worktree") assertAbsolutePath(value.worktree_path, "worktree_path");
   if (value.surface === "managed_worktree" && value.worktree_path !== null) {
     throw new Error("managed worktree path must be discovered from the Host");
@@ -735,6 +781,7 @@ function assertInputMatchesReceipt(receipt, input, requestDigest, handoffDigest)
     request_digest: requestDigest,
     handoff_digest: handoffDigest,
     repository_key: input.repository_key,
+    workspace_mode: input.workspace_mode,
     source_type: input.source_type,
     carry_changes: input.carry_changes,
     remote_name: input.remote_name,
@@ -749,6 +796,7 @@ function assertInputMatchesReceipt(receipt, input, requestDigest, handoffDigest)
     request_digest: receipt.request_digest,
     handoff_digest: receipt.handoff_digest,
     repository_key: receipt.repository_key,
+    workspace_mode: receipt.workspace_mode,
     source_type: receipt.source_type,
     carry_changes: receipt.carry_changes,
     remote_name: receipt.remote_name,
@@ -789,7 +837,8 @@ export function validateWorkspaceOrigin(value) {
   assertExactKeys(value, ["mode", "source_type", "carry_changes", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"], "workspace origin");
   if (!["local", "remote"].includes(value.source_type) || typeof value.carry_changes !== "boolean" || value.source_type === "remote" && (value.carry_changes || !value.remote_name) || value.source_type === "local" && value.remote_name !== "") throw new Error("invalid workspace source selection");
   if (value.source_type === "remote") assertNonEmpty(value.remote_name, "remote_name");
-  if (value.mode !== "dedicated_worktree") throw new Error("workspace origin mode is invalid");
+  if (!["new_branch", "current_branch", "dedicated_worktree"].includes(value.mode)) throw new Error("workspace origin mode is invalid");
+  if (value.mode !== "dedicated_worktree" && value.source_type !== "local" || value.mode === "current_branch" && value.base_branch !== value.task_branch || value.mode === "new_branch" && value.base_branch === value.task_branch) throw new Error("workspace origin branch selection is invalid");
   for (const field of ["base_branch", "task_branch", "provisioning_receipt_id"]) assertNonEmpty(value[field], field);
   if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(value.base_commit)) throw new Error("workspace origin base_commit is invalid");
   return structuredClone(value);

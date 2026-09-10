@@ -2,7 +2,7 @@
 
 [中文](WEBUI.md) | [English](WEBUI_en.md)
 
-> The local visualization and diagnostic entry for durable Tasks, dedicated worktrees, and recovery state.
+> The local visualization and diagnostic entry for durable Tasks, working directories, and recovery state.
 
 Control Center is embedded in Go Core and reads the same SQLite Tasks as Codex and DeepSeek. The
 browser keeps no second process state and does not fetch, create branches/worktrees, hand off a Host,
@@ -28,7 +28,11 @@ The verification panel shows whether planning is complete, the planned checks, f
 
 ## Mutation boundary
 
-Codex or DeepSeek creates new Tasks after read-only assessment, developer confirmation, source resolution and dedicated-worktree preparation. The page displays and handles existing Tasks.
+Workspace cards show new local branches, current branches or dedicated worktrees. Local-mode notes explain
+that all edits in the shared directory are observed and local resources are retained at completion.
+Workspace relocation is available only when every repository uses a dedicated worktree.
+
+Codex or DeepSeek creates new Tasks after read-only assessment, developer confirmation, workspace selection and preparation. The page displays and handles existing Tasks.
 
 The page may submit these operations using the current Task and Action identifiers returned by Core:
 
@@ -46,7 +50,7 @@ unknown-owner, or uncertain resource.
 
 Hosts still ask Core before supported structured writes outside the Task Plan. Bash, external
 processes, and other tools may write first; Core finds those changes during the next Task/Action Git
-observation. A dedicated worktree has no option to ignore a supposedly external change.
+observation. Neither local modes nor dedicated worktrees offer an option to ignore a supposedly external change.
 
 ## Completion and Action recovery
 

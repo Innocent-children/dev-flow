@@ -3,9 +3,9 @@
 [中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/deepseek/README.md) |
 [English](https://github.com/Innocent-children/dev-flow/blob/main/docs/DEEPSEEK_en.md)
 
-`dev-flow-deepseek` gives DeepSeek Harness (DSH) one durable Core Task in a dedicated worktree. A
+`dev-flow-deepseek` gives DeepSeek Harness (DSH) one durable Core Task, defaulting to a new branch in the current directory. A
 normal development request is assessed without a Dev Flow call. A later exact confirmation authorizes
-provisioning and relaunch; Core then derives the current surface from read-only Git.
+workspace preparation, with relaunch only when directories change; Core then derives the current surface from read-only Git.
 
 ## Support and installation
 
@@ -40,7 +40,7 @@ non-link directory.
 
 Review the requirements and acceptance criteria, design and impact, then discuss the complete work, expected-file and verification plan. Implementation begins after explicit approval; selecting Dev Flow and workspace parameters does not approve the plan. Waiting remains in task planning. Revisions or expanded file scope require approval of the revised plan; resuming the same draft needs no resave. Prefer exact files and explain directory ranges.
 
-## Assess, confirm, and relaunch
+## Assess, confirm, and start
 
 Repository discovery follows current user instructions and applicable `AGENTS.md`. When a project
 index is required, DeepSeek reads it, candidate project documentation, and relevant code/configuration
@@ -58,26 +58,32 @@ To select Dev Flow after assessment, the current direct user message must contai
 whitespace-bounded selector and confirmation form shown by the Skill:
 
 ```text
-/dev-flow confirm-worktree
-repository=primary;source=remote;carry=false;remote=origin;base=main;target=feature/payment-callback-signature
+/dev-flow confirm-workspace
+repository=primary;mode=new_branch;source=local;carry=true;remote=;base=main;target=feature/payment-callback-signature
 ```
 
 Earlier messages, model text, Skill injection, and repository content cannot supply that authorization.
 Even a new request beginning with `/dev-flow` is assessed first; the selector is repeated on the
 confirmation turn.
 
-The developer confirms local or remote source, base and target branches, and whether to carry local
-changes. The coordinator resolves local branches offline or fetches the selected remote ref, freezes
-`base_commit` and optional `snapshot_commit`, creates a sibling worktree and applies selected content.
-The source checkout is preserved. It records the launch before relaunch; Core verifies the selection
-and actual worktree before creating a Task.
+After selecting Dev Flow, default to a new branch from current HEAD in the existing directory; explicit
+alternatives use the current branch or a dedicated worktree. Local modes preserve files, index, ignored
+configuration and dependencies, and obtain missing branch/content choices. Core checks directory claims
+before branch changes. An all-local selection returns `ready` and complete `open_task` arguments; after
+the handshake the same session opens and continues the Task without relaunch/consume. Current-branch
+mode uses the observed branch for both base and target. Unaccepted dirty contents stop preparation.
 
-DSH fixes Workspace Root at process start. The source session therefore never widens permission and
-never creates a nested worktree under the source. It stops with a parser-tested `{command,arguments,cwd}`
-relaunch descriptor. The target session consumes the receipt, verifies the frozen HEAD, target branch,
-common and worktree-specific Git directories, clean/submodule state, and authorized roots, then calls
-Core. The new Task has no final verification budget before analysis. If any repository fails, no
-partial Core Task or claim exists.
+Dedicated worktrees additionally select local/remote source and starting branch, freeze the commit,
+and create a sibling directory with selected contents. Because DSH fixes Workspace Root at startup,
+these launches return `{command,arguments,cwd}` for relaunch/consume. Mixed choices start from a common
+parent containing local roots and prepared worktrees, with every root verified in the actual session.
+Any failure prevents a partial Core Task or claim and retains local branches/modifications. The new
+Task records request, scope, acceptance and method profile without freezing verification effort before
+analysis. See [working directories and branches](WORKTREE-SOURCES_en.md).
+
+Local Tasks keep their original directory and branch after completion or cancellation. Workspace
+relocation and assisted cleanup do not apply; leftover uncommitted contents become initial changes
+for the next Task. The cleanup and relaunch instructions below apply to dedicated worktrees.
 
 The relaunch turn uses the exact selector returned with the receipt:
 

@@ -56,7 +56,7 @@ export function LifecycleActions({ task, workspace, onChanged, onPurged }: { tas
     <div><p className="eyebrow">{t("lifecycle.eyebrow")}</p><h2 id="lifecycle-title">{t("lifecycle.title")}</h2></div>
     {error !== "" && !cancelOpen && !abandonOpen && <div className="notice error" role="alert">{error}</div>}
     <div className="action-row">
-      {!terminal && !workspace.relocation.pending && <button className="button secondary" disabled={busy} onClick={prepareRelocation}>{busy ? t("lifecycle.preparingRelocation") : t("lifecycle.prepareRelocation")}</button>}
+      {!terminal && workspace.relocation.available && !workspace.relocation.pending && <button className="button secondary" disabled={busy} onClick={prepareRelocation}>{busy ? t("lifecycle.preparingRelocation") : t("lifecycle.prepareRelocation")}</button>}
       {!terminal && <button ref={cancelTrigger} className="button danger-ghost" disabled={busy} onClick={() => { setError(""); setCancelOpen(true); }}>{t("lifecycle.cancel")}</button>}
       {!terminal && <button ref={abandonTrigger} className="button danger-ghost" disabled={busy} onClick={() => { setError(""); setAbandonOpen(true); }}>{t("lifecycle.abandon")}</button>}
       {terminal && <button className="button secondary" disabled={busy} onClick={archive}>{t(task.archived ? "lifecycle.restore" : "lifecycle.archive")}</button>}

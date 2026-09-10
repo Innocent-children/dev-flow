@@ -57,6 +57,7 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 | 路径穿越、symlink 或索引结果扩大仓库范围 | Task 创建时规范化并冻结 Scope；多仓库路径显式带 repository key；索引不能增加成员 |
 | 旧 Action、重复请求或丢失响应造成重复状态变化 | 完整 mutation 先校验后暂存；独立 Action 操作记录、revision CAS、Action/request identity、repository binding、原子 applied marker 和 read-before-retry |
 | 工作树被替换、历史回退或任一成员发生冲突 | worktree-specific Git dir、task branch、base、HEAD ancestry 与 content 分别核对；resume 和下一 Action 在实际工作前返回明确 Blocker 或 unavailable |
+| 本地目录被已有 Task 或其他写入者使用 | 分支操作前只读查询 Core 占用，创建时一次取得全部 claims；手工和其他工具的实际修改仍进入范围与验证检查。只读查询不预占目录，准备期间保持单一执行者 |
 | Host 自报文件范围遗漏真实变化 | Core 从 base commit、commits、index、worktree 和 untracked 状态计算当前 surface；节点 payload 不接受 Host 文件变化声明 |
 | relocation 失败或响应丢失造成双重 claim/handoff | Core prepare 保留源 claim；Host handoff 只执行一次；目标核验后在一个事务中替换 bindings 和 claims |
 | 仓库中的 prompt injection 诱导扩大工作 | TaskIntent、allowed effects、显式 Scope、TASKS 验证计划和带原因的预算调整独立于仓库文本；Host 只复核当前 diff 与因果影响；高风险 Git/发布仍需用户授权 |

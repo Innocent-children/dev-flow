@@ -66,6 +66,7 @@ export async function activateDeepSeekIntegration(ctx, {
     workspaceRoot,
   });
   registerWorkspaceCoordinator(ctx, {
+    runtimePath: runtime.runtimePath,
     dataDirectory: dataSelection.dataDirectory,
     workspaceRoot,
   });

@@ -17,7 +17,7 @@ file scope, verification plan, progress, and results locally so you can continue
 
 - **Keep scope clear:** record the intended files and check the actual changes against the plan.
 - **Plan testing:** choose relevant checks and set limits on verification effort.
-- **Resume work:** continue the same task and remaining work from its original worktree.
+- **Resume work:** continue the same task and remaining work from its original directory.
 - **Inspect results:** view progress, checks, and reasons a task needs attention.
 
 It suits repository work that spans sessions or needs explicit scope and testing limits. For one-off
@@ -59,19 +59,26 @@ Or in **DeepSeek Harness**:
 Send these in the conversation, not a terminal. Describe your goal, acceptance conditions, file
 scope, and testing limit.
 
-The first reply assesses the request and asks whether to work directly or use Dev Flow. If you
-choose Dev Flow, confirm the local or remote source, starting branch, new task branch, and whether
-to carry existing local changes.
+The first reply assesses the request and asks whether to work directly or use Dev Flow. Choosing
+Dev Flow defaults to a new task branch from the current HEAD in the current directory. Confirm the
+new branch and whether existing uncommitted changes belong to the task. Your dependencies, local
+configuration, files and staged state stay in place; the current session continues when it can access
+all participating directories.
 
-Work then proceeds in a dedicated Git worktree, a separate directory for the task. Codex opens it
-when the Host supports that operation; DeepSeek provides a command to restart from the new directory.
+You can explicitly choose to use the current branch or create a dedicated Git worktree. A dedicated
+worktree additionally selects a local or remote source and a starting branch. Codex opens the new
+directory when supported; DeepSeek provides the required relaunch command.
+
+One directory supports one active Task. Local manual or external edits are also observed, and changing
+branches during a Task pauses progress. Local directories and branches remain after completion;
+uncommitted work must be accounted for when starting the next Task.
 
 Before implementation, review and discuss the requirements, design, work items, expected files and verification plan. Development starts after you explicitly approve the complete plan. Revisions or expanded file scope require approval again; choosing Dev Flow or a worktree does not replace plan approval.
 
 ### 3. Resume and view progress
 
-After a session restart, return to the task's original worktree and ask to continue it. Dev Flow
-resumes from the saved progress. If that worktree is missing or replaced, the task pauses until you
+After a session restart, return to the task's original directory and ask to continue it. Dev Flow
+resumes from the saved progress. If that directory is missing or replaced, the task pauses until you
 restore it or explicitly abandon the task.
 
 In DeepSeek Harness, include `/dev-flow` in the message asking to resume.

@@ -20,10 +20,12 @@ export const commandResolvesToPackage = (commandPath, expectedLauncherPath, opti
 
 function execFileWithClosedInput(executable, arguments_, options) {
   return new Promise((resolvePromise, reject) => {
-    const child = execFileCallback(executable, arguments_, options, (error, stdout, stderr) => {
+    const { input, ...processOptions } = options;
+    const child = execFileCallback(executable, arguments_, processOptions, (error, stdout, stderr) => {
       if (error) { error.stdout = stdout; error.stderr = stderr; reject(error); }
       else resolvePromise({ stdout, stderr });
     });
-    child.stdin?.end();
+    child.stdin?.on("error", () => {});
+    child.stdin?.end(input);
   });
 }

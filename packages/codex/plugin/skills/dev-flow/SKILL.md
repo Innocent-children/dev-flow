@@ -1,6 +1,6 @@
 ---
 name: dev-flow
-description: "Assess bounded Codex software development requests before choosing direct work or Dev Flow, then provision confirmed Dev Flow Tasks in dedicated Git worktrees. It may be selected implicitly or explicitly with $dev-flow-codex:dev-flow; the selector never skips assessment. Explicit Task resume and receipt-backed confirmed bootstrap bypass duplicate assessment."
+description: "Assess bounded Codex software development requests before choosing direct work or Dev Flow, then prepare confirmed Dev Flow Tasks in new local branches by default, current branches, or dedicated Git worktrees. It may be selected implicitly or explicitly with $dev-flow-codex:dev-flow; the selector never skips assessment. Explicit Task resume and receipt-backed confirmed bootstrap bypass duplicate assessment."
 ---
 
 # Dev Flow for Codex
@@ -27,7 +27,7 @@ compare intended files with the approved scope; directory ranges require a visib
 
 | Current request | Read and perform |
 | --- | --- |
-| New development request, including the exact selector | [Assessment and launch](references/admission.md). Assess read-only, retain valid user choices, then prepare the confirmed worktrees. |
+| New development request, including the exact selector | [Assessment and launch](references/admission.md). Assess read-only, retain valid user choices, then prepare the confirmed workspaces; default to a new branch in the current directory. |
 | Bootstrap carrying a saved launch/repository identity | [Receipt bootstrap](references/admission.md#bootstrap). Read surface/phase, distinguish first initialization from provisioned-worktree continuation, then determine whether Core creation or resume applies. |
 | Explicit resume identifying an existing Task | [Core connection and reads](references/tool-results.md#open-or-resume-a-task). Return to the original worktree instance and resume without creation fields. |
 | Current Action work | [Action submissions](references/node-payloads.md). Read only the current node section and the common submission procedure. |
@@ -37,7 +37,7 @@ compare intended files with the approved scope; directory ranges require a visib
 
 A dependent sequence toward one result is one request. For explicitly requested independent parallel
 items, assess each and obtain the item/branch choices before dispatch. Each selected item has its own
-Host task, worktree and Core Task; shared-directory agents do not provide worktree isolation.
+Host task, worktree and Core Task; one directory has one active Task; independent parallel items need separate directories or sequential execution. Select dedicated worktrees explicitly for isolated parallel work.
 `ACTIVE_TASK_CONFLICT` stops creation for resolution of the existing Task.
 
 Implementation: `packages/codex/lib/task-admission.mjs` — `validateSuitabilityAssessment`;
@@ -47,8 +47,8 @@ Implementation: `packages/codex/lib/task-admission.mjs` — `validateSuitability
 
 Continue when the current work is authorized and no required input is missing. Reuse explicit choices
 and authorizations that still apply. Progress updates and explanations of these instructions require
-no acknowledgment. Ask the concrete missing question; a generic “continue” cannot supply a missing
-mode, source/base/target/carry choice or comprehension verdict.
+no acknowledgment. Ask the concrete missing question; a generic “continue” cannot supply an unresolved
+source/base/target/carry choice or comprehension verdict.
 
 The conversation selector is `$dev-flow-codex:dev-flow`; it selects assessment and is not Git or Task
 creation permission. The installed policy also permits implicit selection. Before a new Task, the user

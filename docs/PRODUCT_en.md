@@ -12,7 +12,7 @@ Codex or DeepSeek understands code, edits files and executes commands. Go Core r
 
 The product serves developers using Codex or DeepSeek on real repositories over multiple sessions or days. It fits public-interface, persistence, multi-component and recovery-sensitive changes, as well as work requiring explicit file scope and verification effort.
 
-Other changes in a shared checkout can obscure ownership. Chat history alone may not establish whether tests remain valid, an operation succeeded, or work remains after an interruption. Dev Flow gives the task a dedicated worktree and retains requirements, plans, check results, blocker reasons and recovery information.
+Other changes in a shared checkout can obscure ownership. Chat history alone may not establish whether tests remain valid, an operation succeeded, or work remains after an interruption. Dev Flow defaults to a new branch in the current directory, also supports the current branch or a dedicated worktree, and retains requirements, plans, check results, blocker reasons and recovery information.
 
 Direct Host use is usually simpler for one-off questions, explanations, status queries and small mechanical edits. A few explicitly selected repositories may share one Task, but multi-repository work and worktree handoff are advanced capabilities, not the primary use case.
 
@@ -20,13 +20,30 @@ Direct Host use is usually simpler for one-off questions, explanations, status q
 
 A new request receives a read-only assessment of discovered impact, unknowns and a recommendation. The developer chooses direct work, Dev Flow or clarification; an explicit selector does not skip assessment. Before selection there is no Task creation, Git mutation or development-session dispatch.
 
-After choosing Dev Flow, the developer confirms each repository's local or remote source, base branch, new task branch and whether to carry local content. Local preparation can work offline; remote preparation fetches the selected branch and freezes the starting commit. Confirmed carrying copies staged, unstaged and non-ignored untracked content while preserving the source checkout and staged state. Application failure retains the destination for inspection; one Task opens only after every repository is ready.
+After choosing Dev Flow, the default creates a task branch from the current HEAD in the current
+directory. Explicit alternatives retain the current branch or create a dedicated worktree. Local modes
+reuse dependencies, local configuration and build outputs, continuing the same session when it has all
+required directory permissions. The Host shows directories, current branches and initial changes and
+obtains missing target-branch or initial-content choices. Accepted initial changes all belong to the
+Task scope, with staged state retained. Unaccepted content stops preparation without automatic cleanup
+or exclusion of unrelated work.
+
+Dedicated worktrees select a local or remote source, base, target branch and local-content choice per
+repository. Local preparation works offline; remote preparation fetches the selected branch and freezes
+its commit. Carrying copies staged, unstaged and non-ignored untracked contents while preserving the
+source and index. Any preparation failure prevents a partial Task; retain local branches and changes
+for inspection.
+
+One directory has one active Task. The Host checks Core claims read-only before local branch operations,
+and Core acquires all directory claims together at creation. That check does not lock later Git operations;
+users and external tools must avoid starting another writer during preparation. Manual and external edits
+in local directories remain subject to scope and verification rules. Keep the bound branch during a Task.
 
 Discovery follows user instructions, applicable repository rules and Host permissions. Discovery may identify candidates; Task membership requires confirmation and becomes fixed at creation.
 
 When Codex starts a new session, it retains relevant requirements discussion and confirmed requirements, distinguishing unaccepted suggestions and unresolved questions. Explicit choices and authorizations that remain valid are retained; only unresolved decisions or required inputs need another question.
 
-Explicit resume returns to the original worktree instance and saved state without creating another task or selecting another worktree. The destination of a confirmed launch verifies the retained launch record before continuing initialization. A missing or replaced original worktree pauses progress; the developer can restore that instance or explicitly abandon the Task.
+Explicit resume returns to the original working-directory instance and saved state without creating another task or selecting another worktree. The destination of a confirmed launch verifies the retained launch record before continuing initialization. A missing or replaced original worktree pauses progress; the developer can restore that instance or explicitly abandon the Task.
 
 ## Planning discussion before implementation
 
@@ -40,7 +57,7 @@ Codex launch preparation requires the complete impact assessment and the develop
 
 | Situation | Current behavior |
 | --- | --- |
-| Worktree changes | Core derives actual changes from Git; later source-checkout edits are separate from the Task |
+| Worktree changes | Core derives actual changes from the bound directory, including local manual/external edits; dedicated worktrees remain separate from later source edits |
 | Work leaves the plan | Supported structured tools ask before writing; later observation finds other writes, and unexplained paths cannot reach testing or delivery |
 | An unplanned file needs handling | The developer chooses one-time allowance, replanning or restoration; Core retains the decision |
 | Analysis completes | The task plan records checks, rationales, initial command budget, full-suite expectation and test-code expectation |
@@ -63,9 +80,9 @@ An uncertain operation is read from Core's saved record before recovery or retry
 
 Codex retains the complete tool response before checking `ok` and reading success data; explicit rejections follow the returned error and handling instruction, and local caching or presentation errors do not change the original response.
 
-Same-machine handoff starts with Core retaining recovery conditions, followed by one Host handoff. Core verifies the destination and replaces repository bindings atomically. Failure retains the original bindings and claims.
+Workspace handoff requires every repository to use a dedicated worktree. Local modes resume in the original directory. Same-machine handoff starts with Core retaining recovery conditions, followed by one Host handoff. Core verifies the destination and replaces repository bindings atomically. Failure retains the original bindings and claims.
 
-DONE or CANCELLED ends the Task and releases repository claims without automatically committing, pushing, opening a PR or deleting a worktree. Worktree and branch cleanup require separate authorization. Explicit abandonment of an unavailable worktree retains the last known state and ends the Task.
+DONE or CANCELLED ends the Task and releases repository claims without automatically committing, pushing, opening a PR or deleting a worktree. Local directories and branches are retained, and uncommitted work becomes initial content for the next Task. Dedicated worktree and branch cleanup require separate authorization. Explicit abandonment of an unavailable worktree retains the last known state and ends the Task.
 
 ## Entry points and component responsibilities
 

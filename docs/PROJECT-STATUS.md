@@ -28,7 +28,7 @@ npm `@latest` 当前选择以下稳定 package：
 | 用户可见能力 | 当前内容 |
 | --- | --- |
 | 新请求评估 | Host 先做只读 `small|standard|large|uncertain` 评估并等待用户选择；显式 selector 也不能跳过 |
-| 工作树优先 | 用户逐仓确认来源、分支和携带选择；Host 解析本地或远端起点，复制已确认的内容，并验证专属工作树后创建 Task |
+| 工作位置选择 | 默认在当前目录新建分支，另可选当前分支或独立工作树；检查目录占用并明确初始修改，全部仓库准备后创建 Task。本地 Host helper 与真实 Core/Git/SQLite 已做定向验证，实际 Host 会话端到端范围仍见下文 |
 | 持久 Task | 本地保存请求、范围、当前阶段、分析后形成的验证计划、当前预算/消耗、调整原因、记录、阻塞和结果 |
 | 中断后继续 | Codex 和 DeepSeek 从同一 Task 恢复当前阶段与下一步 |
 | 范围与验证限制 | TASKS 保存初始验证计划；Core 按当前 Task Plan revision 统计消耗，允许 TEST 用具体原因增加，并继续执行 ExpectedPaths 和记录失效规则 |

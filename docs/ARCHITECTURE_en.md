@@ -2,7 +2,7 @@
 
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
-> This document describes the current worktree-first implementation, protocol, and persistence. Read
+> This document describes the current workspace and branch implementation, protocol, and persistence. Read
 > the [README](../README.md) and [Product Definition](PRODUCT_en.md) first. Exact commands live in the
 > [Command Reference](COMMANDS_en.md).
 
@@ -20,7 +20,7 @@ flowchart TB
     A --> C{Choose Dev Flow?}
     C -->|No| D[Direct work · no Core Task]
     C -->|Yes| P[Confirm source/base/target/carry]
-    P --> W[Host provisioning receipt + dedicated worktree]
+    P --> W[Host launch receipt + prepared workspace]
     W --> M[Local STDIO MCP · 17 tools]
     M --> S[Application Service]
     S --> G[Read-only Git Observer]
@@ -60,16 +60,28 @@ Codex retains explicit choices and authorizations that remain valid for the curr
 The assessment binds request, canonical root, HEAD, and status digest. A change while waiting makes it
 stale. Explicit resume is the only route that skips assessment.
 
-After selecting Dev Flow, the developer confirms `source_type`, `base_branch`, `carry_changes` and the new
-`target_branch`. Remote sources also require `remote_name` and fetch the exact ref with closed argv.
-Local sources use an empty `remote_name` and resolve `refs/heads/<base>` without network access. The Host
-freezes `base_commit` and retains `snapshot_commit` when carrying local content. After creating and
-verifying the dedicated worktree, branch and HEAD, it applies the snapshot with staging state preserved.
-Core accepts initial changes only for explicitly selected local carry. The source checkout is preserved;
-conflicts stop Task creation and retain the destination. See [worktree sources](WORKTREE-SOURCES_en.md).
+After choosing Dev Flow, `workspace_mode` defaults to `new_branch`, creating a branch from current
+HEAD in the existing directory. Explicit alternatives are `current_branch` and `dedicated_worktree`.
+Core retains the same choice in `WorkspaceOrigin.mode`. Local modes use the local source, starting
+current branch and HEAD. The Host owns branch creation; Core checks read-only. `carry_changes` accepts
+initial contents and retains files/index in place rather than applying the snapshot. Core's read-only
+`host-check workspace-available` checks claims before preparation and branch changes. Core still acquires
+all claims together at creation. The check reserves no directory; the Host keeps one execution owner.
+Existing content/history/instance digests are reused, and the SQL table layout is unchanged.
+
+Codex local launches use `current_session`: `prepare -> local-provision -> scope -> open_task`, with
+null `handoff_file`/`handoff_digest`, and continue the current authorized session. All-local DeepSeek
+launches return `ready` and `open_task` in the existing Workspace Root. Dedicated launches continue to
+relaunch/consume; mixed choices start from the common parent with every root actually authorized.
+
+Explicit `dedicated_worktree` choices retain source/base/target/carry selection. Remote sources fetch
+an exact ref after confirming the remote; local sources resolve a local ref. The Host freezes the base,
+retains/applies selected snapshots and verifies the dedicated directory and HEAD. The source checkout
+is preserved; conflicts stop Task creation and retain the destination. See [working directories and
+branches](WORKTREE-SOURCES_en.md).
 
 Before its first Git write, the Host retains a narrow provisioning receipt with launch/host/request
-digest, `handoff_digest`, source repository identity, repository key, source/base/target/carry, frozen commit, worktree path,
+digest, `handoff_digest`, source repository identity, repository key, workspace mode, source/base/target/carry, frozen commit, worktree path,
 operation status, and time. It contains no remote URL, credentials, file content, or workflow node.
 Uncertain results read receipt/Host state instead of dispatching again.
 
@@ -196,7 +208,7 @@ observation/classification path.
 
 | Observation | Result |
 | --- | --- |
-| Source-checkout change | Unrelated to the Task |
+| Other edits in a directory | Local modes observe them; later edits to a dedicated worktree’s source checkout remain separate |
 | Linear advance on the task branch | Recompute surface and continue |
 | Identical content committed | Preserve Test/Comprehension |
 | Content changed | Invalidate affected downstream records |
@@ -301,6 +313,9 @@ unrelated historical issues stay outside the current review, Task work, and deli
 
 ## Relocation, cancellation, and terminal state
 
+Workspace relocation requires all repositories to use `dedicated_worktree`. Local modes are rejected
+before BLOCKED and retain the original directory; terminal local cleanup is not applicable.
+
 `dev_flow_prepare_task_relocation` moves the Task to `BLOCKED` and retains relocation ID, source
 bindings, base, content, surface, and resume node while source claims remain active. The Host performs
 one same-machine handoff. `dev_flow_resolve_blocker` then supplies relocation ID and destination
@@ -350,7 +365,7 @@ no longer creates a Task from an arbitrary checkout and performs no Git mutation
 
 ## Host differences
 
-- Codex App uses native managed worktrees, snapshots, task creation, and handoff. The Skill retains one
+- In dedicated mode, Codex App uses native managed worktrees, snapshots, task creation, and handoff. The Skill retains one
   launch, and the child initializes the target branch before Core open. Codex CLI uses
   `codex -C <worktree> [--add-dir <additional-worktree>] -- <prompt>`.
 - DeepSeek fixes Workspace Root at process start. WorkspaceCoordinator creates a safe sibling worktree

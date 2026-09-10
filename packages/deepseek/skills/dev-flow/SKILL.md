@@ -22,8 +22,8 @@ compare intended files with the approved scope; directory ranges require a visib
 
 | Current request | Read and perform |
 | --- | --- |
-| New development request, including /dev-flow | [Assessment and launch](references/admission.md). Assess read-only before a Dev Flow choice and the exact worktree confirmation. |
-| Exact resume-worktree launch message | [Choose first launch or recovery](references/admission.md#first-launch-or-task-recovery). Use consume for first launch; an existing or uncertain Core Task takes the resume path even when the old launch message is reused. |
+| New development request, including /dev-flow | [Assessment and launch](references/admission.md). Assess read-only before a Dev Flow choice and the exact workspace confirmation; default to a new branch in the current directory. |
+| Exact resume-worktree launch message | [Choose first launch or recovery](references/admission.md#first-launch-or-task-recovery). Use the ready descriptor for local launch or consume for a first dedicated launch; an existing or uncertain Core Task takes the resume path even when the old launch message is reused. |
 | Explicit existing Task resume or uncertain Core creation | Start in the original worktree instance, include /dev-flow in the current direct user turn, and [resume Core](references/admission.md#first-launch-or-task-recovery) without consume or creation fields. |
 | Current Action | [Common submissions](references/node-payloads.md) and only the current node reference. |
 | Rejection, lost result or blocker | [Core results and recovery](references/tool-results.md) before more repository work. |

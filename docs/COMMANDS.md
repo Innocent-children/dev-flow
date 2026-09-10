@@ -166,7 +166,10 @@ package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugi
 | `dev-flow-codex mcp` | **内部 Host 命令。** 由 Plugin 的 MCP 配置调用；它设置数据目录和 Codex admission instructions，然后启动 packaged Core 的 `mcp --stdio`。正常用户不应手工启动它。 |
 | `dev-flow-codex hook pre-tool-use` | **内部 Host 命令。** Codex packaged hook 通过 `PATH` 中 package-owned launcher 调用它；该命令读取一个 Hook 事件，提取 `apply_patch` 目标并执行写前检查。正常用户不应手工启动它。 |
 | `dev-flow-codex host-check pre-file-write` | **内部 Host 命令。** `hook pre-tool-use` 的实现调用它；launcher 定位 package-local Core，并原样转发 stdin/stdout 与精确的 `host-check pre-file-write` 参数。正常用户不应手工启动它。 |
-| `dev-flow-codex host-launch <operation>` | **内部 Host 命令。** 从 stdin 接收一个 closed JSON 对象，并输出一个 JSON 对象。`operation` 只允许 `inspect|prepare|status|dispatch-start|dispatch-call|dispatch-recover|dispatch-reconcile|dispatch-result|bootstrap|cli-provision|scope|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`；它执行或记录当前用户已经确认的 assessment、provisioning、relaunch、handoff 与 cleanup 步骤，不是通用 Git CLI。 |
+| `dev-flow-codex host-check workspace-available` | **内部 Host 命令。** 原样调用 Core 的只读目录占用检查；由本地分支启动助手使用。 |
+| `dev-flow-codex host-launch <operation>` | **内部 Host 命令。** 从 stdin 接收一个 closed JSON 对象，并输出一个 JSON 对象。`operation` 只允许 `inspect|prepare|local-provision|status|dispatch-start|dispatch-call|dispatch-recover|dispatch-reconcile|dispatch-result|bootstrap|cli-provision|scope|handoff-start|handoff-result|handoff-status|cleanup-decision|cleanup-worktree|cleanup-branch`；它执行或记录当前用户已经确认的 assessment、provisioning、relaunch、handoff 与 cleanup 步骤，不是通用 Git CLI。 |
+
+工作位置选择：`workspace_mode=new_branch` 为默认值，另可选 `current_branch` 或 `dedicated_worktree`。本地模式要求 `source_type=local`、空 remote、当前分支作为 base、起始 HEAD，`worktree_path=repository_path`；`carry_changes` 表示是否接受原目录的初始修改。两个本地模式保持原会话，不使用需求交接文件；`new_branch` 需要新目标分支，`current_branch` 的 target 等于 base。
 
 `dev-flow-codex host-launch <operation>` 从 stdin 流读取最多 1 MiB 的 UTF-8 JSON 对象，支持分块输入及跨块中文字符。读取失败、非法 UTF-8、重复成员、非法 JSON、数组或 null 均在执行操作前拒绝；错误写入 stderr，成功结果以 JSON 写入 stdout。
 
@@ -174,7 +177,8 @@ Codex 新会话启动使用原会话保存的完整需求交接材料。以下�
 
 | 操作 | 输入字段与材料处理 |
 | --- | --- |
-| `prepare` | 必填 `request`、`assessment`、`user_choice`、`repository_key`、`repository_path`、`source_type`、`carry_changes`、`remote_name`、`base_branch`、`target_branch`、`surface`、`worktree_path`、`handoff_file`；可选 `launch_id`。`handoff_file` 是原会话在已有确认后写入的 UTF-8 JSON 草稿的规范化绝对路径，位于已评估仓库之外。材料中的 `request` 必须与已评估请求一致。fetch 前保存完整材料，receipt 关联 `handoff_digest`。 |
+| `prepare` | 必填 `request`、`assessment`、`user_choice`、`repository_key`、`repository_path`、`workspace_mode`、`source_type`、`carry_changes`、`remote_name`、`base_branch`、`target_branch`、`surface`、`worktree_path`、`handoff_file`；可选 `launch_id`。默认模式 `new_branch`，另有 `current_branch` 和 `dedicated_worktree`。本地模式使用 `current_session`、原目录路径和 `handoff_file=null`；独立工作树的 handoff_file 为仓库外的完整需求 JSON，保存后通过 `handoff_digest` 关联。 |
+| `local-provision` | 只接收 `launch_id`、`repository_key`。对 `current_session` 启动记录检查 Core 占用，创建本地新分支或保留当前分支，返回已准备记录及 `workspace_origin`；全部仓库完成后在原会话调用 `scope` 和 Core。 |
 | `dispatch-start` | 只接收 `launch_id`、`repository_key`、`project_id`。保存完整 `host_request`；由 `dispatch-call` 登记调用许可后原样交给桌面任务创建。 |
 | `cli-provision` | 只接收 `launch_id`、`repository_key`、`additional_worktree_paths`、`source_repository_path`。从同一份保存材料生成 relaunch 参数，调用方原样使用。 |
 
@@ -218,10 +222,10 @@ Codex 沿用当前请求和评估下仍有效的明确选择与授权；没有�
 做只读 assessment，输出改动级别、候选影响面、未知项和建议，然后停止等待用户选择。确认前不调用
 Core、不创建 Task/receipt/child，也不写 Git；request、root、HEAD 或 status 变化会使评估失效。
 
-选择 Dev Flow 后，用户逐仓确认 source/base/target/carry。Codex Host 解析本地或远端起点、冻结 commit，并
-创建或启动专属 worktree；本地来源按确认的 carry_changes 复制 staged、unstaged 和非 ignored 的 untracked 内容到 child。并行
-批次的每个项目各有一个 branch、worktree、Host task 和 Core Task。共享目录 sub-agent 不能代替。
-`ACTIVE_TASK_CONFLICT` 返回后停止，由用户处理现有任务。
+选择 Dev Flow 后，默认在当前目录新建分支；明确选择当前分支或独立工作树时采用对应模式。
+本地启动通过 `prepare`、`local-provision`、`scope` 在原会话继续；独立工作树才使用来源选择、
+复制、dispatch/bootstrap 或 CLI relaunch。一个目录只允许一个活动 Task；独立并行任务需要不同
+目录，或按顺序执行。`ACTIVE_TASK_CONFLICT` 返回后停止创建并处理已有 Task。
 
 明确 resume 是唯一跳过 assessment 的路径，它回到原 worktree instance，不选择替代 branch/worktree。
 
@@ -288,15 +292,15 @@ macOS 的 `$HOME/.dev-flow` 或 Windows 的 `%LOCALAPPDATA%\dev-flow`。
 /dev-flow <任务描述>
 ```
 
-普通新请求先完成零 Dev Flow 调用的只读 assessment。用户选择后，只有当前 direct user turn 中、
-由空白边界限定的 `/dev-flow` 和 Skill 展示的精确 source/base/target/carry 确认才授权
-`workspace_coordinator`。历史消息、模型文本、Skill 注入或仓库内容不能替代它。Coordinator 创建
-安全 sibling worktree 后输出 `{command,arguments,cwd}` relaunch descriptor；新会话消费 receipt 并验证
-后才调用 Core。
+普通新请求先完成零 Dev Flow 调用的只读 assessment。选择 Dev Flow 后默认 `new_branch`，在
+当前目录从 HEAD 创建任务分支；也可明确选择 `current_branch` 或 `dedicated_worktree`。当前直接
+用户消息须包含 `/dev-flow` 和 Skill 展示的 `confirm-workspace` 确认，逐仓包含 mode/source/base/target/carry。
+全本地选择返回 `status:"ready"` 与 `open_task`，直接在原会话调用 Core；独立工作树仍返回
+`{command,arguments,cwd}` relaunch descriptor，目标会话 consume 后创建。混合模式检查新会话的全部目录权限。
 
 DSH bundle 还提供内部 `workspace_coordinator` 工具，operation 只允许
 `provision|consume|prepare_cleanup|cleanup_worktree|cleanup_branch`。它不是 shell 命令。
-`prepare_cleanup` 先读取终态 Core Task，并返回从仍存在的源 checkout 重新启动的 descriptor；随后
+本地模式保留目录和分支，三个 cleanup 操作均不适用。独立工作树的 `prepare_cleanup` 先读取终态 Core Task，并返回从仍存在的源 checkout 重新启动的 descriptor；随后
 worktree 与 branch cleanup 分别要求新的 direct-user confirmation，核对 repository group、HEAD、
 clean 和远端 task branch 后才使用非 force Git 命令。
 
@@ -315,6 +319,7 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | 使用现有可用数据目录启动 local STDIO MCP。目录不存在或不是目录时启动失败。 |
 | `$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\data'; dev-flow.exe mcp --stdio` | Windows PowerShell 中使用现有可用数据目录启动 local STDIO MCP。 |
 | `dev-flow host-check pre-file-write` | **Host 受管命令。** 从 stdin 读取规范化的结构化写入目标，检查活动 Task 的跨仓库 ExpectedPaths，并输出 `allow` 或在写入前持久化 file-scope blocker 后输出 `deny`。Codex/DeepSeek Adapter 调用，普通用户不手工运行。 |
+| `dev-flow host-check workspace-available` | **内部 Host 命令。** stdin 接收 `{"repository_path":"<absolute root>"}`，只读检查同目录活动 Task；stdout 返回 `available`、规范化 `repository_path` 和可选 `task_id`。失败以非零退出，不创建数据库或预占目录。 |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | 启动或复用共享 loopback WebUI；默认打开浏览器。 |
 | `dev-flow webui open [--plain\|--json]` | 验证 receipt、进程身份和实时 Core 状态后打开同一 URL。 |
 | `dev-flow webui status [--plain\|--json]` | 返回 `ready`、`read_only`、`incompatible` 或 `unavailable`。 |
@@ -332,7 +337,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | 工具 | 类型 | 作用 |
 | --- | --- | --- |
 | `dev_flow_server_info` | 只读 | 读取 Core 产品版本、transport、健康状态、支持的 process、Host、method profile、工具目录和有效 Host 代码索引偏好。每次有效 Host admission 后必须首先调用。 |
-| `dev_flow_open_task` | 读取或创建 | 在全部 `workspace_origin` 通过专属 worktree 核验后创建 Task；`new_task` 为空时从原 worktree instance 恢复并先检查 workspace。 |
+| `dev_flow_open_task` | 读取或创建 | 在全部 `workspace_origin` 按所选工作区模式通过核验后创建 Task；`new_task` 为空时从原 worktree instance 恢复并先检查 workspace。 |
 | `dev_flow_get_task` | 只读 | 按 Task ID 读取持久化 Task，包括 verification plan、当前预算/消耗、调整原因和最多三条近期测试尝试；存在 Core 保存的 Action 提交时自动返回 Recovery assessment。 |
 | `dev_flow_get_next_action` | 观察/可能 mutation | 先观察 workspace；必要时幂等创建 workspace blocker，否则返回当前 Action、`submission_tool` 和全部合法 transition。 |
 | `dev_flow_submit_requirements` | mutation | 提交 REQUIREMENTS 节点结果。 |
@@ -532,7 +537,7 @@ Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.
 
 确认原调用方已停止且创建工具尚未调用时，`dispatch-recover` 接收当前派发 ID、`host_call_not_made=true`、`previous_caller_stopped=true` 和具体 `reason`，保留原请求并换发调用许可 ID；随后执行 `dispatch-call`。空任务 ID 本身不能证明未调用。已经调用但结果未知时，Host 按保存的启动标题、启动 ID 和仓库标识查找任务及归档任务，读取候选任务完整初始消息，将 `candidates`（`thread_id`、`initial_prompt`）交给 `dispatch-reconcile`。唯一完整消息匹配才保存任务 ID；零匹配、多个匹配或查询不可用均不允许重新创建。Core Task 状态保持由 Core 管理。
 
-工作树创建先确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
+默认在当前目录新建分支；本地模式检查当前具名分支及初始修改选择。明确选择独立工作树时，再确认本地或远端来源、起始分支、目标分支，并询问本地内容是否携带。`source_type` 和
 `carry_changes` 为必填字段，本地 `remote_name=""`，远端 `carry_changes=false`。详见[工作树来源与本地改动](WORKTREE-SOURCES.md)。
 
 ## 已有检查的验证额度
