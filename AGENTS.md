@@ -37,7 +37,7 @@ to them from user guides when needed.
 | `AGENTS.md` | Repository AI agents: instruction priority, scope, architecture constraints, implementation, review, validation, documentation maintenance, and release boundaries. |
 | Root `README*.md` | End users: what Dev Flow does, suitable tasks, prerequisites, installation, starting and resuming work, common operations, necessary usage limits, and links to further help. |
 | `packages/*/README.md`, `docs/CODEX_en.md`, `docs/DEEPSEEK_en.md` | Users of that package or Host: setup, supported operations, troubleshooting, maintenance, removal, and Host-specific limitations. |
-| `docs/PRODUCT*` | Product readers: target users, problems, user-visible behavior rules, product scope, and non-goals. |
+| `docs/PRODUCT*` | Product readers: target users, problems, business functionality, user workflows, product scope, and non-goals. |
 | `docs/DEMO*`, `docs/WEBUI*`, `docs/DESKTOP-PETS*` | Users following a walkthrough or operating a specific interface; detailed interface and artwork guidance stays here. |
 | `docs/ARCHITECTURE*`, `docs/ARTIFACTS*`, `docs/WORKTREE-SOURCES*`, `docs/THREAT-MODEL*` | Developers and integrators: component responsibilities, protocols, state and data rules, implementation design, and trust boundaries. |
 | `docs/CORE-RESPONSES*` | Core and Host developers: success/failure envelopes, structured error detail, recovery instructions and response validation. |
@@ -71,13 +71,12 @@ to them from user guides when needed.
 
 1. Identify which existing statements or user instructions the change makes inaccurate or incomplete.
    Update those documents and any reference that owns the changed behavior in the same change.
-2. Update root READMEs only when the project introduction, main capabilities, prerequisites,
-   installation, common usage, or necessary usage limits change. Internal refactoring, bug fixes
-   that restore documented behavior, tests, build details, and agent-maintenance rules do not by
-   themselves require README edits.
-3. Update `docs/PRODUCT.md` and `docs/PRODUCT_en.md` when product scope or user-visible behavior rules
-   change. Technical details belong in the affected technical reference. Update ROADMAP only when
-   the approved future direction or priorities change.
+2. Update root READMEs when business functionality or user workflows change the project introduction,
+   capabilities, prerequisites, installation steps, common usage, or necessary usage limits.
+   Describe what users can accomplish, how they use the product, and the results they receive.
+3. Update `docs/PRODUCT.md` and `docs/PRODUCT_en.md` when business functionality, user workflows,
+   or product boundaries change. Update implementation and interface details in their owning
+   technical references. Update ROADMAP when approved future direction or priorities change.
 4. A changed command, selector, environment variable, lifecycle operation, or MCP tool requires an
    update to `docs/COMMANDS.md` and `docs/COMMANDS_en.md` and guides that expose that entry. Change
    README examples only when the entry is part of README-level usage or an existing example changes.

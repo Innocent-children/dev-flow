@@ -12,7 +12,7 @@ final-package test results, and clearly scoped product improvements that solve r
 | Spelling, links, translation, or correction of existing behavior documentation | Open a bounded pull request directly and synchronize the maintained languages of the affected document family according to the [I18n policy](docs/I18N_en.md) |
 | Template or documentation-maintenance rule change | Explain the affected surface; do not change product versions or perform a release |
 | Implementation defect that does not change public semantics | Identify the gap between the approved contract and actual behavior, then fix only that gap |
-| User-visible behavior, Core/MCP contract, persistence, process graph, or host-adapter contract change | Explain the user problem, scope, acceptance criteria, and approach, synchronize implementation/tests/docs/i18n, and update `CORE_VERSION` when shipped Core changes |
+| Business functionality, user workflow, Core/MCP contract, persistence, process graph, or host-adapter contract change | Explain the user problem, scope, acceptance criteria, and approach, synchronize implementation/tests/docs/i18n, and update `CORE_VERSION` when shipped Core changes |
 | npm package version, npm publication, Tag, or GitHub Release | Do not make this an ordinary pull-request deliverable; maintainers run the separate release flow after product work is merged |
 
 When classification is unclear, open an Issue first and describe the user problem, current behavior,
@@ -136,10 +136,9 @@ Before editing, read the [I18n policy](docs/I18N_en.md), the
 - Update affected explanations by document responsibility: README covers the project and everyday
   use, `docs/PRODUCT*` covers product scope and behavior rules, and technical references cover
   interfaces and implementation details.
-- Code changes alone do not require README edits. Update root READMEs when purpose, main capabilities,
-  installation, common operations, or necessary limitations change, then synchronize all nine
-  languages. Internal refactoring, fixes restoring documented behavior, and test changes do not
-  trigger README updates.
+- Update root READMEs when business functionality or user workflows change the project purpose,
+  capabilities, installation steps, common operations, or necessary usage limits; synchronize all
+  nine languages. Update implementation and interface details in their owning technical references.
 - A documentation correction synchronizes the maintained languages of its affected document family;
   it does not copy change summaries into other documents.
 - When adding or changing a command, verify it against the package manifest, CLI parser, DSH lifecycle,

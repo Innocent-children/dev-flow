@@ -12,7 +12,7 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终安装包验证�
 | 拼写、链接、翻译或现有行为说明修正 | 可以直接提交范围明确的 Pull Request；按照 [I18n 策略](docs/I18N.md) 同步受影响文档族的维护语言 |
 | 模板或文档维护规则变化 | 说明影响范围；不修改产品版本，不执行发布 |
 | 不改变公开接口行为的实现缺陷 | 说明接口规范与实际行为的差异，并只修复该问题 |
-| 用户可见行为、Core/MCP 约定、持久化、状态图或 Host Adapter 约定变化 | 在 Pull Request 中说明用户问题、范围、验收条件和方案，并同步实现、测试、文档与 i18n；修改 shipped Core 时同步更新 `CORE_VERSION` |
+| 业务功能、用户操作流程、Core/MCP 约定、持久化、状态图或 Host Adapter 约定变化 | 在 Pull Request 中说明用户问题、范围、验收条件和方案，并同步实现、测试、文档与 i18n；修改 shipped Core 时同步更新 `CORE_VERSION` |
 | npm package 版本、npm、Tag 或 GitHub Release | 不作为普通 Pull Request 的交付步骤；由维护者在功能合并后使用独立发布流程执行 |
 
 分类不明确时，先提交 Issue，描述用户问题、当前行为和预期结果。不要先实现较大方案，再要求规格
@@ -124,7 +124,7 @@ pnpm install --frozen-lockfile
 - Core 只读观察 Git，不增加 shell、commit、push、merge、tag 或发布能力；
 - 只运行与改动表面、验收条件或已知风险直接相关的验证；
 - 按文档职责更新受影响的说明：README 负责项目介绍和日常使用，`docs/PRODUCT*` 负责产品范围与行为规则，技术参考负责接口和实现细节；
-- 代码改动本身不要求修改 README。仅当用途、主要能力、安装、常用操作或必要限制变化时更新根 README，并同步 9 种语言；内部重构、恢复既有行为的缺陷修复和测试改动不触发 README 更新；
+- 业务功能或用户操作流程的变化影响项目用途、能力、安装步骤、常用操作或必要使用限制时，更新根 README 并同步 9 种语言；实现与接口细节在负责该内容的技术参考中更新；
 - 文档修正同步受影响文档族的维护语言，不向其他文档复制变更说明；
 - 新增或修改命令时，对照 package manifest、CLI parser、DSH lifecycle、Core parser 或 MCP catalog，并同步 `docs/COMMANDS*`；
 - 面向用户的 npm 安装示例使用 `@latest`，人类阅读文档不记录精确产品版本；
