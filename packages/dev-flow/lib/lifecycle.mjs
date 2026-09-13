@@ -94,6 +94,7 @@ export async function runLifecycle(request, dependencies = {}) {
     arch: dependencies.arch,
   });
   const codex = dependencies.codexDriver ?? createCodexDriver({
+    paths,
     environment,
     run: dependencies.runCodexChild,
     localPackage: localPackages?.codex ?? null,

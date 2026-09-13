@@ -47,6 +47,9 @@ recoverable `%LOCALAPPDATA%\dev-flow\trash` quarantine on Windows; the Windows t
 Recycle Bin. Permanent removal requires another confirmation.
 The Codex global package is observed independently from its receipt and Plugin registration. Even when registration
 is already absent, `uninstall` and `factory-reset` still remove an installed global package.
+Package, Plugin, and receipt version differences left by an upgrade do not prevent removal of the same owned Codex registration; paths and sources must still match.
+When the entire Codex Adapter package is missing, the unified entry reads the remaining receipt, removes the matching registration through native Codex commands, and verifies readback without reinstalling the Adapter.
+Cleanup with a missing Core proceeds only without a WebUI runtime receipt. A remaining or unreadable runtime record, or a failed stop, preserves the remaining resources.
 The interactive interface reads the current locale: `zh*` uses Simplified Chinese and every other locale uses
 English. JSON output remains language-neutral.
 During install, upgrade, repair, and reinstall, text modes show each Host action and completed package, registration,

@@ -632,6 +632,18 @@ test("removal deletes only matching registration and the exact receipt", async (
   assert.equal(await readFile(adjacentReceiptFile, "utf8"), "preserve adjacent receipt data\n");
 });
 
+test("removal accepts package and plugin versions changed by an interrupted upgrade", async (t) => {
+  const fixture = await makeSetupFixture(t, "remove-upgraded-package");
+  await setupRegistration(fixture.options);
+  await updateSetupFixtureVersion(fixture, "0.1.1");
+  const state = JSON.parse(await readFile(fixture.statePath, "utf8"));
+  state.plugins[0].version = "0.1.1";
+  await writeFile(fixture.statePath, JSON.stringify(state));
+  await assert.rejects(inspectRegistrationStatus(fixture.options), /receipt.*conflict/i);
+  assert.deepEqual(await removeRegistration(fixture.options), { status: "removed", changed: true });
+  assert.equal(await readReceipt(fixture.paths.receiptPath), null);
+});
+
 test("removal treats complete absence as a no-op and conflicts without a receipt", async (t) => {
   const absent = await makeSetupFixture(t, "remove-absent");
   assert.deepEqual(await removeRegistration(absent.options), {
@@ -834,6 +846,8 @@ async function makeSetupFixture(t, name) {
     platform: fixturePlatform,
     arch: fixtureArch,
     runtimeKey,
+    requireExecutableMode: process.platform !== "win32",
+    enforcePrivateModes: process.platform !== "win32",
   };
   const environment = {
     ...process.env,

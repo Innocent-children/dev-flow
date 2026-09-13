@@ -148,6 +148,10 @@ npm uninstall -g dev-flow-codex
 Removal stops the matching WebUI and removes only package-owned registration/receipt state. Task data
 and Git repositories remain. Permanent Task-data cleanup uses the separately confirmed
 `dev-flow factory-reset` flow.
+Package, Plugin, and receipt version differences after an upgrade do not block removal when ownership still matches.
+A missing Core file also permits removal when no WebUI runtime receipt remains; otherwise restore Core to complete shutdown.
+If the entire Adapter package is missing, use `dev-flow uninstall --host codex --yes` to clean up the remaining registration.
+The unified entry verifies the receipt and native Codex registration sources.
 
 ## Boundaries
 

@@ -45,6 +45,9 @@ dev-flow
 独立确认。
 Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已缺失，`uninstall` 和
 `factory-reset` 仍会卸载已安装的全局 package。
+升级留下的 package、Plugin 与 receipt 版本差异不会阻止移除同一归属的 Codex 注册，路径和来源仍须匹配。
+若整个 Codex Adapter package 已缺失，统一入口会读取残留 receipt，通过 Codex 原生命令移除对应注册并回读确认；不要求重新安装 Adapter。
+Core 缺失时，仅在没有 WebUI runtime receipt 的情况下继续清理；仍有运行记录、记录不可读或停止失败时保留现场。
 交互界面读取当前 locale：`zh*` 使用简体中文，其余 locale 统一使用英文；JSON 输出保持语言无关。
 文本模式会在安装、升级、修复和重装执行期间逐项显示 Host 动作及已完成的 package、注册、构建产物和就绪检查步骤；`--json` 不输出这些进度行。
 

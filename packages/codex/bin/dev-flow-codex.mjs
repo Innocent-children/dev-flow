@@ -2,7 +2,8 @@
 
 import { execFile as execFileCallback, spawn } from "node:child_process";
 import { constants as fsConstants, realpathSync } from "node:fs";
-import { access, readFile, stat } from "node:fs/promises";
+import { access, lstat, readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
@@ -217,6 +218,15 @@ export async function stopPackagedWebUI(
   } catch (error) {
     if (error?.code === "ENOENT" && paths.usesDefaultDataDirectory) return;
     throw new Error("inspect packaged WebUI data directory", { cause: error });
+  }
+  // A missing binary is removable only when there is no managed WebUI record.
+  // Do not turn a failed stop or an unreadable record into permission to delete.
+  try { await lstat(paths.runtimePath); }
+  catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    try { await lstat(join(paths.dataDirectory, "webui-runtime.json")); }
+    catch (recordError) { if (recordError.code === "ENOENT") return; throw recordError; }
+    throw new Error("Core runtime is missing while a WebUI runtime record remains; restore the runtime before removal");
   }
   await assertExecutableRuntime(paths.runtimePath, paths.requireExecutableMode);
   try {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdir, readFile, readdir, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -705,6 +705,7 @@ test("remove keeps registration when WebUI stop fails", async (t) => {
 
 test("packaged WebUI stop uses the current runtime and treats a missing default data directory as stopped", async (t) => {
   const paths = await makePaths(t);
+  paths.requireExecutableMode = process.platform !== "win32";
   const calls = [];
   await stopPackagedWebUI(paths, {
     environment: { SAFE_PARENT_VALUE: "preserved" },
@@ -720,6 +721,15 @@ test("packaged WebUI stop uses the current runtime and treats a missing default 
   await stopPackagedWebUI(missingDefault, {
     exec: async () => { throw new Error("must not execute Core"); },
   });
+});
+
+test("missing Core permits removal only without a WebUI runtime record", async t => {
+  const paths = await makePaths(t);
+  await unlink(paths.runtimePath);
+  const exec = async () => { throw new Error("must not execute a missing Core"); };
+  await stopPackagedWebUI(paths, { exec });
+  await writeFile(join(paths.dataDirectory, "webui-runtime.json"), "{}");
+  await assert.rejects(stopPackagedWebUI(paths, { exec }), /runtime record remains/);
 });
 
 test("unknown launcher commands fail without dispatch", async () => {

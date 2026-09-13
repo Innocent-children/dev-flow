@@ -34,6 +34,7 @@
     "lib/cli.mjs",
     "lib/command.mjs",
     "lib/hosts/codex.mjs",
+    "lib/hosts/codex-orphan.mjs",
     "lib/hosts/deepseek.mjs",
     "lib/journal.mjs",
     "lib/lifecycle.mjs",

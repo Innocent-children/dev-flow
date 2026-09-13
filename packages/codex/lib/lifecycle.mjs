@@ -251,7 +251,7 @@ export async function removeRegistration({
     return { status: "already-absent", changed: false };
   }
 
-  assertRemovalReceipt(receipt, paths, packageVersion);
+  assertRemovalReceipt(receipt, paths);
   let owned = reconcileRemovalState(state, receipt);
 
   if (owned.plugin) {
@@ -320,7 +320,10 @@ export async function inspectRegistrationStatus({
     };
   }
 
-  assertRemovalReceipt(receipt, paths, packageVersion);
+  assertRemovalReceipt(receipt, paths);
+  if (receipt.product.version !== packageVersion) {
+    throw new Error("registration receipt version conflict; installed package differs from its receipt");
+  }
   const owned = reconcileRemovalState(state, receipt);
   if (owned.marketplace && owned.plugin) {
     assertMatchingRegistrationState(state, paths, packageVersion);
@@ -609,9 +612,8 @@ function assertRegistrationAbsent(state, paths) {
   }
 }
 
-function assertRemovalReceipt(receipt, paths, packageVersion) {
+function assertRemovalReceipt(receipt, paths) {
   const matches =
-    receipt.product.version === packageVersion &&
     receipt.registration.marketplace_name === MARKETPLACE_NAME &&
     receipt.registration.marketplace_root === paths.marketplaceRoot &&
     receipt.registration.plugin_name === PLUGIN_NAME &&
@@ -665,7 +667,6 @@ function reconcileRemovalState(state, receipt) {
         marketplaceName: receipt.registration.marketplace_name,
         pluginRoot: receipt.registration.plugin_root,
         marketplaceRoot: receipt.registration.marketplace_root,
-        version: receipt.product.version,
         requireEnabled: false,
       },
       "plugin removal readback",
@@ -771,6 +772,7 @@ function assertMarketplaceReadback(marketplace, expectedName, expectedRoot, labe
 
 function assertPluginReadback(plugin, expected, label) {
   assertObject(plugin, label);
+  parseSemver(plugin.version, `${label} version`);
   assertExactKeys(
     plugin,
     [
@@ -799,7 +801,7 @@ function assertPluginReadback(plugin, expected, label) {
     plugin.pluginId !== expected.pluginId ||
     plugin.name !== expected.name ||
     plugin.marketplaceName !== expected.marketplaceName ||
-    plugin.version !== expected.version ||
+    (expected.version !== undefined && plugin.version !== expected.version) ||
     plugin.installed !== true ||
     typeof plugin.enabled !== "boolean" ||
     (expected.requireEnabled && plugin.enabled !== true) ||

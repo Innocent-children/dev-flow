@@ -1,5 +1,7 @@
 import { lstat, realpath } from "node:fs/promises";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
+
+export const registrationPath = value => typeof value === "string" ? win32.normalize(value).replace(/^\\\\\?\\(?=[A-Za-z]:\\)/, "") : value;
 
 export const runtime = Object.freeze({ platform: "win32", arch: "x64", runtimeKey: "win32-x64", runtimeDirectory: "win32-x64", runtimeExecutable: "dev-flow.exe" });
 

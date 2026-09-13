@@ -157,6 +157,9 @@ npm uninstall -g dev-flow-codex
 `remove` 会先核对 runtime receipt 并停止对应 WebUI，再删除该 package 拥有的 Plugin、marketplace
 注册和 receipt。停止失败时会保留后续对象。Task 数据和目标 Git 仓库默认保留，重新安装兼容 package
 并运行 `setup` 后可以继续已有 Task。
+升级导致 package、Plugin 与 receipt 版本不同，不会阻止移除归属仍匹配的注册。Core 文件缺失且没有
+WebUI runtime receipt 时也可继续移除；仍有运行记录时需先恢复 Core 以完成停止。若整个 Adapter package
+已缺失，使用 `dev-flow uninstall --host codex --yes` 清理残留注册，统一入口会核对 receipt 与 Codex 注册来源。
 
 彻底清理数据属于独立的 `dev-flow factory-reset` 流程，需要当前计划给出的强确认；不要手工删除
 不明确的数据目录。

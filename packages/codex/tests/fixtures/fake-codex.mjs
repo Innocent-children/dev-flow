@@ -88,7 +88,9 @@ async function handleMarketplace(state, command) {
   if (operation === "list") {
     return {
       mutated: false,
-      output: { marketplaces: state.marketplaces },
+      output: { marketplaces: process.platform === "win32"
+        ? state.marketplaces.map(({ name, root }) => ({ name, root }))
+        : state.marketplaces },
       text: renderNames(state.marketplaces),
     };
   }

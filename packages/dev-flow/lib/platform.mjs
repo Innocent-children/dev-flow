@@ -9,6 +9,7 @@ export const dataPathPolicy = (platform, arch) => selectPlatform(platform, arch)
 export const permissionPolicy = (platform, arch) => selectPlatform(platform, arch).permissions;
 export const signalPolicy = (platform, arch) => selectPlatform(platform, arch).signals;
 export const cleanupPolicy = (platform, arch) => selectPlatform(platform, arch).cleanup;
+export const registrationPath = (value, platform, arch) => selectPlatform(platform, arch).registrationPath(value);
 
 const desktopPlatforms = Object.freeze({
   "darwin-arm64": { runtime: () => import("./platform/macos/pet.mjs"), installer: () => import("./platform/macos/pet-installer.mjs") },

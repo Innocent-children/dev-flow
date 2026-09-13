@@ -1,4 +1,5 @@
 import { execPortableCommand } from "../command.mjs";
+import { inspectOrphanRegistration, removeOrphanRegistration } from "./codex-orphan.mjs";
 
 export const CODEX_ACTIVATION_STEP = "Open Codex /hooks, review and trust the Dev Flow hook, then start a new conversation.";
 
@@ -9,6 +10,7 @@ export function createCodexDriver({
   codexExecutable = "codex",
   adapterExecutable = "dev-flow-codex",
   localPackage = null,
+  paths = null,
 } = {}) {
   return Object.freeze({
     async observe() {
@@ -47,10 +49,16 @@ export function createCodexDriver({
           issues.push(issue("package_check_failed", error, "npm list --global --depth=0 dev-flow-codex"));
         }
       }
+      let orphan = null;
+      if (!status.available && !metadata) {
+        try { orphan = await inspectOrphanRegistration(paths); }
+        catch (error) { issues.push(issue("registration_check_failed", error, "dev-flow doctor --host codex")); }
+      }
       const installed = status.available || Boolean(metadata);
       const healthy = status.available && !issues.some(entry => entry.code === "adapter_check_failed");
       const state = issues.some(entry => entry.code !== "host_missing") ? "partial"
-        : !host.available && installed ? "partial" : healthy ? normalizeStatus(status.value.status) : installed ? "partial" : "absent";
+        : !host.available && installed ? "partial" : healthy ? normalizeStatus(status.value.status) : installed || orphan ? "partial" : "absent";
+      if (orphan) issues.push({ code: "orphaned_registration", message: "Codex registration remains after its Adapter package was removed.", command: "dev-flow uninstall --host codex --yes" });
       if (!installed && !issues.length) issues.push({ code: "adapter_missing", message: "Dev Flow Codex Adapter is not installed.", command: "dev-flow install --host codex --yes" });
       if (installed && state !== "ready" && !issues.length) issues.push({ code: "registration_incomplete", message: "Codex Adapter registration is incomplete.", command: "dev-flow repair --host codex --yes" });
       return Object.freeze({
@@ -59,7 +67,8 @@ export function createCodexDriver({
         state, packageInstalled: installed,
         packageVersion: metadata?.version ?? (healthy ? status.value.package_version : null),
         coreVersion: healthy ? status.value.core_version : null,
-        receipt: healthy ? status.value.registration?.receipt ?? false : false,
+        receipt: orphan !== null || (healthy ? status.value.registration?.receipt ?? false : false),
+        orphanedRegistration: orphan !== null,
         issues,
       });
     },
@@ -79,16 +88,22 @@ export function createCodexDriver({
         const completedSteps = [];
         try {
           onStepStart("codex.remove_registration");
-          await run(adapterExecutable, ["remove", "--json"], { environment });
+          if (observed.orphanedRegistration) {
+            await removeOrphanRegistration(paths, { run, codexExecutable, environment });
+          } else {
+            await run(adapterExecutable, ["remove", "--json"], { environment });
+          }
           completedSteps.push("codex.remove_registration");
           onProgress("codex.remove_registration");
-          onStepStart("codex.uninstall_package");
-          await run(npmExecutable, ["uninstall", "--global", "dev-flow-codex"], { environment });
-          completedSteps.push("codex.uninstall_package");
-          onProgress("codex.uninstall_package");
+          if (!observed.orphanedRegistration) {
+            onStepStart("codex.uninstall_package");
+            await run(npmExecutable, ["uninstall", "--global", "dev-flow-codex"], { environment });
+            completedSteps.push("codex.uninstall_package");
+            onProgress("codex.uninstall_package");
+          }
           return { changed: true, completedSteps };
         } catch (error) {
-          throw partialError(error, completedSteps, "dev-flow repair --host codex --yes");
+          throw partialError(error, completedSteps, observed.orphanedRegistration ? "dev-flow uninstall --host codex --yes" : "dev-flow repair --host codex --yes");
         }
       }
 
@@ -205,7 +220,7 @@ function normalizeStatus(value) {
 
 function partialError(error, completedSteps, nextStep) {
   error.completedSteps = [...completedSteps];
-  error.changed = completedSteps.some(step => !step.endsWith("verify_ready"));
+  error.changed = error.changed === true || completedSteps.some(step => !step.endsWith("verify_ready"));
   error.nextStep = nextStep;
   return error;
 }

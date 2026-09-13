@@ -54,6 +54,7 @@ user-profile/LocalAppData ACLs on Windows when it is absent. The defaults are
 The terminal menu shows installation state and supports back, exit, input retry and opening Control Center. A compact rich display uses color only in a suitable terminal; plain and JSON modes remain automation-safe. Plans show versions and resource paths before confirmation. Progress names the current Host action and package or registration step. JSON never prompts and returns a copyable confirmation command when required. `dev-flow repair --help` lists options and examples.
 
 Codex uninstall first runs the installed Adapter's idempotent `remove`, which validates the runtime receipt and stops the matching WebUI before deregistration. If that stop fails, the global package is retained for a safe retry.
+If the entire Adapter package is already missing, uninstall uses its remaining registration receipt and native Codex commands to remove the matching registration. Upgrade-related version differences do not prevent removal, but resource paths and sources must still match. A missing Core permits cleanup only when no WebUI runtime receipt remains; Task data is preserved.
 
 Recoverable factory reset uses the user's macOS Trash or `%LOCALAPPDATA%\dev-flow\trash` on
 Windows. The Windows quarantine is not the system Recycle Bin; permanent removal still requires its
