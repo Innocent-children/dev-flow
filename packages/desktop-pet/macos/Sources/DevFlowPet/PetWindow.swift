@@ -83,16 +83,18 @@ final class PetWindow: NSPanel {
 
     private func updateMousePassthrough() {
         guard isVisible, NSEvent.pressedMouseButtons == 0 else { return }
-        let point = content.convert(convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
-        ignoresMouseEvents = !content.characterInteractionFrame.contains(point) && !content.bubble.frame.contains(point)
+        let point = content.convert(convertPoint(fromScreen: content.screenMouseLocation()), from: nil)
+        ignoresMouseEvents = !content.containsInteractivePoint(point)
     }
 
     /// Places the window so the character's reference point stays where the user
     /// left it, then sizes the window around the current bubble content.
     func layout(atOrigin origin: CGPoint) {
         stopBubbleResize()
+        content.updateArtworkSpacing()
         let size = content.requiredSize
         setFrame(NSRect(origin: origin, size: size), display: true)
+        updateMousePassthrough()
     }
 
     /// Moves the panel temporarily; manual drag completion owns saved preferences.
@@ -122,6 +124,13 @@ final class PetWindow: NSPanel {
     /// a bottom-left origin, so keeping the origin fixed grows the window upward.
     func relayoutForBubble(animated: Bool = false) {
         guard isVisible else { return }
+        content.updateArtworkSpacing()
+        if content.bubble.isHidden {
+            hoverTimer?.invalidate()
+            hoverTimer = nil
+            requestedHover = false
+        }
+        updateMousePassthrough()
         let size = content.requiredSize
         let origin = PositionRules.constrain(
             position: PetPreferences.Position(x: frame.minX, y: frame.minY),
@@ -143,11 +152,14 @@ final class PetWindow: NSPanel {
             guard let self, self.resizeRevision == revision else { return }
             self.resizeTarget = nil
             self.content.bubble.finishTransition()
+            self.content.layoutSubtreeIfNeeded()
+            self.updateMousePassthrough()
         }
     }
 
     /// Brief pointer crossings retain the current layout; a settled hover expands it gently.
     func setBubbleHovered(_ hovering: Bool) {
+        let hovering = hovering && !content.bubble.isHidden
         guard requestedHover != hovering || (hoverTimer == nil && content.bubble.isExpanded != hovering) else { return }
         requestedHover = hovering
         hoverTimer?.invalidate()
@@ -209,7 +221,7 @@ final class PetContentView: NSView {
     private lazy var characterWidth = character.widthAnchor.constraint(equalToConstant: PetCharacterView.characterSize.width)
     private lazy var characterHeight = character.heightAnchor.constraint(equalToConstant: PetCharacterView.characterSize.height)
     private lazy var bubbleSpacing = bubble.bottomAnchor.constraint(equalTo: character.topAnchor,
-        constant: -PetBubbleView.characterSpacing)
+        constant: 0)
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -249,14 +261,14 @@ final class PetContentView: NSView {
                           height: PetCharacterView.characterSize.height * scale)
         return CGSize(
             width: max(PetBubbleStackView.bubbleWidth, PetCharacterView.characterSize.width * scale),
-            height: bubbleHeight + PetBubbleView.characterSpacing + size.height - character.topInset(in: size)
+            height: bubble.isHidden ? size.height : bubbleHeight + PetBubbleView.characterSpacing + size.height - character.topInset(in: size)
         )
     }
 
     func updateArtworkSpacing() {
         let size = CGSize(width: PetCharacterView.characterSize.width * scale,
                           height: PetCharacterView.characterSize.height * scale)
-        bubbleSpacing.constant = character.topInset(in: size) - PetBubbleView.characterSpacing
+        bubbleSpacing.constant = bubble.isHidden ? 0 : character.topInset(in: size) - PetBubbleView.characterSpacing
         needsLayout = true
     }
 
@@ -264,6 +276,10 @@ final class PetContentView: NSView {
         var frame = character.frame
         frame.size.height -= character.topInset(in: frame.size)
         return frame
+    }
+
+    func containsInteractivePoint(_ point: NSPoint) -> Bool {
+        characterInteractionFrame.contains(point) || (!bubble.isHidden && bubble.frame.contains(point))
     }
 
     /// Resizes the character independently of bubble typography and content.
@@ -311,7 +327,7 @@ final class PetContentView: NSView {
     func synchronizeHover() {
         guard let window, window.isVisible else { return }
         let point = convert(window.convertPoint(fromScreen: screenMouseLocation()), from: nil)
-        let inside = bounds.contains(point)
+        let inside = containsInteractivePoint(point)
         handler?.petWindowHoverChanged(inside)
         handler?.petWindowCharacterHoverChanged(inside && characterInteractionFrame.contains(point))
     }

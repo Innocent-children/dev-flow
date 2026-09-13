@@ -94,6 +94,8 @@ DONE or CANCELLED ends the Task and releases repository claims without automatic
 | Desktop pet | Show multiple Tasks in stacked bubbles and open each WebUI; prioritize blocked tasks, follow unfinished work after completion, and provide pinning, custom appearances, animation controls, resizing and independent start/stop |
 | OpenSpec / Spec Kit | Optionally organize requirements, design and tasks; method-tool results do not decide Core state |
 
+When there are no tasks to display, only the character remains; task bubbles and the task count control are hidden. Bubbles return when tasks appear. Clicking the character still opens the task list.
+
 The formal `@imotong/dev-flow` npm package includes the macOS arm64 and Windows 10/11 x64 desktop apps and default artwork. A configured Adapter supplies Core. Maintenance commands refresh the app copy while preserving settings and appearances. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.
 
 ## Product boundaries

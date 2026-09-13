@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import XCTest
 @testable import DevFlowPet
 
@@ -10,6 +11,47 @@ import XCTest
 /// the selected Task identifiers; language is never stored.
 final class LaunchAndInstanceTests: XCTestCase {
     private let digest = TestFixtures.dataRootDigest
+
+    func testNativeIdentityAndInstanceDecisionsIgnoreLocaleAndTimezone() throws {
+        let keys = ["LANG", "LC_ALL", "LC_TIME", "TZ"]
+        let original = keys.map { key in (key, getenv(key).map { String(cString: $0) }) }
+        defer {
+            for (key, value) in original {
+                if let value { setenv(key, value, 1) } else { unsetenv(key) }
+            }
+        }
+        let initial = try XCTUnwrap(NativeProcess.currentIdentity())
+        XCTAssertNotNil(initial.startIdentity.range(of: "^[0-9]+:[0-9]+$", options: .regularExpression))
+        let record = makeRecord(pid: Int(initial.pid), processStartIdentity: initial.startIdentity,
+            executablePath: initial.executablePath)
+        for (locale, timezone) in [("zh_CN.UTF-8", "Asia/Shanghai"), ("en_US.UTF-8", "America/Los_Angeles"), ("C", "UTC")] {
+            for key in ["LANG", "LC_ALL", "LC_TIME"] { setenv(key, locale, 1) }
+            setenv("TZ", timezone, 1)
+            let live = try XCTUnwrap(NativeProcess.identity(pid: initial.pid))
+            XCTAssertEqual(live, initial, "\(locale), \(timezone)")
+            XCTAssertEqual(InstanceRules.decideRun(lockAcquired: false, record: record,
+                liveIdentity: live, currentIdentity: initial, corePath: record.corePath,
+                coreIdentity: record.coreIdentity, dataRootDigest: record.dataRootDigest), .restore(pid: initial.pid))
+            XCTAssertEqual(InstanceRules.decideStop(record: record, liveIdentity: live,
+                currentUserID: initial.ownerUserID, requestedExecutablePath: nil,
+                requestedCorePath: record.corePath), .terminate(pid: initial.pid))
+        }
+    }
+
+    func testNativeStartIdentityRejectsInvalidAndExitedProcesses() throws {
+        XCTAssertNil(NativeProcess.processStartIdentity(pid: 0))
+        XCTAssertNil(NativeProcess.processStartIdentity(pid: -1))
+        let child = Process()
+        child.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        child.arguments = ["30"]
+        try child.run()
+        defer { if child.isRunning { child.terminate(); child.waitUntilExit() } }
+        let pid = child.processIdentifier
+        XCTAssertNotNil(NativeProcess.processStartIdentity(pid: pid))
+        child.terminate()
+        child.waitUntilExit()
+        XCTAssertNil(NativeProcess.processStartIdentity(pid: pid))
+    }
 
     // MARK: - Launch arguments
 
@@ -104,7 +146,7 @@ final class LaunchAndInstanceTests: XCTestCase {
     func testRuntimeRecordRoundTripsAndRejectsIncompleteValues() throws {
         let record = InstanceRecord(
             pid: 4242,
-            processStartIdentity: "Sat Sep 6 08:15:30 2026",
+            processStartIdentity: "1788682530:123456",
             executablePath: "/app/DevFlowPet.app/Contents/MacOS/DevFlowPet",
             corePath: "/runtime/dev-flow",
             coreIdentity: TestFixtures.coreIdentity,
@@ -114,7 +156,7 @@ final class LaunchAndInstanceTests: XCTestCase {
 
         let incomplete = InstanceRecord(
             pid: 0,
-            processStartIdentity: "Sat Sep 6 08:15:30 2026",
+            processStartIdentity: "1788682530:123456",
             executablePath: "/app/DevFlowPet",
             corePath: "/runtime/dev-flow",
             coreIdentity: TestFixtures.coreIdentity,
@@ -213,7 +255,7 @@ final class LaunchAndInstanceTests: XCTestCase {
             InstanceRules.decideRun(
                 lockAcquired: false,
                 record: record,
-                liveIdentity: makeIdentity(startIdentity: "Sun Sep 7 09:00:00 2026"),
+                liveIdentity: makeIdentity(startIdentity: "1788682530:123457"),
                 currentIdentity: makeIdentity(),
                 corePath: record.corePath,
                 coreIdentity: record.coreIdentity,
@@ -327,7 +369,7 @@ final class LaunchAndInstanceTests: XCTestCase {
         XCTAssertEqual(
             InstanceRules.decideStop(
                 record: record,
-                liveIdentity: makeIdentity(startIdentity: "Sun Sep 7 09:00:00 2026"),
+                liveIdentity: makeIdentity(startIdentity: "1788682530:123457"),
                 currentUserID: 501,
                 requestedExecutablePath: nil,
                 requestedCorePath: nil
@@ -476,7 +518,7 @@ final class LaunchAndInstanceTests: XCTestCase {
 
     private func makeRecord(
         pid: Int = 4242,
-        processStartIdentity: String = "Sat Sep 6 08:15:30 2026",
+        processStartIdentity: String = "1788682530:123456",
         executablePath: String = "/app/DevFlowPet.app/Contents/MacOS/DevFlowPet",
         corePath: String = "/runtime/dev-flow",
         coreIdentity: String = TestFixtures.coreIdentity,
@@ -494,7 +536,7 @@ final class LaunchAndInstanceTests: XCTestCase {
 
     private func makeIdentity(
         pid: Int32 = 4242,
-        startIdentity: String = "Sat Sep 6 08:15:30 2026",
+        startIdentity: String = "1788682530:123456",
         executablePath: String = "/app/DevFlowPet.app/Contents/MacOS/DevFlowPet",
         ownerUserID: uid_t = 501
     ) -> NativeProcess.Identity {

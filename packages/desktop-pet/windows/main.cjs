@@ -231,8 +231,8 @@ async function createDesktop(request) {
     rendering = false;
   const tasks = new TaskCollection(() => Date.now());
   tasks.pin(selected);
-  let bubbleHeight = 110;
-  let requestedBubbleHeight = 110;
+  let bubbleHeight = 0;
+  let requestedBubbleHeight = 0;
   const work = screen.getPrimaryDisplay().workArea;
   let anchor = prefs.value.position ?? {
     x: work.x + work.width - 200,
@@ -247,7 +247,7 @@ async function createDesktop(request) {
     const { canvas, anchor: artAnchor } = appearance.catalog;
     const scale = prefs.value.scale;
     const available = screen.getDisplayMatching({ x: Math.round(anchor.x), y: Math.round(anchor.y), width: 1, height: 1 }).workArea;
-    bubbleHeight = Math.max(70, Math.min(requestedBubbleHeight, available.height - 144 * scale - 24));
+    bubbleHeight = tasks.cards.length === 0 ? 0 : Math.max(70, Math.min(requestedBubbleHeight, available.height - 144 * scale - 24));
     const factor = (144 * scale) / Math.max(canvas.width, canvas.height);
     const width = Math.ceil(Math.max(304, 144 * scale + 24)),
       height = Math.ceil(bubbleHeight + 144 * scale + 16);
@@ -520,7 +520,7 @@ async function createDesktop(request) {
       tasks.acknowledge(value); selected = tasks.focus; display = tasks.display; publish(); return;
     }
     if (name === "bubble-height" && Number.isFinite(value)) {
-      requestedBubbleHeight = Math.max(70, Math.min(value, 1000));
+      requestedBubbleHeight = Math.max(0, Math.min(value, 1000));
       layout(); publish(); return;
     }
     if (name === "picker") return showPicker(Number(value));

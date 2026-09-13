@@ -202,7 +202,7 @@ window.pet.onState((next) => {
   image.style.width = canvas.width * factor + "px";
   image.style.height = canvas.height * factor + "px";
   image.style.top =
-    (state.bubbleHeight ?? 110) + (144 * state.preferences.scale - canvas.height * factor) / 2 + "px";
+    (state.bubbleHeight ?? 0) + (144 * state.preferences.scale - canvas.height * factor) / 2 + "px";
   document.querySelector("#phase").textContent =
     state.display.summary?.request_summary ?? state.labels.selectTask;
   document.querySelector("#summary").textContent = [
@@ -235,6 +235,7 @@ window.pet.onState((next) => {
       .filter(Boolean)
       .join("\n");
   renderCards();
+  updateHit();
   if (changed) {
     cancelActivity();
     terminalAt = ["done", "cancelled", "archived"].includes(state.display.phase)
@@ -353,20 +354,29 @@ window.pet.onWalkComplete(() => {
   base();
 });
 let hit = true;
-document.addEventListener("mousemove", (event) => {
-  const next = Boolean(event.target.closest("#character, #bubble, #picker"));
+let mousePosition;
+function updateHit() {
+  if (!mousePosition || pointer) return;
+  const target = document.elementFromPoint(mousePosition.x, mousePosition.y);
+  const next = Boolean(target?.closest("#character, #bubble:not([hidden]), #picker:not([hidden])"));
   if (next !== hit) {
     hit = next;
     command("hit", hit);
   }
+}
+document.addEventListener("mousemove", (event) => {
+  mousePosition = { x: event.clientX, y: event.clientY };
+  updateHit();
 });
 window.pet.ready();
 
 // Every card captures its own ID; window sizing follows the visible card area.
-let requestedBubbleHeight = 0;
+let requestedBubbleHeight = null;
 function renderCards() {
   if (!state) return;
   const cards = state.cards ?? [];
+  bubble.hidden = cards.length === 0;
+  document.body.classList.toggle("hover", hovered && !bubble.hidden);
   const container = document.querySelector("#cards");
   container.replaceChildren();
   document.querySelector("#primary").hidden = cards.length > 0;
@@ -414,14 +424,14 @@ function renderCards() {
     container.append(row);
   }
   const toggle = document.querySelector("#activityToggle");
-  toggle.hidden = cards.length < 2 && !hovered;
+  toggle.hidden = bubble.hidden || (cards.length < 2 && !hovered);
   const unfinished = cards.filter(c => c.result.summary && !c.result.summary.archived && !["done", "cancelled"].includes(c.result.summary.lifecycle)).length;
   const blocked = cards.filter(c => c.result.summary?.lifecycle === "blocked").length;
   toggle.textContent = `${unfinished} ${state.labels.tasks} · ${blocked} ${state.labels.blocked}` +
     (!hovered && cards.length > 3 ? ` · +${cards.length - 3}` : "") + (hovered ? " ▴" : " ▾");
-  const contentHeight = cards.length ? (hovered ? Math.min(260, cards.length * 180) : 48 + Math.max(0, shown.length - 1) * 8) : (hovered ? 200 : 80);
+  const contentHeight = cards.length ? (hovered ? Math.min(260, cards.length * 180) : 48 + Math.max(0, shown.length - 1) * 8) : 0;
   const footerHeight = toggle.hidden ? 16 : 40;
-  const wanted = contentHeight + footerHeight;
+  const wanted = bubble.hidden ? 0 : contentHeight + footerHeight;
   container.style.height = Math.max(30, Math.min(contentHeight, (state.bubbleHeight ?? wanted) - footerHeight)) + "px";
   if (wanted !== requestedBubbleHeight) { requestedBubbleHeight = wanted; command("bubble-height", wanted); }
 }

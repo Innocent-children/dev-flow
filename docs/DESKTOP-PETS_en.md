@@ -49,7 +49,7 @@ npm install -g "/absolute/pet-build/<local-package>.tgz"
 dev-flow pet start
 ```
 
-Local packages use the same platform application assembly as formal preparation. Build machines require Node.js >=24 and Swift >=6.0 through `xcrun swift`.
+Local packages use the same platform application assembly as formal preparation. macOS build machines require Node.js >=24, Xcode >=27 and macOS SDK >=27; `xcrun swift` uses the selected Xcode. Builds check and report toolchain versions before compilation and include stdout and stderr in failure diagnostics.
 
 ## Windows local build and installation
 
@@ -104,6 +104,8 @@ Reimport the same source folder to update a custom appearance. Switching appeara
 The menu bar entry uses a monochrome Dev Flow mark, with a clear gap between the crossbar and main curve at small sizes. The 18 pt vector icon is tinted by macOS for the menu bar appearance and selection state.
 
 By default, up to three task bubbles overlap: the front bubble shows the focused task, with the outlines of other task cards behind it. The footer shows unfinished and blocked counts, plus a count for additional tasks. Hover or click the count to expand a scrollable list; each bubble opens its own task WebUI.
+
+When there are no task cards to display, the bubbles and count control are hidden, including on hover. Bubbles return automatically when tasks appear. The hidden area lets mouse input pass through, and clicking the character still opens the task list. Completion prompts, pinned tasks, and task records retained during disconnection follow the rules below.
 
 Every observation discovers unfinished tasks. Automatic focus prioritizes blocked tasks and remains stable among tasks with the same priority; a new focus is selected by most recent update. When the focused task completes, its prompt stays for about three seconds before focus moves to unfinished work. Completions observed continuously in this session remain in the expanded list until opened or dismissed. Cancelled, archived, or confirmed unavailable tasks also release automatic focus. With no remaining work, the pet becomes idle.
 

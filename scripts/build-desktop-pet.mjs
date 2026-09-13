@@ -16,10 +16,29 @@ const execFile = promisify(execFileCallback);
 const repositoryRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const applicationRelativePath = "runtime/darwin-arm64/DevFlowPet.app";
 
-async function run(executable, args) {
-  return execFile(executable, args, {
-    encoding: "utf8", maxBuffer: 8 * 1024 * 1024, timeout: 300_000, shell: false,
-  });
+export async function runDesktopPetCommand(executable, args) {
+  try {
+    return await execFile(executable, args, {
+      encoding: "utf8", maxBuffer: 8 * 1024 * 1024, timeout: 300_000, shell: false,
+    });
+  } catch (error) {
+    // CLI callers print message; include both captured streams in that message.
+    throw new Error([
+      `desktop-pet command failed: ${executable} ${args.join(" ")} (code=${error.code}, signal=${error.signal ?? "none"}, killed=${error.killed ?? false})`,
+      error.stdout, error.stderr,
+      !error.stdout && !error.stderr ? error.message : "",
+    ].filter(Boolean).join("\n"), { cause: error });
+  }
+}
+
+export async function verifyMacDesktopToolchain({ execute = runDesktopPetCommand, write = text => process.stdout.write(text) } = {}) {
+  const { stdout: xcode } = await execute("/usr/bin/xcrun", ["xcodebuild", "-version"]);
+  const { stdout: swift } = await execute("/usr/bin/xcrun", ["swift", "--version"]);
+  const { stdout: sdk } = await execute("/usr/bin/xcrun", ["--sdk", "macosx", "--show-sdk-version"]);
+  write(`desktop-pet toolchain:\n${xcode.trim()}\n${swift.trim()}\nmacOS SDK ${sdk.trim()}\n`);
+  if (Number(/^Xcode (\d+)/mu.exec(xcode)?.[1] ?? 0) < 27 || Number(/^(\d+)/u.exec(sdk.trim())?.[1] ?? 0) < 27) {
+    throw new Error("desktop pet requires Xcode >=27 with macOS SDK >=27 for its glass APIs; select that Xcode using DEVELOPER_DIR or xcode-select");
+  }
 }
 
 function plist(version) {
@@ -47,27 +66,28 @@ export async function verifyDesktopPet(application) {
   const executable = join(contents, "MacOS", "DevFlowPet");
   const info = await stat(executable);
   if (!info.isFile() || (info.mode & 0o111) === 0) throw new Error("desktop pet executable is unavailable");
-  const { stdout: architectures } = await run("/usr/bin/lipo", ["-archs", executable]);
+  const { stdout: architectures } = await runDesktopPetCommand("/usr/bin/lipo", ["-archs", executable]);
   if (architectures.trim() !== "arm64") throw new Error(`unexpected desktop pet architecture: ${architectures.trim()}`);
-  await run("/usr/bin/plutil", ["-lint", join(contents, "Info.plist")]);
+  await runDesktopPetCommand("/usr/bin/plutil", ["-lint", join(contents, "Info.plist")]);
   for (const locale of ["en", "zh-Hans"]) {
-    await run("/usr/bin/plutil", ["-lint", join(contents, "Resources", `${locale}.lproj`, "InfoPlist.strings")]);
+    await runDesktopPetCommand("/usr/bin/plutil", ["-lint", join(contents, "Resources", `${locale}.lproj`, "InfoPlist.strings")]);
   }
   const assets = await verifyDefaultArtwork(join(contents, "Resources"));
-  await run("/usr/bin/codesign", ["--verify", "--deep", "--strict", application]);
+  await runDesktopPetCommand("/usr/bin/codesign", ["--verify", "--deep", "--strict", application]);
   return assets;
 }
 
 // Compiles and signs the same application for local and formal packages.
 export async function buildMacDesktopApplication({ application, work, version }) {
   if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("macOS arm64 build host required");
+  await verifyMacDesktopToolchain();
   process.stdout.write("desktop-pet: compiling the macOS application\n");
   // Release packages omit debugger paths so retries reproduce the same bytes.
   const buildArgs = ["build", "--package-path", join(repositoryRoot, "packages", "desktop-pet", "macos"),
     "--scratch-path", join(work, "swift"), "--configuration", "release", "--arch", "arm64",
     "-debug-info-format", "none"];
-  await run("/usr/bin/xcrun", ["swift", ...buildArgs]);
-  const { stdout: binPath } = await run("/usr/bin/xcrun", ["swift", ...buildArgs, "--show-bin-path"]);
+  await runDesktopPetCommand("/usr/bin/xcrun", ["swift", ...buildArgs]);
+  const { stdout: binPath } = await runDesktopPetCommand("/usr/bin/xcrun", ["swift", ...buildArgs, "--show-bin-path"]);
   const contents = join(application, "Contents");
   const resources = join(contents, "Resources");
   await mkdir(join(contents, "MacOS"), { recursive: true });
@@ -81,7 +101,7 @@ export async function buildMacDesktopApplication({ application, work, version })
     await mkdir(directory, { recursive: true });
     await writeFile(join(directory, "InfoPlist.strings"), `"CFBundleDisplayName" = "${name}";\n`);
   }
-  await run("/usr/bin/codesign", ["--force", "--sign", "-", "--timestamp=none", application]);
+  await runDesktopPetCommand("/usr/bin/codesign", ["--force", "--sign", "-", "--timestamp=none", application]);
   return verifyDesktopPet(application);
 }
 
@@ -107,7 +127,7 @@ export async function buildDesktopPetPackage({ outputRoot }) {
     // npm packing resets non-bin executable modes. The existing archive helper
     // retains the native application's executable without adding another CLI bin.
     const archivePath = join(work, "package.tar");
-    await run("/usr/bin/tar", ["-cf", archivePath, "--format", "ustar", "-C", work, "package"]);
+    await runDesktopPetCommand("/usr/bin/tar", ["-cf", archivePath, "--format", "ustar", "-C", work, "package"]);
     const archive = normalizeUstarArchive(await readFile(archivePath), new Set([
       "package/bin/dev-flow.mjs", `package/${applicationRelativePath}/Contents/MacOS/DevFlowPet`,
     ]));
@@ -115,7 +135,7 @@ export async function buildDesktopPetPackage({ outputRoot }) {
     await writeFile(tarball, gzipSync(archive, { level: 9, mtime: 0 }), { mode: 0o644 });
     const extracted = join(work, "extracted");
     await mkdir(extracted);
-    await run("/usr/bin/tar", ["-xzf", tarball, "-C", extracted]);
+    await runDesktopPetCommand("/usr/bin/tar", ["-xzf", tarball, "-C", extracted]);
     const assets = await verifyDesktopPet(join(extracted, "package", applicationRelativePath));
     const result = {
       package: manifest.name, version: manifest.version, platform: "darwin-arm64", signing: "ad-hoc",
@@ -136,7 +156,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   } else {
     buildDesktopPetPackage({ outputRoot: args[1] }).then(
       (result) => process.stdout.write(`${JSON.stringify(result)}\n`),
-      (error) => { process.stderr.write(`desktop-pet: ${error.stderr ?? error.message}\n`); process.exitCode = 1; },
+      (error) => { process.stderr.write(`desktop-pet: ${error.message}\n`); process.exitCode = 1; },
     );
   }
 }

@@ -20,7 +20,7 @@ final class PetBubbleStackView: NSView {
     private var strings = PetStrings.english
     private var language = PetLanguage.resolve()
     private var sync: Date?
-    private var fallback = BubbleContent(title: "", stage: nil, summary: nil, taskUpdated: nil, lastSync: nil, blocker: nil)
+    private var message: BubbleContent?
     private(set) var isExpanded = false
     private var cardsNeedLayout = true
     var hasPendingLayout: Bool { cardsNeedLayout }
@@ -48,14 +48,20 @@ final class PetBubbleStackView: NSView {
         addSubview(toggle)
         toggle.target = self
         toggle.action = #selector(expand)
+        isHidden = true
+        toggle.isHidden = true
     }
     required init?(coder: NSCoder) { fatalError("Created in code") }
 
-    func update(_ content: BubbleContent) { fallback = content; cards = []; rebuild() }
-    func update(cards: [PetTaskCollection.Card], pinned: String?, fallback: BubbleContent,
+    func update(_ content: BubbleContent) {
+        guard !cards.isEmpty else { return }
+        message = content
+        rebuild()
+    }
+    func update(cards: [PetTaskCollection.Card], pinned: String?,
                 sync: Date?, strings: PetStrings, language: PetLanguage) {
-        let unchanged = self.cards == cards && self.pinned == pinned && self.strings == strings && self.language == language
-        self.cards = cards; self.pinned = pinned; self.fallback = fallback
+        let unchanged = message == nil && self.cards == cards && self.pinned == pinned && self.strings == strings && self.language == language
+        self.cards = cards; self.pinned = pinned; message = nil
         self.sync = sync; self.strings = strings; self.language = language
         if unchanged && !cards.isEmpty {
             for (card, row) in zip(cards, rows) {
@@ -67,6 +73,7 @@ final class PetBubbleStackView: NSView {
     }
 
     func setExpanded(_ value: Bool) {
+        guard !isHidden else { return }
         guard value != isExpanded else { return }
         isExpanded = value
         scroll.contentView.scroll(to: .zero)
@@ -84,8 +91,13 @@ final class PetBubbleStackView: NSView {
     @objc private func expand() { setExpanded(!isExpanded); onResize?() }
 
     private func rebuild() {
+        isHidden = cards.isEmpty
+        if isHidden {
+            isExpanded = false
+            scroll.contentView.scroll(to: .zero)
+        }
         let existing = Dictionary(uniqueKeysWithValues: rows.map { ($0.taskID, $0) })
-        let entries: [(PetTaskCollection.Card?, BubbleContent)] = cards.isEmpty ? [(nil, fallback)] : cards.map {
+        let entries: [(PetTaskCollection.Card?, BubbleContent)] = message.map { [(nil, $0)] } ?? cards.map {
             ($0, BubbleRules.content(result: $0.result, lastSyncAt: sync, strings: strings, language: language))
         }
         let next = entries.map { entry -> PetCardRow in
@@ -114,7 +126,7 @@ final class PetBubbleStackView: NSView {
         let active = cards.filter { $0.result.summary.map { !$0.archived && !$0.lifecycle.isTerminal } ?? false }.count
         let blocked = cards.filter { $0.result.summary?.lifecycle == .blocked }.count
         toggle.title = "\(active) \(strings.petTasks) · \(blocked) \(strings.petBlocked)" + (cards.count > 3 && !isExpanded ? " · +\(cards.count - 3)" : "") + (isExpanded ? " ▴" : " ▾")
-        toggle.isHidden = cards.count < 2 && !isExpanded
+        toggle.isHidden = isHidden || (cards.count < 2 && !isExpanded)
     }
 
     private var footer: CGFloat { cards.count < 2 && !isExpanded ? 0 : 24 }
@@ -122,7 +134,7 @@ final class PetBubbleStackView: NSView {
         if isExpanded { return 12 + rows.reduce(0) { $0 + $1.requiredHeight + 8 } }
         return 54 + CGFloat(max(0, min(rows.count, 3) - 1)) * 8
     }
-    func requiredHeight(width: CGFloat) -> CGFloat { min(maximumHeight, documentHeight + footer) }
+    func requiredHeight(width: CGFloat) -> CGFloat { isHidden ? 0 : min(maximumHeight, documentHeight + footer) }
 
     private func arrangeCards(animated: Bool) {
         cardsNeedLayout = false

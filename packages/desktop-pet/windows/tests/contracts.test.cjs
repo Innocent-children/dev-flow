@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const os = require("node:os");
+const vm = require("node:vm");
 const { presentation, origin } = require("../observation.cjs");
 const {
   AppearanceStore,
@@ -12,6 +13,42 @@ const {
 } = require("../appearance.cjs");
 const { Preferences } = require("../storage.cjs");
 const bundled = path.resolve(__dirname, "../../default-appearance");
+
+test("empty bubble layout preserves the character anchor at every supported scale", async () => {
+  const source = await fs.readFile(path.join(__dirname, "../main.cjs"), "utf8");
+  const start = source.indexOf("  function layout(offset = 0) {");
+  const end = source.indexOf("  let deliveredAppearance", start);
+  assert.ok(start >= 0 && end > start);
+  const context = vm.createContext({
+    appearance: { catalog: { canvas: { width: 100, height: 100 }, anchor: { x: 50, y: 90 } } },
+    prefs: { value: { scale: 1 } }, anchor: { x: 500, y: 600 },
+    tasks: { cards: [{}] }, requestedBubbleHeight: 200, bubbleHeight: 200,
+    screen: { getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1600, height: 1200 } }) },
+    win: { setBounds() {} },
+  });
+  vm.runInContext(source.slice(start, end), context);
+  for (const scale of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
+    context.prefs.value.scale = scale;
+    context.tasks.cards = [{}];
+    const shown = context.layout();
+    const shownHeight = context.bubbleHeight;
+    context.tasks.cards = [];
+    const hidden = context.layout();
+    assert.equal(context.bubbleHeight, 0);
+    assert.equal(hidden.height, Math.ceil(144 * scale + 16));
+    assert.equal(hidden.x, shown.x);
+    assert.equal(hidden.y, shown.y + shownHeight, "removing the bubble preserves the character screen position");
+    context.tasks.cards = [{}];
+    assert.deepEqual(context.layout(), shown);
+  }
+});
+
+test("the bubble starts hidden and author styles respect hidden controls", async () => {
+  const html = await fs.readFile(path.join(__dirname, "../view.html"), "utf8");
+  const css = await fs.readFile(path.join(__dirname, "../view.css"), "utf8");
+  assert.match(html, /id="bubble" hidden/);
+  assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+});
 
 test("presentation follows Core lifecycle and never replays completion after a discontinuity", () => {
   const task = {
