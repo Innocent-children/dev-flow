@@ -20,7 +20,7 @@ test("npm publication runs the existing release contracts on darwin-arm64", () =
     assert.match(workflow, new RegExp(`^      ${input}:`, "mu"));
   }
   assert.doesNotMatch(workflow, /^      (mode|confirm_comprehension):/mu);
-  assert.match(workflow, /runs-on: macos-15/u);
+  assert.ok(workflow.includes("runs-on: ${{ inputs.product == 'dev-flow' && 'xcode-27' || 'macos-15' }}"));
   assert.match(workflow, /actions\/setup-go@v7/u);
   assert.match(workflow, /go-version: ['"]?1\.26(?:\.|['"]?\s*$)/mu);
   assert.match(workflow, /node-version: ['"]?24(?:\.|['"]?\s*$)/mu);
@@ -31,6 +31,18 @@ test("npm publication runs the existing release contracts on darwin-arm64", () =
   assert.match(workflow, /test "\$\(uname -s\)-\$\(uname -m\)" = "Darwin-arm64"/u);
   assert.match(workflow, /pnpm run "release:\$RELEASE_PRODUCT"/u);
   assert.match(workflow, /pnpm run release:dev-flow/u);
+});
+
+test("desktop toolchain is checked before release credentials and PR compiles the native release application", async () => {
+  assert.match(workflow, /name: Check desktop build toolchain\n        if: inputs.product == 'dev-flow'/u);
+  assert.ok(workflow.indexOf("await verifyMacDesktopToolchain()") < workflow.indexOf("name: Create release GitHub App token"));
+  const ci = await readFile(join(root, ".github/workflows/ci.yml"), "utf8");
+  const desktopJob = ci.slice(ci.indexOf("  desktop-macos:"), ci.indexOf("  windows-x64:"));
+  assert.match(desktopJob, /runs-on: xcode-27/u);
+  assert.match(desktopJob, /await verifyMacDesktopToolchain\(\)/u);
+  assert.match(desktopJob, /--configuration release --arch arm64 -debug-info-format none/u);
+  assert.match(ci.slice(0, ci.indexOf("  desktop-macos:")), /runs-on: macos-15/u);
+  assert.match(ci.slice(ci.indexOf("  windows-x64:")), /runs-on: windows-2025/u);
 });
 
 test("workflow uses short-lived npm and GitHub App credentials", () => {

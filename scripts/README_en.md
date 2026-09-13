@@ -83,7 +83,7 @@ The usual maintainer entrypoint is the manually dispatched `publish-npm` GitHub 
 For each npm package, configure `publish-npm.yml` from `Innocent-children/dev-flow` as a GitHub Actions
 Trusted Publisher allowed to run `npm publish`. Then select only the product, channel, and exact
 version. The workflow uses one fixed release check and obtains a short-lived npm
-publish credential through OIDC, uses macOS 15 ARM64, Go `1.26.5`, Node.js `24.18.0`, and pnpm
+publish credential through OIDC, uses ARM64 runners (`macos-15` for Codex/DeepSeek and the `xcode-27` preview image with Xcode 27 for the Dev Flow desktop package), Go `1.26.5`, Node.js `24.18.0`, and pnpm
 `11.24.0`, cross-builds and verifies both macOS arm64 and Windows amd64 Core executables, serializes
 runs per product, and invokes the existing commands below. The release runner OS is build
 infrastructure rather than an artifact-runtime restriction. npm publication does not create

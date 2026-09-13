@@ -49,7 +49,7 @@ npm install -g "/absolute/pet-build/<local-package>.tgz"
 dev-flow pet start
 ```
 
-Local packages use the same platform application assembly as formal preparation. Build machines require Node.js >=24 and Swift >=6.0 through `xcrun swift`.
+Local packages use the same platform application assembly as formal preparation. macOS build machines require Node.js >=24, Xcode >=27 and macOS SDK >=27; `xcrun swift` uses the selected Xcode. Builds check and report toolchain versions before compilation and include stdout and stderr in failure diagnostics.
 
 ## Windows local build and installation
 

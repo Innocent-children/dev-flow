@@ -49,7 +49,7 @@ npm install -g "/absolute/pet-build/<local-package>.tgz"
 dev-flow pet start
 ```
 
-本地包与正式制备复用同一平台应用装配。构建机器需要 Node.js >=24 和通过 `xcrun swift` 使用的 Swift >=6.0。
+本地包与正式制备复用同一平台应用装配。macOS 构建机器需要 Node.js >=24、Xcode >=27 和 macOS SDK >=27；`xcrun swift` 使用当前选中的 Xcode。构建前会检查工具链并输出版本，失败日志包含标准输出和标准错误。
 
 ## Windows 本地构建与安装
 

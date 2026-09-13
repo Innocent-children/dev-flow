@@ -39,6 +39,6 @@ Toolchain or Host dependency changes should state the current range, tested vers
 
 ## Desktop pet builds
 
-Local macOS arm64 builds require Node.js `>=24` and Xcode command-line tools supplying Swift `>=6.0`. The Swift Package and app metadata target macOS 14; minimum-system execution remains unverified. The builder assembles artwork, retains executable permissions and signs ad hoc; installed execution does not require Swift/Xcode.
+Local macOS arm64 builds require Node.js `>=24` and Xcode `>=27` with macOS SDK `>=27`. The builder reports and checks the selected Xcode, Swift and SDK before compilation and retains stdout and stderr on command failure. The Swift Package and app metadata target macOS 14; minimum-system execution remains unverified. The builder assembles artwork, retains executable permissions and signs ad hoc; installed execution does not require Swift/Xcode.
 
 Windows x64 desktop builds require Node.js `>=24`, with Electron and artwork dependencies locked in `packages/desktop-pet/windows/package-lock.json`. These dependencies belong only to the Windows desktop package. See the [desktop pet guide](DESKTOP-PETS_en.md) for build steps.

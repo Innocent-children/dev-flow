@@ -341,6 +341,7 @@ run_step "Shared Skill reference generation" node --test scripts/sync-skill-refe
 run_step "Cross-platform build contracts" node --test scripts/build-core-runtimes.test.mjs scripts/dev-flow-local.test.mjs
 run_step "Desktop pet artwork staging syntax" node --check scripts/desktop-pet-artwork.mjs
 run_step "Desktop pet artwork package contracts" node --test scripts/desktop-pet-artwork.test.mjs
+run_step "Desktop pet build toolchain and diagnostics" node --test scripts/build-desktop-pet.test.mjs
 run_step "Windows pet renderer simulation (no native desktop)" node --test packages/desktop-pet/windows/tests/renderer.test.cjs
 run_step "npm release publisher syntax" node --check release/publish.mjs
 run_step "npm release publisher behavior" node --test release/publish.test.mjs

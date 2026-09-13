@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: macos-15
+    runs-on: ${{ inputs.product == 'dev-flow' && 'xcode-27' || 'macos-15' }}
     timeout-minutes: 90
     env:
       RELEASE_PRODUCT: ${{ inputs.product }}
@@ -65,6 +65,10 @@ jobs:
 
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Check desktop build toolchain
+        if: inputs.product == 'dev-flow'
+        run: node --input-type=module -e 'import { verifyMacDesktopToolchain } from "./scripts/build-desktop-pet.mjs"; await verifyMacDesktopToolchain();'
 
       - name: Create release GitHub App token
         id: release-app-token

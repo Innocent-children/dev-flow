@@ -41,6 +41,29 @@ jobs:
       - name: Run bounded repository validation
         run: ./scripts/validate-repository.sh
 
+  desktop-macos:
+    name: macOS desktop release compilation
+    runs-on: xcode-27
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Check native desktop build toolchain
+        run: |
+          test "$(uname -s)-$(uname -m)" = "Darwin-arm64"
+          node --input-type=module -e 'import { verifyMacDesktopToolchain } from "./scripts/build-desktop-pet.mjs"; await verifyMacDesktopToolchain();'
+
+      - name: Compile desktop application
+        run: >-
+          xcrun swift build --package-path packages/desktop-pet/macos
+          --scratch-path "${{ runner.temp }}/desktop-swift"
+          --configuration release --arch arm64 -debug-info-format none
+
   windows-x64:
     name: Windows x64 build contract (CI infrastructure only)
     runs-on: windows-2025

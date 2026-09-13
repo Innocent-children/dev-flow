@@ -39,6 +39,6 @@ Host 技术说明和包配置记录最低支持版本及兼容范围，验证记
 
 ## 桌面宠物构建
 
-macOS arm64 本地构建需要 Node.js `>=24` 和提供 Swift `>=6.0` 的 Xcode 命令行工具。Swift Package 与应用 metadata 的部署目标是 macOS 14；最低系统运行尚未验证。构建器装配素材、保留原生执行权限并进行 ad-hoc 签名；安装后的运行不依赖 Swift/Xcode。
+macOS arm64 本地构建需要 Node.js `>=24` 和 Xcode `>=27`（包含 macOS SDK `>=27`）。构建前输出并检查所选 Xcode、Swift 和 SDK；命令失败时保留标准输出和标准错误。Swift Package 与应用 metadata 的部署目标是 macOS 14；最低系统运行尚未验证。构建器装配素材、保留原生执行权限并进行 ad-hoc 签名；安装后的运行不依赖 Swift/Xcode。
 
 Windows x64 桌面构建需要 Node.js `>=24`，Electron 和素材解析依赖由 `packages/desktop-pet/windows/package-lock.json` 锁定。这些依赖只进入 Windows 桌面包。构建步骤见[桌面宠物指南](DESKTOP-PETS.md)。
