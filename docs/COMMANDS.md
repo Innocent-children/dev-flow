@@ -41,7 +41,7 @@ dev-flow
 `factory-reset`。Host 选择为 `codex|deepseek|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
 修复和重装保留用户配置与 Task 数据；`factory-reset` 要求绑定当前计划的 token，`--yes` 不能单独
 授权数据清理。默认清理在 macOS 移动到用户 Trash，在 Windows 移动到
-`%LOCALAPPDATA%\create-dev-flow\trash` 的可恢复隔离目录；Windows 目标不是系统回收站。永久删除还需
+`%LOCALAPPDATA%\dev-flow\trash` 的可恢复隔离目录；Windows 目标不是系统回收站。永久删除还需
 独立确认。
 Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已缺失，`uninstall` 和
 `factory-reset` 仍会卸载已安装的全局 package。
@@ -96,7 +96,7 @@ Codex 全局 package 与 receipt、Plugin 注册分别判断；即使注册已�
 | --- | --- | --- |
 | Task 数据 | `$HOME/.dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
 | 用户配置 | `$HOME/.dev-flow/config.json` | `%USERPROFILE%\.dev-flow\config.json` |
-| 生命周期管理状态 | `$HOME/.dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
+| 生命周期管理状态 | `$HOME/.dev-flow` | `%LOCALAPPDATA%\dev-flow` |
 | 桌面宠物与注册状态 | `$HOME/.dev-flow/pet`, `$HOME/.dev-flow/registrations` | `%LOCALAPPDATA%\dev-flow\pet`, `%LOCALAPPDATA%\dev-flow\registrations` |
 
 PowerShell 中设置显式数据目录的形式为：

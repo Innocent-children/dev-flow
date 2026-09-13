@@ -39,8 +39,8 @@ test("unified CLI discovers a Windows x64 Codex Core and uses LOCALAPPDATA", {
   delete environment.DEV_FLOW_DATA_DIR;
   const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform: "win32", arch: "x64" });
   assert.equal(paths.productRoot, join(localAppData, "dev-flow"));
-  assert.equal(paths.managerRoot, join(localAppData, "create-dev-flow"));
-  assert.equal(paths.trashDirectory, join(localAppData, "create-dev-flow", "trash"));
+  assert.equal(paths.managerRoot, join(localAppData, "dev-flow"));
+  assert.equal(paths.trashDirectory, join(localAppData, "dev-flow", "trash"));
 
   const selected = await resolveCoreRuntime({ homeDirectory: home, environment, platform: "win32", arch: "x64" });
   assert.equal(selected.runtimePath, runtimePath);

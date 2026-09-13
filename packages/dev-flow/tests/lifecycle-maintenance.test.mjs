@@ -8,7 +8,7 @@ import { runLifecycle } from "../lib/lifecycle.mjs";
 import { resolveManagerPaths } from "../lib/ownership.mjs";
 
 test("upgrade and forced reinstall preserve configuration and Task bytes", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-maintenance-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-maintenance-"));
   const home = join(root, "home");
   await mkdir(home);
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
@@ -83,7 +83,7 @@ test("read-only, unconfirmed, and other-Adapter maintenance leave a running pet 
 });
 
 async function maintenanceFixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-pet-maintenance-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-pet-maintenance-"));
   const home = join(root, "home");
   await mkdir(home);
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });

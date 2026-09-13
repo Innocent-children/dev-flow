@@ -5,7 +5,7 @@ export const runtime = Object.freeze({ platform: "win32", arch: "x64", runtimeKe
 
 export const dataPaths = Object.freeze({
   productRoot(anchor) { return existingDirectory(join(anchor, "dev-flow")); },
-  managerRoot(anchor) { return existingDirectory(join(anchor, "create-dev-flow")); },
+  managerRoot(anchor) { return existingDirectory(join(anchor, "dev-flow")); },
   applicationData({ homeDirectory, environment }) {
     const configured = environment?.LOCALAPPDATA;
     if (typeof configured === "string" && configured !== "") {

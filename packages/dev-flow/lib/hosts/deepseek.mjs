@@ -86,7 +86,7 @@ export function createDeepSeekDriver({
 
       if (observed.contribution && !observed.receipt && !adopt) throw nextStepError(
         "DeepSeek Profile requires explicit adoption", `dev-flow repair --host deepseek --profile ${profile} --adopt --yes`);
-      const temporaryRoot = localPackage ? null : await mkdtemp(join(tmpdir(), "create-dev-flow-deepseek-"));
+      const temporaryRoot = localPackage ? null : await mkdtemp(join(tmpdir(), "dev-flow-deepseek-"));
       const completedSteps = [];
       try {
         onStepStart(`deepseek.${profile}.verify_artifact`);

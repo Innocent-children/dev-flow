@@ -43,7 +43,7 @@ The supported operations are `status`, `doctor`, `install`, `upgrade`, `repair`,
 `factory-reset`. Host is `codex|deepseek|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
 repair, and reinstall preserve configuration and Task data. Factory reset requires the token bound to the current
 plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to the user's Trash on macOS and to the
-recoverable `%LOCALAPPDATA%\create-dev-flow\trash` quarantine on Windows; the Windows target is not the system
+recoverable `%LOCALAPPDATA%\dev-flow\trash` quarantine on Windows; the Windows target is not the system
 Recycle Bin. Permanent removal requires another confirmation.
 The Codex global package is observed independently from its receipt and Plugin registration. Even when registration
 is already absent, `uninstall` and `factory-reset` still remove an installed global package.
@@ -100,7 +100,7 @@ Default local paths are platform-specific:
 | --- | --- | --- |
 | Task data | `$HOME/.dev-flow/data` | `%LOCALAPPDATA%\dev-flow\data` |
 | User configuration | `$HOME/.dev-flow/config.json` | `%USERPROFILE%\.dev-flow\config.json` |
-| Lifecycle manager state | `$HOME/.dev-flow` | `%LOCALAPPDATA%\create-dev-flow` |
+| Lifecycle manager state | `$HOME/.dev-flow` | `%LOCALAPPDATA%\dev-flow` |
 | Desktop pet and registrations | `$HOME/.dev-flow/pet`, `$HOME/.dev-flow/registrations` | `%LOCALAPPDATA%\dev-flow\pet`, `%LOCALAPPDATA%\dev-flow\registrations` |
 
 Set an explicit data directory in PowerShell with:

@@ -8,7 +8,7 @@ import { clearRunRecords, createRun, readRun, recordRun } from "../lib/journal.m
 import { resolveManagerPaths } from "../lib/ownership.mjs";
 
 test("operation journal is atomic, closed, and retains exact completed external effects", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-journal-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-journal-"));
   const home = join(root, "home");
   await mkdir(home);
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });

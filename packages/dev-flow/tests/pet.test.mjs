@@ -448,7 +448,7 @@ test("Adapter maintenance skips a runtime or package that has no desktop compone
 });
 
 test("the packaged application location and its executable requirement are fixed", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-pet-bundle-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-pet-bundle-"));
   assert.equal(
     bundledPetExecutable(join(root, "package")),
     join(root, "package", "runtime", "darwin-arm64", "DevFlowPet.app", "Contents", "MacOS", "DevFlowPet"),
@@ -599,7 +599,7 @@ test("an interactive pet selection reuses the pet launcher and returns to the me
 });
 
 async function petFixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-pet-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-pet-"));
   const home = join(root, "home");
   const packageRoot = join(root, "package");
   await mkdir(home);

@@ -8,7 +8,7 @@ import { createDeepSeekDriver } from "../lib/hosts/deepseek.mjs";
 import { resolveManagerPaths } from "../lib/ownership.mjs";
 
 test("DeepSeek driver hides artifact lifecycle and records only verified explicit Profile", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-deepseek-test-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-deepseek-test-"));
   const home = join(root, "home");
   await mkdir(home);
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });

@@ -55,7 +55,7 @@ The terminal menu shows installation state and supports back, exit, input retry 
 
 Codex uninstall first runs the installed Adapter's idempotent `remove`, which validates the runtime receipt and stops the matching WebUI before deregistration. If that stop fails, the global package is retained for a safe retry.
 
-Recoverable factory reset uses the user's macOS Trash or `%LOCALAPPDATA%\create-dev-flow\trash` on
+Recoverable factory reset uses the user's macOS Trash or `%LOCALAPPDATA%\dev-flow\trash` on
 Windows. The Windows quarantine is not the system Recycle Bin; permanent removal still requires its
 separate confirmation token.
 

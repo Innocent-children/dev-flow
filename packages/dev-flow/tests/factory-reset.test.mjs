@@ -16,7 +16,7 @@ test("factory reset requires all Hosts and moves exact shared data to Trash", as
     random: () => "fixture",
   });
   assert.equal(result.result.data.policy, "trash_reset");
-  assert.match(result.result.data.trash_root, /create-dev-flow-/u);
+  assert.match(result.result.data.trash_root, /dev-flow-/u);
   assert.equal(result.plan.impacts.includes("Clear desktop pet records, preferences, and imported appearances"), true);
   assert.equal(result.result.data.pet, "absent");
   assert.equal(result.result.completed_actions.includes("manager.trash.pet"), true);
@@ -78,7 +78,7 @@ test("explicit data is blocked until its exact canonical path is confirmed", asy
 });
 
 test("factory reset uninstalls a Codex package after its registration is already absent", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-reset-package-only-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-reset-package-only-"));
   const home = join(root, "home");
   await mkdir(home);
   let packageInstalled = true;
@@ -128,7 +128,7 @@ test("factory reset uninstalls a Codex package after its registration is already
 });
 
 async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-reset-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-reset-"));
   const home = join(root, "home");
   let explicitData = join(root, "explicit-data");
   await mkdir(home);

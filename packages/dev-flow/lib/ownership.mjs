@@ -212,7 +212,7 @@ export async function moveTargetsToTrash(paths, targets, { now = () => new Date(
   await mkdir(paths.trashDirectory, { recursive: true, mode: 0o700 });
   await rejectSymlinkComponents(paths.trashInspectionRoot, paths.trashDirectory);
   const stamp = now().toISOString().replace(/[:.]/gu, "-");
-  const trashRoot = ownedPath(paths.trashDirectory, join(paths.trashDirectory, `create-dev-flow-${stamp}-${random()}`), "Trash root");
+  const trashRoot = ownedPath(paths.trashDirectory, join(paths.trashDirectory, `dev-flow-${stamp}-${random()}`), "Trash root");
   await mkdir(trashRoot, { mode: 0o700 });
   const moved = [];
   try {

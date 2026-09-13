@@ -7,7 +7,7 @@ import test from "node:test";
 import { assertResourceUnchanged, ensureDefaultDataDirectory, inspectResource, moveTargetsToTrash, resolveManagerPaths } from "../lib/ownership.mjs";
 
 test("manager paths are fixed under canonical HOME while explicit data requires canonical identity", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-paths-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-paths-"));
   const homePath = join(root, "home");
   const explicitPath = join(root, "explicit");
   await Promise.all([mkdir(homePath), mkdir(explicitPath)]);
@@ -30,7 +30,7 @@ test("manager paths are fixed under canonical HOME while explicit data requires 
 });
 
 test("recoverable cleanup moves only unchanged exact targets to one Trash root", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-trash-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-trash-"));
   const home = join(root, "home");
   await mkdir(home);
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
@@ -43,7 +43,7 @@ test("recoverable cleanup moves only unchanged exact targets to one Trash root",
   });
   await assert.rejects(stat(paths.configurationPath), { code: "ENOENT" });
   assert.equal(await readFile(moved.moved[0].destination, "utf8"), "preferences\n");
-  assert.match(moved.trashRoot, /create-dev-flow-2026-08-25T00-00-00-000Z-fixture$/u);
+  assert.match(moved.trashRoot, /dev-flow-2026-08-25T00-00-00-000Z-fixture$/u);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 

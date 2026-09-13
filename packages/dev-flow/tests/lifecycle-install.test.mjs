@@ -29,7 +29,7 @@ test("one install request makes Codex and DeepSeek ready and repeated install is
 });
 
 async function lifecycleFixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-install-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-install-"));
   const home = join(root, "home");
   await mkdir(home);
   const states = { codex: "absent", deepseek: "absent" };

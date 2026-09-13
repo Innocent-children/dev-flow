@@ -8,7 +8,7 @@ import { runLifecycle } from "../lib/lifecycle.mjs";
 import { resolveManagerPaths } from "../lib/ownership.mjs";
 
 test("ordinary all-Host uninstall removes Adapters and retains shared user data", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "create-dev-flow-uninstall-"));
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-uninstall-"));
   const home = join(root, "home");
   await mkdir(home);
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
