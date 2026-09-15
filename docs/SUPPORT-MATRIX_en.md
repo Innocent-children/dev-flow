@@ -1,5 +1,10 @@
 # Dev Flow Support Matrix
 
+## Claude Code source adaptation
+
+The Claude Adapter is not published to stable npm. Source targets are Windows x64 and macOS arm64 with Node.js >=24. Actual Claude sessions, cached plugin loading, permission Hooks and native platform acceptance must be recorded separately. Source implementation, simulated interface tests and cross-compilation do not establish native support. See the [Claude guide](CLAUDE_en.md).
+
+
 [中文](SUPPORT-MATRIX.md) | [English](SUPPORT-MATRIX_en.md)
 
 This page answers a narrow question: **which public package has been verified in which environment?**

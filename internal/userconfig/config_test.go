@@ -8,6 +8,12 @@ import (
 )
 
 func TestLoadMissingAndValidConfiguration(t *testing.T) {
+	t.Run("Claude preference remains independent", func(t *testing.T) {
+		preferences, err := Load(writeConfig(t, `{"claude":{"codebase_memory":true}}`))
+		if err != nil || !preferences.Claude.CodebaseMemory || preferences.Codex.CodebaseMemory || preferences.DeepSeek.CodebaseMemory {
+			t.Fatalf("preferences=%#v err=%v", preferences, err)
+		}
+	})
 	t.Run("missing directory", func(t *testing.T) {
 		home := t.TempDir()
 		preferences, err := Load(home)

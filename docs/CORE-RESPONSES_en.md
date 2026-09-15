@@ -65,7 +65,7 @@ success or substitute an earlier successful operation's result.
 MCP tests validate real success/failure responses against output schemas, covering result locations,
 invalid mixed envelopes, detailed failures, quantity versus permission restrictions, zero-write
 correction and uncertain outcomes. Shared Skill examples validate against the same interface for
-Codex and DeepSeek. Error changes update the implementation, schema, this contract and affected examples.
+Codex, DeepSeek and Claude Code. Error changes update the implementation, schema, this contract and affected examples.
 
 ## WebUI HTTP mapping
 
@@ -77,7 +77,7 @@ outcome as a parameter correction.
 
 ## Requests and complete response examples
 
-Both Host Skills link a complete successful response and place an error response directly after every complete MCP request. Success files include the resolved request using current Task values. Tests execute it through the application and store with fixed repository observations and compare the complete response; generated identities, timestamps and operation digests use stable example values. Codex Host helpers and DeepSeek workspace requests also have complete responses checked by actual adapter operations in temporary Git repositories, with explicitly simulated Host sessions and terminal Core reads. Each error pair states
+All three Host Skills link a complete successful response and place an error response directly after every complete MCP request. Success files include the resolved request using current Task values. Tests execute it through the application and store with fixed repository observations and compare the complete response; generated identities, timestamps and operation digests use stable example values. Codex Host helpers and DeepSeek workspace requests also have complete responses checked by actual adapter operations in temporary Git repositories, with explicitly simulated Host sessions and terminal Core reads. Each error pair states
 its failure condition and the functions responsible for validation and encoding. Tests construct the
 described failed input from the preceding valid request and compare the complete response, including
 message, details, guard and recovery. The examples illustrate supported failures rather than exhaust

@@ -1,5 +1,7 @@
 # Dev Flow 文档与源码范围
 
+- [Claude Code 使用指南](docs/CLAUDE.md)：源码安装、完整工作流、恢复与权限。
+
 [中文](MANIFEST.md) | [English](MANIFEST_en.md)
 
 人类文档帮助读者判断、使用和理解 Dev Flow。它们不会被运行时代码解析为流程、Schema、命令或

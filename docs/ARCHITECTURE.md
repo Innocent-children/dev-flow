@@ -1,5 +1,12 @@
 # Dev Flow 架构
 
+## Claude Code Adapter
+
+`packages/claude/` 独立拥有 Claude 插件注册、MCP/Hook 传输、会话和启动记录。插件根是完整 package 根，缓存内包含 lib、bin、runtime 与 Skill；不得引用缓存外兄弟包。`packages/host-workspace/` 是 Git 观察、准备、快照的维护源，构建向各 Host 复制，不包含 Core 节点或 Claude/Codex 会话决策。
+
+Claude 的 Write/Edit/NotebookEdit 解析完整目标和原始输入摘要，再由 Core file_scope 判定。放行不覆盖 Host 权限。启动记录保存请求、来源、操作状态及 Claude 会话身份，不保存第二流程游标。独立工作树迁移保留部分操作结果，Core 最后核对全部新绑定。统一管理器由 `hosts/claude.mjs` 管理包和注册；runtime 读取 Claude 注册提供 WebUI/宠物使用的 Core。
+
+
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
 > 本文说明当前工作区与分支实现、协议和持久化。判断是否适合使用，请先读
@@ -8,12 +15,12 @@
 ## 核心原则
 
 Dev Flow 只保存一份业务状态。Go Core 管理 Task、节点、合法流转、范围、验证、Recovery、Blocker、
-claims 和 outcome；Codex、DeepSeek 与 WebUI 是 Host Adapter。Core 只读观察 Git，Host 才能在用户
+claims 和 outcome；Codex、DeepSeek、Claude Code 与 WebUI 是 Host Adapter。Core 只读观察 Git，Host 才能在用户
 确认后执行 fetch、branch、worktree、relaunch、handoff 和 cleanup。
 
 ```mermaid
 flowchart TB
-    U[Developer] --> H[Codex / DeepSeek Adapter]
+    U[Developer] --> H[Codex / DeepSeek / Claude Code Adapter]
     H --> A[只读改动量评估]
     A --> C{选择 Dev Flow?}
     C -->|否| D[直接开发 · 无 Core Task]
@@ -464,4 +471,4 @@ COMPREHENSION_REVIEW 和 DELIVERY 的进入条件改为当前测试已完成并�
 
 保存布局同步提升当前 Schema；不读取历史布局或增加迁移。MCP、CLI 和 WebUI 返回相同记录和转换，错误遵守 [Core 响应规范](CORE-RESPONSES.md)。
 
-验收使用 Core 单元和保存边界集成测试：全通过、已有失败且明确验收、缺少比较/确认、新失败遗漏、确认过期、重启后交付、真实数量超限、已完成用户检查、权限限制及检查说明为空后的零写入纠正。共享 Skill 示例验证两种 Host。该方案增加一个明确转换和附属记录，收益是保持失败事实并正常交付；不增加节点、第二套状态、自动测试日志解析、通用豁免或发布流程。实现范围是 workflow/domain/application/store、MCP/WebUI 直接消费者及维护文档和 Skills。
+验收使用 Core 单元和保存边界集成测试：全通过、已有失败且明确验收、缺少比较/确认、新失败遗漏、确认过期、重启后交付、真实数量超限、已完成用户检查、权限限制及检查说明为空后的零写入纠正。共享 Skill 示例验证三个 Host。该方案增加一个明确转换和附属记录，收益是保持失败事实并正常交付；不增加节点、第二套状态、自动测试日志解析、通用豁免或发布流程。实现范围是 workflow/domain/application/store、MCP/WebUI 直接消费者及维护文档和 Skills。

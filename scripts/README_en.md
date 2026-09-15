@@ -12,7 +12,7 @@ install real Host products or create npm, Tag, or GitHub Release state.
 | --- | --- |
 | `pnpm run validate` | Run the repository's required checks |
 | `pnpm run validate:contracts` | Run public contract tests only |
-| `pnpm run versions:check` | Verify Core, Codex, and DeepSeek version files and mirrors |
+| `pnpm run versions:check` | Verify Core, Codex, DeepSeek, and Claude version files and mirrors |
 | `pnpm run dev-flow:local` | Pack all three products from current source and open the normal `dev-flow` install menu |
 | `pnpm --dir packages/codex test` | Run Codex package-local tests |
 | `pnpm --dir packages/deepseek test` | Run DeepSeek package-local tests |
@@ -144,14 +144,14 @@ built by this entry.
 
 The build uses `scripts/desktop-pet-artwork.mjs` to copy the default SVG appearance from `packages/desktop-pet/default-appearance/` and compare each delivered file with its source. The pack contains nine clips and 312 frames; the `frames` and `asset_bytes` result fields record its animation frame count and artwork file size. Custom appearances such as Whale Girl are imported from external artwork packs. Generated application bundles and external artwork directories are not tracked by Git.
 
-Build the Windows desktop package with `build-desktop-pet-windows.mjs`. From the repository root, run `npm ci --prefix packages/desktop-pet/windows`, then `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`. Output must be outside the repository. This entry assembles the Windows desktop, launcher and both Adapter packages through the Core target catalog; it does not execute Mac programs, Mac tests or publication.
+Build the Windows desktop package with `build-desktop-pet-windows.mjs`. From the repository root, run `npm ci --prefix packages/desktop-pet/windows`, then `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`. Output must be outside the repository. This entry assembles the Windows desktop, launcher and all three Adapter packages through the Core target catalog; it does not execute Mac programs, Mac tests or publication.
 
-The Windows desktop development distribution now carries complete Codex and DeepSeek packages through buildCoreRuntimes and stageAndPack. It does not create special Adapter archives missing the other Core runtime. After launcher bootstrap, dev-flow install --host all --yes installs both Adapters and the desktop app.
+The Windows desktop development distribution now carries complete Codex, DeepSeek and Claude packages through buildCoreRuntimes and stageAndPack. It does not create special Adapter archives missing the other Core runtime. After launcher bootstrap, dev-flow install --host all --yes installs all three Adapters and the desktop app.
 
 WebUI semantic submission and recovery regressions run with `pnpm --dir packages/webui test`. They exercise current components and the HTTP client with simulated hooks and HTTP, covering transport failure, reopening pending Actions and recovery by Action ID. These are not native browser checks.
 
 ## Shared Skill references
 
-Edit common Core instructions and examples only in `skills/dev-flow/core/`. Run `node scripts/sync-skill-references.mjs` to generate the Codex and DeepSeek package copies, whose headers identify the source. These copies support source browsing and local loading. `node scripts/sync-skill-references.mjs --check` detects stale copies. The Codex local builder and `stageAndPack` also render references in temporary staging, so installed packages do not depend on a shared directory outside the package. Shared text substitutes only the Host value; Host operations remain separately authored. Validation covers both MCP schemas, current transitions, DSH confirmation text and actual packaged files.
+Edit common Core instructions and examples only in `skills/dev-flow/core/`. Run `node scripts/sync-skill-references.mjs` to generate the Codex, DeepSeek and Claude package copies, whose headers identify the source. These copies support source browsing and local loading. `node scripts/sync-skill-references.mjs --check` detects stale copies. The Codex local builder and `stageAndPack` also render references in temporary staging, so installed packages do not depend on a shared directory outside the package. Shared text substitutes only the Host value; Host operations remain separately authored. Validation covers the three Host MCP schemas, current transitions, DSH confirmation text and actual packaged files.
 
 Targeted tests maintain the complete response examples. After editing shared requests, synchronize the package copies first. To update Core examples, run `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 go test ./internal/mcp -run TestSkillSuccessExamplesMatchExecution -count=1`, then synchronize shared references. To update Host examples, run `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 node --test packages/codex/tests/skill-success-examples.test.mjs packages/deepseek/tests/skill-success-examples.test.mjs`. Normal tests compare saved requests and responses without writing files. Review changed example fields and update package and staging lists when adding files. Node test helpers for reading examples, substituting stable values and comparing results live in `tests/skills/executed-examples.mjs`.

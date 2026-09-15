@@ -23,6 +23,16 @@ Dev Flow 帮助你在 Codex 或 DeepSeek 中管理长时间运行的 AI 编程�
 适合跨会话、需要明确文件范围和测试投入的仓库任务。一次性问答、代码解释和不需要保存进度的
 小型修改，直接使用 Codex 或 DeepSeek 通常更简单。
 
+## Claude Code
+
+源码版本也提供本机 Claude Code Adapter。在本仓库运行下方命令安装，然后在 Claude 中发送 `/dev-flow-claude:dev-flow <任务描述>`。适配覆盖现有流程、工作区模式和多仓库操作。此 Adapter 尚未发布，真实 Host 与平台验证单独记录。
+
+```sh
+pnpm dev-flow:local -- install --host claude --yes
+```
+
+[使用指南](docs/CLAUDE.md)
+
 ## 快速开始
 
 > 稳定 npm `@latest` 目前已验证 macOS arm64。请使用 Node.js `>=24`，并提前安装受支持的

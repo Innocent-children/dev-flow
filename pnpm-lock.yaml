@@ -8,6 +8,8 @@ importers:
 
   .: {}
 
+  packages/claude: {}
+
   packages/codex: {}
 
   packages/deepseek:

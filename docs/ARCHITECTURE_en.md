@@ -1,5 +1,12 @@
 # Dev Flow Architecture
 
+## Claude Code Adapter
+
+`packages/claude/` independently owns Claude plugin registration, MCP/Hook transport, sessions and launch records. The plugin root is the complete package root, containing lib, bin, runtime and Skills inside the cache; it must not reference sibling packages outside that cache. `packages/host-workspace/` maintains Git observation, preparation and snapshot functions copied into each Host by the build. It contains no Core nodes or Claude/Codex session decisions.
+
+Claude Write/Edit/NotebookEdit inputs supply complete targets and original-input digests to Core file_scope. Allowing a path does not override Host permissions. Launch records retain requests, origins, operation status and Claude session identity, without a second workflow cursor. Dedicated-worktree relocation retains partial effects until Core verifies every new binding. The unified manager uses `hosts/claude.mjs` for package/registration operations; runtime discovery reads Claude registration for WebUI/pet Core selection.
+
+
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
 > This document describes the current workspace and branch implementation, protocol, and persistence. Read
@@ -15,7 +22,7 @@ relaunch, handoff, and cleanup operations.
 
 ```mermaid
 flowchart TB
-    U[Developer] --> H[Codex / DeepSeek Adapter]
+    U[Developer] --> H[Codex / DeepSeek / Claude Code Adapter]
     H --> A[Read-only change assessment]
     A --> C{Choose Dev Flow?}
     C -->|No| D[Direct work · no Core Task]
@@ -510,4 +517,4 @@ COMPREHENSION_REVIEW and DELIVERY require a current completed Test satisfying or
 
 The current persisted Schema changes without historical readers or migration. MCP, CLI and WebUI expose the same record and transitions. Errors follow the [Core response contract](CORE-RESPONSES_en.md).
 
-Acceptance uses targeted Core and storage integration checks: ordinary passing, accepted known failures, missing comparison/decision, omitted new failures, stale acceptance, restart then delivery, actual limits, completed user checks, permission restrictions, and zero-write correction of missing check explanations. Shared Skill examples cover both Hosts. One transition and attached record preserve truthful results and allow delivery; no additional node, second cursor, automatic log parser, generic waiver or release workflow is introduced. Scope covers workflow/domain/application/store, direct MCP/WebUI consumers, docs and Skills.
+Acceptance uses targeted Core and storage integration checks: ordinary passing, accepted known failures, missing comparison/decision, omitted new failures, stale acceptance, restart then delivery, actual limits, completed user checks, permission restrictions, and zero-write correction of missing check explanations. Shared Skill examples cover all three Hosts. One transition and attached record preserve truthful results and allow delivery; no additional node, second cursor, automatic log parser, generic waiver or release workflow is introduced. Scope covers workflow/domain/application/store, direct MCP/WebUI consumers, docs and Skills.

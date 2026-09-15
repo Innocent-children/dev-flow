@@ -108,6 +108,10 @@ function selectTargets(request, observed) {
       targets.push(target);
     }
   }
+  if (request.host === "claude" || request.host === "all") {
+    if (!observed.claude && request.host === "claude") throw new Error("Claude Host was not observed");
+    if (observed.claude) targets.push(observed.claude);
+  }
   return targets;
 }
 

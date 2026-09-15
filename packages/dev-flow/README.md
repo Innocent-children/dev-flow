@@ -6,9 +6,9 @@
 
 `@imotong/dev-flow` is the Host-neutral lifecycle and Control Center CLI for Dev Flow.
 
-New development Tasks are not created by this lifecycle CLI or by Control Center. Codex and DeepSeek
-first assess a request read-only, obtain the developer's remote/base/target confirmation, provision a
-dedicated worktree, and only then open Core from the target Host. Control Center projects that
+New development Tasks are not created by this lifecycle CLI or by Control Center. Codex, DeepSeek and Claude Code
+first assess a request read-only, obtain the developer's workspace and branch choices, prepare the
+selected local directory or dedicated worktree, and only then open Core from the target Host. Control Center projects that
 WorkspaceOrigin, current Task surface, blockers, relocation, and terminal cleanup choices without
 performing Git or Host handoff itself.
 
@@ -21,7 +21,7 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Lifecycle commands manage Codex and DeepSeek Adapters while preserving the shared Core boundary:
+Lifecycle commands manage Codex, DeepSeek and Claude Code Adapters while preserving the shared Core boundary:
 
 ```bash
 dev-flow status
@@ -85,7 +85,7 @@ Lifecycle exit codes: `0` success or no changes, `1` check/execution failure, `2
 
 ## Desktop pet (macOS arm64 and Windows x64)
 
-The npm package includes the macOS arm64 and Windows 10/11 x64 desktop applications and default artwork (nine actions, 312 SVG frames). A configured Codex or DeepSeek Adapter supplies Core. After updating this npm package, run `dev-flow repair` for the configured Host to refresh the installed app copy. `install`, `upgrade`, `repair` and `reinstall` update the app even when the Adapter needs no change, preserving settings and appearances. macOS uses ad-hoc signing; Developer ID, notarization and Windows distribution signing remain unverified. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md).
+The npm package includes the macOS arm64 and Windows 10/11 x64 desktop applications and default artwork (nine actions, 312 SVG frames). A configured Codex, DeepSeek or Claude Code Adapter supplies Core. After updating this npm package, run `dev-flow repair` for the configured Host to refresh the installed app copy. `install`, `upgrade`, `repair` and `reinstall` update the app even when the Adapter needs no change, preserving settings and appearances. macOS uses ad-hoc signing; Developer ID, notarization and Windows distribution signing remain unverified. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md).
 
 | Command | Behavior |
 | --- | --- |

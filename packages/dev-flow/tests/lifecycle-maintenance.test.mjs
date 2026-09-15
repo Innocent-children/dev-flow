@@ -247,7 +247,7 @@ test("one interactive session can inspect state and return to the menu", async t
   const fixture = await maintenanceFixture(t);
   let text = '';
   const output = { write: value => { text += value; } };
-  const result = await runMain([], { ...fixture.dependencies, input: Readable.from(['4\n1\n1\n0\n']), output, errorOutput: output, isTTY: true });
+  const result = await runMain([], { ...fixture.dependencies, input: Readable.from(['5\n1\n1\n0\n']), output, errorOutput: output, isTTY: true });
   assert.equal(result.code, 0);
   assert.equal(fixture.events.length, 0);
   assert.equal(text.split('Dev Flow Lifecycle Manager').length >= 3, true);
@@ -271,6 +271,7 @@ test("all-Host diagnostics do not classify an unused absent Adapter as a broken 
   await writeFile(fixture.paths.configurationPath, '{}\n');
   const result = await runLifecycle({ ...request('doctor'), host: 'all', profiles: ['web'] }, {
     ...fixture.dependencies,
+    claudeDriver: { observe: async () => ({ host: 'claude', profile: null, hostAvailable: false, state: 'absent', packageVersion: null, issues: [{ code: 'host_missing', message: 'Claude missing', command: 'claude --version' }] }) },
     deepseekDriver: { knownProfiles: async () => [], observe: async () => ({ host: 'deepseek', profile: 'web', hostAvailable: false, state: 'absent', packageVersion: null,
       issues: [{ code: 'host_missing', message: 'DSH missing', command: 'dsh --version' }] }) },
   });

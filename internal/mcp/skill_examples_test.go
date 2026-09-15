@@ -23,6 +23,9 @@ type skillExample struct {
 func readSkillExamples(t *testing.T, host string) []skillExample {
 	t.Helper()
 	root := filepath.Join("..", "..", "packages", "codex", "plugin", "skills", "dev-flow")
+	if host == "claude" {
+		root = filepath.Join("..", "..", "packages", "claude", "plugin", "skills", "dev-flow")
+	}
 	if host == "deepseek" {
 		root = filepath.Join("..", "..", "packages", "deepseek", "skills", "dev-flow")
 	}
@@ -70,7 +73,7 @@ func validateSkillSchema(t *testing.T, rawSchema, rawValue []byte) {
 }
 
 func TestSkillMCPExamplesMatchCurrentContracts(t *testing.T) {
-	for _, host := range []string{"codex", "deepseek"} {
+	for _, host := range []string{"codex", "deepseek", "claude"} {
 		t.Run(host, func(t *testing.T) { validateSkillMCPExamples(t, host) })
 	}
 }

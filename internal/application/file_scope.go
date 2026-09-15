@@ -18,6 +18,7 @@ import (
 var supportedFileChangeTools = map[domain.Host]map[string]bool{
 	domain.HostCodex:    {"apply_patch": true},
 	domain.HostDeepSeek: {"write": true, "edit": true, "str_replace_editor": true},
+	domain.HostClaude:   {"Write": true, "Edit": true, "NotebookEdit": true},
 }
 
 // PrepareFileChange is the shared Core entry used by Host write gates. It

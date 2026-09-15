@@ -32,6 +32,9 @@ Complete response:
       },
       "deepseek": {
         "codebase_memory": false
+      },
+      "claude": {
+        "codebase_memory": false
       }
     },
     "method_profiles": [
@@ -42,7 +45,8 @@ Complete response:
     "product": "dev-flow",
     "supported_hosts": [
       "codex",
-      "deepseek"
+      "deepseek",
+      "claude"
     ],
     "supported_processes": [
       {
@@ -71,7 +75,7 @@ Complete response:
       "dev_flow_abandon_task"
     ],
     "transport": "stdio",
-    "version": "0.14.0"
+    "version": "0.15.0"
   },
   "tool": "dev_flow_server_info"
 }

@@ -24,6 +24,16 @@ It suits repository work that spans sessions or needs explicit scope and testing
 questions, code explanations, and small edits that need no saved progress, using Codex or DeepSeek
 directly is usually simpler.
 
+## Claude Code
+
+The source version also includes a local Claude Code Adapter. Install it from this repository with the command below, then send `/dev-flow-claude:dev-flow <task>` in Claude. It covers the existing workflow, workspace modes and multi-repository operations. This Adapter is not yet published; real Host and platform verification is tracked separately.
+
+```sh
+pnpm dev-flow:local -- install --host claude --yes
+```
+
+[Guide](docs/CLAUDE_en.md)
+
 ## Quick start
 
 > Stable npm `@latest` is currently verified on macOS arm64. Use Node.js `>=24` and install a supported

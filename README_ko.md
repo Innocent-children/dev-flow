@@ -23,6 +23,16 @@ Dev Flow는 Codex 또는 DeepSeek에서 오래 이어지는 AI 코딩 작업을 
 여러 세션에 걸치거나 파일 범위와 테스트 작업량을 명확히 정해야 하는 저장소 작업에 적합합니다.
 일회성 질문, 코드 설명, 진행 상황을 저장할 필요가 없는 작은 수정은 Codex나 DeepSeek를 직접 쓰는 편이 간단합니다.
 
+## Claude Code
+
+소스 버전에는 로컬 Claude Code Adapter도 포함됩니다. 이 저장소에서 아래 명령으로 설치한 뒤 Claude에 `/dev-flow-claude:dev-flow <작업 설명>`을 보내세요. 기존 개발 흐름, 작업 공간 모드와 여러 저장소 작업을 지원합니다. 아직 배포되지 않은 Adapter이며 실제 Host와 플랫폼 검증은 별도로 기록합니다.
+
+```sh
+pnpm dev-flow:local -- install --host claude --yes
+```
+
+[사용 안내](docs/CLAUDE_en.md)
+
 ## 빠른 시작
 
 > npm 안정 버전 `@latest`는 현재 macOS arm64에서 검증되었습니다. Node.js `>=24`와 지원되는

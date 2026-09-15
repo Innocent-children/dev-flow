@@ -1,3 +1,4 @@
+// Generated from packages/host-workspace/worktree-snapshot.mjs; edit the shared source.
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

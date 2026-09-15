@@ -265,6 +265,11 @@ lib/worktree-snapshot.mjs'
 printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
   [ -n "$relative_path" ] || continue
   source_path="$repository_root/packages/codex/$relative_path"
+  case "$relative_path" in
+    lib/worktree-lifecycle.mjs|lib/worktree-snapshot.mjs)
+      source_path="$repository_root/packages/host-workspace/$(basename -- "$relative_path")"
+      ;;
+  esac
   [ -f "$source_path" ] || fail "required production file is missing: $relative_path"
   mkdir -p "$stage_root/$(dirname -- "$relative_path")"
   cp "$source_path" "$stage_root/$relative_path"

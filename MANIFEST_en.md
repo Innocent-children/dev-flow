@@ -1,5 +1,7 @@
 # Dev Flow Documentation and Source Scope
 
+- [Claude Code guide](docs/CLAUDE_en.md): source installation, complete workflow, recovery and permissions.
+
 [中文](MANIFEST.md) | [English](MANIFEST_en.md)
 
 Human-readable documentation helps people evaluate, use, and understand Dev Flow. Runtime code does

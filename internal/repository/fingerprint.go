@@ -3,11 +3,14 @@ package repository
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"hash"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -320,7 +323,7 @@ func layerDigest(layer string, state repositoryLayerState) domain.Digest {
 	return digestFields(pathContentDigestDomain+"/layer", []byte(state.mode), []byte(state.object))
 }
 
-func (o *GitObserver) entries(ctx context.Context, root, baseCommit string, paths []string, kinds map[string]string) ([]domain.RepositoryChangedEntry, error) {
+func (o *GitObserver) entries(ctx context.Context, root, baseCommit string, paths []string, kinds map[string]string, layers *entryLayers) ([]domain.RepositoryChangedEntry, error) {
 	unique := map[string]bool{}
 	sorted := make([]string, 0, len(paths))
 	for _, path := range paths {
@@ -345,21 +348,18 @@ func (o *GitObserver) entries(ctx context.Context, root, baseCommit string, path
 		case "T":
 			change = domain.RepositoryChangeTypeMode
 		}
-		baseResult, err := o.runner.run(ctx, gitShowBaseEntry, root, baseCommit+"\x00"+path)
-		if err != nil || baseResult.exitCode != 0 {
-			return nil, ErrInconsistentWorktree
+		if cached, ok := layers.entries[path]; ok {
+			cached.ChangeType = change
+			entries = append(entries, cached)
+			continue
 		}
-		baseState, err := parseBaseEntry(baseResult.stdout, path)
-		if err != nil {
-			return nil, err
+		baseState := layers.base[path]
+		if baseState.mode == "" {
+			baseState = repositoryLayerState{mode: "000000", object: "missing"}
 		}
-		indexResult, err := o.runner.run(ctx, gitShowIndexEntry, root, path)
-		if err != nil || indexResult.exitCode != 0 {
-			return nil, ErrInconsistentWorktree
-		}
-		indexState, err := parseIndexEntry(indexResult.stdout, path)
-		if err != nil {
-			return nil, err
+		indexState := layers.index[path]
+		if indexState.mode == "" {
+			indexState = repositoryLayerState{mode: "000000", object: "missing"}
 		}
 		worktreeState := repositoryLayerState{mode: "000000", object: "missing"}
 		local, _ := resolveStatusPath(root, path)
@@ -377,13 +377,9 @@ func (o *GitObserver) entries(ctx context.Context, root, baseCommit string, path
 				if readErr != nil {
 					return nil, ErrInconsistentWorktree
 				}
-				result, hashErr := o.runner.runWithInput(ctx, gitHashObjectStdin, root, "", []byte(target))
-				if hashErr != nil || result.exitCode != 0 {
-					return nil, ErrInconsistentWorktree
-				}
-				object, parseErr := parseObjectLine(result.stdout)
-				if parseErr != nil {
-					return nil, parseErr
+				object, hashErr := gitBlob(ctx, int64(len(target)), strings.NewReader(target), len(baseCommit))
+				if hashErr != nil {
+					return nil, hashErr
 				}
 				worktreeState.object = object
 			case info.IsDir():
@@ -395,13 +391,17 @@ func (o *GitObserver) entries(ctx context.Context, root, baseCommit string, path
 				return nil, ErrInconsistentWorktree
 			}
 			if worktreeState.mode != "160000" && worktreeState.mode != "120000" {
-				result, err := o.runner.run(ctx, gitHashObject, root, path)
-				if err != nil || result.exitCode != 0 {
+				file, err := os.Open(local)
+				if err != nil {
 					return nil, ErrInconsistentWorktree
 				}
-				object, parseErr := parseObjectLine(result.stdout)
-				if parseErr != nil {
-					return nil, parseErr
+				object, hashErr := gitBlob(ctx, info.Size(), file, len(baseCommit))
+				closeErr := file.Close()
+				if hashErr != nil {
+					return nil, hashErr
+				}
+				if closeErr != nil {
+					return nil, closeErr
 				}
 				worktreeState.object = object
 			}
@@ -414,6 +414,7 @@ func (o *GitObserver) entries(ctx context.Context, root, baseCommit string, path
 		contentDigest := normalizedPathContentDigest(baseDigest, indexDigest, worktreeDigest)
 		mode := normalizedPathMode(baseState, indexState, worktreeState)
 		entries = append(entries, domain.RepositoryChangedEntry{Path: path, ChangeType: change, FileMode: mode, Gitlink: mode == "160000", BaseMode: baseState.mode, BaseContentDigest: baseDigest, IndexMode: indexState.mode, IndexContentDigest: indexDigest, WorktreeMode: worktreeState.mode, WorktreeContentDigest: worktreeDigest, ContentDigest: contentDigest})
+		layers.entries[path] = entries[len(entries)-1]
 	}
 	return entries, nil
 }
@@ -517,3 +518,111 @@ func writeDigestField(destination hash.Hash, value []byte) {
 
 // keep filepath imported in this platform package so mode/path semantics remain here.
 var _ = filepath.Separator
+
+// entryLayers is an observation-local snapshot, never a cache across observations.
+type entryLayers struct {
+	base, index map[string]repositoryLayerState
+	entries     map[string]domain.RepositoryChangedEntry
+}
+
+func (o *GitObserver) readEntryLayers(ctx context.Context, root, base string, groups ...[]string) (*entryLayers, error) {
+	out := &entryLayers{base: map[string]repositoryLayerState{}, index: map[string]repositoryLayerState{}, entries: map[string]domain.RepositoryChangedEntry{}}
+	seen := map[string]bool{}
+	paths := []string{}
+	for _, group := range groups {
+		for _, path := range group {
+			if !seen[path] {
+				if _, err := resolveStatusPath(root, path); err != nil {
+					return nil, err
+				}
+				seen[path] = true
+				paths = append(paths, path)
+			}
+		}
+	}
+	sort.Strings(paths)
+	for start := 0; start < len(paths); {
+		end, size := start, 0
+		for end < len(paths) && end-start < 32 && (end == start || size+len(paths[end]) < 12000) {
+			size += len(paths[end]) + 3
+			end++
+		}
+		batch := paths[start:end]
+		for _, command := range []gitReadCommand{gitShowBaseEntries, gitShowIndexEntries} {
+			value := strings.Join(batch, "\x00")
+			if command == gitShowBaseEntries {
+				value = base + "\x00" + value
+			}
+			result, err := o.runner.run(ctx, command, root, value)
+			if err != nil {
+				return nil, err
+			}
+			if result.exitCode != 0 {
+				return nil, ErrGitObservation
+			}
+			if len(result.stdout) > 0 && result.stdout[len(result.stdout)-1] != 0 {
+				return nil, ErrGitObservation
+			}
+			for _, record := range bytes.Split(result.stdout, []byte{0}) {
+				if len(record) == 0 {
+					continue
+				}
+				_, name, ok := bytes.Cut(record, []byte{'\t'})
+				path := string(name)
+				if !ok || !seen[path] {
+					return nil, ErrGitObservation
+				}
+				destination, parse := out.index, parseIndexEntry
+				if command == gitShowBaseEntries {
+					destination, parse = out.base, parseBaseEntry
+				}
+				if _, exists := destination[path]; exists {
+					return nil, ErrInconsistentWorktree
+				}
+				state, err := parse(append(append([]byte(nil), record...), 0), path)
+				if err != nil {
+					return nil, err
+				}
+				destination[path] = state
+			}
+		}
+		start = end
+	}
+	return out, nil
+}
+
+// Git hash-object --no-filters hashes this blob header and the raw bytes.
+func gitBlob(ctx context.Context, size int64, reader io.Reader, objectWidth int) (string, error) {
+	var h hash.Hash
+	switch objectWidth {
+	case 40:
+		h = sha1.New()
+	case 64:
+		h = sha256.New()
+	default:
+		return "", ErrGitObservation
+	}
+	fmt.Fprintf(h, "blob %d%c", size, byte(0))
+	buffer := make([]byte, 64*1024)
+	var copied int64
+	for {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		n, err := reader.Read(buffer)
+		if n > 0 {
+			h.Write(buffer[:n])
+			copied += int64(n)
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	if copied != size {
+		return "", ErrInconsistentWorktree
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}

@@ -1,5 +1,31 @@
 # Dev Flow Command Reference
 
+## Claude Code commands (source package)
+
+The entry is defined by `packages/claude/bin/dev-flow-claude.mjs` and `lib/workspace.mjs`; there is no stable npm release yet. Unified lifecycle accepts `--host claude`; `all` includes Claude. Core Host fields accept `codex`, `deepseek` and `claude`.
+
+| Command | Input and result |
+| --- | --- |
+| `dev-flow-claude status/setup/remove --json` | Inspect, register or remove the user-scope plugin; operation/status/changed JSON; ordinary maintenance retains data |
+| `dev-flow-claude mcp` | Local stdio Core with the shared data directory |
+| `dev-flow-claude artifacts collect/prepare` | Closed JSON stdin; complete ok/result or ok/error, nonzero exit on failure |
+| `dev-flow-claude host-check pre-file-write/workspace-available` | Internal scope/occupancy check; does not replace user decisions |
+| `dev-flow-claude hook pre-tool-use` | Original Claude event on stdin; permissionDecision=deny on rejection; exit 2 on failure |
+| `dev-flow-claude host-launch inspect` | request, repositories[{key,repository_path}]; returns complete assessment anchor |
+| `dev-flow-claude host-launch prepare` | request, assessment, user_choice, repositories, handoff; returns launch_id and retained preparation |
+| `dev-flow-claude host-launch provision/status/scope` | {launch_id}; prepare every repository, read receipt, or return verified Core creation scope |
+| `dev-flow-claude host-launch launch/resume` | {launch_id}; returns executable/arguments/cwd/session_id for the Host to execute in an interactive terminal |
+| `dev-flow-claude host-launch record-session` | launch_id and actual session_id; verifies and records the observed session |
+| `dev-flow-claude host-launch bind-task` | launch_id and task_id from the successful Core response; retain identity for session/relocation recovery, never a process cursor |
+| `dev-flow-claude host-launch retry-launch` | launch_id, previous_caller_stopped=true, session_not_started=true, reason; reuse the saved UUID only with verified non-start evidence |
+| `dev-flow-claude host-launch relocate` | launch_id, Core relocation_id, all destinations[{repository_key,repository_path}], authorized; Core verification is still required after moving |
+| `dev-flow-claude host-launch cleanup-worktree/cleanup-branch` | launch_id, repository_key, terminal, authorized; separate authorization and non-force deletion |
+
+Each prepare repository requires key, repository_path, workspace_mode, source_type, remote_name, base_branch, target_branch, carry_changes and worktree_path. Modes are new_branch/current_branch/dedicated_worktree. Assessment includes impact, verification, unknowns and the original inspect anchor; user_choice must reflect the actual user decision. Helpers accept one closed UTF-8 JSON object, at most 1 MiB. Host operations return their direct result on success and exit nonzero on error, not a Core envelope.
+
+The Claude selector is `/dev-flow-claude:dev-flow <task>`. `CLAUDE_CONFIG_DIR` selects Claude settings; `DEV_FLOW_DATA_DIR` must be an existing canonical absolute directory shared by every entry. See the [Claude guide](CLAUDE_en.md) for installation, resume and permissions.
+
+
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
 > Most users only need to install the unified entry, run `dev-flow`, and use the corresponding
@@ -40,7 +66,7 @@ dev-flow
 ```
 
 The supported operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
-`factory-reset`. Host is `codex|deepseek|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
+`factory-reset`. Host is `codex|deepseek|claude|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
 repair, and reinstall preserve configuration and Task data. Factory reset requires the token bound to the current
 plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to the user's Trash on macOS and to the
 recoverable `%LOCALAPPDATA%\dev-flow\trash` quarantine on Windows; the Windows target is not the system

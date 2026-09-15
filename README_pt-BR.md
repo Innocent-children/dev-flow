@@ -25,6 +25,16 @@ resultados para você continuar depois que a sessão terminar.
 arquivos e testes. Para perguntas pontuais, explicações de código e pequenas alterações que não
 precisam salvar o progresso, usar Codex ou DeepSeek diretamente costuma ser mais simples.
 
+## Claude Code
+
+A versão do código-fonte também inclui um Adapter local para Claude Code. Instale-o neste repositório com o comando abaixo e envie `/dev-flow-claude:dev-flow <descrição da tarefa>` no Claude. Ele abrange o fluxo existente, os modos de espaço de trabalho e as operações com vários repositórios. Este Adapter ainda não foi publicado; a verificação do Host real e de cada plataforma é registrada separadamente.
+
+```sh
+pnpm dev-flow:local -- install --host claude --yes
+```
+
+[Guia](docs/CLAUDE_en.md)
+
 ## Início rápido
 
 > A versão estável do npm `@latest` está atualmente verificada no macOS arm64. Use Node.js `>=24`

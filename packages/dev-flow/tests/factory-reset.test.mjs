@@ -20,7 +20,7 @@ test("factory reset requires all Hosts and moves exact shared data to Trash", as
   assert.equal(result.plan.impacts.includes("Clear desktop pet records, preferences, and imported appearances"), true);
   assert.equal(result.result.data.pet, "absent");
   assert.equal(result.result.completed_actions.includes("manager.trash.pet"), true);
-  assert.deepEqual(fixture.events, ["pet.stop:null", "codex.uninstall", "deepseek.uninstall"]);
+  assert.deepEqual(fixture.events, ["pet.stop:null", "codex.uninstall", "deepseek.uninstall", "claude.uninstall"]);
   await assert.rejects(stat(fixture.paths.configurationPath), { code: "ENOENT" });
   await assert.rejects(stat(fixture.paths.defaultDataDirectory), { code: "ENOENT" });
   await assert.rejects(stat(fixture.paths.petDirectory), { code: "ENOENT" });
@@ -62,7 +62,7 @@ test("clean reinstall creates fresh active data after reset and never restores o
   });
   assert.equal(result.result.status, "ready");
   assert.deepEqual(JSON.parse(await readFile(fixture.paths.configurationPath, "utf8")), {
-    codex: { codebase_memory: false }, deepseek: { codebase_memory: false },
+    codex: { codebase_memory: false }, deepseek: { codebase_memory: false }, claude: { codebase_memory: false },
   });
   await assert.rejects(readFile(join(fixture.paths.defaultDataDirectory, "dev-flow.db")), { code: "ENOENT" });
   assert.equal(fixture.states.codex, "ready");
@@ -116,6 +116,7 @@ test("factory reset uninstalls a Codex package after its registration is already
     arch: "arm64",
     codexDriver,
     deepseekDriver,
+    claudeDriver: { observe: async () => ({ host: "claude", profile: null, hostAvailable: true, state: "absent", packageVersion: null, receipt: null }) },
     confirmPlan: async () => true,
   });
 
@@ -145,7 +146,7 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
   await writeFile(join(paths.defaultDataDirectory, "dev-flow.db"), "old-task\n");
   await writeFile(join(paths.petDirectory, "preferences.json"), "pet-preferences\n");
   if (explicit) await writeFile(join(explicitData, "dev-flow.db"), "explicit-task\n");
-  const states = { codex: "ready", deepseek: "ready" };
+  const states = { codex: "ready", deepseek: "ready", claude: "ready" };
   const events = [];
   const codexDriver = driver("codex", null, states, events);
   const deepseekDriver = driver("deepseek", "web", states, events);
@@ -162,6 +163,7 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
       arch: "arm64",
       codexDriver,
       deepseekDriver,
+      claudeDriver: driver("claude", null, states, events),
       stopPetForCore: stopPet ?? (async (options) => {
         events.push(`pet.stop:${options.corePath}`);
         return { stopped: true, reason: null };

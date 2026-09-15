@@ -28,7 +28,7 @@ Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task
 工作区卡片显示原目录新分支、当前分支或独立工作树。本地模式说明共享目录的修改都会被观察，
 结束后保留目录和分支；只在全部仓库均为独立工作树时展示工作区迁移操作。
 
-新 Task 由 Codex 或 DeepSeek 完成只读评估、用户确认、工作位置选择及准备，再从执行 Host 创建；页面负责展示和处理已有任务。
+新 Task 由 Codex、DeepSeek 或 Claude Code 完成只读评估、用户确认、工作位置选择及准备，再从执行 Host 创建；页面负责展示和处理已有任务。
 
 页面可以使用 Core 当前返回的任务和操作标识，提交以下操作：
 

@@ -25,6 +25,16 @@ Das eignet sich für Arbeiten an einem Repository, die mehrere Sitzungen dauern 
 für Dateien und Tests benötigen. Für einzelne Fragen, Code-Erklärungen und kleine Änderungen ohne
 gespeicherten Fortschritt ist die direkte Nutzung von Codex oder DeepSeek meist einfacher.
 
+## Claude Code
+
+Die Quellversion enthält auch einen lokalen Adapter für Claude Code. Installiere ihn in diesem Repository mit dem folgenden Befehl und sende in Claude `/dev-flow-claude:dev-flow <Aufgabenbeschreibung>`. Er umfasst den bestehenden Ablauf, die Arbeitsbereichsmodi und Vorgänge mit mehreren Repositorys. Dieser Adapter ist noch nicht veröffentlicht; Prüfungen mit dem tatsächlichen Host und auf den einzelnen Plattformen werden getrennt dokumentiert.
+
+```sh
+pnpm dev-flow:local -- install --host claude --yes
+```
+
+[Anleitung](docs/CLAUDE_en.md)
+
 ## Schnellstart
 
 > Die stabile npm-Version unter `@latest` ist derzeit auf macOS arm64 verifiziert. Verwende Node.js

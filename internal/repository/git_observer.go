@@ -26,14 +26,12 @@ const (
 	gitShowHead
 	gitShowHeadTree
 	gitShowStatus
-	gitHashObject
-	gitHashObjectStdin
 	gitShowRemoteBase
 	gitShowLocalBase
 	gitShowTaskSurface
 	gitShowWorktreeDelta
-	gitShowIndexEntry
-	gitShowBaseEntry
+	gitShowBaseEntries
+	gitShowIndexEntries
 	gitIsAncestor
 	gitShowMergeCommits
 )
@@ -237,11 +235,15 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 	for _, record := range statusRecords {
 		changedKinds[record.path] = recordStatusKind(record)
 	}
-	changedEntries, err := o.entries(ctx, canonicalRoot, baseCommit, changedPaths, changedKinds)
+	layers, err := o.readEntryLayers(ctx, canonicalRoot, baseCommit, changedPaths, surfacePaths)
 	if err != nil {
 		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
-	taskSurface, err := o.entries(ctx, canonicalRoot, baseCommit, surfacePaths, surfaceKinds)
+	changedEntries, err := o.entries(ctx, canonicalRoot, baseCommit, changedPaths, changedKinds, layers)
+	if err != nil {
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
+	}
+	taskSurface, err := o.entries(ctx, canonicalRoot, baseCommit, surfacePaths, surfaceKinds, layers)
 	if err != nil {
 		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
@@ -405,7 +407,10 @@ func (o *GitObserver) verifyStable(ctx context.Context, root string, common []by
 	}{{gitShowCommonDirectory, common}, {gitShowWorktreeGitDirectory, gitDir}, {gitShowHead, head}}
 	for _, check := range checks {
 		result, err := o.runner.run(ctx, check.command, root, "")
-		if err != nil || result.exitCode != 0 || !bytes.Equal(result.stdout, check.expected) {
+		if err != nil {
+			return err
+		}
+		if result.exitCode != 0 || !bytes.Equal(result.stdout, check.expected) {
 			return ErrInconsistentWorktree
 		}
 	}
@@ -426,11 +431,17 @@ func (o *GitObserver) verifyStable(ctx context.Context, root string, common []by
 		return ErrInconsistentWorktree
 	}
 	secondBranch, err := o.runner.run(ctx, gitShowBranch, root, "")
-	if err != nil || secondBranch.exitCode != branch.exitCode || !bytes.Equal(secondBranch.stdout, branch.stdout) {
+	if err != nil {
+		return err
+	}
+	if secondBranch.exitCode != branch.exitCode || !bytes.Equal(secondBranch.stdout, branch.stdout) {
 		return ErrInconsistentWorktree
 	}
 	secondStatus, err := o.runner.run(ctx, gitShowStatus, root, "")
-	if err != nil || secondStatus.exitCode != 0 {
+	if err != nil {
+		return err
+	}
+	if secondStatus.exitCode != 0 {
 		return ErrInconsistentWorktree
 	}
 	records, err := parsePorcelainV2(secondStatus.stdout)
@@ -473,10 +484,7 @@ type gitCommandResult struct {
 }
 
 func (r gitCommandRunner) run(ctx context.Context, command gitReadCommand, repositoryPath, value string) (gitCommandResult, error) {
-	return r.runWithInput(ctx, command, repositoryPath, value, nil)
-}
 
-func (r gitCommandRunner) runWithInput(ctx context.Context, command gitReadCommand, repositoryPath, value string, input []byte) (gitCommandResult, error) {
 	args, ok := command.arguments(repositoryPath, value)
 	if !ok {
 		return gitCommandResult{}, ErrGitObservation
@@ -490,9 +498,6 @@ func (r gitCommandRunner) runWithInput(ctx context.Context, command gitReadComma
 	cmd := exec.CommandContext(commandContext, gitExecutable, args...)
 	configureGitCommand(cmd)
 	cmd.Env = gitEnvironment(os.Environ())
-	if input != nil {
-		cmd.Stdin = bytes.NewReader(input)
-	}
 	cmd.Stdout = capture.writer(&stdout)
 	cmd.Stderr = capture.writer(&stderr)
 	runErr := cmd.Run()
@@ -559,16 +564,6 @@ func (command gitReadCommand) arguments(repositoryPath, value string) ([]string,
 			return nil, false
 		}
 		return append(args, "status", "--porcelain=v2", "--untracked-files=all", "--ignore-submodules=none", "--no-renames", "-z"), true
-	case gitHashObject:
-		if value == "" {
-			return nil, false
-		}
-		return append(args, "hash-object", "--no-filters", "--", value), true
-	case gitHashObjectStdin:
-		if value != "" {
-			return nil, false
-		}
-		return append(args, "hash-object", "--stdin"), true
 	case gitShowLocalBase:
 		if !validBranchRefName(value) {
 			return nil, false
@@ -590,17 +585,31 @@ func (command gitReadCommand) arguments(repositoryPath, value string) ([]string,
 			return nil, false
 		}
 		return append(args, "diff", "--no-ext-diff", "--name-status", "--no-renames", "-z", "--"), true
-	case gitShowIndexEntry:
-		if value == "" {
+	case gitShowBaseEntries, gitShowIndexEntries:
+		parts := strings.Split(value, "\x00")
+		base := ""
+		if command == gitShowBaseEntries {
+			if len(parts) < 2 || !validGitObjectID(parts[0]) {
+				return nil, false
+			}
+			base = parts[0]
+			parts = parts[1:]
+		}
+		if len(parts) == 0 || len(parts) > 32 {
 			return nil, false
 		}
-		return append(args, "ls-files", "--stage", "-z", "--", value), true
-	case gitShowBaseEntry:
-		base, path, ok := pair()
-		if !ok || !validGitObjectID(base) {
-			return nil, false
+		for _, path := range parts {
+			if path == "" {
+				return nil, false
+			}
 		}
-		return append(args, "ls-tree", "-z", base, "--", path), true
+		args = append(args, "--literal-pathspecs")
+		if command == gitShowBaseEntries {
+			args = append(args, "ls-tree", "-z", base, "--")
+		} else {
+			args = append(args, "ls-files", "--stage", "-z", "--")
+		}
+		return append(args, parts...), true
 	case gitIsAncestor:
 		left, right, ok := pair()
 		if !ok || !validGitObjectID(left) || !validGitObjectID(right) {

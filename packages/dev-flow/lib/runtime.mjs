@@ -101,6 +101,15 @@ export async function resolveCoreRuntime({
     }, exec, environment, paths.requireExecutableMode));
   }
 
+  const claudeReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "claude.json"), "Claude receipt");
+  if (claudeReceipt !== null) {
+    const product = exactObject(claudeReceipt.product, ["name", "version", "core_version"], "Claude receipt product");
+    const host = exactObject(claudeReceipt.host, ["surface", "version", "os", "arch"], "Claude receipt host");
+    const recorded = exactObject(claudeReceipt.paths, ["package_root", "runtime_path", "data_dir", "receipt_path", "config_root"], "Claude receipt paths");
+    if (product.name !== "dev-flow-claude" || !semverPattern.test(product.version) || !semverPattern.test(product.core_version) || host.surface !== "claude-cli" || `${host.os}-${host.arch}` !== paths.runtimeKey) throw new Error("Claude receipt identity is invalid");
+    if (resolve(recorded.runtime_path) !== resolve(adapterCoreRuntimePath(recorded.package_root, paths))) throw new Error("Claude runtime differs from its package layout");
+    candidates.push(await preflightCandidate({ source: "claude", packageName: "dev-flow-claude", packageVersion: product.version, expectedCoreVersion: product.core_version, packageRoot: recorded.package_root, runtimePath: recorded.runtime_path }, exec, environment, paths.requireExecutableMode));
+  }
   const dshHome = deepseekHome(environment, paths);
   for (const receipt of await listProfileReceipts(paths)) {
     const packageRoot = join(dshHome, "profiles", receipt.profile, "node_modules", "dev-flow-deepseek");
@@ -114,7 +123,7 @@ export async function resolveCoreRuntime({
     }, exec, environment, paths.requireExecutableMode));
   }
 
-  if (candidates.length === 0) throw new NoRuntimeError("no installed Codex or DeepSeek Adapter provides a Core runtime");
+  if (candidates.length === 0) throw new NoRuntimeError("no installed Codex, DeepSeek or Claude Adapter provides a Core runtime");
   if (requireData) {
     if (initializeDefaultData && paths.explicitDataDirectory === null) await ensureDefaultDataDirectory(paths);
     else await assertCanonicalDirectory(dataDirectory, "Dev Flow data directory");
@@ -151,6 +160,8 @@ export function adapterCoreRuntimePath(packageRoot, paths) {
 // because such an Adapter could not have been selected to start a pet either.
 export async function listAdapterCoreRuntimes({ paths, environment = process.env }) {
   const runtimes = [];
+  const claudeReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "claude.json"), "Claude receipt").catch(() => null);
+  if (typeof claudeReceipt?.paths?.runtime_path === "string") runtimes.push(Object.freeze({ host: "claude", profile: null, runtimePath: claudeReceipt.paths.runtime_path }));
   const codexReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "codex.json"), "Codex receipt").catch(() => null);
   const codexRuntimePath = codexReceipt?.paths?.runtime_path;
   if (typeof codexRuntimePath === "string" && codexRuntimePath !== "") {

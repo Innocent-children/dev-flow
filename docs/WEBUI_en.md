@@ -4,7 +4,7 @@
 
 > The local visualization and diagnostic entry for durable Tasks, working directories, and recovery state.
 
-Control Center is embedded in Go Core and reads the same SQLite Tasks as Codex and DeepSeek. The
+Control Center is embedded in Go Core and reads the same SQLite Tasks as Codex, DeepSeek and Claude Code. The
 browser keeps no second process state and does not fetch, create branches/worktrees, hand off a Host,
 or clean resources.
 
@@ -32,7 +32,7 @@ Workspace cards show new local branches, current branches or dedicated worktrees
 that all edits in the shared directory are observed and local resources are retained at completion.
 Workspace relocation is available only when every repository uses a dedicated worktree.
 
-Codex or DeepSeek creates new Tasks after read-only assessment, developer confirmation, workspace selection and preparation. The page displays and handles existing Tasks.
+Codex, DeepSeek or Claude Code creates new Tasks after read-only assessment, developer confirmation, workspace selection and preparation. The page displays and handles existing Tasks.
 
 The page may submit these operations using the current Task and Action identifiers returned by Core:
 
@@ -97,7 +97,7 @@ operations, and relocation records; none substitutes for another.
 
 `status` returns `ready`, `read_only`, `incompatible`, or `unavailable`. Default Task data lives at
 `$HOME/.dev-flow/data` on macOS and `%LOCALAPPDATA%\dev-flow\data` on
-Windows. Codex and DeepSeek share it.
+Windows. Codex, DeepSeek and Claude Code share it.
 
 React, TypeScript, and Vite participate only in the build. Static assets are embedded in Core, so
 runtime use needs no Node server, CDN, external font, or separate WebUI package. See the

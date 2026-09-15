@@ -24,7 +24,7 @@ import (
 // application/store. The observer supplies fixed Git observations; no Host or Git
 // operation is represented as a native end-to-end test.
 func TestSkillSuccessExamplesMatchExecution(t *testing.T) {
-	for _, host := range []string{"codex", "deepseek"} {
+	for _, host := range []string{"codex", "deepseek", "claude"} {
 		examples := readSkillExamples(t, host)
 		for _, example := range examples {
 			if example.Kind != "mcp" {
@@ -277,6 +277,9 @@ func (s *skillScenario) prepareBlocker(name string) {
 		tool := "apply_patch"
 		if s.host == "deepseek" {
 			tool = "edit"
+		}
+		if s.host == "claude" {
+			tool = "Edit"
 		}
 		_, err := s.server.application.PrepareFileChange(ctx, application.PrepareFileChangeRequest{Host: domain.Host(s.host), RepositoryPath: s.task.WorkspaceOrigin.CanonicalWorktreeRoot, ToolName: tool, Paths: []string{testPath("work", "tasks", "endpoint-field", "src", "extra.js")}, PathParseComplete: true, IntentDigest: domain.Digest(strings.Repeat("d", 64))})
 		if err != nil {

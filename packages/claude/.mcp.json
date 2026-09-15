@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "dev-flow": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/dev-flow-claude.mjs",
+        "mcp"
+      ]
+    }
+  }
+}
+

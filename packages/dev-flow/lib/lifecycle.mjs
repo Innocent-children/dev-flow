@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { diagnoseInstallation } from "./diagnostics.mjs";
 import { CLIError, confirmPlan, parseArguments, promptForRequest, renderHelp } from "./cli.mjs";
 import { createCodexDriver, CODEX_ACTIVATION_STEP } from "./hosts/codex.mjs";
+import { createClaudeDriver } from "./hosts/claude.mjs";
 import { createDeepSeekDriver } from "./hosts/deepseek.mjs";
 import { clearRunRecords, createRun, recordRun } from "./journal.mjs";
 import {
@@ -82,7 +83,7 @@ export async function runLifecycle(request, dependencies = {}) {
   const packagedLocalPackages = usesArtifacts ? await readLocalPackages(packageRoot) : null;
   const localPackages = dependencies.localPackages ?? packagedLocalPackages;
   if (localPackages && request.targetVersion && request.targetVersion !== "latest" && ["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
-    const products = request.host === "all" ? ["codex", "deepseek"] : [request.host];
+    const products = request.host === "all" ? ["codex", "deepseek", "claude"] : [request.host];
     if (products.some(product => localPackages[product].version !== request.targetVersion)) {
       throw new Error("the selected version is not contained in this local development package");
     }
@@ -93,6 +94,7 @@ export async function runLifecycle(request, dependencies = {}) {
     platform: dependencies.platform,
     arch: dependencies.arch,
   });
+  const claude = dependencies.claudeDriver ?? createClaudeDriver({ paths, environment, run: dependencies.runClaudeChild, localPackage: localPackages?.claude ?? null });
   const codex = dependencies.codexDriver ?? createCodexDriver({
     paths,
     environment,
@@ -106,9 +108,9 @@ export async function runLifecycle(request, dependencies = {}) {
     localPackage: localPackages?.deepseek ?? null,
   });
   dependencies.onProgress?.({ type: "phase", message: (dependencies.language ?? resolveLanguage(environment)) === "zh-CN" ? "检查 Host、Adapter 与本地资源" : "Checking Hosts, Adapters and local resources" });
-  const observed = await observeLifecycle(request, { paths, codex, deepseek });
+  const observed = await observeLifecycle(request, { paths, codex, deepseek, claude });
   if (["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
-    const missing = [observed.codex, ...observed.deepseek].filter(target => target?.hostAvailable === false);
+    const missing = [observed.codex, ...observed.deepseek, observed.claude].filter(target => target?.hostAvailable === false);
     if (missing.length) {
       const error = new Error(`Required Host unavailable: ${missing.map(target => target.host).join(", ")}`);
       error.nextStep = missing[0].host === "codex" ? "codex --version" : "dsh --version";
@@ -116,7 +118,7 @@ export async function runLifecycle(request, dependencies = {}) {
     }
     dependencies.onProgress?.({ type: "phase", message: (dependencies.language ?? resolveLanguage(environment)) === "zh-CN" ? "确认目标版本" : "Resolving target versions" });
   }
-  const targetVersions = await resolveTargetVersions(request, observed, { codex, deepseek, localPackages });
+  const targetVersions = await resolveTargetVersions(request, observed, { codex, deepseek, claude, localPackages });
   const petPlatform = usesArtifacts && supportsDesktopPet(paths.platform, paths.arch)
     ? await loadPetPlatform(paths.platform, paths.arch) : null;
   const installDesktopPet = petPlatform !== null && await petPlatform.isBundledPetApplicationAvailable(petPlatform.bundledPetExecutable(packageRoot));
@@ -204,9 +206,10 @@ export async function runLifecycle(request, dependencies = {}) {
       currentAction = action;
       dependencies.onProgress?.({ type: "action_start", action });
       let effect;
-      if (action.owner === "codex") {
-        const current = await codex.observe();
-        effect = await codex.execute(action.operation, {
+      if (action.owner === "codex" || action.owner === "claude") {
+        const driver = action.owner === "claude" ? claude : codex;
+        const current = await driver.observe();
+        effect = await driver.execute(action.operation, {
           targetVersion: action.targetVersion,
           observed: current,
           onProgress: (stepId) => dependencies.onProgress?.({ type: "step_complete", action, stepId }),
@@ -270,7 +273,7 @@ export async function runLifecycle(request, dependencies = {}) {
   }
 
   let finalObserved;
-  try { finalObserved = await observeLifecycle(request, { paths, codex, deepseek }); }
+  try { finalObserved = await observeLifecycle(request, { paths, codex, deepseek, claude }); }
   catch (error) {
     error.completedSteps = completedActions;
     error.operationId = run.operation_id;
@@ -310,14 +313,14 @@ export async function runLifecycle(request, dependencies = {}) {
   return { code: verified ? 0 : 5, plan, result };
 }
 
-export async function observeLifecycle(request, { paths, codex, deepseek }) {
-  const knownDeepSeekProfiles = request.host === "codex" ? [] : await deepseek.knownProfiles();
-  let profiles = request.host === "codex" ? [] : request.allKnownProfiles
+export async function observeLifecycle(request, { paths, codex, deepseek, claude }) {
+  const knownDeepSeekProfiles = !["deepseek", "all"].includes(request.host) ? [] : await deepseek.knownProfiles();
+  let profiles = !["deepseek", "all"].includes(request.host) ? [] : request.allKnownProfiles
     ? [...new Set([...knownDeepSeekProfiles, ...request.profiles])]
     : request.profiles;
-  if (request.host !== "codex" && profiles.length === 0 && ["install", "upgrade", "repair", "reinstall", "status", "doctor"].includes(request.operation)) profiles = ["web"];
+  if (["deepseek", "all"].includes(request.host) && profiles.length === 0 && ["install", "upgrade", "repair", "reinstall", "status", "doctor"].includes(request.operation)) profiles = ["web"];
   const [codexState, deepseekStates, configuration, defaultData, pet, explicitData] = await Promise.all([
-    request.host === "deepseek" ? Promise.resolve(null) : codex.observe(),
+    ["codex", "all"].includes(request.host) ? codex.observe() : Promise.resolve(null),
     Promise.all(profiles.map((profile) => deepseek.observe(profile))),
     inspectResource(paths.configurationPath, "configuration"),
     inspectResource(paths.defaultDataDirectory, "default-data"),
@@ -326,18 +329,19 @@ export async function observeLifecycle(request, { paths, codex, deepseek }) {
   ]);
   return Object.freeze({
     codex: codexState,
+    claude: ["claude", "all"].includes(request.host) ? await claude.observe() : null,
     deepseek: deepseekStates,
     knownDeepSeekProfiles,
     resources: { configuration, defaultData, pet, explicitData },
   });
 }
 
-async function resolveTargetVersions(request, observed, { codex, deepseek, localPackages }) {
+async function resolveTargetVersions(request, observed, { codex, deepseek, claude, localPackages }) {
   const result = {};
   if (!["install", "upgrade", "repair", "reinstall"].includes(request.operation) && !request.reinstallAfterReset) return result;
-  const targets = [observed.codex, ...observed.deepseek].filter(Boolean);
+  const targets = [observed.codex, ...observed.deepseek, observed.claude].filter(Boolean);
   for (const target of targets) {
-    const driver = target.host === "codex" ? codex : deepseek;
+    const driver = target.host === "codex" ? codex : target.host === "claude" ? claude : deepseek;
     const requested = request.targetVersion ?? (request.operation === "upgrade" || request.reinstallAfterReset ? "latest" : target.packageVersion ?? "latest");
     // A known installed version needs no registry access to produce an unchanged plan.
     result[`${target.host}:${target.profile ?? "default"}`] = !localPackages && requested === target.packageVersion
@@ -376,7 +380,7 @@ async function stopDesktopPetForMaintainedCores(request, plan, { paths, environm
     // desktop instance is stopped before cleanup regardless of which Core it runs.
     await stop({ ...shutdown, corePath: null });
   }
-  const maintained = plan.actions.filter((action) => action.owner === "codex" || action.owner === "deepseek");
+  const maintained = plan.actions.filter((action) => ["codex", "deepseek", "claude"].includes(action.owner));
   if (maintained.length === 0) return;
   const runtimes = await (dependencies.listAdapterCoreRuntimes ?? listAdapterCoreRuntimes)({ paths, environment });
   const maintenance = await loadMaintenancePlatform(paths.platform, paths.arch);
@@ -411,6 +415,7 @@ async function initializeFreshState(paths) {
   await writeOwnedJSON(paths.configurationPath, {
     codex: { codebase_memory: false },
     deepseek: { codebase_memory: false },
+    claude: { codebase_memory: false },
   }, {
     root: paths.configurationDirectory,
     enforcePrivateModes: paths.enforcePrivateModes,
@@ -426,7 +431,7 @@ function resultFromObservation(operation, observed, {
   dataPolicy = "preserve",
   trashRoot = null,
 } = {}) {
-  const targets = [observed.codex, ...observed.deepseek]
+  const targets = [observed.codex, ...observed.deepseek, observed.claude]
     .filter(Boolean)
     .map((target) => ({ host: target.host, profile: target.profile, package_version: target.packageVersion, core_version: target.coreVersion ?? null, state: target.state, host_available: target.hostAvailable ?? null, issues: target.issues ?? [] }));
   const states = targets.map((target) => target.state);

@@ -1,5 +1,10 @@
 # Dev Flow 支持矩阵
 
+## Claude Code 源码适配
+
+Claude Adapter 尚未发布到稳定 npm 通道。源码目标为 Windows x64 和 macOS arm64，要求 Node.js >=24。真实 Claude 会话、插件缓存加载、权限 Hook 与原生平台验收仍须分别记录；源码实现、模拟接口测试或交叉编译不构成原生支持证明。使用入口见 [Claude 指南](CLAUDE.md)。
+
+
 [中文](SUPPORT-MATRIX.md) | [English](SUPPORT-MATRIX_en.md)
 
 本页只回答一个问题：**哪个公开 package 已经在哪个环境完成验证？**

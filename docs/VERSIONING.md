@@ -1,14 +1,15 @@
 # Product Versions
 
-Dev Flow maintains three product versions:
+Dev Flow maintains independent product versions:
 
 ```text
 Core      -> CORE_VERSION
 Codex     -> packages/codex/package.json.version
 DeepSeek  -> packages/deepseek/package.json.version
+Claude    -> packages/claude/package.json.version
 ```
 
-The Codex plugin manifest copies the Codex package version; it does not define a separate version. Root
+Each Codex/Claude plugin manifest copies its corresponding package version; it does not define a separate version. Root
 `package.json` is private monorepo tooling and has no version.
 
 Products evolve independently. Releasing one product changes only its version file and

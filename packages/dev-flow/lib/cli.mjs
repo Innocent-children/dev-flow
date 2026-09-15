@@ -13,7 +13,7 @@ export const OPERATIONS = Object.freeze([
   "uninstall",
   "factory-reset",
 ]);
-export const HOSTS = Object.freeze(["codex", "deepseek", "all"]);
+export const HOSTS = Object.freeze(["codex", "deepseek", "claude", "all"]);
 
 const booleanOptions = new Map([
   ["--all-known-profiles", "allKnownProfiles"],
@@ -100,7 +100,7 @@ export function parseArguments(arguments_, {
   if ((parsed.host === "deepseek" || parsed.host === "all") && parsed.profiles.length === 0 && !parsed.allKnownProfiles) {
     parsed.profiles = ["web"];
   }
-  if (parsed.host === "codex" && (parsed.profiles.length > 0 || parsed.allKnownProfiles || parsed.adopt)) {
+  if (["codex", "claude"].includes(parsed.host) && (parsed.profiles.length > 0 || parsed.allKnownProfiles || parsed.adopt)) {
     throw new CLIError("DeepSeek Profile options require --host deepseek or all");
   }
   if (parsed.targetVersion !== null && parsed.targetVersion !== "latest" && !semverPattern.test(parsed.targetVersion)) {
@@ -157,6 +157,7 @@ export async function promptForRequest({
       const home = await choose(messages.choose, [
         { label: messages.installCodex, host: "codex" },
         { label: messages.installDeepSeek, host: "deepseek" },
+        { label: language === "zh-CN" ? "安装 Claude Code Adapter" : "Install Claude Code Adapter", host: "claude" },
         { label: messages.installAll, host: "all" },
         { label: messages.manage, host: null },
         ...(supportsDesktopPet(platform, arch) ? [
@@ -182,7 +183,7 @@ export async function promptForRequest({
       }
       const options = [operation, "--host", host];
       if (operation === "factory-reset") options.push("--all-known-profiles");
-      else if (host !== "codex") {
+      else if (["deepseek", "all"].includes(host)) {
         const profiles = observation?.targets?.filter(t => t.host === "deepseek").map(t => t.profile) ?? [];
         if (profiles.length) output.write(`${zh ? "已知 Profile" : "Known Profiles"}: ${profiles.join(", ")}\n`);
         const prompt = zh ? "DeepSeek Profile [web]，输入 * 选择全部，0 返回：" : "DeepSeek Profile [web], * for all, 0 to go back: ";
@@ -223,7 +224,7 @@ export function renderHelp(operation = null, language = "en") {
   return ["Dev Flow", "", ...operations.map(value => `  dev-flow ${value} — ${operationDescription(value, language)}`),
     "", "  dev-flow webui start|open|status|stop [--plain|--json]", "  dev-flow pet start|stop", "  dev-flow version", "",
     zh ? "生命周期参数：" : "Lifecycle options:",
-    "  --host codex|deepseek|all", "  --profile <name>  --all-known-profiles",
+    "  --host codex|deepseek|claude|all", "  --profile <name>  --all-known-profiles",
     "  --version latest|<x.y.z>  --confirm-downgrade <token>",
     "  --yes  --plain  --json  --help", "  --adopt (install/repair, DeepSeek)",
     "  factory-reset: --confirm-reset <token> [--reinstall]",

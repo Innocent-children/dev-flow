@@ -203,26 +203,27 @@ Host-specific instructions and helpers are maintained in:
 
 - Codex: `packages/codex/plugin/skills/dev-flow/`;
 - DeepSeek: `packages/deepseek/skills/dev-flow/`.
+- Claude Code: `packages/claude/plugin/skills/dev-flow/`.
 
-The two Host directories each contain an authored `SKILL.md` entrypoint, Host-specific references
+The three Host directories each contain an authored `SKILL.md` entrypoint, Host-specific references
 and helpers, and generated Core reference copies. Files marked `Generated from skills/dev-flow/core/`
 are generated copies; edit their shared source instead of editing either package copy by hand.
 Keep shared Core semantics in the shared source and actual Host authorization, workspace operations,
 tool invocation and response transport in the corresponding adapter instructions. Every interaction
 rule and example must be grounded in the current implementation; document Host limitations accurately.
 
-After changing shared content, regenerate both package copies from the repository root:
+After changing shared content, regenerate all three package copies from the repository root:
 
 ```bash
 node scripts/sync-skill-references.mjs
 node scripts/sync-skill-references.mjs --check
 ```
 
-Include the shared-source changes and both generated outputs in the same change. When adding,
+Include the shared-source changes and all generated outputs in the same change. When adding,
 moving or removing references or helpers, update their links, package manifests, staging lists and
-affected checks together. Verify that both installed packages contain their complete references
+affected checks together. Verify that all installed Host packages contain their complete references
 without depending on the repository's shared directory. Validate shared examples against the current
-Core contracts for both Hosts, and Host-specific examples against their actual adapter interfaces.
+Core contracts for all three Hosts, and Host-specific examples against their actual adapter interfaces.
 
 ## Product Feature Proposals
 

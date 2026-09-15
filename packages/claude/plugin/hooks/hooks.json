@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/bin/dev-flow-claude.mjs",
+              "hook",
+              "pre-tool-use"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+

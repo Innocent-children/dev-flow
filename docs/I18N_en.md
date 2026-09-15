@@ -1,5 +1,7 @@
 # Dev Flow Documentation Internationalization
 
+The Claude Code guide is maintained in docs/CLAUDE.md and docs/CLAUDE_en.md; its package README links both versions.
+
 [中文](I18N.md) | [English](I18N_en.md)
 
 ## Scope

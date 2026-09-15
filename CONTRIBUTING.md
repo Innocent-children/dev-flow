@@ -79,7 +79,7 @@ Before implementation, a proposal must answer clearly:
 2. Is it based on Task, Action, repository observation, or retained records rather than only the
    agent's narrative?
 3. Does it reduce the user's effort to judge current state and next step?
-4. Can we repeat the full workflow in an actual Codex or DeepSeek session?
+4. Can we repeat the full workflow in an actual Codex, DeepSeek or Claude Code session?
 5. Does it retain one Core Task state?
 6. Does it add unnecessary process steps?
 7. Does it solve a task problem, or only add another platform, Host, or interface?
@@ -173,7 +173,7 @@ pnpm run validate
 ```
 
 Each complete-suite run needs a reason tied to the change. Report simulations, static checks, and
-user-performed checks separately from automated tests of the final package in actual Codex or DeepSeek.
+user-performed checks separately from automated tests of the final package in actual Codex, DeepSeek or Claude Code.
 
 ## Pull request requirements
 

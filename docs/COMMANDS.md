@@ -1,5 +1,31 @@
 # Dev Flow 命令参考
 
+## Claude Code 命令（源码包）
+
+Claude 入口由 `packages/claude/bin/dev-flow-claude.mjs` 和 `lib/workspace.mjs` 定义；尚未发布稳定 npm 包。统一 lifecycle 增加 `--host claude`，`all` 包含 Claude。当前 Core Host 字段接受 `codex`、`deepseek`、`claude`。
+
+| 命令 | 输入与结果 |
+| --- | --- |
+| `dev-flow-claude status/setup/remove --json` | 检查、注册或移除用户范围插件；JSON 包含 operation/status/changed，普通维护保留数据 |
+| `dev-flow-claude mcp` | 启动本机 stdio Core，传递统一数据目录 |
+| `dev-flow-claude artifacts collect/prepare` | 闭合 JSON stdin；完整 ok/result 或 ok/error 输出，失败退出非零 |
+| `dev-flow-claude host-check pre-file-write/workspace-available` | 内部范围或占用检查；不替代用户决定 |
+| `dev-flow-claude hook pre-tool-use` | Claude 原始事件 stdin；拒绝返回 permissionDecision=deny，失败退出 2 |
+| `dev-flow-claude host-launch inspect` | request、repositories[{key,repository_path}]；返回完整评估锚点 |
+| `dev-flow-claude host-launch prepare` | request、assessment、user_choice、repositories、handoff；返回 launch_id 和准备记录 |
+| `dev-flow-claude host-launch provision/status/scope` | {launch_id}；分别准备所有仓库、读记录、返回经核对的 Core 创建范围 |
+| `dev-flow-claude host-launch launch/resume` | {launch_id}；返回原始 executable/arguments/cwd/session_id，由 Host 在交互终端执行 |
+| `dev-flow-claude host-launch record-session` | launch_id、实际 session_id；核对并保存已观察会话 |
+| `dev-flow-claude host-launch bind-task` | launch_id、成功 Core 响应中的 task_id；仅保存身份，供跨会话和迁移恢复，不保存流程游标 |
+| `dev-flow-claude host-launch retry-launch` | launch_id、previous_caller_stopped=true、session_not_started=true、reason；仅依据已核对的未启动事实重用原会话 UUID |
+| `dev-flow-claude host-launch relocate` | launch_id、Core relocation_id、全部 destinations[{repository_key,repository_path}]、authorized；移动后仍需 Core 核验 |
+| `dev-flow-claude host-launch cleanup-worktree/cleanup-branch` | launch_id、repository_key、terminal、authorized；分别单独授权，非强制删除 |
+
+prepare 的 repositories 每项必须包含 key、repository_path、workspace_mode、source_type、remote_name、base_branch、target_branch、carry_changes、worktree_path。三种 mode 为 new_branch/current_branch/dedicated_worktree。assessment 包含影响面、验证、未知项和 inspect 原始 anchor；user_choice 必须是用户实际选择。助手只接受闭合 UTF-8 JSON 对象，最多 1 MiB；Host 操作成功输出直接结果，异常退出非零，不能把它当作 Core envelope。
+
+Claude selector 为 `/dev-flow-claude:dev-flow <任务描述>`。`CLAUDE_CONFIG_DIR` 控制 Claude 设置目录；`DEV_FLOW_DATA_DIR` 必须为已有规范绝对目录并在所有入口一致。安装、恢复及权限细节见 [Claude 指南](CLAUDE.md)。
+
+
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
 > 普通用户通常只需要安装统一入口、运行 `dev-flow`，并在 Host 中使用对应 selector。其余命令
@@ -38,7 +64,7 @@ dev-flow
 ```
 
 支持的子命令为 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和
-`factory-reset`。Host 选择为 `codex|deepseek|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
+`factory-reset`。Host 选择为 `codex|deepseek|claude|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
 修复和重装保留用户配置与 Task 数据；`factory-reset` 要求绑定当前计划的 token，`--yes` 不能单独
 授权数据清理。默认清理在 macOS 移动到用户 Trash，在 Windows 移动到
 `%LOCALAPPDATA%\dev-flow\trash` 的可恢复隔离目录；Windows 目标不是系统回收站。永久删除还需

@@ -139,7 +139,7 @@ func TestHandshakeRejectsNonObjectArgumentsWithDetail(t *testing.T) {
 }
 
 func TestHistoryResolutionReportsEachInvalidMember(t *testing.T) {
-	for _, host := range []string{"codex", "deepseek"} {
+	for _, host := range []string{"codex", "deepseek", "claude"} {
 		for _, tc := range []struct {
 			name, choice, reason string
 			paths                []string
