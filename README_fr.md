@@ -12,7 +12,7 @@
 
 ## Ce que Dev Flow vous permet de faire
 
-Dev Flow vous aide à gérer de longues tâches de programmation avec IA dans Codex ou DeepSeek.
+Dev Flow vous aide à gérer de longues tâches de programmation avec IA dans Codex, DeepSeek ou Claude Code.
 Il enregistre localement les exigences convenues, le périmètre des fichiers, le plan de vérification,
 l’avancement et les résultats pour poursuivre le travail après la fin d’une session.
 
@@ -23,48 +23,43 @@ l’avancement et les résultats pour poursuivre le travail après la fin d’un
 
 Il convient aux travaux sur un dépôt qui s’étendent sur plusieurs sessions ou nécessitent des limites
 claires de fichiers et de tests. Pour les questions ponctuelles, les explications de code et les petites
-modifications sans suivi persistant, utiliser directement Codex ou DeepSeek est généralement plus simple.
-
-## Claude Code
-
-La version source comprend aussi un Adapter local pour Claude Code. Installez-le depuis ce dépôt avec la commande ci-dessous, puis envoyez `/dev-flow-claude:dev-flow <description de la tâche>` dans Claude. Il couvre le processus existant, les modes d’espace de travail et les opérations sur plusieurs dépôts. Cet Adapter n’est pas encore publié ; les vérifications du Host réel et de chaque plateforme sont consignées séparément.
-
-```sh
-pnpm dev-flow:local -- install --host claude --yes
-```
-
-[Guide](docs/CLAUDE_en.md)
+modifications sans suivi persistant, utiliser directement Codex, DeepSeek ou Claude Code est généralement plus simple.
 
 ## Démarrage rapide
 
-> La version stable npm `@latest` est actuellement vérifiée sur macOS arm64. Utilisez Node.js `>=24`
-> et installez d’abord une version compatible de Codex ou DeepSeek Harness. Consultez les versions des
-> applications hôtes et les autres environnements dans la [matrice de support](docs/SUPPORT-MATRIX_en.md).
+> Installez Node.js `>=24` et le Host choisi. Consultez les versions requises et les plateformes vérifiées dans la [matrice de support](docs/SUPPORT-MATRIX_en.md).
 
 ### 1. Installer Dev Flow
 
-```bash
+L’installation publique ci-dessous concerne les intégrations publiées de Codex et DeepSeek. Pour Claude Code, suivez le [guide d’installation depuis les sources](docs/CLAUDE_en.md) ; l’ancienne CLI publique n’installe pas un Adapter disponible uniquement dans les sources.
+
+```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Choisissez Codex, DeepSeek ou les deux dans la configuration interactive, puis suivez les instructions de l’installateur :
-
-- **Codex:** ouvrez `/hooks`, examinez le hook Dev Flow et approuvez-le pour activer les contrôles avant écriture pris en charge.
-- **DeepSeek Harness:** redémarrez le Profile DSH sélectionné après l’installation.
+Choisissez votre Host parmi les options de l’installateur utilisé. Dans Codex, examinez et autorisez le hook Dev Flow dans `/hooks` ; dans DeepSeek, redémarrez le Profile sélectionné. Dans Claude Code, rechargez les plugins ou ouvrez une nouvelle conversation, puis examinez les permissions demandées.
 
 ### 2. Démarrer une tâche
 
-Envoyez ce message dans **Codex** :
+Après l’installation correspondante, envoyez l’un de ces messages dans la conversation du Host :
+
+**Codex**
 
 ```text
 $dev-flow-codex:dev-flow Ajoutez une limitation de fréquence aux échecs de connexion. Modifiez uniquement les fichiers d'authentification et exécutez au plus 4 contrôles ciblés.
 ```
 
-Ou dans **DeepSeek Harness** :
+**DeepSeek Harness**
 
 ```text
 /dev-flow Ajoutez une limitation de fréquence aux échecs de connexion. Modifiez uniquement les fichiers d'authentification et exécutez au plus 4 contrôles ciblés.
+```
+
+**Claude Code**
+
+```text
+/dev-flow-claude:dev-flow Ajoutez une limitation de fréquence aux échecs de connexion. Modifiez uniquement les fichiers d'authentification et exécutez au plus 4 contrôles ciblés.
 ```
 
 Envoyez ces messages dans la conversation, pas dans un terminal. Précisez l’objectif, les critères
@@ -78,7 +73,7 @@ session continue si elle peut accéder à tous les répertoires concernés.
 
 Vous pouvez aussi choisir explicitement la branche actuelle ou un worktree Git dédié. Pour un worktree,
 précisez également la source locale ou distante et la branche de départ. Codex ouvre le nouveau
-répertoire si l’hôte le permet ; DeepSeek fournit la commande de redémarrage correspondante.
+répertoire si l’hôte le permet ; DeepSeek et Claude Code fournissent la commande de redémarrage correspondante.
 
 Un répertoire ne peut accueillir qu’une seule Task active. Les modifications manuelles ou provenant
 d’autres outils sont également observées, et changer de branche pendant la tâche suspend le processus.
@@ -95,6 +90,10 @@ en pause jusqu’à sa restauration ou jusqu’à ce que vous l’abandonniez ex
 
 Dans DeepSeek Harness, incluez `/dev-flow` dans le message demandant de reprendre la tâche.
 
+Dans Claude, rouvrez le répertoire et la conversation d’origine, puis demandez explicitement la reprise de la tâche enregistrée avec `/dev-flow-claude:dev-flow`.
+
+Ces commandes utilisent le gestionnaire global installé. Pour une installation depuis les sources, utilisez l’entrée correspondante du guide.
+
 ```bash
 # Consulter les intégrations installées
 dev-flow status --host all
@@ -108,7 +107,9 @@ et la suppression, consultez la [référence des commandes](docs/COMMANDS_en.md)
 
 ## Mascotte de bureau
 
-La mascotte affiche plusieurs tâches dans des bulles superposées et ouvre la WebUI de chacune. Elle donne la priorité aux tâches bloquées et passe automatiquement à une tâche inachevée lorsque la tâche actuelle se termine ; vous pouvez aussi épingler une tâche. Vous pouvez personnaliser son apparence, contrôler les animations, modifier sa taille et la démarrer ou l’arrêter indépendamment. Terminez d’abord l’installation et la configuration de Codex ou DeepSeek décrites ci-dessus.
+La mascotte nécessite un Adapter configuré et l’application de bureau installée. L’installation du seul Adapter Claude n’installe pas cette application.
+
+La mascotte affiche plusieurs tâches dans des bulles superposées et ouvre la WebUI de chacune. Elle donne la priorité aux tâches bloquées et passe automatiquement à une tâche inachevée lorsque la tâche actuelle se termine ; vous pouvez aussi épingler une tâche. Vous pouvez personnaliser son apparence, contrôler les animations, modifier sa taille et la démarrer ou l’arrêter indépendamment.
 
 ```bash
 dev-flow pet start
@@ -129,7 +130,7 @@ son worktree. Ces opérations nécessitent une autorisation distincte de votre p
 
 ## Documentation
 
-- **Utilisation :** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commandes](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Utilisation :** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [Commandes](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **Projet :** [Définition du produit](docs/PRODUCT_en.md) · [Matrice de support](docs/SUPPORT-MATRIX_en.md) · [Sécurité](SECURITY.md)
 - **Développement et contributions :** [Index de documentation](MANIFEST_en.md) · [Guide de contribution](CONTRIBUTING.md)
 

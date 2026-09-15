@@ -2,27 +2,10 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_最后核对：2026 年 9 月 14 日。_
+_最后核对：2026 年 9 月 15 日。_
 
 Dev Flow 仍是一个早期开源项目。本页区分已经稳定发布、只在 beta 或源码中出现、尚未验证，以及
 产品仍需改进的内容。源码可构建或测试通过不会自动扩大稳定支持。
-
-## Claude Code 源码适配验证
-
-本轮完成 Claude Code 的源码适配及三 Adapter 分发接入，尚未发布到稳定 npm 通道。验证环境为 Windows x64、Claude Code 2.1.270、Node.js 24 以上和 Go 1.27.0。
-
-| 检查 | 实际结果与范围 |
-| --- | --- |
-| Claude Adapter | 10 项通过；覆盖三种工作区模式、本地与远端来源、携带暂存/未暂存/新增内容、多仓库部分失败、实例替换、会话身份、迁移及独立清理授权 |
-| 统一管理器与构建 | 95 项定向检查通过；包含原生 Windows Claude-only Core 发现、菜单、安装维护、残留注册、配置保留及源码打包规则 |
-| 共享 Git 操作 | 48 项 Codex/DeepSeek 相关回归通过；LF fixture 使用仅对测试进程生效的 core.autocrlf=false，全局 Git 配置不变 |
-| Core | domain/application/mcp/userconfig/CLI 定向检查通过；第三 Host fixture 修正后公开契约检查通过 |
-| 仓库观察 | 原有回归、300 文件场景及 SHA-1/SHA-256 原始 blob 与 Git 对照通过；实际任务产物收集从 30 秒超时恢复到约 1.12 秒 |
-| Windows 最终包 | 完整桌面源码包构建成功，内含三个 Adapter；摘要回读通过，Claude 包由真实 CLI 安装，缓存逐文件一致，重复安装无变化，包内 Core 握手通过，卸载保留无关配置且可重复执行 |
-| 文档 | 根 README 九语言同步、共享 Skill 三端生成一致、版本检查与链接检查通过 |
-
-验证限制：未执行已认证的 Claude 模型开发会话；本机认证状态为未登录。macOS 仅构建对应 Core，没有原生运行验收。扩大的初次检查在 Windows 上遇到未改动的 macOS 宠物测试失败和两个 Codex handoff 路径字符串断言失败；最终共享回归选择的是受本次修改影响的操作，不将这些失败抹去或称为全仓库通过。原生安装验证入口为 tests/claude/verify-package.mjs，逐项结果必须和真实模型会话、模拟接口测试分开理解。
-
 
 ## 已稳定发布
 
@@ -60,6 +43,24 @@ npm `@latest` 当前选择以下稳定 package：
 
 多仓库与 worktree 是高级能力，不代表 Dev Flow 的主要用户场景。它们的源码存在也不表示已有对应
 稳定最终安装包的完整流程测试。
+
+## 验证记录
+
+### 2026-09-14：Windows 源码产物
+
+产物：包含 Codex、DeepSeek 和 Claude Adapter 的本地 Windows 桌面分发包。环境：Windows x64、Claude Code 2.1.270、Node.js >=24、Go 1.27.0。该产物不是稳定 npm 发布。
+
+| 检查 | 实际结果与范围 |
+| --- | --- |
+| Claude Adapter | 10 项通过；覆盖三种工作区模式、本地与远端来源、携带暂存/未暂存/新增内容、多仓库部分失败、实例替换、会话身份、迁移及独立清理授权 |
+| 统一管理器与构建 | 95 项定向检查通过；包含原生 Windows Claude-only Core 发现、菜单、安装维护、残留注册、配置保留及源码打包规则 |
+| 共享 Git 操作 | 48 项 Codex/DeepSeek 相关回归通过；LF fixture 使用仅对测试进程生效的 core.autocrlf=false，全局 Git 配置不变 |
+| Core | domain/application/mcp/userconfig/CLI 定向检查通过；公开契约检查通过 |
+| 仓库观察 | 原有回归、300 文件场景及 SHA-1/SHA-256 原始 blob 与 Git 对照通过；实际任务产物收集约 1.12 秒，在既有 30 秒期限内完成 |
+| Windows 最终包 | 完整桌面源码包构建成功，内含三个 Adapter；摘要回读通过，Claude 包由真实 CLI 安装，缓存逐文件一致，重复安装无变化，包内 Core 握手通过，卸载保留无关配置且可重复执行 |
+| 文档 | 根 README 九语言同步、共享 Skill 三端生成一致、版本检查与链接检查通过 |
+
+验证限制：未执行已认证的 Claude 模型开发会话；本机认证状态为未登录。macOS 仅构建对应 Core，没有原生运行验收。Windows 上的其他检查包括未改动的 macOS 宠物测试失败和两个 Codex handoff 路径字符串断言失败；表中通过范围不包含这些测试，不代表全仓库通过。原生安装验证入口为 tests/claude/verify-package.mjs，逐项结果必须和真实模型会话、模拟接口测试分开理解。
 
 ## 尚未验证
 

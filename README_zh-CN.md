@@ -12,7 +12,7 @@
 
 ## Dev Flow 能帮你做什么
 
-Dev Flow 帮助你在 Codex 或 DeepSeek 中管理长时间运行的 AI 编程任务。它在本机保存已确定的
+Dev Flow 帮助你在 Codex、DeepSeek 或 Claude Code 中管理长时间运行的 AI 编程任务。它在本机保存已确定的
 需求、文件范围、验证计划、进度和结果，方便会话中断后继续工作。
 
 - **明确改动范围：** 记录预计修改的文件，并按计划检查实际改动。
@@ -21,57 +21,53 @@ Dev Flow 帮助你在 Codex 或 DeepSeek 中管理长时间运行的 AI 编程�
 - **查看结果：** 查看当前进度、检查结果，以及任务需要处理的问题。
 
 适合跨会话、需要明确文件范围和测试投入的仓库任务。一次性问答、代码解释和不需要保存进度的
-小型修改，直接使用 Codex 或 DeepSeek 通常更简单。
-
-## Claude Code
-
-源码版本也提供本机 Claude Code Adapter。在本仓库运行下方命令安装，然后在 Claude 中发送 `/dev-flow-claude:dev-flow <任务描述>`。适配覆盖现有流程、工作区模式和多仓库操作。此 Adapter 尚未发布，真实 Host 与平台验证单独记录。
-
-```sh
-pnpm dev-flow:local -- install --host claude --yes
-```
-
-[使用指南](docs/CLAUDE.md)
+小型修改，直接使用 Codex、DeepSeek 或 Claude Code 通常更简单。
 
 ## 快速开始
 
-> 稳定 npm `@latest` 目前已验证 macOS arm64。请使用 Node.js `>=24`，并提前安装受支持的
-> Codex 或 DeepSeek Harness。Host 版本要求和其他环境状态见[支持矩阵](docs/SUPPORT-MATRIX.md)。
+> 使用 Node.js `>=24`，并先安装所使用的 Host。版本要求和已验证平台见[支持矩阵](docs/SUPPORT-MATRIX.md)。
 
 ### 1. 安装 Dev Flow
 
-```bash
+下方公开安装入口用于已发布的 Codex、DeepSeek 集成。Claude Code 请按[源码安装指南](docs/CLAUDE.md)操作；旧版公开 CLI 不会安装仅在源码中提供的 Adapter。
+
+```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-在交互界面中选择 Codex、DeepSeek 或两者，并完成安装器提示的操作：
-
-- **Codex:** 打开 `/hooks`，检查并信任 Dev Flow hook，启用受支持的写入前检查。
-- **DeepSeek Harness:** 安装后重启所选 DSH Profile。
+在所用安装入口中选择对应 Host。Codex 安装后在 `/hooks` 中检查并信任 Dev Flow hook；DeepSeek 重启所选 Profile；Claude Code 重载插件或开始新会话，并按提示审阅权限。
 
 ### 2. 启动任务
 
-在 **Codex** 中发送：
+完成对应安装后，在所用 Host 的对话中发送以下消息之一：
+
+**Codex**
 
 ```text
 $dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
 ```
 
-或者在 **DeepSeek Harness** 中发送：
+**DeepSeek Harness**
 
 ```text
 /dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
 ```
 
-这两条消息发送到对话中，不在终端执行。尽量写清目标、验收条件、文件范围和测试上限。
+**Claude Code**
+
+```text
+/dev-flow-claude:dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
+```
+
+这些消息发送到对话中，不在终端执行。尽量写清目标、验收条件、文件范围和测试上限。
 
 首次回复会评估请求，并询问直接开发还是使用 Dev Flow。选择 Dev Flow 后，默认从当前 HEAD
 在当前目录新建任务分支。确认新分支及是否将已有未提交修改纳入任务；现有依赖、本地配置、文件和
 暂存状态保留。当前会话能访问全部参与目录时，直接在原会话继续。
 
 你也可以明确选择使用当前分支，或创建独立 Git 工作树。独立工作树还需选择本地或远端来源及起始
-分支；Codex 在宿主支持时打开新目录，DeepSeek 提供相应的重新启动命令。
+分支；Codex 在宿主支持时打开新目录，DeepSeek 和 Claude Code 提供相应的重新启动命令。
 
 同一目录只能有一个活动 Task。手工或其他工具的本地编辑也会被观察，任务中切分支会暂停流程。
 本地目录和分支在任务结束后保留；开始下一任务时仍需明确未提交修改的归属。
@@ -85,6 +81,10 @@ $dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件�
 
 在 DeepSeek Harness 中，继续任务的消息也要带上 `/dev-flow`。
 
+Claude 用户应回到原工作目录和会话，使用 `/dev-flow-claude:dev-flow` 明确继续已保存的任务。
+
+下列命令使用已安装的全局管理器；源码体验请使用指南中的对应入口。
+
 ```bash
 # 查看已安装的集成
 dev-flow status --host all
@@ -97,7 +97,9 @@ dev-flow webui start
 
 ## 桌面宠物
 
-桌面宠物通过叠加气泡展示多个任务，并可分别打开对应 WebUI。它优先展示受阻任务，当前任务完成后自动关注其他未完成任务，也支持固定关注。你可以自定义形象、控制动画、调整大小，以及独立启动或停止宠物。使用前先完成上面的安装与 Codex 或 DeepSeek 配置。
+宠物需要已配置的 Adapter 和已安装的桌面应用。仅安装 Claude Adapter 不会安装桌面应用。
+
+桌面宠物通过叠加气泡展示多个任务，并可分别打开对应 WebUI。它优先展示受阻任务，当前任务完成后自动关注其他未完成任务，也支持固定关注。你可以自定义形象、控制动画、调整大小，以及独立启动或停止宠物。
 
 ```bash
 dev-flow pet start
@@ -115,7 +117,7 @@ dev-flow pet stop
 
 ## 文档
 
-- **使用说明：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [命令参考](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)
+- **使用说明：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [Claude Code](docs/CLAUDE.md) · [命令参考](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)
 - **项目资料：** [产品定义](docs/PRODUCT.md) · [支持矩阵](docs/SUPPORT-MATRIX.md) · [安全策略](SECURITY.md)
 - **开发与贡献：** [文档目录](MANIFEST.md) · [贡献指南](CONTRIBUTING_zh-CN.md)
 

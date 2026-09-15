@@ -22,7 +22,7 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终安装包验证�
 
 缺陷报告请尽量包含：
 
-- 使用的产品与版本，例如 Core、`dev-flow-codex` 或 `dev-flow-deepseek`；
+- 使用的产品与版本，例如 Core、`dev-flow-codex`、`dev-flow-deepseek` 或 `dev-flow-claude`；
 - 操作系统、CPU、Node.js 与 Host 版本；
 - 最小复现步骤；
 - 预期结果与实际结果；
@@ -152,7 +152,7 @@ pnpm run validate
 ```
 
 每次完整测试都应有与改动相关的理由。模拟测试、静态检查和用户手工验证的结果，必须与实际
-Codex / DeepSeek 中对最终安装包的自动化测试结果分别说明。
+Codex / DeepSeek / Claude Code 中对最终安装包的自动化测试结果分别说明。
 
 ## Pull Request 要求
 

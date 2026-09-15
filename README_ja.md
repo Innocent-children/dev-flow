@@ -12,7 +12,7 @@
 
 ## Dev Flow でできること
 
-Dev Flow は、Codex や DeepSeek で長時間の AI コーディング作業を管理するためのツールです。
+Dev Flow は、Codex、DeepSeek、Claude Code で長時間の AI コーディング作業を管理するためのツールです。
 合意した要件、ファイル範囲、検証計画、進捗、結果をローカルに保存し、セッションが終わっても作業を続けられます。
 
 - **変更範囲を明確にする：** 変更予定のファイルを記録し、実際の変更を計画と照合します。
@@ -21,48 +21,43 @@ Dev Flow は、Codex や DeepSeek で長時間の AI コーディング作業を
 - **結果を確認する：** 進捗、検証結果、対応が必要な問題を確認できます。
 
 複数のセッションにまたがる作業や、ファイル範囲とテスト量を明確にしたいリポジトリ作業に向いています。
-一度きりの質問、コードの説明、進捗保存が不要な小さな変更は、Codex や DeepSeek を直接使う方が簡単です。
-
-## Claude Code
-
-ソース版にはローカルの Claude Code Adapter も含まれます。このリポジトリで以下のコマンドを実行し、Claude に `/dev-flow-claude:dev-flow <タスクの説明>` を送信してください。既存の開発フロー、作業領域モード、複数リポジトリ操作に対応します。未公開の Adapter のため、実際の Host と各プラットフォームの検証結果は別途記録します。
-
-```sh
-pnpm dev-flow:local -- install --host claude --yes
-```
-
-[利用ガイド](docs/CLAUDE_en.md)
+一度きりの質問、コードの説明、進捗保存が不要な小さな変更は、Codex、DeepSeek、Claude Code を直接使う方が簡単です。
 
 ## クイックスタート
 
-> npm の安定版 `@latest` は、現在 macOS arm64 で検証済みです。Node.js `>=24` と、対応する
-> Codex または DeepSeek Harness を先にインストールしてください。宿主のバージョン要件と他の環境は
-> [サポート一覧](docs/SUPPORT-MATRIX_en.md)を参照してください。
+> Node.js `>=24` と利用する Host を先にインストールしてください。必要なバージョンと検証済み環境は[サポート表](docs/SUPPORT-MATRIX_en.md)を参照してください。
 
 ### 1. Dev Flow をインストールする
 
-```bash
+以下の公開パッケージは、公開済みの Codex と DeepSeek の連携用です。Claude Code は[ソースからのインストール手順](docs/CLAUDE_en.md)を利用してください。従来の公開 CLI では、ソース版のみの Adapter はインストールされません。
+
+```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-対話形式の設定で Codex、DeepSeek、または両方を選び、インストーラーの案内に従います。
-
-- **Codex:** `/hooks` を開き、Dev Flow の hook を確認して信頼すると、対応する書き込み前チェックが有効になります。
-- **DeepSeek Harness:** インストール後、選択した DSH Profile を再起動します。
+利用するインストーラーの選択肢から対応する Host を選びます。Codex は `/hooks` で Dev Flow hook を確認して信頼し、DeepSeek は選択した Profile を再起動します。Claude Code はプラグインを再読み込みするか新しい会話を開始し、権限の案内を確認してください。
 
 ### 2. 作業を開始する
 
-**Codex** では、次のメッセージを送信します。
+対応するインストールを完了してから、Host の会話に次のいずれかを送信してください。
+
+**Codex**
 
 ```text
 $dev-flow-codex:dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
 ```
 
-**DeepSeek Harness** では、次を送信します。
+**DeepSeek Harness**
 
 ```text
 /dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
+```
+
+**Claude Code**
+
+```text
+/dev-flow-claude:dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
 ```
 
 これらはターミナルではなく会話に送信します。目標、受け入れ条件、ファイル範囲、テスト上限を具体的に記載してください。
@@ -74,7 +69,7 @@ $dev-flow-codex:dev-flow ログイン失敗のレート制限を追加してく�
 
 現在のブランチをそのまま使うか、専用の Git 作業ツリーを作成することも明示的に選べます。専用作業ツリーでは
 ローカルまたはリモートのソースと開始ブランチも指定します。Codex は宿主が対応していれば新しいディレクトリを
-開き、DeepSeek は必要な再起動コマンドを案内します。
+開き、DeepSeek と Claude Code は必要な再起動コマンドを案内します。
 
 同じディレクトリで実行できる Task は一つです。手動や他のツールによる変更も確認対象となり、タスク中の
 ブランチ切り替えは進行を一時停止します。完了後もローカルのディレクトリとブランチを残します。次のタスクを
@@ -89,6 +84,10 @@ $dev-flow-codex:dev-flow ログイン失敗のレート制限を追加してく�
 
 DeepSeek Harness では、再開を依頼するメッセージにも `/dev-flow` を含めてください。
 
+Claude では元の作業ディレクトリと会話を開き、`/dev-flow-claude:dev-flow` で保存済みタスクの再開を明示してください。
+
+以下はインストール済みのグローバル管理コマンドです。ソース版では、ガイドに記載された対応する入口を使ってください。
+
 ```bash
 # インストール済みの連携を確認
 dev-flow status --host all
@@ -102,7 +101,9 @@ dev-flow webui start
 
 ## デスクトップペット
 
-デスクトップペットは複数のタスクを重ねた吹き出しで表示し、それぞれの WebUI を開けます。ブロック中のタスクを優先し、完了後は別の未完了タスクに自動で切り替わります。特定のタスクを固定することもできます。外観の変更、アニメーションの制御、サイズ変更、個別の起動と停止に対応しています。利用前に、上記のインストールと Codex または DeepSeek の設定を完了してください。
+ペットには、設定済みの Adapter とインストール済みのデスクトップアプリが必要です。Claude Adapter だけをインストールしても、デスクトップアプリは入りません。
+
+デスクトップペットは複数のタスクを重ねた吹き出しで表示し、それぞれの WebUI を開けます。ブロック中のタスクを優先し、完了後は別の未完了タスクに自動で切り替わります。特定のタスクを固定することもできます。外観の変更、アニメーションの制御、サイズ変更、個別の起動と停止に対応しています。
 
 ```bash
 dev-flow pet start
@@ -120,7 +121,7 @@ dev-flow pet stop
 
 ## ドキュメント
 
-- **使い方：** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [コマンド](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **使い方：** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [コマンド](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **プロジェクト：** [製品定義](docs/PRODUCT_en.md) · [サポート一覧](docs/SUPPORT-MATRIX_en.md) · [セキュリティ](SECURITY.md)
 - **開発と貢献：** [ドキュメント一覧](MANIFEST_en.md) · [貢献ガイド](CONTRIBUTING.md)
 

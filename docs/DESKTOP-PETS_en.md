@@ -8,7 +8,7 @@ updating the program and artwork, animation rules, pack creation, and troublesho
 
 ## Environment and delivery
 
-The desktop component targets macOS arm64 (Apple Silicon) and Windows 10/11 x64 and requires at least one installed and configured Codex or DeepSeek Adapter to provide Core.
+The desktop component targets macOS arm64 (Apple Silicon) and Windows 10/11 x64 and requires at least one installed and configured Codex, DeepSeek or Claude Code Adapter to provide Core.
 The Swift Package and app metadata target macOS 14; actual minimum-system operation, Developer ID signing, and Apple notarization have not completed
 formal distribution verification. See the [support matrix](SUPPORT-MATRIX_en.md#desktop-pet-functional-checks) for the verified scope.
 
@@ -88,7 +88,6 @@ dev-flow pet start
 Choose the configured Host; DeepSeek uses `--host deepseek --profile <name>`. `install`, `upgrade`, `repair` and `reinstall` include a pet update even when the Adapter itself needs no changes. The plan lists that operation before confirmation. It stops the running pet, stages the new application, and replaces only the application directory. A stop or copy failure stops maintenance; a staging failure preserves the previous application. Settings and imported appearances remain in their separate directories.
 
 Installing the npm package alone updates its bundled application. Refresh an existing user-directory copy with the maintenance command above. Reimport an appearance from its source folder to update artwork; application updates do not invent missing animations.
-
 
 ## Default appearance and external artwork
 

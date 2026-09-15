@@ -1,10 +1,5 @@
 # Dev Flow 支持矩阵
 
-## Claude Code 源码适配
-
-Claude Adapter 尚未发布到稳定 npm 通道。源码目标为 Windows x64 和 macOS arm64，要求 Node.js >=24。真实 Claude 会话、插件缓存加载、权限 Hook 与原生平台验收仍须分别记录；源码实现、模拟接口测试或交叉编译不构成原生支持证明。使用入口见 [Claude 指南](CLAUDE.md)。
-
-
 [中文](SUPPORT-MATRIX.md) | [English](SUPPORT-MATRIX_en.md)
 
 本页只回答一个问题：**哪个公开 package 已经在哪个环境完成验证？**
@@ -39,6 +34,17 @@ npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接�
 
 新的源码能力或后续 beta 只有经过独立发布流程、下载核对 npm 安装包内容，并在实际宿主中测试最终安装包，才能扩大上方
 稳定支持声明。
+
+### Claude Code
+
+`release/public-versions.json` 尚未列入 Claude Adapter。本节记录源码范围，不扩大上方的稳定支持声明。
+
+| 平台 | 实现目标与构建 | 原生验证 | 未验证 |
+| --- | --- | --- | --- |
+| Windows x64 | 包含对应 Core 和 Claude Adapter | Claude CLI 插件安装、缓存核对、重复安装/移除；包内 Core 的独立 stdio 握手 | 已认证模型开发会话及从模型发起的完整工作流 |
+| macOS arm64 | 已生成对应 Core 二进制 | 未执行 | 原生插件安装、模型会话和完整工作流 |
+
+Adapter 要求 Node.js `>=24` 和 Claude Code `>=2.1.270`。安装方法见 [Claude 指南](CLAUDE.md)，日期、检查入口及其他限制见[验证记录](PROJECT-STATUS.md)。独立 Core 握手不等于模型已经调用插件工具。
 
 ## 尚未声明支持
 

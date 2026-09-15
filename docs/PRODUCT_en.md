@@ -114,12 +114,9 @@ Source capability does not establish stable-package support. Results apply only 
 
 See the [Support Matrix](SUPPORT-MATRIX_en.md) for stable support and unverified scope, and [Project Status](PROJECT-STATUS_en.md) for delivered capabilities and gaps. Protocols and implementation belong in [Architecture](ARCHITECTURE_en.md), and operation parameters in the [Command Reference](COMMANDS_en.md).
 
+## Host interaction
 
-## Host interaction references
-
-Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
-
-[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
+The Host translates developer requests into the shared task workflow. Permissions and session operations differ between Hosts; task state, completion conditions and recovery decisions remain Core-owned. See the [Codex guide](CODEX_en.md), [DeepSeek guide](DEEPSEEK_en.md) and [Claude guide](CLAUDE_en.md) for their actual operations.
 
 ## Acceptance with known failures
 

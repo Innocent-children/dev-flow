@@ -1,12 +1,5 @@
 # Dev Flow 架构
 
-## Claude Code Adapter
-
-`packages/claude/` 独立拥有 Claude 插件注册、MCP/Hook 传输、会话和启动记录。插件根是完整 package 根，缓存内包含 lib、bin、runtime 与 Skill；不得引用缓存外兄弟包。`packages/host-workspace/` 是 Git 观察、准备、快照的维护源，构建向各 Host 复制，不包含 Core 节点或 Claude/Codex 会话决策。
-
-Claude 的 Write/Edit/NotebookEdit 解析完整目标和原始输入摘要，再由 Core file_scope 判定。放行不覆盖 Host 权限。启动记录保存请求、来源、操作状态及 Claude 会话身份，不保存第二流程游标。独立工作树迁移保留部分操作结果，Core 最后核对全部新绑定。统一管理器由 `hosts/claude.mjs` 管理包和注册；runtime 读取 Claude 注册提供 WebUI/宠物使用的 Core。
-
-
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
 > 本文说明当前工作区与分支实现、协议和持久化。判断是否适合使用，请先读
@@ -343,9 +336,15 @@ verification plan、当前预算/消耗、调整原因和 cleanup choices。它�
   也不在源仓库内嵌套 worktree。
 - 多仓库 Task 要求所有 roots 全部 provision、授权和验证；任一失败时不创建部分 Task 或 claims。
 
+### Claude Code
+
+`packages/claude/` 独立拥有 Claude 插件注册、MCP/Hook 传输、会话和启动记录。插件根是完整 package 根，缓存内包含 lib、bin、runtime 与 Skill；不得引用缓存外兄弟包。`packages/host-workspace/` 是 Git 观察、准备、快照的维护源，构建向各 Host 复制，不包含 Core 节点或 Claude/Codex 会话决策。
+
+Claude 的 Write/Edit/NotebookEdit 解析完整目标和原始输入摘要，再由 Core file_scope 判定。放行不覆盖 Host 权限。启动记录保存请求、来源、操作状态及 Claude 会话身份，不保存第二流程游标。独立工作树迁移保留部分操作结果，Core 最后核对全部新绑定。统一管理器由 `hosts/claude.mjs` 管理包和注册；runtime 读取 Claude 注册提供 WebUI/宠物使用的 Core。
+
 ## 版本、构建和源码导航
 
-Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机器可读版本文件是 `CORE_VERSION`；npm
+Core、Codex、DeepSeek、Claude 和统一 lifecycle package 独立版本。Core 的机器可读版本文件是 `CORE_VERSION`；npm
 版本由各自 `package.json` 管理，普通产品改造不执行发布。Host package 按精确 runtime pair 携带
 `darwin-arm64/dev-flow` 与 `win32-x64/dev-flow.exe`。
 
@@ -358,7 +357,8 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 | `internal/store/` | current-only SQLite、codec、operations、events、claims |
 | `internal/mcp/` | 十七个工具、字段限制、工具属性和统一返回结构 |
 | `internal/webui/`, `packages/webui/` | loopback Adapter 与内嵌界面 |
-| `packages/codex/`, `packages/deepseek/` | 新请求评估、工作树创建、会话重启/交接和安装包 |
+| `packages/codex/`, `packages/deepseek/`, `packages/claude/` | 新请求评估、工作树创建、会话重启/交接和安装包 |
+| `packages/host-workspace/` | Git 观察、准备和快照助手的维护源；构建时复制到使用它的 Host 包 |
 | `protocol/fixtures/`, `tests/` | 公开接口规范、故障注入和宿主完整流程测试 |
 
 源码、机器可读 Schema、package manifest、CLI parser 和可执行测试是判断当前行为的依据。

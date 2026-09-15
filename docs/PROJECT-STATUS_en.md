@@ -2,28 +2,11 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_Last checked: September 14, 2026._
+_Last checked: September 15, 2026._
 
 Dev Flow remains an early open-source project. This page separates stable releases, beta or source
 capabilities, unverified claims, and product gaps. A buildable source tree or passing tests do not
 expand stable support automatically.
-
-## Claude Code source adaptation verification
-
-This change implements the Claude Code source Adapter and includes it in the three-Adapter distribution. It is not published to stable npm. Verification ran on Windows x64 with Claude Code 2.1.270, Node.js 24 or later and Go 1.27.0.
-
-| Check | Actual result and scope |
-| --- | --- |
-| Claude Adapter | 10 passed: three workspace modes, local/remote sources, staged/unstaged/untracked carry, partial multi-repository failure, replaced instances, session identity, relocation and separate cleanup authorization |
-| Manager and build | 95 targeted checks passed, including native Windows Claude-only Core discovery, menus, lifecycle, orphan registration, configuration retention and source packaging |
-| Shared Git operations | 48 relevant Codex/DeepSeek checks passed; LF fixtures use process-local core.autocrlf=false without changing global Git configuration |
-| Core | Targeted domain/application/mcp/userconfig/CLI checks passed; public contract checks passed after updating the third-Host fixture |
-| Repository observation | Existing regression checks, 300 changed files, and SHA-1/SHA-256 raw blob comparison against Git passed; actual Task artifact collection improved from a 30-second timeout to about 1.12 seconds |
-| Final Windows package | Complete desktop source package built with all three Adapters; digest readback passed, the real Claude CLI installed its package, cached files matched byte for byte, repeated setup made no changes, packaged Core handshake passed, and removal retained unrelated configuration and was repeatable |
-| Documentation | Nine root README locales synchronized, all three generated Skills consistent, version and link checks passed |
-
-Limits: no authenticated Claude model development session was executed; the local authentication status was logged out. The macOS Core was built but not executed natively. The initial broader Windows run encountered failures in unchanged macOS pet tests and two Codex handoff path-string assertions. Final shared regression checks target operations affected by this change; those earlier failures are not erased or reported as a passing repository-wide suite. The native installation entry is tests/claude/verify-package.mjs. Its results are distinct from actual model sessions and simulated interface tests.
-
 
 ## Stable releases
 
@@ -62,6 +45,24 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 
 Multi-repository and worktree behavior is advanced capability, not the primary user scenario. Source
 presence also does not imply a corresponding end-to-end test of a stable package.
+
+## Verification records
+
+### 2026-09-14: Windows source distribution
+
+Artifact: the local Windows desktop distribution containing three Adapters. Environment: Windows x64, Claude Code 2.1.270, Node.js >=24 and Go 1.27.0. It is not a stable npm release.
+
+| Check | Actual result and scope |
+| --- | --- |
+| Claude Adapter | 10 passed: three workspace modes, local/remote sources, staged/unstaged/untracked carry, partial multi-repository failure, replaced instances, session identity, relocation and separate cleanup authorization |
+| Manager and build | 95 targeted checks passed, including native Windows Claude-only Core discovery, menus, lifecycle, orphan registration, configuration retention and source packaging |
+| Shared Git operations | 48 relevant Codex/DeepSeek checks passed; LF fixtures use process-local core.autocrlf=false without changing global Git configuration |
+| Core | Targeted domain/application/mcp/userconfig/CLI checks passed; public contract checks passed |
+| Repository observation | Existing regression checks, 300 changed files, and SHA-1/SHA-256 raw blob comparison against Git passed; actual Task artifact collection took about 1.12 seconds within the existing 30-second deadline |
+| Final Windows package | Complete desktop source package built with all three Adapters; digest readback passed, the real Claude CLI installed its package, cached files matched byte for byte, repeated setup made no changes, packaged Core handshake passed, and removal retained unrelated configuration and was repeatable |
+| Documentation | Nine root README locales synchronized, all three generated Skills consistent, version and link checks passed |
+
+Limits: no authenticated Claude model development session was executed; the local authentication status was logged out. The macOS Core was built but not executed natively. Other Windows checks reported failures in unchanged macOS pet tests and two Codex handoff path-string assertions. The passing scope in the table excludes those tests and is not a repository-wide pass. The native installation entry is tests/claude/verify-package.mjs. Its results are distinct from actual model sessions and simulated interface tests.
 
 ## Not yet verified
 

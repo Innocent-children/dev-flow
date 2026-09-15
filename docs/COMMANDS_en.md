@@ -1,31 +1,5 @@
 # Dev Flow Command Reference
 
-## Claude Code commands (source package)
-
-The entry is defined by `packages/claude/bin/dev-flow-claude.mjs` and `lib/workspace.mjs`; there is no stable npm release yet. Unified lifecycle accepts `--host claude`; `all` includes Claude. Core Host fields accept `codex`, `deepseek` and `claude`.
-
-| Command | Input and result |
-| --- | --- |
-| `dev-flow-claude status/setup/remove --json` | Inspect, register or remove the user-scope plugin; operation/status/changed JSON; ordinary maintenance retains data |
-| `dev-flow-claude mcp` | Local stdio Core with the shared data directory |
-| `dev-flow-claude artifacts collect/prepare` | Closed JSON stdin; complete ok/result or ok/error, nonzero exit on failure |
-| `dev-flow-claude host-check pre-file-write/workspace-available` | Internal scope/occupancy check; does not replace user decisions |
-| `dev-flow-claude hook pre-tool-use` | Original Claude event on stdin; permissionDecision=deny on rejection; exit 2 on failure |
-| `dev-flow-claude host-launch inspect` | request, repositories[{key,repository_path}]; returns complete assessment anchor |
-| `dev-flow-claude host-launch prepare` | request, assessment, user_choice, repositories, handoff; returns launch_id and retained preparation |
-| `dev-flow-claude host-launch provision/status/scope` | {launch_id}; prepare every repository, read receipt, or return verified Core creation scope |
-| `dev-flow-claude host-launch launch/resume` | {launch_id}; returns executable/arguments/cwd/session_id for the Host to execute in an interactive terminal |
-| `dev-flow-claude host-launch record-session` | launch_id and actual session_id; verifies and records the observed session |
-| `dev-flow-claude host-launch bind-task` | launch_id and task_id from the successful Core response; retain identity for session/relocation recovery, never a process cursor |
-| `dev-flow-claude host-launch retry-launch` | launch_id, previous_caller_stopped=true, session_not_started=true, reason; reuse the saved UUID only with verified non-start evidence |
-| `dev-flow-claude host-launch relocate` | launch_id, Core relocation_id, all destinations[{repository_key,repository_path}], authorized; Core verification is still required after moving |
-| `dev-flow-claude host-launch cleanup-worktree/cleanup-branch` | launch_id, repository_key, terminal, authorized; separate authorization and non-force deletion |
-
-Each prepare repository requires key, repository_path, workspace_mode, source_type, remote_name, base_branch, target_branch, carry_changes and worktree_path. Modes are new_branch/current_branch/dedicated_worktree. Assessment includes impact, verification, unknowns and the original inspect anchor; user_choice must reflect the actual user decision. Helpers accept one closed UTF-8 JSON object, at most 1 MiB. Host operations return their direct result on success and exit nonzero on error, not a Core envelope.
-
-The Claude selector is `/dev-flow-claude:dev-flow <task>`. `CLAUDE_CONFIG_DIR` selects Claude settings; `DEV_FLOW_DATA_DIR` must be an existing canonical absolute directory shared by every entry. See the [Claude guide](CLAUDE_en.md) for installation, resume and permissions.
-
-
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
 > Most users only need to install the unified entry, run `dev-flow`, and use the corresponding
@@ -34,7 +8,7 @@ The Claude selector is `/dev-flow-claude:dev-flow <task>`. `CLAUDE_CONFIG_DIR` s
 This document lists every currently supported public or managed Dev Flow command entrypoint. The
 command surface is derived from implementation: unified lifecycle commands from
 `packages/dev-flow/package.json` and its CLI, Codex commands from `packages/codex/package.json`
-and `packages/codex/bin/dev-flow-codex.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
+and `packages/codex/bin/dev-flow-codex.mjs`, Claude commands from `packages/claude/bin/dev-flow-claude.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
 DSH lifecycle tests, Core commands from `cmd/dev-flow/main.go`, and MCP tools from the closed
 catalog under `internal/mcp/`.
 
@@ -54,7 +28,7 @@ dev-flow
 ```
 
 After installation, Codex uses `$dev-flow-codex:dev-flow <task description>` and DeepSeek Harness
-uses `/dev-flow <task description>`. These are conversational Host selectors, not shell commands.
+uses `/dev-flow <task description>`; Claude Code uses `/dev-flow-claude:dev-flow <task description>`. These are conversational Host selectors, not shell commands.
 
 ## Unified Adapter lifecycle
 
@@ -85,7 +59,7 @@ artifact, and readiness step; `--json` omits these progress lines.
 | --- | --- |
 | `npm install -g @imotong/dev-flow@latest` | Install the public `dev-flow` command globally. |
 | `dev-flow` | Open the interactive lifecycle menu. |
-| `dev-flow status\|doctor --host codex\|deepseek\|all` | Inspect or diagnose without mutation. |
+| `dev-flow status\|doctor --host codex\|deepseek\|claude\|all` | Inspect or diagnose without mutation. |
 | `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
 | `dev-flow install\|repair --host deepseek\|all --adopt ...` | Adopt an existing identity-verified DeepSeek Profile contribution; other operations and Codex-only targets reject `--adopt`. |
 | `dev-flow install\|upgrade\|repair\|reinstall ... --confirm-downgrade <token>` | Explicitly confirm a downgrade with the token from the current plan when the target is older than the installed version. |
@@ -351,6 +325,46 @@ The DSH bundle also provides the managed `workspace_coordinator` tool with exact
 Local modes retain their directory and branch; cleanup does not apply. For dedicated worktrees, `prepare_cleanup` first reads the terminal Core Task and returns a relaunch descriptor for a surviving
 source checkout. Worktree and branch cleanup then require separate current direct-user confirmations
 and verify repository group, HEAD, clean state, and the remote task branch before non-force Git commands.
+
+## Claude Code
+
+These commands are provided by the source/local `dev-flow-claude` package. See the [Host guide](CLAUDE_en.md) for installation. They are distinct from the version of the global manager installed through a public release.
+
+Implementation: `packages/claude/bin/dev-flow-claude.mjs`, `lib/lifecycle.mjs` and `lib/workspace.mjs`.
+
+Except for the first five entries, commands consume one UTF-8 JSON object on closed stdin, up to 1 MiB. The table lists command names and input fields, not interactive prompts.
+
+| Command | Input or purpose |
+| --- | --- |
+| `dev-flow-claude status --json` | Inspect package version, registration and cache; no stdin. |
+| `dev-flow-claude setup --json` | Register the user-scope plugin; no stdin. |
+| `dev-flow-claude remove --json` | Remove verified owned registration and retain task data; no stdin. |
+| `dev-flow-claude --version` | Print the packaged Core version. |
+| `dev-flow-claude mcp` | Start the stdio MCP service. |
+| `dev-flow-claude artifacts collect` | Core artifact collection request. |
+| `dev-flow-claude artifacts prepare` | Classified Core artifact collection. |
+| `dev-flow-claude host-check workspace-available` | repository_path. |
+| `dev-flow-claude host-check pre-file-write` | host, repository_path, tool_name, paths, intent_digest, path_parse_complete. |
+| `dev-flow-claude hook pre-tool-use` | Original Claude PreToolUse event. |
+| `dev-flow-claude host-launch inspect` | request, repositories[{key,repository_path}]; returns assessment anchor. |
+| `dev-flow-claude host-launch prepare` | request, assessment, user_choice, repositories, handoff; returns preparation record. |
+| `dev-flow-claude host-launch provision` | launch_id; provision every selected repository. |
+| `dev-flow-claude host-launch status` | launch_id; read retained launch record. |
+| `dev-flow-claude host-launch scope` | launch_id; verify workspaces and return Core creation scope. |
+| `dev-flow-claude host-launch bind-task` | launch_id, task_id from a successful Core response. |
+| `dev-flow-claude host-launch launch` | launch_id; return a session launch descriptor, without starting the interactive process. |
+| `dev-flow-claude host-launch resume` | launch_id; return the retained session resume descriptor. |
+| `dev-flow-claude host-launch record-session` | launch_id, actual session_id. |
+| `dev-flow-claude host-launch retry-launch` | launch_id, previous_caller_stopped, session_not_started, reason; both factual flags must be true. |
+| `dev-flow-claude host-launch relocate` | launch_id, relocation_id, destinations[{repository_key,repository_path}], authorized. |
+| `dev-flow-claude host-launch cleanup-worktree` | launch_id, repository_key, terminal, authorized. |
+| `dev-flow-claude host-launch cleanup-branch` | launch_id, repository_key, terminal, authorized; separate from worktree-removal authorization. |
+
+`prepare.repositories` requires key, repository_path, workspace_mode, source_type, remote_name, base_branch, target_branch, carry_changes and worktree_path in every entry. Modes are `new_branch`, `current_branch` and `dedicated_worktree`. Assessment contains the original `inspect` anchor, impact, verification and resolved unknowns; user_choice records the actual user decision. Exact Host-operation prerequisites and value sources are in the [admission reference](../packages/claude/plugin/skills/dev-flow/references/admission.md) and [lifecycle reference](../packages/claude/plugin/skills/dev-flow/references/host-lifecycle.md).
+
+`status`, `setup` and `remove` emit JSON with or without `--json`. Host-launch success emits the direct operation result. Artifact commands retain the Core `ok/result` or `ok/error` envelope; host-check returns its own check result. `mcp` uses the MCP protocol rather than a one-shot result. Ordinary CLI/input failures exit 1; a failed Hook exits 2; forwarded Core commands retain their failure output and exit code. Do not assume every command uses the MCP envelope.
+
+The selector is `/dev-flow-claude:dev-flow <task>`. `CLAUDE_CONFIG_DIR` selects Claude settings. `DEV_FLOW_DATA_DIR` selects an existing canonical absolute task data directory and must match across the Host, MCP and helpers.
 
 ## Packaged Core
 
@@ -621,7 +635,6 @@ node release/dev-flow/prepare.mjs --output "/absolute/pet-release"
 ```
 
 Run on macOS arm64 with the repository toolchain and Swift >=6.0. This builds both application payloads and verifies the final tarball without publishing; output must be outside the repository.
-
 
 ## Host call examples
 

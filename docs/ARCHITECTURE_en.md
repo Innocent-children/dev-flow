@@ -1,12 +1,5 @@
 # Dev Flow Architecture
 
-## Claude Code Adapter
-
-`packages/claude/` independently owns Claude plugin registration, MCP/Hook transport, sessions and launch records. The plugin root is the complete package root, containing lib, bin, runtime and Skills inside the cache; it must not reference sibling packages outside that cache. `packages/host-workspace/` maintains Git observation, preparation and snapshot functions copied into each Host by the build. It contains no Core nodes or Claude/Codex session decisions.
-
-Claude Write/Edit/NotebookEdit inputs supply complete targets and original-input digests to Core file_scope. Allowing a path does not override Host permissions. Launch records retain requests, origins, operation status and Claude session identity, without a second workflow cursor. Dedicated-worktree relocation retains partial effects until Core verifies every new binding. The unified manager uses `hosts/claude.mjs` for package/registration operations; runtime discovery reads Claude registration for WebUI/pet Core selection.
-
-
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
 > This document describes the current workspace and branch implementation, protocol, and persistence. Read
@@ -16,7 +9,7 @@ Claude Write/Edit/NotebookEdit inputs supply complete targets and original-input
 ## Core rule
 
 Dev Flow stores business state once. Go Core owns the Task, node, legal transitions, scope,
-verification, Recovery, blockers, claims, and outcome. Codex, DeepSeek, and WebUI are Host Adapters.
+verification, Recovery, blockers, claims, and outcome. Codex, DeepSeek, Claude Code, and WebUI are Host Adapters.
 Core observes Git read-only; only a Host may perform developer-confirmed fetch, branch, worktree,
 relaunch, handoff, and cleanup operations.
 
@@ -381,9 +374,15 @@ no longer creates a Task from an arbitrary checkout and performs no Git mutation
 - Multi-repository Task creation requires every root to be provisioned, authorized, and verified; one
   failure creates no partial Task or claims.
 
+### Claude Code
+
+`packages/claude/` independently owns Claude plugin registration, MCP/Hook transport, sessions and launch records. The plugin root is the complete package root, containing lib, bin, runtime and Skills inside the cache; it must not reference sibling packages outside that cache. `packages/host-workspace/` maintains Git observation, preparation and snapshot functions copied into each Host by the build. It contains no Core nodes or Claude/Codex session decisions.
+
+Claude Write/Edit/NotebookEdit inputs supply complete targets and original-input digests to Core file_scope. Allowing a path does not override Host permissions. Launch records retain requests, origins, operation status and Claude session identity, without a second workflow cursor. Dedicated-worktree relocation retains partial effects until Core verifies every new binding. The unified manager uses `hosts/claude.mjs` for package/registration operations; runtime discovery reads Claude registration for WebUI/pet Core selection.
+
 ## Versions, distribution, and source map
 
-Core, Codex, DeepSeek, and the unified lifecycle package have independent versions. `CORE_VERSION` is
+Core, Codex, DeepSeek, Claude, and the unified lifecycle package have independent versions. `CORE_VERSION` is
 the machine-readable Core version file; npm versions remain in each `package.json`, and ordinary product
 work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 `win32-x64/dev-flow.exe` runtime pairs.
@@ -397,7 +396,8 @@ work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 | `internal/store/` | current-only SQLite, codec, operations, events, claims |
 | `internal/mcp/` | seventeen tools, field restrictions, tool annotations, and the common response structure |
 | `internal/webui/`, `packages/webui/` | loopback Adapter and embedded interface |
-| `packages/codex/`, `packages/deepseek/` | request assessment, worktree creation, session restart/handoff, and packaging |
+| `packages/codex/`, `packages/deepseek/`, `packages/claude/` | request assessment, worktree creation, session restart/handoff, and packaging |
+| `packages/host-workspace/` | Maintained Git observation, preparation and snapshot helpers; copied into consuming Host packages at build time |
 | `protocol/fixtures/`, `tests/` | public contracts, fault injection, Host end-to-end tests |
 
 Source, machine-readable schemas, package manifests, CLI parsers, and executable tests define current behavior.

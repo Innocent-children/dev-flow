@@ -23,7 +23,7 @@ completed code.
 
 A useful bug report includes:
 
-- the product and version, such as Core, `dev-flow-codex`, or `dev-flow-deepseek`;
+- the product and version, such as Core, `dev-flow-codex`, `dev-flow-deepseek`, or `dev-flow-claude`;
 - operating system, CPU, Node.js version, and host version;
 - minimal reproduction steps;
 - expected and actual results;
@@ -199,7 +199,7 @@ behavior changes, unrelated refactors, and version publication into separate cha
 
 ## Release boundary
 
-Merging product work does not publish it immediately. Core, Codex, and DeepSeek have independent
+Merging product work does not publish it immediately. Core and the Host Adapters have independent
 versions. After changes are merged, maintainers select the product, channel, and exact version, then
 run the fixed checks, version alignment, build, read-back, Tag, npm, and GitHub Release operations.
 

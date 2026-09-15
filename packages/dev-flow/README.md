@@ -4,106 +4,93 @@
 
 # @imotong/dev-flow
 
-`@imotong/dev-flow` is the Host-neutral lifecycle and Control Center CLI for Dev Flow.
+This package installs and maintains Dev Flow integrations and provides the local WebUI and desktop pet commands. Development tasks are started from the chosen Host conversation.
 
-New development Tasks are not created by this lifecycle CLI or by Control Center. Codex, DeepSeek and Claude Code
-first assess a request read-only, obtain the developer's workspace and branch choices, prepare the
-selected local directory or dedicated worktree, and only then open Core from the target Host. Control Center projects that
-WorkspaceOrigin, current Task surface, blockers, relocation, and terminal cleanup choices without
-performing Git or Host handoff itself.
+## Installation channels
 
-The current source accepts exactly `darwin-arm64` and `win32-x64`; the Windows scope is consumer
-Windows 10/11 desktop x64. Windows Server, 32-bit/ARM64 Windows, and Intel Mac are excluded. npm
-`@latest` availability remains defined by the repository Support Matrix until a confirmed release.
+The public package installs the integrations available in its release:
 
-```bash
+```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Lifecycle commands manage Codex, DeepSeek and Claude Code Adapters while preserving the shared Core boundary:
+Check the [support matrix](https://github.com/Innocent-children/dev-flow/blob/main/docs/SUPPORT-MATRIX_en.md) for released Host and platform coverage. The current source also includes Claude Code. Follow its [source installation guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/CLAUDE_en.md) or use a complete local development distribution that includes the current manager. An older public CLI does not acquire new Host options simply because a newer Adapter is installed.
 
-```bash
-dev-flow status
-dev-flow doctor
-dev-flow install
-dev-flow upgrade
-dev-flow repair
-dev-flow reinstall
-dev-flow uninstall
-dev-flow factory-reset
+The manager targets macOS arm64 and Windows 10/11 desktop x64. Other OS/CPU combinations are rejected by its runtime selection. Source setup and build requirements are documented separately from public installation.
+
+## Inspect and maintain an installation
+
+Run `dev-flow` for the interactive menu, or select the Host explicitly:
+
+```sh
+dev-flow status --host all
+dev-flow doctor --host codex
+dev-flow repair --host codex --yes
 ```
 
-The public Control Center commands are independent of either Host:
+The current source accepts `codex`, `deepseek`, `claude` and `all`. DeepSeek uses a Profile, defaulting to `web`; Profile options do not apply to Claude or Codex.
 
-```bash
+| Operation | Result |
+| --- | --- |
+| `status` | Show installed versions, Host availability and installation issues. |
+| `doctor` | Check installation and configuration; return a failure code when checks fail. |
+| `install` | Keep installed versions by default and install missing integrations. |
+| `upgrade` | Select the latest available version. |
+| `repair` | Restore the current installation, retaining its version by default. |
+| `reinstall` | Replace the current installation even if its checks pass. |
+| `uninstall` | Remove the selected integrations while preserving task data and configuration. |
+| `factory-reset` | Remove integrations and clear only the data directories explicitly confirmed in the displayed plan. |
+
+Use `--version` for an explicit available version. A downgrade requires the separate confirmation token shown by the manager; `--yes` alone is insufficient. Complete local development distributions use their bundled, digest-verified packages rather than fetching those versions from npm.
+
+```sh
+dev-flow repair --help
+dev-flow status --host all --json
+```
+
+The menu supports back, exit and retrying invalid input. `--json` never prompts; when confirmation is required, its result provides the command to run. Progress output identifies the operation and completed steps. To update this manager itself, install its package again through the same distribution channel.
+
+## Activation and failures
+
+After installation, review/trust the Dev Flow hook in Codex, restart the selected DeepSeek Profile, or reload Claude plugins/start a new Claude session. Follow the actual prompts for the installed Host.
+
+An absent optional Host is informational in an all-Host diagnostic when another integration is healthy. Installation problems retain available package and registration information for repair. Codex and Claude removal can handle their owned registration after the Adapter package has disappeared; unknown ownership is not permission to remove another installation. Existing unmanaged DeepSeek contributions require explicit `--adopt`.
+
+If maintenance fails, keep its output. The result identifies completed work and the next recovery command. Do not remove files manually to make the status appear clean.
+
+## Task data and reset
+
+Ordinary maintenance and removal retain task data and unrelated Host settings. Default task data is stored in `~/.dev-flow/data` on macOS or `%LOCALAPPDATA%\dev-flow\data` on Windows. An explicit `DEV_FLOW_DATA_DIR` must name an existing canonical directory and remain consistent across the Host and management commands.
+
+Reset displays the exact affected directories and requires its plan-specific token. Recoverable reset uses macOS Trash or the product recovery directory `%LOCALAPPDATA%\dev-flow\trash` on Windows. The latter is not the Windows Recycle Bin. Permanent deletion and clearing an explicitly selected data directory require their own confirmations.
+
+## WebUI and desktop pet
+
+With a configured Adapter that supplies Core:
+
+```sh
 dev-flow webui start
 dev-flow webui open
 dev-flow webui status
 dev-flow webui stop
 ```
 
-The launcher validates installed Adapter receipts and package identities, selects the newest available compatible
-Core, and forwards only the closed WebUI command surface. It does not persist another Core or workflow state.
-Platform-specific path, permission, process, signal, and executable behavior is selected outside Core semantics.
-`dev-flow webui start` creates the product-owned default data directory with mode `0700` on macOS or inherited
-user-profile/LocalAppData ACLs on Windows when it is absent. The defaults are
-`$HOME/.dev-flow/data` and `%LOCALAPPDATA%\dev-flow\data`, respectively. Explicit
-`DEV_FLOW_DATA_DIR` values must already name canonical non-link directories; all other WebUI commands remain zero-write.
+WebUI shows existing tasks, results, blockers and supported recovery operations. Start a new development task in the Host conversation.
 
-The terminal menu shows installation state and supports back, exit, input retry and opening Control Center. A compact rich display uses color only in a suitable terminal; plain and JSON modes remain automation-safe. Plans show versions and resource paths before confirmation. Progress names the current Host action and package or registration step. JSON never prompts and returns a copyable confirmation command when required. `dev-flow repair --help` lists options and examples.
+The desktop pet additionally requires the desktop application supplied by an appropriate complete package. Installing an Adapter alone does not provide it.
 
-Codex uninstall first runs the installed Adapter's idempotent `remove`, which validates the runtime receipt and stops the matching WebUI before deregistration. If that stop fails, the global package is retained for a safe retry.
-If the entire Adapter package is already missing, uninstall uses its remaining registration receipt and native Codex commands to remove the matching registration. Upgrade-related version differences do not prevent removal, but resource paths and sources must still match. A missing Core permits cleanup only when no WebUI runtime receipt remains; Task data is preserved.
-
-Recoverable factory reset uses the user's macOS Trash or `%LOCALAPPDATA%\dev-flow\trash` on
-Windows. The Windows quarantine is not the system Recycle Bin; permanent removal still requires its
-separate confirmation token.
-
-## Lifecycle command behavior
-
-The menu reads installation state before offering Adapter installation, maintenance, Control Center and pet entries. It supports input retry, back and exit, and returns to the menu after an operation. Without a terminal, bare `dev-flow` prints help. `dev-flow <lifecycle-command> --help` explains options and examples.
-
-| Command | Target version and repeated execution |
-| --- | --- |
-| `install` | Keeps installed versions by default; missing installations use `latest`. A ready matching version needs no changes. |
-| `upgrade` | Selects `latest` by default; a ready matching version needs no changes. |
-| `repair` | Repairs the current version by default, restoring damaged files and same-version owned registration. Healthy state needs no changes. |
-| `reinstall` | Reinstalls the current version by default on every invocation, preserving configuration and Task data. |
-| `uninstall` | Already-removed Adapters need no further action; configuration and Task data are preserved. |
-| `factory-reset` | Repeating completed cleanup is a no-op; actual cleanup targets still require confirmation of the current plan. |
-
-Explicit `--version` selects a target. Every version-replacement command requires `--confirm-downgrade` for a downgrade; ordinary `--yes` is insufficient. Local development distributions always use their verified bundled versions and artifacts, replacing their contents during maintenance.
-
-Before execution, the plan shows actions, current/target versions, resource paths and data handling. JSON never prompts: required confirmation returns `confirmation` and a copyable `next_step`. Explicit data-directory approval is checked before removing any Adapter. Cleanup directories bind canonical paths, filesystem identity and permissions, allowing managed shutdown to remove runtime records; individual file targets also bind size and modification time. Installation, upgrade, repair and reinstall maintain Adapters; update the public launcher itself with `npm install -g @imotong/dev-flow@latest`.
-
-`status` retains absent targets and reports Host availability, Adapter/Core versions and issues. `doctor` adds installation and configuration checks and exits nonzero on failure. With all Hosts selected, an absent optional Adapter is informational when another Adapter is healthy. Codex self-check failures retain npm installation metadata for repair; DeepSeek checks Profile contribution, the managed receipt and the actual Core. An existing unmanaged DeepSeek contribution requires explicit `--adopt`.
-
-Failures include `error.code/message/detail`, `operation_id`, `failed_action`, `completed_actions` and a recovery command. Text output preserves the same causes and completed steps. Repeating a command observes current installation state instead of replaying an old operation. Recovery commands pin the attempted version where applicable; reset generates a plan for the current state again. Successful installation retains hook review/trust and Profile restart instructions.
-
-Lifecycle exit codes: `0` success or no changes, `1` check/execution failure, `2` invalid arguments, `3` confirmation required or declined, `4` unmet plan/cleanup authorization, `5` partial execution or failed final verification. Exiting the menu returns `0`. Invalid WebUI arguments return `2`; launcher failures under `--json` also return JSON.
-
-## Desktop pet (macOS arm64 and Windows x64)
-
-The npm package includes the macOS arm64 and Windows 10/11 x64 desktop applications and default artwork (nine actions, 312 SVG frames). A configured Codex, DeepSeek or Claude Code Adapter supplies Core. After updating this npm package, run `dev-flow repair` for the configured Host to refresh the installed app copy. `install`, `upgrade`, `repair` and `reinstall` update the app even when the Adapter needs no change, preserving settings and appearances. macOS uses ad-hoc signing; Developer ID, notarization and Windows distribution signing remain unverified. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md).
-
-| Command | Behavior |
-| --- | --- |
-| `dev-flow pet start` | Start or restore the pet, verify Core and the data directory, and start WebUI if needed. An existing user-directory app takes priority over the bundled app. |
-| `dev-flow pet stop` | Quit the pet normally, preserving WebUI, Tasks, settings, and appearances. |
-
-Only these two argument forms are accepted. Output is plain text; exit codes are `0` for success, `1` for runtime failure, and `2` for invalid arguments.
-`pet status` and `pet start --json` are not public entries.
-
-```bash
+```sh
 dev-flow pet start
 dev-flow pet stop
 ```
 
-Stacked bubbles show multiple tasks and open each task’s WebUI. Automatic focus prioritizes blocked tasks and follows unfinished work after completion. The menu provides Pin task, Follow automatically, appearance selection, import, Animations, Idle activities, hide, and quit. See the [desktop pet guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md)
-for task selection, the scope of nine-clip support, triggers, and troubleshooting. Stop the pet before updating or removing its current Core Adapter or
-unified-entry package; maintenance aborts if shutdown fails. Confirmed factory-reset clears `productRoot/pet`; ordinary quit and uninstall preserve user artwork and settings.
+These are the only pet command forms; `pet status` and `pet start --json` are not supported. Stopping the pet leaves tasks and WebUI intact. Maintenance refreshes a bundled desktop application while retaining settings and imported appearances.
 
-## Build verification
+See the [desktop guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/DESKTOP-PETS_en.md) for installation and controls, and the support matrix for verified platforms and signing status.
 
-Maintainers use `node release/dev-flow/prepare.mjs --output "/absolute/pet-release"` on macOS arm64 with the repository toolchain and Swift >=6.0. It builds and verifies the two-platform tarball without publishing; use an output directory outside the repository.
+## Automation results
+
+Lifecycle exit codes are `0` for success/no changes, `1` for check or execution failure, `2` for invalid arguments, `3` for required/declined confirmation, `4` for unmet authorization and `5` for partial execution or failed final verification. Invalid WebUI arguments return `2`; pet commands use `0`, `1` and `2` for success, runtime failure and invalid arguments.
+
+Exact options, structured results and recovery inputs are in the [command reference](https://github.com/Innocent-children/dev-flow/blob/main/docs/COMMANDS_en.md).

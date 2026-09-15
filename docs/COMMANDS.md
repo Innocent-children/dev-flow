@@ -1,41 +1,11 @@
 # Dev Flow 命令参考
 
-## Claude Code 命令（源码包）
-
-Claude 入口由 `packages/claude/bin/dev-flow-claude.mjs` 和 `lib/workspace.mjs` 定义；尚未发布稳定 npm 包。统一 lifecycle 增加 `--host claude`，`all` 包含 Claude。当前 Core Host 字段接受 `codex`、`deepseek`、`claude`。
-
-| 命令 | 输入与结果 |
-| --- | --- |
-| `dev-flow-claude status/setup/remove --json` | 检查、注册或移除用户范围插件；JSON 包含 operation/status/changed，普通维护保留数据 |
-| `dev-flow-claude mcp` | 启动本机 stdio Core，传递统一数据目录 |
-| `dev-flow-claude artifacts collect/prepare` | 闭合 JSON stdin；完整 ok/result 或 ok/error 输出，失败退出非零 |
-| `dev-flow-claude host-check pre-file-write/workspace-available` | 内部范围或占用检查；不替代用户决定 |
-| `dev-flow-claude hook pre-tool-use` | Claude 原始事件 stdin；拒绝返回 permissionDecision=deny，失败退出 2 |
-| `dev-flow-claude host-launch inspect` | request、repositories[{key,repository_path}]；返回完整评估锚点 |
-| `dev-flow-claude host-launch prepare` | request、assessment、user_choice、repositories、handoff；返回 launch_id 和准备记录 |
-| `dev-flow-claude host-launch provision/status/scope` | {launch_id}；分别准备所有仓库、读记录、返回经核对的 Core 创建范围 |
-| `dev-flow-claude host-launch launch/resume` | {launch_id}；返回原始 executable/arguments/cwd/session_id，由 Host 在交互终端执行 |
-| `dev-flow-claude host-launch record-session` | launch_id、实际 session_id；核对并保存已观察会话 |
-| `dev-flow-claude host-launch bind-task` | launch_id、成功 Core 响应中的 task_id；仅保存身份，供跨会话和迁移恢复，不保存流程游标 |
-| `dev-flow-claude host-launch retry-launch` | launch_id、previous_caller_stopped=true、session_not_started=true、reason；仅依据已核对的未启动事实重用原会话 UUID |
-| `dev-flow-claude host-launch relocate` | launch_id、Core relocation_id、全部 destinations[{repository_key,repository_path}]、authorized；移动后仍需 Core 核验 |
-| `dev-flow-claude host-launch cleanup-worktree/cleanup-branch` | launch_id、repository_key、terminal、authorized；分别单独授权，非强制删除 |
-
-prepare 的 repositories 每项必须包含 key、repository_path、workspace_mode、source_type、remote_name、base_branch、target_branch、carry_changes、worktree_path。三种 mode 为 new_branch/current_branch/dedicated_worktree。assessment 包含影响面、验证、未知项和 inspect 原始 anchor；user_choice 必须是用户实际选择。助手只接受闭合 UTF-8 JSON 对象，最多 1 MiB；Host 操作成功输出直接结果，异常退出非零，不能把它当作 Core envelope。
-
-Claude selector 为 `/dev-flow-claude:dev-flow <任务描述>`。`CLAUDE_CONFIG_DIR` 控制 Claude 设置目录；`DEV_FLOW_DATA_DIR` 必须为已有规范绝对目录并在所有入口一致。安装、恢复及权限细节见 [Claude 指南](CLAUDE.md)。
-
-
 [中文](COMMANDS.md) | [English](COMMANDS_en.md)
 
 > 普通用户通常只需要安装统一入口、运行 `dev-flow`，并在 Host 中使用对应 selector。其余命令
 > 主要用于诊断、恢复和集成开发。
 
-本文件列出 Dev Flow 当前公开或受支持的命令入口。命令范围以实际实现为准：Codex 命令来自
-`packages/dev-flow/package.json` 与其 CLI、`packages/codex/package.json` 与
-`packages/codex/bin/dev-flow-codex.mjs`，DeepSeek 生命周期命令
-来自 DSH lifecycle tests 使用的 DSH CLI，Core 命令来自 `cmd/dev-flow/main.go`，MCP 工具来自
-`internal/mcp/` 的固定工具列表。
+本文件列出当前命令入口。统一 lifecycle 由 `packages/dev-flow/bin/dev-flow.mjs` 和 `lib/cli.mjs` 定义，Codex 与 Claude 分别由各自 package 的 bin 定义，DeepSeek 命令由 DSH lifecycle 测试核对。Core 命令来自 `cmd/dev-flow/main.go`，MCP 工具来自 `internal/mcp/`。
 
 公开安装示例使用 npm 的 `latest` dist-tag，以便安装当前最新稳定包；支持矩阵、Release 链接和
 安装包验证结果仍使用精确版本号，不应替换为 `latest`。
@@ -52,7 +22,7 @@ dev-flow
 ```
 
 安装后，Codex 使用 `$dev-flow-codex:dev-flow <任务描述>`，DeepSeek Harness 使用
-`/dev-flow <任务描述>`。这两项是 Host 对话 selector，不是 shell 命令。
+`/dev-flow <任务描述>`，Claude Code 使用 `/dev-flow-claude:dev-flow <任务描述>`。这些是 Host 对话 selector，不是 shell 命令。
 
 ## 统一 Adapter 生命周期
 
@@ -81,7 +51,7 @@ Core 缺失时，仅在没有 WebUI runtime receipt 的情况下继续清理；�
 | --- | --- |
 | `npm install -g @imotong/dev-flow@latest` | 全局安装公共 `dev-flow` 命令。 |
 | `dev-flow` | 打开交互式 lifecycle 菜单。 |
-| `dev-flow status\|doctor --host codex\|deepseek\|all` | 只读检查或诊断。 |
+| `dev-flow status\|doctor --host codex\|deepseek\|claude\|all` | 只读检查或诊断。 |
 | `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | 执行普通维护并保留配置与 Task 数据。 |
 | `dev-flow install\|repair --host deepseek\|all --adopt ...` | 接管已经存在且身份可验证的 DeepSeek Profile contribution；其他操作和纯 Codex 目标不接受 `--adopt`。 |
 | `dev-flow install\|upgrade\|repair\|reinstall ... --confirm-downgrade <token>` | 当目标版本低于已安装版本时，使用当前计划给出的 token 明确确认降级。 |
@@ -333,6 +303,46 @@ DSH bundle 还提供内部 `workspace_coordinator` 工具，operation 只允许
 worktree 与 branch cleanup 分别要求新的 direct-user confirmation，核对 repository group、HEAD、
 clean 和远端 task branch 后才使用非 force Git 命令。
 
+## Claude Code
+
+这些命令由源码或本地 `dev-flow-claude` 包提供，安装方式见 [Host 指南](CLAUDE.md)。它们与机器上通过公开发布安装的全局管理器版本分别判断。
+
+实现入口：`packages/claude/bin/dev-flow-claude.mjs`、`lib/lifecycle.mjs`、`lib/workspace.mjs`。
+
+除前五项外，命令通过已关闭的标准输入接收一个 UTF-8 JSON 对象，最多 1 MiB。表格列出命令名和输入字段，不表示启动交互式输入会话。
+
+| 命令 | 输入或用途 |
+| --- | --- |
+| `dev-flow-claude status --json` | 检查包版本、注册和缓存状态；无标准输入。 |
+| `dev-flow-claude setup --json` | 注册用户范围插件；无标准输入。 |
+| `dev-flow-claude remove --json` | 移除归属已核验的注册，保留任务数据；无标准输入。 |
+| `dev-flow-claude --version` | 输出包内 Core 的版本。 |
+| `dev-flow-claude mcp` | 启动 stdio MCP 服务。 |
+| `dev-flow-claude artifacts collect` | Core 文件收集请求。 |
+| `dev-flow-claude artifacts prepare` | Core 文件分类结果。 |
+| `dev-flow-claude host-check workspace-available` | repository_path。 |
+| `dev-flow-claude host-check pre-file-write` | host、repository_path、tool_name、paths、intent_digest、path_parse_complete。 |
+| `dev-flow-claude hook pre-tool-use` | Claude 原始 PreToolUse 事件。 |
+| `dev-flow-claude host-launch inspect` | request、repositories[{key,repository_path}]；返回评估锚点。 |
+| `dev-flow-claude host-launch prepare` | request、assessment、user_choice、repositories、handoff；返回准备记录。 |
+| `dev-flow-claude host-launch provision` | launch_id；准备全部选定仓库。 |
+| `dev-flow-claude host-launch status` | launch_id；读取保留的启动记录。 |
+| `dev-flow-claude host-launch scope` | launch_id；核验工作区并返回 Core 创建范围。 |
+| `dev-flow-claude host-launch bind-task` | launch_id、成功 Core 响应中的 task_id。 |
+| `dev-flow-claude host-launch launch` | launch_id；返回会话启动描述，不启动交互进程。 |
+| `dev-flow-claude host-launch resume` | launch_id；返回已有会话的恢复描述。 |
+| `dev-flow-claude host-launch record-session` | launch_id、实际 session_id。 |
+| `dev-flow-claude host-launch retry-launch` | launch_id、previous_caller_stopped、session_not_started、reason；两个事实字段须为 true。 |
+| `dev-flow-claude host-launch relocate` | launch_id、relocation_id、destinations[{repository_key,repository_path}]、authorized。 |
+| `dev-flow-claude host-launch cleanup-worktree` | launch_id、repository_key、terminal、authorized。 |
+| `dev-flow-claude host-launch cleanup-branch` | launch_id、repository_key、terminal、authorized；独立于工作树清理授权。 |
+
+`prepare.repositories` 的每项均需提供 key、repository_path、workspace_mode、source_type、remote_name、base_branch、target_branch、carry_changes、worktree_path。mode 为 `new_branch`、`current_branch` 或 `dedicated_worktree`。assessment 保存原始 `inspect` 锚点、影响面、验证安排和已解决的未知项；user_choice 记录实际用户决定。Host 操作的具体前提和值来源见 [admission 引用](../packages/claude/plugin/skills/dev-flow/references/admission.md)及[生命周期引用](../packages/claude/plugin/skills/dev-flow/references/host-lifecycle.md)。
+
+`status`、`setup`、`remove` 无论是否带 `--json` 都输出 JSON。Host-launch 成功时直接输出操作结果；artifacts 保留 Core 的 `ok/result` 或 `ok/error` 结构；host-check 返回检查结果。`mcp` 使用 MCP 协议，不是一次性结果输出。普通 CLI 或输入错误退出 1，Hook 检查失败退出 2，转发的 Core 命令保留其错误输出与退出码。不能将所有结果都按 MCP envelope 读取。
+
+对话触发方式为 `/dev-flow-claude:dev-flow <任务描述>`。`CLAUDE_CONFIG_DIR` 指定 Claude 设置目录；`DEV_FLOW_DATA_DIR` 指定已有的规范绝对任务数据目录，在 Host、MCP 和助手中须一致。
+
 ## Packaged Core
 
 Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以下是 Core executable 实际接受的
@@ -580,7 +590,6 @@ node release/dev-flow/prepare.mjs --output "/absolute/pet-release"
 ```
 
 使用仓库工具链与 Swift >=6.0，在 macOS arm64 执行。此命令装配两个平台应用并验证最终 tarball，不执行发布；输出目录必须在仓库外。
-
 
 ## Host 调用示例
 

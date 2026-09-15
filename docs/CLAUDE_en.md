@@ -2,55 +2,110 @@
 
 [中文](CLAUDE.md) | [English](CLAUDE_en.md)
 
-The local Claude Code Adapter uses the same Go Core for persistent task state. It provides request assessment, full plan confirmation, file scope and verification controls, resume, multiple repositories and workspace lifecycle operations. This is source capability, not a published release. Static checks do not replace real Claude sessions or native platform acceptance.
+This guide covers installing the Claude Code integration, starting or resuming tasks, maintenance and removal. See the [support matrix](SUPPORT-MATRIX_en.md) for public-package and source availability.
 
-## Installation and maintenance
+## Choose an installation method
 
-Use Node.js >=24, Git and local Claude Code >=2.1.270. Development builds also require Go and pnpm as specified in the contribution guide. Runtime targets are macOS arm64 and Windows x64. Authenticate Claude before use; the Adapter stores no credentials.
+The Claude Adapter is currently available through source or local development packages. It requires Node.js `>=24`, Git and Claude Code `>=2.1.270`. Follow Claude Code's sign-in prompts before starting development work. Runtime targets are Windows x64 and macOS arm64; the support matrix identifies what has actually been verified.
+
+### Install from this repository
+
+This route also requires Go `>=1.26` and pnpm `>=11 <12`. Run commands from the repository root. See the [contribution guide](../CONTRIBUTING.md) for development setup.
 
 ```sh
 pnpm dev-flow:local -- install --host claude --yes
+```
+
+This builds local packages and installs the Claude Adapter using a temporary manager. It does not upgrade an existing global `dev-flow` command. Stay in the repository root to inspect the installation:
+
+```sh
 node packages/dev-flow/bin/dev-flow.mjs status --host claude
 node packages/dev-flow/bin/dev-flow.mjs doctor --host claude
 ```
 
-The unified entry supports install, upgrade, repair, reinstall, uninstall and factory-reset. Until publication, use local artifacts for maintenance instead of requesting an unpublished stable Claude package from npm. Build an artifact directly with:
+### Install a prebuilt Adapter package
+
+If a maintainer supplies a local `.tgz`, you do not need to compile Go. Replace the placeholder with the actual package path:
 
 ```sh
-node scripts/build-claude-local.mjs --output <absolute-output-directory>
+npm install --global "<path-to-dev-flow-claude.tgz>"
+dev-flow-claude setup --json
+dev-flow-claude status --json
 ```
 
-The plugin registers in user scope as dev-flow-claude from the dev-flow-claude-local marketplace. Reload plugins or start a new session and review Claude's permission prompts. CLAUDE_CONFIG_DIR selects the user configuration directory. DEV_FLOW_DATA_DIR selects an existing canonical absolute data directory and must match across MCP, Hooks and helpers. Defaults are ~/.dev-flow/data on macOS and dev-flow/data under local AppData on Windows.
+This package provides `dev-flow-claude`, not the global `dev-flow` manager or desktop pet. See the [desktop pet guide](DESKTOP-PETS_en.md) for complete Windows development packages. Maintainers can find source build commands in the [scripts guide](../scripts/README_en.md).
 
-## Starting and resuming
+## Verify installation
 
-Send this in Claude:
+The installer registers the plugin in Claude user scope. Its name is `dev-flow-claude`, from the `dev-flow-claude-local` marketplace. Reload plugins or start a new Claude session, then review Claude's plugin and permission prompts.
+
+The `status` from `dev-flow-claude status --json` should be `ready`. For `partial`, inspect installer output and diagnostics before starting a new Dev Flow task. `ready` describes installation checks; it does not mean Claude is signed in or a development task is complete.
+
+## Start a task
+
+Open the code repository you intend to change and send this in Claude:
 
 ```text
 /dev-flow-claude:dev-flow Add failed-login rate limiting, changing only authentication files.
 ```
 
-Review the read-only assessment and choose direct work or Dev Flow. The default is a new branch in the current directory; current-branch and dedicated-worktree modes are also available. Confirm the branch and ownership of existing changes. Dedicated worktrees also select a local or remote source, base branch and destination. Up to eight repositories form one fixed Task Scope. Core creation waits until every repository is provisioned.
+Claude first assesses the request and offers direct work or Dev Flow. Dev Flow defaults to a new branch in the current directory; you can also select the current branch or a dedicated worktree. Specify the branch and whether existing uncommitted changes belong to the task. Dedicated worktrees also require a source, base branch and destination.
 
-Explicitly approve the full requirements, design, work items, file scope and verification plan. A revised plan invalidates its old confirmation. Core controls all nodes, verification budgets, blockers and recovery; completion of a Claude todo is not Core Task completion. plain, spec-kit and openspec follow the existing method rules. Report unavailable method tools honestly.
+A task can include up to eight explicitly selected repositories. Task creation waits until all are prepared. Before implementation, review and approve the requirements, design, work items, expected files and verification plan. Changes to the plan or file scope require approval of the revised proposal.
 
-Resume in the original workspace and retained Claude session, explicitly continuing the same Task. After startup failure, inspect the retained launch and session records; an uncertain result does not permit another launch or workspace recreation. Follow Core recovery if the directory instance or branch changed. Handoffs preserve the relevant original discussion and corrections.
+Explicitly request OpenSpec or Spec Kit if needed; otherwise use plain development. Resolve missing method tools instead of treating their absence as completed work.
 
-## Files and task lifecycle
+## Resume, cancel and clean up
 
-The trusted PreToolUse Hook checks Write, Edit and NotebookEdit; Core decides whether the current plan permits their targets. An allow does not override Claude permissions. Core observes Bash and external-tool changes later; do not use them to bypass a denied write.
+Return to the original working directory and Claude conversation and send:
 
-Cancel, abandon and recover through the current Core tools. For dedicated workspace relocation, Core prepares the operation, the Host moves every repository, and Core verifies the new bindings. Partial failures retain their state. DONE/CANCELLED releases claims without committing, publishing or deleting anything. Worktree and branch cleanup require separate authorization. Current-directory modes retain their directory and branch.
-
-## Progress and diagnosis
-
-```sh
-dev-flow webui start
-dev-flow pet start
-dev-flow-claude status --json
+```text
+/dev-flow-claude:dev-flow Continue the saved task; first explain its current state and remaining work.
 ```
 
-WebUI can filter Claude Code tasks and open the original task. The desktop pet reuses Core task discovery and saved status.
+If startup fails, the outcome is uncertain or the directory was replaced, retain the original error and session information so Claude can inspect existing records. Do not recreate the task, delete its worktree or clear data merely to retry.
 
-Retain complete failure output, then consult the [command reference](COMMANDS_en.md) and [support matrix](SUPPORT-MATRIX_en.md). Record simulated Hook/CLI tests, final-package checks, actual Claude sessions and native macOS/Windows results separately. Missing checks remain acceptance gaps.
+To cancel, explicitly ask Claude to cancel the current Dev Flow task while retaining files. Completion and cancellation leave files and branches in place. Request dedicated-worktree cleanup and branch cleanup separately; exiting Claude does not cancel the task.
 
+To move a workspace, first ask Claude to relocate the current task. This is available only when every repository uses a dedicated worktree. Current-directory modes resume in place. Follow the returned recovery instructions for both directories if a move is incomplete.
+
+## File scope and permissions
+
+The trusted write check covers Claude Write, Edit and NotebookEdit operations. For an unplanned file, choose whether to allow that operation, revise the plan or restore the file. Allowing a path does not override Claude permissions.
+
+Shell or external-program changes can occur before task checks observe them. Do not switch tools to bypass a rejected write.
+
+## Progress and maintenance
+
+Source-install users should keep using the source entry from the repository root:
+
+```sh
+node packages/dev-flow/bin/dev-flow.mjs webui start
+node packages/dev-flow/bin/dev-flow.mjs webui stop
+pnpm dev-flow:local -- repair --host claude --yes
+```
+
+WebUI can filter Claude Code tasks and display their saved state. Source maintenance rebuilds local packages; do not substitute an older global CLI's `latest` installation route. If you installed a complete development distribution containing the current manager, use the `dev-flow` command supplied by that distribution.
+
+The pet also requires an installed desktop application; Adapter `ready` status alone does not establish pet availability. See the [desktop pet guide](DESKTOP-PETS_en.md).
+
+## Removal and data
+
+End the relevant Claude sessions first. If WebUI is running, stop it with the same manager entry used to start it. Source-install users can run:
+
+```sh
+node packages/dev-flow/bin/dev-flow.mjs uninstall --host claude --yes
+```
+
+With only the Adapter package and no source manager:
+
+```sh
+dev-flow-claude remove --json
+npm uninstall --global dev-flow-claude
+```
+
+Ordinary maintenance and removal retain task data and unrelated Claude settings. Use the manager's `factory-reset` only when you intend to clear data and have confirmed its exact listed directories. Ordinary removal does not require it.
+
+`CLAUDE_CONFIG_DIR` selects Claude settings. `DEV_FLOW_DATA_DIR` selects an existing canonical absolute data directory; keep it consistent when starting Claude and manager commands. Task data defaults to `~/.dev-flow/data` on macOS or `%LOCALAPPDATA%\dev-flow\data` on Windows.
+
+See the [command reference](COMMANDS_en.md) for further operations and [project status](PROJECT-STATUS_en.md) for recorded checks and unverified areas.

@@ -1,7 +1,5 @@
 # Dev Flow Documentation Internationalization
 
-The Claude Code guide is maintained in docs/CLAUDE.md and docs/CLAUDE_en.md; its package README links both versions.
-
 [中文](I18N.md) | [English](I18N_en.md)
 
 ## Scope
@@ -18,7 +16,7 @@ keeps paired English and Simplified Chinese files, including:
 - `docs/PRODUCT*`, `docs/DEMO*`, `docs/ROADMAP*`, and `docs/PROJECT-STATUS*`;
 - `docs/CORE-RESPONSES*`, `docs/ARCHITECTURE*`, `docs/COMMANDS*`, `docs/WEBUI*`, and `docs/SUPPORT-MATRIX*`;
 - `MANIFEST*`, `CONTRIBUTING*`, and this I18n policy;
-- the existing Chinese and English Codex and DeepSeek Host guides.
+- the Chinese and English Codex, DeepSeek and Claude Code Host guides; Claude uses `docs/CLAUDE.md` and `docs/CLAUDE_en.md`.
 
 Paired English and Simplified Chinese documents preserve the same meaning within each document
 family's subject matter.

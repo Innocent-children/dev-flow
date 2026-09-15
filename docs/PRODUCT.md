@@ -108,12 +108,9 @@ DONE 或 CANCELLED 结束任务并释放仓库占用，不自动提交代码、�
 
 稳定支持与未验证范围见[支持矩阵](SUPPORT-MATRIX.md)，当前交付状态和产品缺口见[项目状态](PROJECT-STATUS.md)。协议与实现见[架构说明](ARCHITECTURE.md)，操作参数见[命令参考](COMMANDS.md)。
 
-
 ## Host 交互说明
 
-Codex 与 DeepSeek 的 Core 交互说明和完整示例统一维护于 `skills/dev-flow/core/`，由构建脚本生成各包内的引用文件。各 Host 的授权、工作树准备和工具调用分别说明；实际执行使用当前 Action、已安装接口和真实用户决定。节点提交、返回处理、阻塞恢复与验证规则使用相同内容，并对两边生成的示例运行同一套 Core 校验。
-
-[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
+Host 将开发者的请求接入共同的任务流程。不同 Host 的权限和会话操作不同，任务状态、完成条件与恢复决定仍由 Core 统一管理。具体操作见 [Codex 指南](../packages/codex/README.md)、[DeepSeek 指南](../packages/deepseek/README.md)和 [Claude 指南](CLAUDE.md)。
 
 ## 保留既有失败的验收
 

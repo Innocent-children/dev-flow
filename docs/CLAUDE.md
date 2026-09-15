@@ -2,55 +2,110 @@
 
 [中文](CLAUDE.md) | [English](CLAUDE_en.md)
 
-Claude Code Adapter 在本机使用同一 Go Core 保存任务状态。它提供请求评估、完整计划确认、文件范围与验证控制、任务恢复、多仓库和工作区生命周期。当前为源码能力，尚未发布；真实 Claude 会话及各平台原生验收结果不能由静态检查代替。
+本指南说明如何安装 Dev Flow 的 Claude Code 集成，开始或恢复任务，以及维护、移除安装。公开包与源码的可用范围见[支持矩阵](SUPPORT-MATRIX.md)。
 
-## 安装与维护
+## 选择安装方式
 
-需要 Node.js >=24、Git 和本机 Claude Code >=2.1.270；开发构建还需要仓库贡献指南规定的 Go、pnpm。目标运行时为 macOS arm64 与 Windows x64。安装前自行完成 Claude 认证；Adapter 不保存认证凭据。
+Claude Adapter 目前通过源码或本地开发包体验。它需要 Node.js `>=24`、Git 和 Claude Code `>=2.1.270`。开始开发任务前，按 Claude Code 自身的提示完成登录。目标平台为 Windows x64 和 macOS arm64；实际验证范围以支持矩阵为准。
+
+### 从仓库源码安装
+
+此方式还需要 Go `>=1.26`、pnpm `>=11 <12`，并须在仓库根目录执行命令。开发环境配置见[贡献指南](../CONTRIBUTING_zh-CN.md)。
 
 ```sh
 pnpm dev-flow:local -- install --host claude --yes
+```
+
+该命令构建本地安装包，用临时管理器安装 Claude Adapter。它不会升级机器上已有的全局 `dev-flow` 命令。安装完成后，仍在仓库根目录检查：
+
+```sh
 node packages/dev-flow/bin/dev-flow.mjs status --host claude
 node packages/dev-flow/bin/dev-flow.mjs doctor --host claude
 ```
 
-统一入口支持 install、upgrade、repair、reinstall、uninstall、factory-reset。尚未发布时使用本地构建产物维护，不从 npm 请求不存在的稳定 Claude 包。直接打包：
+### 安装已经构建好的 Adapter 包
+
+如果维护者提供了本地 `.tgz`，不需要自行编译 Go。将占位路径替换成实际包路径：
 
 ```sh
-node scripts/build-claude-local.mjs --output <绝对输出目录>
+npm install --global "<dev-flow-claude包路径.tgz>"
+dev-flow-claude setup --json
+dev-flow-claude status --json
 ```
 
-插件注册到 Claude 用户范围的 dev-flow-claude-local 市场，插件为 dev-flow-claude。安装后重载插件或开始新会话，并按 Claude 提示审阅权限。用户设置目录使用 CLAUDE_CONFIG_DIR；DEV_FLOW_DATA_DIR 指定已有的规范绝对数据目录，MCP、Hook 与助手必须一致。默认数据目录在 macOS 为 ~/.dev-flow/data，在 Windows 为本地 AppData 下的 dev-flow/data。
+这个包提供 `dev-flow-claude`，不包含全局 `dev-flow` 管理器或桌面宠物。完整 Windows 开发包的安装方式见[桌面宠物指南](DESKTOP-PETS.md)；源码打包命令供维护者在[脚本说明](../scripts/README.md)中查阅。
 
-## 开始与恢复
+## 验证安装
 
-在 Claude 对话中发送：
+安装器会将插件注册到 Claude 用户范围。插件名为 `dev-flow-claude`，来自 `dev-flow-claude-local` 市场。重载 Claude 插件或开始新会话，按 Claude 的提示审阅插件和权限。
+
+`dev-flow-claude status --json` 的 `status` 应为 `ready`。若为 `partial`，先查看安装器输出及诊断结果，不要开始新的 Dev Flow 任务。`ready` 表示安装检查通过，不表示 Claude 已登录或开发任务已经完成。
+
+## 开始任务
+
+进入要修改的代码仓库，在 Claude 对话中发送：
 
 ```text
 /dev-flow-claude:dev-flow 为登录接口增加失败限流，只修改认证相关文件。
 ```
 
-先查看只读评估并选择直接开发或 Dev Flow。默认在原目录新建任务分支；还可以使用当前分支或独立工作树。确认分支、已有修改归属；独立工作树同时确认本地或远端来源、起始分支和目标目录。最多八个仓库共同组成一个固定任务范围。所有仓库准备完成才创建 Core Task。
+Claude 会先评估请求并让你选择直接开发或 Dev Flow。选择 Dev Flow 后，默认在当前目录新建分支；也可以指定使用当前分支或独立工作树。请明确分支名，以及已有未提交修改是否属于这项任务。独立工作树还需确认来源、起始分支和目标目录。
 
-完整需求、设计、工作项、文件范围和验证安排需明确确认。计划变更会使旧确认失效。Core 管理全部节点、验证预算、阻塞与恢复；Claude 的本地待办完成不代表 Core Task 已结束。plain、spec-kit、openspec 使用现有方法规则；缺少方法工具时如实说明。
+一项任务最多包含八个明确选择的仓库。全部仓库准备好后才创建任务。实现前，查看并确认需求、设计、工作项、预计文件和验证安排；计划或文件范围改变后，需要确认更新后的方案。
 
-恢复时回到原工作区和已保存的 Claude 会话，明确继续同一任务。启动失败时读取保留的 launch 和会话记录；结果不确定不能重复启动或重建工作树。原目录被替换或分支改变时按 Core 恢复指示处理。需求交接保留原始相关讨论及更正。
+如需 OpenSpec 或 Spec Kit，在请求中明确提出；否则使用普通开发方式。未安装的方法工具应先处理其缺失问题，不能把工具缺失当成工作完成。
 
-## 文件与任务生命周期
+## 恢复、取消与清理
 
-可信 PreToolUse Hook 检查 Write、Edit、NotebookEdit；Core 决定当前计划是否允许目标。放行不会绕过 Claude 自身权限。Bash 和外部工具的修改由后续 Core 观察发现，不能用来规避已拒绝的写入。
+回到任务原来的工作目录和 Claude 会话，发送：
 
-取消、放弃和恢复通过 Core 当前工具执行。独立工作区迁移先由 Core 准备，再由 Host 移动所有仓库，最后由 Core 核对新绑定。部分失败保留现场。DONE/CANCELLED 释放占用，不自动提交、发布或删除。工作树与分支分别授权清理；原目录模式保留目录和分支。
-
-## 查看进度与诊断
-
-```sh
-dev-flow webui start
-dev-flow pet start
-dev-flow-claude status --json
+```text
+/dev-flow-claude:dev-flow 继续之前保存的任务，先说明当前状态和剩余工作。
 ```
 
-WebUI 可按 Claude Code 筛选任务并打开原任务；桌面宠物复用 Core 的任务发现与状态。状态只表示已保存的 Core 结果。
+若启动失败、操作结果不明或工作目录被替换，保留原始错误和会话信息，让 Claude 检查已有记录。不要为了重试而重新创建任务、删除工作树或清空数据。
 
-工具故障先保留完整输出，再查看 [命令参考](COMMANDS.md) 和 [支持矩阵](SUPPORT-MATRIX.md)。模拟 Hook/CLI 测试、最终包检查、真实 Claude 会话和 macOS/Windows 原生结果分别记录，未完成项仍是验收缺口。
+取消任务时，明确发送“取消当前 Dev Flow 任务，并保留文件”。任务取消或完成后，文件和分支仍然保留。需要清理独立工作树或分支时分别提出；不要将退出 Claude 当成取消任务。
 
+需要移动工作目录时，先要求 Claude 迁移当前任务。仅全部采用独立工作树的任务支持这项操作；本地目录模式应在原目录恢复。移动未完成时，按返回的恢复说明处理原目录和目标目录。
+
+## 文件范围与权限
+
+可信的写入检查会核对 Claude 的 Write、Edit 和 NotebookEdit 操作。计划外文件会要求你选择允许该次操作、调整计划或恢复文件。允许某个路径不会取消 Claude 自身的权限要求。
+
+Shell 或外部程序的修改可能先发生，再被任务检查发现。不要换一种工具绕过已经拒绝的写入。
+
+## 查看进度与维护
+
+源码安装用户在仓库根目录使用同一源码入口：
+
+```sh
+node packages/dev-flow/bin/dev-flow.mjs webui start
+node packages/dev-flow/bin/dev-flow.mjs webui stop
+pnpm dev-flow:local -- repair --host claude --yes
+```
+
+WebUI 可以筛选 Claude Code 任务并查看其保存状态。源码维护命令会重新构建本地包；不要用旧版全局 CLI 的 `latest` 安装路径代替它。若使用的是包含当前管理器的完整开发包，则使用该包提供的 `dev-flow` 命令。
+
+宠物另外需要安装桌面应用，不能仅凭 Adapter 的 `ready` 状态判断宠物可用。安装与操作见[桌面宠物指南](DESKTOP-PETS.md)。
+
+## 移除与数据
+
+先结束相关 Claude 会话；如果启用了 WebUI，使用启动它的管理入口停止服务。源码安装用户可以执行：
+
+```sh
+node packages/dev-flow/bin/dev-flow.mjs uninstall --host claude --yes
+```
+
+只有 Adapter 包、没有源码管理器时：
+
+```sh
+dev-flow-claude remove --json
+npm uninstall --global dev-flow-claude
+```
+
+普通维护和卸载保留任务数据与无关的 Claude 设置。清空数据使用管理器的 `factory-reset`，须确认它列出的准确目录；普通卸载不需要这样做。
+
+`CLAUDE_CONFIG_DIR` 可以指定 Claude 设置目录。`DEV_FLOW_DATA_DIR` 可以指定已有的规范绝对数据目录，启动 Claude 和管理命令时必须保持一致。默认任务数据位于 macOS 的 `~/.dev-flow/data` 或 Windows 的 `%LOCALAPPDATA%\dev-flow\data`。
+
+更多命令见[命令参考](COMMANDS.md)，已执行检查和未验证项目见[项目状态](PROJECT-STATUS.md)。

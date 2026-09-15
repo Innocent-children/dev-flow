@@ -4,8 +4,10 @@
 
 > Dev Flow 持久 Task、工作目录和恢复状态的本地可视化与诊断入口。
 
-Control Center 嵌入 Go Core，读取与 Codex、DeepSeek 相同的 SQLite Task。浏览器不保存第二份流程
+Control Center 嵌入 Go Core，读取与 Codex、DeepSeek、Claude Code 相同的 SQLite Task。浏览器不保存第二份流程
 状态，也不执行 fetch、branch、worktree、handoff 或清理。
+
+任务列表可按 Codex、DeepSeek 或 Claude Code 筛选。选择 Host 后打开已有任务；创建新的开发任务仍需从对应 Host 对话开始。
 
 ## 可查看的信息
 
@@ -88,7 +90,7 @@ runtime receipt 绑定 PID、进程启动身份、data-root digest 和 loopback 
 
 `status` 返回 `ready`、`read_only`、`incompatible` 或 `unavailable`。默认 Task 数据在 macOS 位于
 `$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。
-Codex 与 DeepSeek 共用这份数据。
+Codex、DeepSeek 与 Claude Code 共用这份数据。
 
 React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，运行时不需要 Node server、CDN、
 外部字体或独立 WebUI package。完整命令见[命令参考](COMMANDS.md)，协议见

@@ -13,7 +13,9 @@ install real Host products or create npm, Tag, or GitHub Release state.
 | `pnpm run validate` | Run the repository's required checks |
 | `pnpm run validate:contracts` | Run public contract tests only |
 | `pnpm run versions:check` | Verify Core, Codex, DeepSeek, and Claude version files and mirrors |
-| `pnpm run dev-flow:local` | Pack all three products from current source and open the normal `dev-flow` install menu |
+| `pnpm run dev-flow:local` | Pack three Adapters and the manager from current source and open the normal `dev-flow` install menu |
+| `node scripts/build-claude-local.mjs --output <absolute-directory>` | Build a Claude Adapter tarball outside the repository; does not install it |
+| `node tests/claude/verify-package.mjs <extracted-package> <claude-executable>` | Verify a final package with an actual Claude CLI and isolated configuration; does not authenticate a model session |
 | `pnpm --dir packages/codex test` | Run Codex package-local tests |
 | `pnpm --dir packages/deepseek test` | Run DeepSeek package-local tests |
 
@@ -35,7 +37,7 @@ Tests are separated by the environment they actually require:
 ## Local installation testing
 
 This one command builds the WebUI and bundled Core, creates `@imotong/dev-flow`, `dev-flow-codex`,
-and `dev-flow-deepseek` tarballs in a temporary directory outside the repository, and starts the
+`dev-flow-deepseek` and `dev-flow-claude` tarballs in a temporary directory outside the repository, and starts the
 unified install menu from the local tarball:
 
 ```bash
@@ -58,6 +60,8 @@ The `dev-flow:local` Node orchestrator runs on macOS arm64 and Windows 10/11 x64
 verifies, and stages both `darwin-arm64/dev-flow` and `win32-x64/dev-flow.exe`. A Windows development
 host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launch.
 
+The local installer runs a temporary manager and does not upgrade an existing global `dev-flow`. Diagnose source installations from the repository root with `node packages/dev-flow/bin/dev-flow.mjs`.
+
 ## Local source builds
 
 - `build-webui.mjs`: build and synchronize the embedded WebUI cross-platform;
@@ -70,7 +74,7 @@ host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launc
 - `build-codex-release.sh` and `build-deepseek-release.sh`: prepare deterministic artifacts for a
   standalone release.
 
-Neither the Codex nor DeepSeek source package stores a precompiled Core. Each `package.json` still
+Host Adapter source packages do not store precompiled Core executables. Each `package.json` still
 declares the two runtime paths required in the final npm package; local builds and release staging
 create those files before packing.
 

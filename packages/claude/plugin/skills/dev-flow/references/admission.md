@@ -14,7 +14,6 @@ Prepare verifies the exact assessment anchor, all repository selections and Core
 
 host-launch scope takes launch_id, verifies current repository identity and branch and returns the complete Core creation scope only when all repositories are provisioned. Add host=claude and the new_task fields per the shared opening contract. A known/uncertain prior creation requires matching Core lookup/resume first.
 
-Current-directory work stays in this session. For independent workspaces, host-launch launch takes launch_id and returns executable, arguments, cwd and session_id. Use those exact argv/cwd in a real interactive terminal with all roots authorized. It records launch intent before returning; do not call launch again after a timeout. host-launch record-session takes launch_id and the actual session_id after observing that exact session. host-launch resume returns the saved UUID descriptor. Read the same process/session output rather than dispatching another consumer.
-
-
 After a successful Core open, call host-launch bind-task with launch_id and the actual returned task_id. The receipt retains only that identity. Resume a bound Task by reading that ID and handling Core recovery; relocation never authorizes a second Core creation. Do not manufacture a Task ID or treat this binding as a workflow cursor.
+
+Current-directory work stays in this session. For independent workspaces, host-launch launch takes launch_id and returns executable, arguments, cwd and session_id. Use those exact argv/cwd in a real interactive terminal with all roots authorized. It records launch intent before returning; do not call launch again after a timeout. host-launch record-session takes launch_id and the actual session_id after observing that exact session. host-launch resume returns the saved UUID descriptor. Read the same process/session output rather than dispatching another consumer.

@@ -8,6 +8,8 @@ Control Center is embedded in Go Core and reads the same SQLite Tasks as Codex, 
 browser keeps no second process state and does not fetch, create branches/worktrees, hand off a Host,
 or clean resources.
 
+The task list can filter by Codex, DeepSeek or Claude Code. Select the Host and open an existing task; creating a development task still starts in its Host conversation.
+
 ## Available information
 
 - the shared Task overview, filters, current stage, revision, and legal next action;
