@@ -120,3 +120,12 @@ When a submission omits changed process files, the page shows the missing reposi
 Task details show the confirmed worktree source and whether local content was carried. Creation and source selection happen in the Host; see [worktree sources](WORKTREE-SOURCES_en.md).
 
 Existing planned checks can receive more verification capacity for remaining work or a rerun. The page records the concrete reason and increase without creating a passed result.
+
+## Task experience
+
+On every entry to understanding review, the Task AI proactively reviews existing work, saves useful
+experience and then explains it; nothing useful means no write. Reentry updates existing findings,
+and delivery requires the user's understanding verdict. WebUI displays saved content. User supplements,
+historical reading and manual export do not require the Task to remain at understanding review.
+
+The Task experiences page searches current conclusions and user supplements by keyword and project, including archived tasks. Task detail shows reasoning, references, applicability and revision history, accepts user supplements and exports Markdown. A failed export can be retried without resuming the code task. See [Task experiences](EXPERIENCES_en.md).

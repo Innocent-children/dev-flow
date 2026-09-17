@@ -19,6 +19,11 @@ export const DEV_FLOW_RAW_TOOL_NAMES = Object.freeze([
   "dev_flow_recover_action",
   "dev_flow_cancel_task",
   "dev_flow_abandon_task",
+  "dev_flow_save_experience",
+  "dev_flow_add_experience_note",
+  "dev_flow_get_experiences",
+  "dev_flow_search_experiences",
+  "dev_flow_export_experiences",
 ]);
 
 export const DEV_FLOW_QUALIFIED_TOOL_NAMES = Object.freeze(

@@ -334,7 +334,7 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 
 ## MCP 工具
 
-以下十七个工具是当前全部公开 MCP 工具。它们由 Host Adapter 调用，不是终端 shell
+以下二十二个工具是当前全部公开 MCP 工具。它们由 Host Adapter 调用，不是终端 shell
 命令。
 
 | 工具 | 类型 | 作用 |
@@ -356,6 +356,11 @@ transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。C
 | `dev_flow_cancel_task` | destructive mutation | 使用当前 revision 和非空 reason 将非终态 Task 转为 `CANCELLED`。 |
 | `dev_flow_prepare_task_relocation` | mutation | 保存 relocation ID、源 workspace/content/surface 和 resume node；Host handoff 期间保留原 claims。 |
 | `dev_flow_abandon_task` | destructive mutation | 原 worktree 确实不可用时，用精确 host/task/revision 和非空 reason 进入 `CANCELLED` 并释放 claims；先尝试观察仓库，以确认原 worktree 不可用。 |
+| `dev_flow_save_experience` | mutation | 以稳定请求身份创建或修订独立经验。 |
+| `dev_flow_add_experience_note` | mutation | 追加用户补充，内容修订时继续保留。 |
+| `dev_flow_get_experiences` | 只读 | 读取当前经验或修订历史，以及导出状态。 |
+| `dev_flow_search_experiences` | 只读 | 按项目、关键词查找，包括归档任务。 |
+| `dev_flow_export_experiences` | mutation | 写入或重试本地 Markdown 快照，保持 Task 状态。 |
 
 八个普通节点提交工具都只接收 `host`、`task_id`、`action_id`、`transition_id`、`summary`、
 `reason`、`artifacts`、`method_results` 和只含语义事实的节点专属 `node_result`；其中没有
@@ -573,3 +578,15 @@ DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill �
 `allow_manual_handoff` 仅限制待办人工检查；已完成用户检查和独立验收可如实记录。仅调整权限时 additional_automatic_commands 可以为 0，additional_checks 仍需说明涉及的检查。恢复探针复制保存的完整操作；其工具 Schema 压缩部分必填声明以保留字段结构，Core 仍核对全部身份和 payload，不能用省略字段重建操作。
 
 MCP 参数纠错分为 `correct_current_action`（普通节点提交）和 `correct_request`（握手、读取、创建及生命周期请求）。二者均要求 Core 确认零写入，并用 allowed_paths 限定本次纠正。`correct_request` 保留原请求身份和已有授权，不要求先取得一个尚不存在的 Action。两端 Skill 为每个请求提供完整成功响应的链接，以及经过代码比对的具体错误响应与实现位置。历史恢复分别在 `history_resolution.choice` 和 `history_resolution.reason` 上报告枚举错误和文本错误。
+
+## 经验接口参数
+
+默认收集发生在每次进入 `COMPREHENSION_REVIEW` 后。当前 AI 先读取本任务经验并回顾已有材料，再调用
+`dev_flow_save_experience` 保存或修订有价值的内容，随后讲解；没有值得记录的内容可跳过写入。
+`dev_flow_submit_comprehension.method_results` 必须包含 `comprehension.collect_experiences` 的
+`capability` 和 `summary`，与 `comprehension.explain`、`comprehension.identify_complexity` 和
+`comprehension.obtain_user_verdict` 一起提交；说明已保存、已是当前内容或无经验的原因。
+保存失败按实际错误处理，不能当作已完成收集。`node_result.user_confirmation` 仍须来自真实用户。
+这些节点要求不为读取、补充、修订或手动导出 API 增加统一节点限制。
+
+五项操作的字段、分页、字节上限、请求重试和导出状态见[任务经验](EXPERIENCES.md)。WebUI 使用 `GET /api/experiences`、`GET /api/tasks/{task_id}/experiences`、`POST /api/tasks/{task_id}/experiences/export` 和 `POST /api/tasks/{task_id}/experiences/{experience_id}/notes`。写入入口沿用同源和会话保护。

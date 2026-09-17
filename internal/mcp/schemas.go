@@ -554,6 +554,7 @@ func buildCatalog() []ToolDefinition {
 		makeTool(ToolCancelTask, "Cancel one active Task after user authorization. Generate and retain one request_id for this cancellation, using the current revision and reason. After response loss, get_task and compare last_operation.operation_id/kind and outcome; this is not Action recovery.", cancel, false, false, true),
 		makeTool(ToolAbandonTask, "Explicitly abandon a Task whose retained worktree instance is unavailable. Core attempts a repository observation to establish unavailability. After response loss, read the same Task and its outcome; this is not Action recovery.", abandon, false, false, true),
 	)
+	tools = append(tools, experienceTools()...)
 	return tools
 }
 

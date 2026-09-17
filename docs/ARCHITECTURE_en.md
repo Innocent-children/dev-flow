@@ -324,6 +324,11 @@ replaces every binding/claim, and resumes.
 
 Ordinary `dev_flow_cancel_task` still observes the worktree. When the exact instance is genuinely gone,
 only `dev_flow_abandon_task(host, task_id, revision, reason)` may retain the last known binding, enter
+dev_flow_save_experience
+dev_flow_add_experience_note
+dev_flow_get_experiences
+dev_flow_search_experiences
+dev_flow_export_experiences
 CANCELLED, and release claims. It never accesses or deletes Git resources.
 
 DONE/CANCELLED end the Task and release claims only. Terminal projection shows source/base/base commit,
@@ -333,7 +338,7 @@ separate authorization.
 
 ## MCP, Store, and WebUI
 
-The fixed MCP tool list contains seventeen tools:
+The fixed MCP tool list contains twenty-two tools:
 
 ```text
 dev_flow_server_info
@@ -388,7 +393,7 @@ work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 | `internal/application/` | open/resume/read/submit/recover/relocate/cancel/abandon orchestration |
 | `internal/workflow/` | 11 nodes, ordinary edges, payloads, guards, invalidation |
 | `internal/store/` | current-only SQLite, codec, operations, events, claims |
-| `internal/mcp/` | seventeen tools, field restrictions, tool annotations, and the common response structure |
+| `internal/mcp/` | twenty-two tools, field restrictions, tool annotations, and the common response structure |
 | `internal/webui/`, `packages/webui/` | loopback Adapter and embedded interface |
 | `packages/codex/`, `packages/deepseek/` | request assessment, worktree creation, session restart/handoff, and packaging |
 | `protocol/fixtures/`, `tests/` | public contracts, fault injection, Host end-to-end tests |
@@ -511,3 +516,43 @@ COMPREHENSION_REVIEW and DELIVERY require a current completed Test satisfying or
 The current persisted Schema changes without historical readers or migration. MCP, CLI and WebUI expose the same record and transitions. Errors follow the [Core response contract](CORE-RESPONSES_en.md).
 
 Acceptance uses targeted Core and storage integration checks: ordinary passing, accepted known failures, missing comparison/decision, omitted new failures, stale acceptance, restart then delivery, actual limits, completed user checks, permission restrictions, and zero-write correction of missing check explanations. Shared Skill examples cover both Hosts. One transition and attached record preserve truthful results and allow delivery; no additional node, second cursor, automatic log parser, generic waiver or release workflow is introduced. Scope covers workflow/domain/application/store, direct MCP/WebUI consumers, docs and Skills.
+
+## Experience persistence and export
+
+On every entry to `COMPREHENSION_REVIEW`, `standard-development` issues these method steps:
+`comprehension.collect_experiences` → `comprehension.explain` → `comprehension.identify_complexity` →
+`comprehension.obtain_user_verdict`. The current Host AI first reviews existing task material and
+experiences, saves or revises a few useful findings, then explains them. An empty review needs no
+write, but the review must be performed. Other nodes have no automatic collection obligation.
+Core does not monitor discussion or generate content.
+
+Entry still requires current completed tests, repository binding and requirements/design/plan.
+Completion includes `comprehension_experiences_reviewed`: the existing method result describes saved,
+already-current or absent useful findings without a minimum experience count. Allowed effects include
+`record_experiences` alongside repository reading, process artifacts and user decisions; product code
+edits and extra tests for experience are not allowed. This effect does not restrict historical reads,
+explicit supplements, revisions or manual export through the independent experience APIs.
+`ActionSubmissionSchema` derives required method fields from the node, retaining existing method
+validation and `comprehension-result`. Saving experience creates no passed comprehension record.
+
+The complete outgoing set remains below. The last five edges require a concrete reason and matching findings.
+
+| Transition | Destination | Guard | Reason |
+| --- | --- | --- | --- |
+| `comprehension_passed` | DELIVERY | `current_user_comprehension_confirmed` | May be empty |
+| `implementation_defect` | IMPLEMENT | `implementation_defect_identified` | Required |
+| `code_too_complex` | REFACTOR | `code_complexity_identified` | Required |
+| `design_too_complex` | DESIGN | `design_complexity_identified` | Required |
+| `evidence_insufficient` | TEST | `verification_gap_identified` | Required |
+| `requirement_unclear` | REQUIREMENTS | `comprehension_requirement_gap_identified` | Required |
+
+Reentry reads saved experiences first, reuses the ID of the same finding and revises only changed
+content. Actual user supplements from follow-up discussion are appended separately. Failed saves
+retain candidate content and request identity and follow returned recovery; unresolved saves cannot
+be reported as a passed review. Only the actual user's understanding verdict supports delivery.
+There is no added node, confirmation or direct edge to DONE. The new step, effect and completion
+condition affect the process digest; current examples use that digest without reading old definitions.
+
+`experience_revisions` stores immutable encoded revisions with `(task_id, experience_id, revision)` and unique `(task_id, request_id)`. The request digest detects conflicting retries. Each revision contains current content, historical context and retained user supplements. It is separate from ProcessTask, task_events and Action operations. Current records select the highest experience revision; a specified ID reads history. `experience_exports` stores generation, exported_generation, path and error. Experience writes and subsequent Task mutations mark the snapshot pending inside their SQLite transaction. The application attempts export after a committed DONE, including recovery.
+
+The export transaction serializes snapshot selection and file replacement with other writers. The application renders saved data; `internal/experienceexport` owns repository-external paths and temporary-file replacement through the operating system file API. Failure leaves database content and Task completion intact. Archive retains experience; explicit Task purge removes its associated database rows. See [Task experiences](EXPERIENCES_en.md).

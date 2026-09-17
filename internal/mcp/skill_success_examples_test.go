@@ -75,7 +75,12 @@ func (o *skillSuccessObserver) ObserveWorkspace(ctx context.Context, path string
 }
 func newSkillScenario(t *testing.T, host string, examples []skillExample) *skillScenario {
 	t.Helper()
-	database, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "examples.db"))
+	return newSkillScenarioAt(t, host, examples, filepath.Join(t.TempDir(), "examples.db"))
+}
+
+func newSkillScenarioAt(t *testing.T, host string, examples []skillExample, databasePath string) *skillScenario {
+	t.Helper()
+	database, err := store.Open(context.Background(), databasePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,6 +176,9 @@ func (s *skillScenario) prepare(e skillExample) {
 	case ToolResolveBlocker:
 		target = "IMPLEMENT"
 	}
+	if experienceTool(e.Tool) {
+		target = "COMPREHENSION_REVIEW"
+	}
 	for string(s.task.CurrentNode) != target {
 		switch s.task.CurrentNode {
 		case domain.NodeRequirements:
@@ -199,6 +207,9 @@ func (s *skillScenario) prepare(e skillExample) {
 		default:
 			s.t.Fatalf("cannot prepare %s from %s", target, s.task.CurrentNode)
 		}
+	}
+	if experienceTool(e.Tool) && e.Tool != ToolSaveExperience {
+		s.call("experience_record")
 	}
 	if e.Name == "tasks_ready" {
 		s.call("tasks_plan_saved")
@@ -394,6 +405,9 @@ func verifySkillSuccessFile(t *testing.T, host string, e skillExample, input, ou
 	if os.Getenv("DEV_FLOW_UPDATE_SKILL_EXAMPLES") == "1" && host == "codex" {
 		source := filepath.Join("..", "..", "skills", "dev-flow", "core", "successes", name)
 		text := "# " + e.Tool + ": " + e.Name + "\n\nImplementation: `internal/mcp/server.go` — `dispatch`; `internal/application/submit_action.go` — `SubmitAction`.\n\nComplete successful call from the documented scenario. The repository observer is a fixed test fixture;\nHost authorization and Git operations are not executed here. Runtime IDs and timestamps use stable\nexample values, and operation digests use a sample digest. All other fields are compared with the\nactual Core response. The resolved request below shows the current Task values substituted for the\nidentity and confirmation placeholders in the calling reference.\n\nResolved request:\n\n<!-- example:resolved-mcp " + e.Tool + " " + e.Name + " -->\n```json\n" + string(input) + "\n```\n\nComplete response:\n\n<!-- example:mcp-success " + e.Tool + " " + e.Name + " -->\n```json\n" + string(output) + "\n```\n"
+		if experienceTool(e.Tool) {
+			text = strings.Replace(text, "`internal/mcp/server.go` — `dispatch`; `internal/application/submit_action.go` — `SubmitAction`", "`internal/mcp/experience.go` — `dispatchExperience`; `internal/application/experience.go`; `internal/store/experience.go`", 1)
+		}
 		for _, key := range []string{"host", "origin_host"} {
 			text = strings.ReplaceAll(text, `"`+key+`": "codex"`, `"`+key+`": "{{host}}"`)
 		}

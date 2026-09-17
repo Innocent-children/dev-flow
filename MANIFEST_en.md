@@ -68,3 +68,5 @@ See [AGENTS.md](AGENTS.md) for documentation-update scope and AI maintenance ins
 [I18n policy](docs/I18N_en.md) for maintained languages and translation pairs. Current documentation
 explains current behavior; Git retains historical design, and verification records describe their
 specific artifacts, environments, results, and limits.
+
+- [Task experiences](docs/EXPERIENCES_en.md): recording, understanding review, local export and lookup.

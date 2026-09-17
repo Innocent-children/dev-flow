@@ -25,6 +25,8 @@ Il convient aux travaux sur un dépôt qui s’étendent sur plusieurs sessions 
 claires de fichiers et de tests. Pour les questions ponctuelles, les explications de code et les petites
 modifications sans suivi persistant, utiliser directement Codex ou DeepSeek est généralement plus simple.
 
+**Conserver les enseignements :** à chaque étape de confirmation de compréhension, l’IA de la tâche revient automatiquement sur le travail existant, enregistre quelques enseignements utiles, puis explique les raisons, les conditions d’application et les points à vérifier la prochaine fois. Si rien ne mérite d’être conservé, elle ne crée pas de note ; lors d’un nouveau passage, elle met à jour les enseignements existants. La confirmation explicite de l’utilisateur reste nécessaire. À la fin, un Markdown est exporté hors de l’arbre de travail. WebUI permet de le relire, de chercher par projet et mots-clés, d’ajouter des notes et de relancer l’export. Voir [Expériences des tâches](docs/EXPERIENCES_en.md).
+
 ## Démarrage rapide
 
 > La version stable npm `@latest` est actuellement vérifiée sur macOS arm64. Utilisez Node.js `>=24`

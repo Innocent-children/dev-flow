@@ -93,7 +93,8 @@ only when actually visible and appropriate to the current authorized artifacts.
 | `test.run_budgeted_checks` | Choose the closest necessary checks and adjust insufficient capacity before extra commands run. | Recheck scope before every command; use a justified TEST self-transition before exceeding budget and reassess every full suite. | Direct plan-defined checks; no mandatory Spec Kit capability. | Use `openspec-verify` only when visible and justified; otherwise run plan-defined checks. | Actual bounded result or a recorded pre-run budget increase. |
 | `test.record_evidence` | Record actual evidence or the exact pre-run budget adjustment. | Record actual sources and statuses; full suites include the current reason, while an adjustment records its basis, checks, increment, and reason. | Direct evidence recording; no mandatory capability. | Direct evidence recording; no mandatory capability. | Current evidence summary or budget-adjustment record. |
 | `test.classify_failure` | Classify failures as implementation, design, or requirement problems. | Classify current failures from observed facts. | Direct classification; no mandatory capability. | Direct classification; no mandatory capability. | Exact failure class and findings. |
-| `comprehension.explain` | Explain current behavior, design, and code paths in developer-readable terms. | Present a bounded explanation to the developer. | Direct review; no Spec Kit command owns the verdict. | Direct review; no OpenSpec command owns the verdict. | Developer-readable explanation. |
+| `comprehension.collect_experiences` | On every entry, review existing task work and save useful experience before explaining it. | Read existing task materials and experiences; save a few findings or revise matching records, or skip writing when nothing is useful. No additional investigation or tests. | Direct current-AI review; no separate capability or model. | Direct current-AI review; no separate capability or model. | Review summary naming saved/revised or already-current findings, or the reason for no experience. |
+| `comprehension.explain` | Explain current behavior and saved experience: why, applicability, and next checks. | Explain the current code/design, answer follow-ups, save actual user supplements and revise changed conclusions. | Direct review; no Spec Kit command owns the verdict. | Direct review; no OpenSpec command owns the verdict. | Developer-readable explanation and preserved actual supplements. |
 | `comprehension.identify_complexity` | Identify unnecessary abstractions and maintenance risks. | List concrete complexity and maintenance concerns. | Direct review; no mandatory capability. | Direct review; no mandatory capability. | Exact abstraction and risk findings. |
 | `comprehension.obtain_user_verdict` | Obtain the developer's explicit understanding or remediation verdict. | Ask the developer and wait for an explicit answer. | Direct user interaction; no Spec Kit capability can answer. | Direct user interaction; no OpenSpec capability can answer. | Explicit current user verdict. |
 | `refactor.simplify` | Remove unnecessary complexity within the approved behavior boundary. | Perform the bounded simplification. | `speckit-implement` only after affected artifacts and tasks are current. | Update change artifacts as needed, then use visible `openspec-apply`. | Bounded simplification. |
@@ -170,8 +171,11 @@ writes before final verification and reconcile read-only in DELIVERY.
 
 ## Comprehension verdict
 
-All profiles present a bounded requirements/design/code-path explanation, list unnecessary
-abstractions and maintenance risks, ask whether the developer can explain and maintain the result,
-and wait for an explicit user verdict. No AI statement or Spec Kit/OpenSpec capability may provide
-that confirmation. The Adapter then considers only the matching transition that Core returned; Core
-still validates the typed result and derives the destination.
+All profiles begin every understanding review with the current AI's
+[experience review and save](experience.md), then explain the requirements/design/code path and useful
+findings, discuss questions, and list unnecessary abstractions and maintenance risks. No valuable
+experience means no write, not a missing review. Failed saves follow Core recovery and remain in this
+node. Ask whether the developer can explain and maintain the result, and wait for an explicit user
+verdict. Experience writes, export, an AI statement or a Spec Kit/OpenSpec capability cannot provide
+that confirmation. The Adapter considers only the matching transition that Core returned; Core still
+validates the typed result and derives the destination.

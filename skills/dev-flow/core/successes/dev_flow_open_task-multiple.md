@@ -172,7 +172,7 @@ Complete response:
         ],
         "node_purpose": "Transform the immutable initial intent into the current requirements authority.",
         "payload_contract": "requirements-result",
-        "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+        "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
         "process_id": "standard-development",
         "repository_binding_digest": "9172a0b644779c213fa366284adafc44104d5e720d3a0991e913065a4ce8ec66",
         "required_evidence": [
@@ -220,7 +220,7 @@ Complete response:
       "origin_host": "{{host}}",
       "outcome": null,
       "primary_repository_key": "api",
-      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+      "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
       "process_id": "standard-development",
       "relocation": null,
       "repository": {

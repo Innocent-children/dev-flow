@@ -25,6 +25,8 @@ resultados para você continuar depois que a sessão terminar.
 arquivos e testes. Para perguntas pontuais, explicações de código e pequenas alterações que não
 precisam salvar o progresso, usar Codex ou DeepSeek diretamente costuma ser mais simples.
 
+**Guardar a experiência:** a cada etapa de confirmação de compreensão, a IA da tarefa revisa automaticamente o trabalho existente, salva algumas conclusões úteis e explica os motivos, quando se aplicam e o que verificar na próxima vez. Se não houver nada que valha registrar, não cria um registro; ao voltar à revisão, atualiza as conclusões existentes. A confirmação explícita do usuário continua necessária. Ao concluir, exporta Markdown fora da árvore de trabalho. A WebUI permite consultar depois, buscar por projeto e palavras-chave, acrescentar observações e tentar a exportação novamente. Consulte [Experiências das tarefas](docs/EXPERIENCES_en.md).
+
 ## Início rápido
 
 > A versão estável do npm `@latest` está atualmente verificada no macOS arm64. Use Node.js `>=24`

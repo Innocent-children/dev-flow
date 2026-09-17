@@ -82,7 +82,7 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		message = typed.Message
 	}
 	result := &ErrorResult{Code: code, Message: message}
-	if code == domain.ErrorVerificationBudgetExceeded && typed != nil && typed.Budget != nil && typed.Budget.Used >= 0 && typed.Budget.Requested >= 0 && typed.Budget.Limit >= 0 {
+	if (code == domain.ErrorVerificationBudgetExceeded || code == domain.ErrorInvalidArgument) && typed != nil && typed.Budget != nil && typed.Budget.Used >= 0 && typed.Budget.Requested >= 0 && typed.Budget.Limit >= 0 {
 		result.Budget = typed.Budget
 	}
 	guard := publicGuardFailure(code, typed)
@@ -96,6 +96,10 @@ func EncodeError(id, tool string, err error) EncodedResult {
 	result.RepositoryPaths = domain.ViolationRepositoryPaths(err)
 	if len(result.RepositoryPaths) != 0 {
 		result.Message = "The artifact manifest omits observed repository changes."
+	}
+	if experienceTool(tool) && code == domain.ErrorRevisionConflict {
+		result.Message = "The experience revision changed."
+		action, guidance = "retry_read", "Read the current experience with dev_flow_get_experiences before submitting a revised change. Task revision and Action are unchanged."
 	}
 	recoveryResult := &RecoveryGuidance{RetrySafe: false, Action: action, Message: guidance}
 	if paths := boundedCorrectionPaths(tool, typed, result); len(paths) != 0 {

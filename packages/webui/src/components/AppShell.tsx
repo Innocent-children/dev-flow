@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const timer = window.setInterval(refresh, 5_000);
     return () => { active = false; window.clearInterval(timer); };
   }, []);
-  const routeTitle = route.page === "dashboard"
+  const routeTitle = route.page === "experiences" ? t("experience.title") : route.page === "dashboard"
     ? t("shell.overview")
     : route.page === "open-task"
       ? t("shell.openTask")
@@ -36,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="nav-section-label">{t("shell.workspace")}</span>
             <AppLink href="/" aria-label={t("shell.overview")} title={t("shell.overview")} aria-current={route.page === "dashboard" ? "page" : undefined} className={route.page === "dashboard" ? "nav-link active" : "nav-link"}><NavIcon name="overview" /><span className="nav-copy">{t("shell.overview")}</span></AppLink>
             <AppLink href="/tasks" aria-label={t("shell.tasks")} title={t("shell.tasks")} aria-current={route.page === "tasks" || route.page === "task" ? "page" : undefined} className={route.page === "tasks" || route.page === "task" ? "nav-link active" : "nav-link"}><NavIcon name="tasks" /><span className="nav-copy">{t("shell.tasks")}</span></AppLink>
+            <AppLink href="/experiences" aria-current={route.page === "experiences" ? "page" : undefined} className={route.page === "experiences" ? "nav-link active" : "nav-link"}><NavIcon name="tasks" /><span className="nav-copy">{t("experience.title")}</span></AppLink>
             <AppLink href="/system" aria-label={t("shell.system")} title={t("shell.system")} aria-current={route.page === "system" ? "page" : undefined} className={route.page === "system" ? "nav-link active" : "nav-link"}><NavIcon name="system" /><span className="nav-copy">{t("shell.system")}</span></AppLink>
           </nav>
           <div className="sidebar-footer">

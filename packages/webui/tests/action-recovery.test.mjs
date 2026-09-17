@@ -175,3 +175,31 @@ function find(tree, predicate) {
   return find(tree.props?.children, predicate);
 }
 function tick() { return new Promise((resolve) => setImmediate(resolve)); }
+
+
+test("experience API preserves note request identity and uses dedicated export without Task revision", async () => {
+ const calls = [];
+ const api = await load("lib/api.ts", { "./i18n": i18n }, { fetch: async (path, init) => { calls.push({ path, body: init?.body && JSON.parse(init.body) }); return { ok: true, json: async () => ({ ok: true, result: { revision: 2 } }) }; }, document: { querySelector: () => ({ content: "session" }) } });
+ const value = { task_id: "task", experience_id: "experience", revision: 1 };
+ await api.addExperienceNote(value, "My understanding", "same-request");
+ await api.addExperienceNote(value, "My understanding", "same-request");
+ await api.exportExperiences("task");
+ assert.deepEqual(calls[0], calls[1]);
+ assert.deepEqual(Object.keys(calls[0].body).sort(), ["csrf", "expected_revision", "request_id", "user_note"]);
+ assert.deepEqual(calls[2].body, { csrf: "session" });
+ assert.match(calls[2].path, /experiences\/export$/u);
+});
+
+test("experience card shows reasoning and retains an uncertain note for identical retry", async () => {
+ const hooks = scheduler(); const calls = [];
+ const api = { APIError: class extends Error {}, getExperiences: async () => ({}), exportExperiences: async () => ({}), addExperienceNote: async (...args) => { calls.push(args); if (calls.length === 1) throw new Error("response lost"); } };
+ const module = await load("components/ExperiencePanel.tsx", { react: hooks.react, "react/jsx-runtime": jsx, "../lib/i18n": { useI18n: i18n.useI18n, formatDate: value => value, nodeLabel: value => value }, "../lib/api": api, "../app/router": { AppLink: "link" } });
+ const value = { task_id: "task", experience_id: "experience", revision: 1, stage: "DESIGN", updated_stage: "DESIGN", updated_at: "today", content_digest: "digest", change_reason: "Initial finding", projects: [], user_notes: [], content: { title: "Avoid stale Actions", status: "supported", problem: "Action stale", cause: "Shared revision", resolution: "Separate records", basis: "Snapshot check", applicability: "Auxiliary records", next_checks: "Inspect dependencies", references: [] } };
+ const props = { value, onChanged() {} }; let tree = hooks.render(module.ExperienceCard, props);
+ assert.ok(JSON.stringify(tree).includes("Inspect dependencies"));
+ find(tree, node => node.type === "textarea").props.onChange({ target: { value: "I understand the revision boundary" } });
+ tree = hooks.render(module.ExperienceCard, props); find(tree, node => node.type === "form").props.onSubmit({ preventDefault() {} }); await tick();
+ tree = hooks.render(module.ExperienceCard, props); assert.equal(find(tree, node => node.type === "textarea").props.disabled, true);
+ find(tree, node => node.type === "form").props.onSubmit({ preventDefault() {} }); await tick();
+ assert.equal(calls.length, 2); assert.equal(calls[0][2], calls[1][2]); assert.equal(calls[0][1], calls[1][1]);
+});

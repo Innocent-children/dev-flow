@@ -1,3 +1,4 @@
+import { ExperiencesPage } from "../pages/ExperiencesPage";
 import { AppShell } from "../components/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { OpenTaskPage } from "../pages/OpenTaskPage";
@@ -14,6 +15,9 @@ export function App() {
   switch (route.page) {
     case "dashboard":
       page = <DashboardPage />;
+      break;
+    case "experiences":
+      page = <ExperiencesPage />;
       break;
     case "tasks":
       page = <TaskListPage />;

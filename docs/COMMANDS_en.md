@@ -354,7 +354,7 @@ integration process.
 
 ## MCP tools
 
-These seventeen tools are the complete public MCP tool list. Host adapters call them; they are not
+These twenty-two tools are the complete public MCP tool list. Host adapters call them; they are not
 terminal shell commands.
 
 | Tool | Type | Purpose |
@@ -376,6 +376,11 @@ terminal shell commands.
 | `dev_flow_cancel_task` | Destructive mutation | Move a nonterminal Task to `CANCELLED` using the current revision and a non-empty reason. |
 | `dev_flow_prepare_task_relocation` | Mutation | Retain relocation ID, source workspace/content/surface and resume node while source claims remain active during Host handoff. |
 | `dev_flow_abandon_task` | Destructive mutation | When the original worktree is unavailable, use exact host/task/revision and a non-empty reason to enter `CANCELLED` and release claims after attempting repository observation to establish worktree unavailability. |
+| `dev_flow_save_experience` | mutation | Create/revise independent experience with stable request identity. |
+| `dev_flow_add_experience_note` | mutation | Append a user supplement; preserve it across content revisions. |
+| `dev_flow_get_experiences` | read-only | Read current experience or revision history and export status. |
+| `dev_flow_search_experiences` | read-only | Search by project/keyword, including archived tasks. |
+| `dev_flow_export_experiences` | mutation | Write or retry the local Markdown snapshot without changing Task state. |
 
 Each ordinary node submission tool accepts only `host`, `task_id`, `action_id`, `transition_id`,
 `summary`, `reason`, `artifacts`, `method_results`, and that node's semantic `node_result`, which has no
@@ -614,3 +619,18 @@ Every tool follows the [Core response contract](CORE-RESPONSES_en.md). Success r
 `allow_manual_handoff` only restricts pending manual work; completed user checks and separate acceptance can be recorded. Permission-only adjustments permit additional_automatic_commands=0 but still require explained additional_checks. Recovery probes copy complete saved operations; their tool projection reduces some required declarations to preserve field structure within the Host schema budget. Core still checks every identity and the complete payload; omissions do not reconstruct a saved operation.
 
 MCP correction uses `correct_current_action` for ordinary node submissions and `correct_request` for handshake, read, creation and lifecycle requests. Both require Core's zero-write proof and limit corrections through allowed_paths. `correct_request` preserves request identity and existing authorization without asking for an Action that may not exist. Both Host Skills link each request to a complete successful response and include a code-verified error response with implementation locations. History resolution reports enum failures at `history_resolution.choice` and text failures at `history_resolution.reason` independently.
+
+## Experience inputs
+
+Default collection occurs on every entry to `COMPREHENSION_REVIEW`. The current AI reads this Task's
+experiences and reviews existing material, saves or revises useful findings through
+`dev_flow_save_experience`, then explains them. Nothing useful means no write.
+`dev_flow_submit_comprehension.method_results` must include `comprehension.collect_experiences` with
+`capability` and `summary`, alongside `comprehension.explain`, `comprehension.identify_complexity` and
+`comprehension.obtain_user_verdict`. Describe saved or
+already-current findings, or why there is no experience to save. Follow actual save errors; failure
+does not count as completed collection. `node_result.user_confirmation` still comes from the actual
+user. These node obligations add no uniform node restriction to reading, supplements, revisions or
+manual export APIs.
+
+See [Task experiences](EXPERIENCES_en.md) for all five operation fields, pagination, byte limits, retry identities and export status. WebUI uses `GET /api/experiences`, `GET /api/tasks/{task_id}/experiences`, `POST /api/tasks/{task_id}/experiences/export` and `POST /api/tasks/{task_id}/experiences/{experience_id}/notes`. Mutation routes retain the current same-origin/session protection.

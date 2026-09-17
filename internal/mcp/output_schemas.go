@@ -86,6 +86,9 @@ func toolOutputSchema(name string) map[string]any {
 	default:
 		result = outputTaskSchema()
 	}
+	if experienceTool(name) {
+		result = experienceResultSchema(name)
+	}
 	success := obj([]string{"ok", "request_id", "tool", "result"}, map[string]any{
 		"ok": map[string]any{"const": true}, "request_id": str(), "tool": map[string]any{"const": name}, "result": result,
 	})
@@ -98,6 +101,9 @@ func toolOutputSchema(name string) map[string]any {
 }
 
 func outputDescription(name string) string {
+	if experienceTool(name) {
+		return " Success: result contains the saved experience, page, detail or export status; no Task Action is changed."
+	}
 	switch name {
 	case ToolServerInfo:
 		return " Success: envelope.result contains server identity and capabilities."

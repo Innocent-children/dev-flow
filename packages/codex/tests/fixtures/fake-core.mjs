@@ -389,6 +389,11 @@ function toolDefinitions() {
     ["dev_flow_recover_action", ["host", "task_id", "action_id"], ["host", "task_id", "action_id"], false, false, true],
     ["dev_flow_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
     ["dev_flow_abandon_task", ["host", "task_id", "revision", "reason"], ["host", "task_id", "revision", "reason"], false, true, false],
+    ["dev_flow_save_experience", ["host", "task_id", "experience_id", "request_id", "expected_revision", "content", "change_reason"], ["host", "task_id", "experience_id", "request_id", "expected_revision", "content", "change_reason"], false, false, true],
+    ["dev_flow_add_experience_note", ["host", "task_id", "experience_id", "request_id", "expected_revision", "user_note"], ["host", "task_id", "experience_id", "request_id", "expected_revision", "user_note"], false, false, true],
+    ["dev_flow_get_experiences", ["host", "task_id"], ["host", "task_id"], true, false, true],
+    ["dev_flow_search_experiences", ["host"], ["host"], true, false, true],
+    ["dev_flow_export_experiences", ["host", "task_id"], ["host", "task_id"], false, false, true],
   ];
   return metadata.map(([name, required, properties, readOnlyHint, destructiveHint, idempotentHint]) => {
     const inputSchema = closedSchema(required, properties);

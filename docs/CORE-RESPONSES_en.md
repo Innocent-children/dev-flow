@@ -84,3 +84,11 @@ message, details, guard and recovery. The examples illustrate supported failures
 all runtime conditions. Existing shared error examples also match the current encoder exactly.
 
 History resolution reports enum failures at `history_resolution.choice` and text failures at `history_resolution.reason` independently, returning both when both members are invalid.
+
+## Experience results
+
+A comprehension submission missing its collection method result identifies
+`method_results.comprehension.collect_experiences` with `required_member_missing`. The zero-write
+correction may describe only a review already performed; it cannot invent collection work or a user verdict.
+
+Experience operations return independent records, pages or export status rather than a Task/Action. Revision conflicts concern experience revision. Invalid fields name their paths; an oversized revision reports requested bytes and the 65536-byte limit. Export file failure is a saved result with nonempty error and pending generation, while the Task remains complete. See [Task experiences](EXPERIENCES_en.md).

@@ -24,6 +24,8 @@ It suits repository work that spans sessions or needs explicit scope and testing
 questions, code explanations, and small edits that need no saved progress, using Codex or DeepSeek
 directly is usually simpler.
 
+**Keep useful experience:** at every understanding review, the Task AI automatically reviews existing work, saves a few useful findings, then explains the reasons, applicability and next checks. Nothing useful means no record; returning to review updates existing findings. Your explicit understanding confirmation remains required. Completion exports Markdown outside the worktree; WebUI supports later reading, project/keyword lookup, user supplements and export retry. See [Task experiences](docs/EXPERIENCES_en.md).
+
 ## Quick start
 
 > Stable npm `@latest` is currently verified on macOS arm64. Use Node.js `>=24` and install a supported

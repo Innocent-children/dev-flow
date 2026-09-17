@@ -288,6 +288,11 @@ base、等价 surface 和 claim 可用性，在一个 transaction 中替换全�
 
 普通 `dev_flow_cancel_task` 仍先观察工作树。原实例确实丢失时，只有
 `dev_flow_abandon_task(host, task_id, revision, reason)` 可以保存最后已知 binding、进入 CANCELLED 并释放
+dev_flow_save_experience
+dev_flow_add_experience_note
+dev_flow_get_experiences
+dev_flow_search_experiences
+dev_flow_export_experiences
 claims；它不访问或删除 Git 对象。
 
 DONE/CANCELLED 只结束 Task 和释放 claims。本地目录与分支保留，cleanup 不适用。终态投影 source/base/base commit、task branch/current
@@ -296,7 +301,7 @@ cleanup 是 Host 后续操作，其中两个 cleanup 分别授权。
 
 ## MCP、Store 和 WebUI
 
-当前 MCP 工具列表固定包含十七个工具：
+当前 MCP 工具列表固定包含二十二个工具：
 
 ```text
 dev_flow_server_info
@@ -349,7 +354,7 @@ Core、Codex、DeepSeek 和统一 lifecycle package 独立版本。Core 的机�
 | `internal/application/` | open/resume/read/submit/recover/relocate/cancel/abandon 编排 |
 | `internal/workflow/` | 11 个节点、普通边、payload、guard、invalidation |
 | `internal/store/` | current-only SQLite、codec、operations、events、claims |
-| `internal/mcp/` | 十七个工具、字段限制、工具属性和统一返回结构 |
+| `internal/mcp/` | 二十二个工具、字段限制、工具属性和统一返回结构 |
 | `internal/webui/`, `packages/webui/` | loopback Adapter 与内嵌界面 |
 | `packages/codex/`, `packages/deepseek/` | 新请求评估、工作树创建、会话重启/交接和安装包 |
 | `protocol/fixtures/`, `tests/` | 公开接口规范、故障注入和宿主完整流程测试 |
@@ -465,3 +470,35 @@ COMPREHENSION_REVIEW 和 DELIVERY 的进入条件改为当前测试已完成并�
 保存布局同步提升当前 Schema；不读取历史布局或增加迁移。MCP、CLI 和 WebUI 返回相同记录和转换，错误遵守 [Core 响应规范](CORE-RESPONSES.md)。
 
 验收使用 Core 单元和保存边界集成测试：全通过、已有失败且明确验收、缺少比较/确认、新失败遗漏、确认过期、重启后交付、真实数量超限、已完成用户检查、权限限制及检查说明为空后的零写入纠正。共享 Skill 示例验证两种 Host。该方案增加一个明确转换和附属记录，收益是保持失败事实并正常交付；不增加节点、第二套状态、自动测试日志解析、通用豁免或发布流程。实现范围是 workflow/domain/application/store、MCP/WebUI 直接消费者及维护文档和 Skills。
+
+## 经验持久化与导出
+
+`standard-development` 在每次进入 `COMPREHENSION_REVIEW` 时签发以下方法步骤：
+`comprehension.collect_experiences` → `comprehension.explain` → `comprehension.identify_complexity` →
+`comprehension.obtain_user_verdict`。当前 Host AI 先回顾本任务已有材料和经验，保存或修订少量有用内容，再讲解；
+没有值得记录的内容可不写入，但须完成回顾。其他节点没有主动收集义务。Core 不监听对话或生成内容。
+
+进入条件仍是当前测试完成、仓库绑定和需求/设计/计划有效。完成条件包含 `comprehension_experiences_reviewed`，
+通过现有方法结果描述已保存、已是当前内容或无有价值内容；不检查经验数量。允许效果包含 `record_experiences`，
+并保留读取仓库、流程材料和请求用户决定；不允许产品代码修改或为经验追加测试。该效果不限制独立经验 API 的
+历史读取、主动补充、修订和手动导出。`ActionSubmissionSchema` 从节点生成必填方法字段，沿用现有方法校验和
+`comprehension-result`；经验写入不产生理解通过记录。
+
+理解确认的全部出边保持如下，后五项仍需要具体原因和相应发现：
+
+| 转换 | 目标 | guard | reason |
+| --- | --- | --- | --- |
+| `comprehension_passed` | DELIVERY | `current_user_comprehension_confirmed` | 可空 |
+| `implementation_defect` | IMPLEMENT | `implementation_defect_identified` | 必填 |
+| `code_too_complex` | REFACTOR | `code_complexity_identified` | 必填 |
+| `design_too_complex` | DESIGN | `design_complexity_identified` | 必填 |
+| `evidence_insufficient` | TEST | `verification_gap_identified` | 必填 |
+| `requirement_unclear` | REQUIREMENTS | `comprehension_requirement_gap_identified` | 必填 |
+
+再次进入时先读取已保存经验，复用同一判断的 ID，内容改变才修订。追问中的真实用户补充单独追加；保存失败保留
+候选与请求身份，按返回的处理方式解决，未解决时不提交理解通过。只有真实用户理解答复可以支持交付；没有新增
+节点、确认或从理解节点直接到 DONE 的路径。新方法、效果和完成条件进入流程摘要，当前示例同步该摘要，不读取旧定义。
+
+`experience_revisions` 以 `(task_id, experience_id, revision)` 保存不可变修订，`(task_id, request_id)` 唯一，请求摘要识别不同内容的重复请求。修订包含当前内容、历史背景及保留的用户补充，独立于 ProcessTask、task_events 和 Action 操作。当前记录取最高经验 revision，指定经验 ID 时读取历史。`experience_exports` 保存 generation、exported_generation、path 和 error。经验写入及后续 Task 修改在各自 SQLite 事务中标记快照待导出。应用层在 DONE 提交后尝试导出，包括恢复路径。
+
+导出事务将快照选择和文件替换与其他写入串行化。应用层渲染保存内容，`internal/experienceexport` 负责仓库外路径和通过操作系统文件接口进行临时文件替换。失败保留数据库内容与任务完成状态。归档保留经验，明确永久删除任务时删除关联数据库记录。详见[任务经验](EXPERIENCES.md)。

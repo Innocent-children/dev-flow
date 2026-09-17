@@ -33,6 +33,7 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 	}
 	if found && existing.Commit.Operation.ActionID == request.ActionID {
 		if existing.RecordedBy(task) {
+			s.exportCompletedExperiences(ctx, task)
 			return ApplyActionResult{Task: task}, nil
 		}
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
@@ -134,6 +135,7 @@ func (s *Service) SubmitAction(ctx context.Context, request SubmitActionRequest)
 	if err := operationStore.CommitActionOperation(ctx, operation.OperationID, mutation); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
+	s.exportCompletedExperiences(ctx, mutation.Task)
 	return ApplyActionResult{Task: mutation.Task}, nil
 }
 
@@ -331,9 +333,6 @@ func submissionArtifacts(node domain.NodeID, current, other []ArtifactSubmission
 }
 
 func submissionMethodEvidence(steps []domain.SemanticMethodStep, results map[domain.MethodStepID]MethodResultSubmission) ([]domain.MethodEvidence, error) {
-	if len(results) != len(steps) {
-		return nil, domain.ErrInvalidArgument
-	}
 	items := make([]domain.MethodEvidence, len(steps))
 	for index, step := range steps {
 		result, ok := results[step.StepID]
@@ -346,7 +345,7 @@ func submissionMethodEvidence(steps []domain.SemanticMethodStep, results map[dom
 		}
 		items[index] = domain.MethodEvidence{StepID: step.StepID, Status: status, Capability: result.Capability, Summary: result.Summary}
 	}
-	if domain.ValidateMethodEvidence(items, steps) != nil {
+	if len(results) != len(steps) || domain.ValidateMethodEvidence(items, steps) != nil {
 		return nil, domain.ErrInvalidArgument
 	}
 	return items, nil

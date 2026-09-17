@@ -190,6 +190,10 @@ func ValidateToolInput(tool string, raw []byte) error {
 	if violations := toolRequestMemberViolations(tool, raw); len(violations) != 0 {
 		return domain.InvalidArgumentViolations(violations...)
 	}
+	if experienceTool(tool) {
+		return validateExperienceWire(tool, raw)
+	}
+
 	switch tool {
 	case ToolServerInfo:
 		var v struct{}

@@ -51,6 +51,8 @@ func (c ErrorCode) IsValid() bool {
 // submitted value, file content, storage path, environment variable or stack.
 type ViolationRule string
 
+const RuleExperienceSize ViolationRule = "experience_record_bytes_exceeded"
+
 const (
 	RuleArgumentsObjectRequired        ViolationRule = "arguments_object_required"
 	RuleEnumValueInvalid               ViolationRule = "enum_value_invalid"
@@ -95,6 +97,7 @@ const (
 )
 
 var violationMessages = map[ViolationRule]string{
+	RuleExperienceSize:                 "one encoded experience revision, including retained user supplements, must fit within 65536 bytes",
 	RuleArgumentsObjectRequired:        "MCP arguments must be a valid JSON object",
 	RuleEnumValueInvalid:               "use a value declared by the current request schema",
 	RuleWorkspaceOriginRequired:        "workspace_origin must identify the confirmed workspace preparation and its receipt",

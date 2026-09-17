@@ -70,6 +70,10 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	if err := ValidateToolInput(tool, raw); err != nil {
 		return EncodeError(string(resultID), tool, err)
 	}
+	if experienceTool(tool) {
+		return s.dispatchExperience(ctx, tool, resultID, raw)
+	}
+
 	if kind, ok := submissionKindForTool(tool); ok {
 		var wire submitActionWire
 		_ = decodeClosed(raw, &wire)

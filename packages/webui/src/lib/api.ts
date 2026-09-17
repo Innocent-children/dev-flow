@@ -267,15 +267,15 @@ function sessionValue(): string {
   return value;
 }
 
-async function postJSON(path: string, body: Record<string, unknown>): Promise<MutationResponse> {
+async function postJSON<T = MutationResponse>(path: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(path, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ ...body, csrf: sessionValue() }) });
-  const result = (await response.json()) as MutationResponse | FailureResponse;
-  if (!response.ok || result.ok === false) {
+  const result = (await response.json()) as T | FailureResponse;
+  if (!response.ok || (result as FailureResponse).ok === false) {
     const failure = result as FailureResponse;
     if (failure.error !== undefined) throw new APIError(failure);
     throw new Error(translateCurrent("api.requestFailed", { status: response.status }));
   }
-  return result;
+  return result as T;
 }
 
 function requestID(prefix: string): string {
@@ -342,3 +342,14 @@ export function applyRecovery(taskID: string, actionID: string) {
 }
 
 import { translateCurrent } from "./i18n";
+
+export interface ExperienceContent { title: string; problem: string; cause: string; resolution: string; basis: string; applicability: string; next_checks: string; status: "pending" | "supported" | "refuted"; repository_keys: string[]; references: { kind: string; locator: string; summary: string }[] }
+export interface Experience { task_id: string; experience_id: string; revision: number; content: ExperienceContent; change_reason: string; stage: string; updated_stage: string; content_digest: string; projects: { key: string; group: string; path: string }[]; user_notes: { text: string; created_at: string }[]; created_at: string; updated_at: string }
+export interface ExperienceExport { task_id: string; generation: number; exported_generation: number; path: string; error: string }
+export interface ExperienceDetail { task_id: string; task_state: string; experiences: Experience[]; export: ExperienceExport; page: number; has_next: boolean }
+export interface ExperiencePage { items: { experience: Experience; task_summary: string; task_state: string; archived: boolean }[]; page: number; has_next: boolean }
+interface ExperienceResponse<T> { ok: true; request_id: string; result: T }
+export async function getExperiences(taskID: string, page = 1, experienceID = "", signal?: AbortSignal) { const q = new URLSearchParams({ page: String(page) }); if (experienceID) q.set("experience_id", experienceID); return (await readJSON<ExperienceResponse<ExperienceDetail>>(`/api/tasks/${encodeURIComponent(taskID)}/experiences?${q}`, signal)).result; }
+export async function searchExperiences(query: URLSearchParams, signal?: AbortSignal) { return (await readJSON<ExperienceResponse<ExperiencePage>>(`/api/experiences?${query}`, signal)).result; }
+export async function exportExperiences(taskID: string) { return (await postJSON<ExperienceResponse<ExperienceExport>>(`/api/tasks/${encodeURIComponent(taskID)}/experiences/export`, {})).result; }
+export async function addExperienceNote(value: Experience, note: string, request: string) { return (await postJSON<ExperienceResponse<Experience>>(`/api/tasks/${encodeURIComponent(value.task_id)}/experiences/${encodeURIComponent(value.experience_id)}/notes`, { request_id: request, expected_revision: value.revision, user_note: note })).result; }

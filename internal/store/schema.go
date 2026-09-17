@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const DatabaseSchemaVersion = "0.7.0"
+const DatabaseSchemaVersion = "0.8.0"
 
 var currentSchemaStatements = []string{
 	`CREATE TABLE schema_metadata (version TEXT PRIMARY KEY)`,
@@ -21,6 +21,8 @@ var currentSchemaStatements = []string{
 	`CREATE TABLE relocation_operations (relocation_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, request_id TEXT NOT NULL UNIQUE, source_binding_digest TEXT NOT NULL, prepared_at TEXT NOT NULL, resolved_revision INTEGER, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
 	`CREATE INDEX relocation_operations_task_idx ON relocation_operations (task_id)`,
 	`CREATE UNIQUE INDEX relocation_operations_unresolved_task_idx ON relocation_operations (task_id) WHERE resolved_revision IS NULL`,
+	`CREATE TABLE experience_revisions (task_id TEXT NOT NULL, experience_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1), request_id TEXT NOT NULL, request_digest TEXT NOT NULL, record BLOB NOT NULL, PRIMARY KEY (task_id, experience_id, revision), UNIQUE (task_id, request_id), FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
+	`CREATE TABLE experience_exports (task_id TEXT PRIMARY KEY, generation INTEGER NOT NULL CHECK (generation >= 1), exported_generation INTEGER NOT NULL CHECK (exported_generation >= 0 AND exported_generation <= generation), path TEXT NOT NULL, error TEXT NOT NULL, FOREIGN KEY (task_id) REFERENCES tasks (task_id) ON DELETE RESTRICT)`,
 }
 
 var currentSchemaObjects = []struct {
@@ -40,6 +42,8 @@ var currentSchemaObjects = []struct {
 	{"relocation_operations", "table", 9},
 	{"relocation_operations_task_idx", "index", 10},
 	{"relocation_operations_unresolved_task_idx", "index", 11},
+	{"experience_revisions", "table", 12},
+	{"experience_exports", "table", 13},
 }
 
 var currentColumns = map[string][]string{
@@ -49,6 +53,8 @@ var currentColumns = map[string][]string{
 	"task_events":           {"event_id", "task_id", "revision", "event_type", "source_node", "destination_node", "transition_id", "transition_reason", "action_id", "observed_binding_digest", "repository_delta_paths", "request_id", "payload_digest", "created_at"},
 	"repository_claims":     {"worktree_instance_digest", "canonical_worktree_root", "task_id", "origin_host", "claimed_at"},
 	"relocation_operations": {"relocation_id", "task_id", "request_id", "source_binding_digest", "prepared_at", "resolved_revision"},
+	"experience_revisions":  {"task_id", "experience_id", "revision", "request_id", "request_digest", "record"},
+	"experience_exports":    {"task_id", "generation", "exported_generation", "path", "error"},
 }
 
 func bootstrapCurrentSchema(ctx context.Context, db *sql.DB) error {

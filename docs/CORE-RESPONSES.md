@@ -71,3 +71,10 @@ WebUI 使用独立的 HTTP DTO：失败仍使用相同的 Core code、details、
 和 recovery。示例说明确定的失败情况，不穷举所有运行条件；已有公共错误示例也与当前编码结果一致。
 
 历史恢复分别报告 `history_resolution.choice` 的枚举错误和 `history_resolution.reason` 的文本错误；多个字段同时错误时一并返回。
+
+## 经验返回
+
+理解节点提交缺少收集方法结果时，错误指出 `method_results.comprehension.collect_experiences`，
+规则为 `required_member_missing`。零写入的纠正仅允许补充已实际完成的回顾说明，不能补造收集结果或用户确认。
+
+经验操作返回独立记录、分页或导出状态，不返回 Task/Action。修订冲突针对经验 revision。非法字段指出具体路径，修订过大时报告实际字节数和 65536 字节上限。文件导出失败通过非空 error 和待导出 generation 保存，任务完成状态保持。详见[任务经验](EXPERIENCES.md)。

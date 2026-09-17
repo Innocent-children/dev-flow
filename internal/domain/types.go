@@ -146,13 +146,14 @@ const (
 	EffectEditProcessArtifacts    AllowedEffect = "edit_process_artifacts"
 	EffectEditProductFiles        AllowedEffect = "edit_product_files"
 	EffectRequestUserDecision     AllowedEffect = "request_user_decision"
+	EffectRecordExperiences       AllowedEffect = "record_experiences"
 )
 
 func (e AllowedEffect) IsValid() bool {
 	switch e {
 	case EffectReadRepository, EffectEditProcessArtifacts, EffectEditProductFiles,
 		EffectRunVerificationCommands, EffectRequestUserDecision,
-		EffectPrepareDeliverySummary, EffectResolveBlocker:
+		EffectPrepareDeliverySummary, EffectResolveBlocker, EffectRecordExperiences:
 		return true
 	default:
 		return false

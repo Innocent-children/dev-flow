@@ -13,6 +13,7 @@ import (
 
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/experienceexport"
 	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
 	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
@@ -341,6 +342,7 @@ func runMCP(
 		_, _ = io.WriteString(stderr, "dev-flow: MCP version startup failed\n")
 		return 1
 	}
+	service.SetExperienceExporter(experienceexport.Writer{Directory: dataDirectory})
 	diagnostics := coremcp.NewDiagnostics(stderr)
 	serveErr := serve(ctx, service, currentVersion, diagnostics, getenv(mcpInstructionsEnvironment), preferences)
 	closeErr := taskStore.Close()

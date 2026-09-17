@@ -65,6 +65,7 @@ func newAPI(reader ControlCenterReader, mutator ControlCenterMutator, status Sys
 		mux.HandleFunc("POST /api/tasks/{task_id}/recovery/assess", actions.assessRecovery)
 		mux.HandleFunc("POST /api/tasks/{task_id}/recovery/apply", actions.applyRecovery)
 	}
+	registerExperienceAPI(mux, reader, mutator)
 	return mux, nil
 }
 

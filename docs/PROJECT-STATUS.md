@@ -23,7 +23,7 @@ npm `@latest` 当前选择以下稳定 package：
 
 ## 当前源码与预览能力
 
-以下能力存在于当前 `main`，其中部分可能只在 beta 或源码中：
+以下能力存在于当前源码，其中部分可能只在 beta 或源码中：
 
 | 用户可见能力 | 当前内容 |
 | --- | --- |
@@ -36,6 +36,7 @@ npm `@latest` 当前选择以下稳定 package：
 | 自动刹车 | 保存最近三次测试尝试；相同失败、相同结果或相同修改与失败循环第三次精确重复后暂停 |
 | 不确定 Action 恢复 | read-before-retry、Recovery 判断、Blocker 和 resume |
 | 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
+| 任务经验 | 独立 SQLite 修订与用户补充；理解确认时讲解，本地 Markdown 导出及失败补写，WebUI 项目与关键词查找包含归档任务 |
 | 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop` |
 | 当前源码平台 | 精确支持 `darwin-arm64` 与 `win32-x64` runtime；Windows 范围是 Windows 10/11 桌面版 x64 |
 | 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；全部 roots 都必须先隔离和授权；同机 relocation 原子替换 bindings 与 claims |
@@ -102,3 +103,34 @@ package 可用和已有的具体的宿主完整流程测试，不能据此推导
 ## 源码 DSH 要求
 
 当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。该要求描述源码兼容范围，稳定安装包的验证环境仍由[支持矩阵](SUPPORT-MATRIX.md)单独记录。
+
+## 任务经验验证（2026 年 9 月 15 日）
+
+环境：macOS arm64、Go 1.27.0、Node.js 24.19.0。以下是 9 月 15 日的结果，当时收集时机尚未集中到理解确认；不能代替下方新触发方式的验证，也不代表新的稳定发布。
+
+| 检查 | 实际结果与范围 |
+| --- | --- |
+| `go test ./internal/domain ./internal/store ./internal/application ./internal/experienceexport ./internal/mcp ./internal/webui ./tests/contract` | 通过。覆盖 SQLite 重开、修订/补充保留、请求重试、Task/Action 不变、完成与恢复导出、损坏记录拒绝和 MCP/WebUI 共享数据 |
+| 导出文件测试 | 完整替换、失败清理和仓库目录拒绝通过；临时真实 Git 仓库的状态及文件字节保持不变 |
+| WebUI 构建与组件/API 测试 | 构建通过，9 项测试通过，包括补充请求身份保持和响应不确定后的重试 |
+| Codex/DeepSeek 适配及共享引用测试 | 25 项测试通过；两种 Host 的完整成功/失败 MCP 示例在固定仓库观察、真实 Core/SQLite 上执行 |
+| 打包清单与归档内容 | 4 项定向检查通过；两个源码归档均包含新增的 6 个引用文件，字节与源码一致。这是源码归档检查，不是最终 runtime 安装包或实际 Host 测试 |
+| 本机浏览器 | 使用独立的模拟归档任务，验证关键词查找、修订历史、用户补充、Task revision 保持及取消任务 Markdown 导出 |
+| 版本与文档 | 版本检查通过；README 维护语言与配对指南同步，共享引用已重新生成并检查 |
+
+任务经验功能尚未在新安装的 Codex/DeepSeek 包中执行完整任务，也未在 Windows 上做原生验证。历史经验仍是辅助判断材料。使用方式与限制见[任务经验](EXPERIENCES.md)。
+
+## 理解确认阶段收集经验的验证（2026 年 9 月 17 日）
+
+环境：macOS arm64、Go 1.27.0、Node.js 24.19.0。当前源码与原 Task 使用的数据分开，Go 场景使用临时 SQLite 和固定仓库观察。
+
+| 检查 | 实际结果与范围 |
+| --- | --- |
+| `workflow/application/store/experienceexport` 定向 Go 测试 | 通过。选择 Experience、Comprehension、StandardDefinition、StandardProcess、SemanticMethodCatalog、DefinitionDigest 和 MethodEvidence 测试，覆盖新步骤顺序、原完整出边、独立保存、零经验与真实用户确认要求 |
+| 理解阶段返回和保存失败 | 真实 Core/SQLite 配合模拟操作顺序，验证返回实现、重新测试、再次进入后更新同一经验；修订、重复请求和用户补充保留，原 Action 不变。注入存储错误验证失败如实返回且不改变已存经验或 Task |
+| MCP、当前协议夹具与共享示例 | 完整成功/错误示例、输出 Schema 和当前流程摘要检查通过。首轮发现漏传收集方法结果只返回笼统错误；调整方法校验后，缺失字段及零写入纠正范围的完整响应检查通过。可选浏览器夹具未启用 |
+| Host 与引用打包 | 22 项 Node 检查通过，范围为模拟 Core、DeepSeek 注入/连接、共享引用和 package 清单。两种 Host 副本已由共享源生成，`sync-skill-references.mjs --check` 通过 |
+| 版本 | `scripts/check-versions.mjs` 通过；本次继续使用当前功能变更的 Core 版本，Host npm 发布版本未修改 |
+| 文档与已有改动保留 | 检查 200 份已改 Markdown、409 个本地链接和 39 个保留路径通过；共享源中的 Host 引用按两种包内实际位置解析。九种 README 与受影响双语说明已同步 |
+
+本次没有运行完整仓库套件。WebUI 源码和静态资源保留，已只读核对 Action 表单根据 Core 的 `payload_schema` 和方法列表展示；没有重做浏览器流程。以上不证明 AI 实际提炼质量，也不等同于新安装 Codex/DeepSeek 最终 runtime 包中的完整任务或 Windows 原生验证；这些范围仍未验证。

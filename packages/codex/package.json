@@ -147,7 +147,13 @@
     "plugin/skills/dev-flow/references/successes/host-prepare-remote-cli.md",
     "plugin/skills/dev-flow/references/successes/host-scope-multiple.md",
     "plugin/skills/dev-flow/references/successes/host-scope-single.md",
-    "plugin/skills/dev-flow/references/successes/host-status-launch.md"
+    "plugin/skills/dev-flow/references/successes/host-status-launch.md",
+    "plugin/skills/dev-flow/references/experience.md",
+    "plugin/skills/dev-flow/references/successes/dev_flow_save_experience-experience_record.md",
+    "plugin/skills/dev-flow/references/successes/dev_flow_add_experience_note-experience_note.md",
+    "plugin/skills/dev-flow/references/successes/dev_flow_get_experiences-experience_read.md",
+    "plugin/skills/dev-flow/references/successes/dev_flow_search_experiences-experience_find.md",
+    "plugin/skills/dev-flow/references/successes/dev_flow_export_experiences-experience_export.md"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",

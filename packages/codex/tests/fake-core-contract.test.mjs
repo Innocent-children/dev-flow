@@ -31,6 +31,11 @@ const exactTools = [
   "dev_flow_recover_action",
   "dev_flow_cancel_task",
   "dev_flow_abandon_task",
+  "dev_flow_save_experience",
+  "dev_flow_add_experience_note",
+  "dev_flow_get_experiences",
+  "dev_flow_search_experiences",
+  "dev_flow_export_experiences",
 ];
 const exactActionMembers = [
   "task_id", "revision", "action_id", "action_kind", "submission_tool", "process_id",
@@ -41,7 +46,7 @@ const exactActionMembers = [
   "issuance_content_digest", "issued_at",
 ].sort();
 
-test("fake Core serves the current seventeen-tool catalog and complete structured results", async (t) => {
+test("fake Core serves the current twenty-two-tool catalog and complete structured results", async (t) => {
   const fixture = await makeFixture(t, "catalog");
   const client = await fixture.client();
   const tools = await client.listTools();

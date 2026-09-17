@@ -3,7 +3,7 @@
   "evidence_class": "simulated_static_adapter_journey",
   "server_info": {
     "product": "dev-flow",
-    "version": "0.14.0",
+    "version": "0.15.0",
     "transport": "stdio",
     "health": "ready",
     "supported_hosts": [
@@ -13,7 +13,7 @@
     "supported_processes": [
       {
         "process_id": "standard-development",
-        "definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+        "definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
         "new_task_supported": true
       }
     ],
@@ -47,7 +47,12 @@
       "dev_flow_resolve_blocker",
       "dev_flow_recover_action",
       "dev_flow_cancel_task",
-      "dev_flow_abandon_task"
+      "dev_flow_abandon_task",
+      "dev_flow_save_experience",
+      "dev_flow_add_experience_note",
+      "dev_flow_get_experiences",
+      "dev_flow_search_experiences",
+      "dev_flow_export_experiences"
     ]
   },
   "actions": {
@@ -58,7 +63,7 @@
       "action_kind": "COMPLETE_REQUIREMENTS",
       "submission_tool": "dev_flow_submit_requirements",
       "process_id": "standard-development",
-      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+      "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
       "current_node": "REQUIREMENTS",
       "node_purpose": "Transform the immutable initial intent into the current requirements authority.",
       "entry_conditions": [
@@ -132,7 +137,7 @@
       "action_kind": "COMPLETE_TEST",
       "submission_tool": "dev_flow_submit_test",
       "process_id": "standard-development",
-      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+      "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
       "current_node": "TEST",
       "node_purpose": "Verify the current repository behavior within the analyzed plan and record any justified budget increase before more commands run.",
       "entry_conditions": [
@@ -245,15 +250,16 @@
       "action_kind": "COMPLETE_COMPREHENSION_REVIEW",
       "submission_tool": "dev_flow_submit_comprehension",
       "process_id": "standard-development",
-      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+      "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
       "current_node": "COMPREHENSION_REVIEW",
-      "node_purpose": "Verify that the developer can explain and maintain the current design and implementation.",
+      "node_purpose": "Review and preserve useful task experience, then verify that the developer can explain and maintain the current design and implementation.",
       "entry_conditions": [
         "test_current_and_completed",
         "repository_binding_current",
         "requirements_design_plan_current"
       ],
       "completion_conditions": [
+        "comprehension_experiences_reviewed",
         "comprehension_explanation_complete",
         "comprehension_complexity_classified",
         "comprehension_questions_resolved_or_routed",
@@ -261,6 +267,7 @@
       ],
       "allowed_effects": [
         "read_repository",
+        "record_experiences",
         "edit_process_artifacts",
         "request_user_decision"
       ],
@@ -277,69 +284,74 @@
       "method_profile": "plain",
       "method_steps": [
         {
-          "step_id": "comprehension.explain",
-          "purpose": "Explain the current behavior, design, and code path in developer-readable terms.",
-          "required": true
+          "purpose": "On every entry, review this task's existing requirements, design, code changes, discussion, checks, and experiences. Save a few useful findings or revise matching records before explaining them; skip writing when nothing is worth recording. Do not add investigation, tests, or scope.",
+          "required": true,
+          "step_id": "comprehension.collect_experiences"
         },
         {
-          "step_id": "comprehension.identify_complexity",
+          "purpose": "Explain the current behavior, design, and code path using saved experience: why this approach, when it applies, and what to check next time. Answer follow-up questions, preserve actual user supplements, and revise changed conclusions.",
+          "required": true,
+          "step_id": "comprehension.explain"
+        },
+        {
           "purpose": "Identify unnecessary abstractions and maintenance risks.",
-          "required": true
+          "required": true,
+          "step_id": "comprehension.identify_complexity"
         },
         {
-          "step_id": "comprehension.obtain_user_verdict",
           "purpose": "Obtain the developer's explicit understanding or remediation verdict.",
-          "required": true
+          "required": true,
+          "step_id": "comprehension.obtain_user_verdict"
         }
       ],
       "available_transitions": [
         {
-          "transition_id": "comprehension_passed",
+          "description": "Move from COMPREHENSION_REVIEW to DELIVERY after completing the declared node obligations.",
           "destination_node": "DELIVERY",
           "guard_id": "current_user_comprehension_confirmed",
-          "description": "Move from COMPREHENSION_REVIEW to DELIVERY after completing the declared node obligations.",
+          "reason_required": false,
           "selection_condition": "Choose this transition only when the current user comprehension confirmed condition is satisfied.",
-          "reason_required": false
+          "transition_id": "comprehension_passed"
         },
         {
-          "transition_id": "implementation_defect",
+          "description": "Move from COMPREHENSION_REVIEW to IMPLEMENT after completing the declared node obligations.",
           "destination_node": "IMPLEMENT",
           "guard_id": "implementation_defect_identified",
-          "description": "Move from COMPREHENSION_REVIEW to IMPLEMENT after completing the declared node obligations.",
+          "reason_required": true,
           "selection_condition": "Choose this transition only when the implementation defect identified condition is satisfied.",
-          "reason_required": true
+          "transition_id": "implementation_defect"
         },
         {
-          "transition_id": "code_too_complex",
+          "description": "Move from COMPREHENSION_REVIEW to REFACTOR after completing the declared node obligations.",
           "destination_node": "REFACTOR",
           "guard_id": "code_complexity_identified",
-          "description": "Move from COMPREHENSION_REVIEW to REFACTOR after completing the declared node obligations.",
+          "reason_required": true,
           "selection_condition": "Choose this transition only when the code complexity identified condition is satisfied.",
-          "reason_required": true
+          "transition_id": "code_too_complex"
         },
         {
-          "transition_id": "design_too_complex",
+          "description": "Move from COMPREHENSION_REVIEW to DESIGN after completing the declared node obligations.",
           "destination_node": "DESIGN",
           "guard_id": "design_complexity_identified",
-          "description": "Move from COMPREHENSION_REVIEW to DESIGN after completing the declared node obligations.",
+          "reason_required": true,
           "selection_condition": "Choose this transition only when the design complexity identified condition is satisfied.",
-          "reason_required": true
+          "transition_id": "design_too_complex"
         },
         {
-          "transition_id": "evidence_insufficient",
+          "description": "Move from COMPREHENSION_REVIEW to TEST after completing the declared node obligations.",
           "destination_node": "TEST",
           "guard_id": "verification_gap_identified",
-          "description": "Move from COMPREHENSION_REVIEW to TEST after completing the declared node obligations.",
+          "reason_required": true,
           "selection_condition": "Choose this transition only when the verification gap identified condition is satisfied.",
-          "reason_required": true
+          "transition_id": "evidence_insufficient"
         },
         {
-          "transition_id": "requirement_unclear",
+          "description": "Move from COMPREHENSION_REVIEW to REQUIREMENTS after completing the declared node obligations.",
           "destination_node": "REQUIREMENTS",
           "guard_id": "comprehension_requirement_gap_identified",
-          "description": "Move from COMPREHENSION_REVIEW to REQUIREMENTS after completing the declared node obligations.",
+          "reason_required": true,
           "selection_condition": "Choose this transition only when the comprehension requirement gap identified condition is satisfied.",
-          "reason_required": true
+          "transition_id": "requirement_unclear"
         }
       ],
       "payload_contract": "comprehension-result",
@@ -638,6 +650,12 @@
       "available_capabilities": [],
       "method_evidence": [
         {
+          "step_id": "comprehension.collect_experiences",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Reviewed existing task material; no separate useful experience to save."
+        },
+        {
           "step_id": "comprehension.explain",
           "status": "plain_fallback",
           "capability": "",
@@ -666,6 +684,12 @@
       "action": "comprehension_review",
       "available_capabilities": [],
       "method_evidence": [
+        {
+          "step_id": "comprehension.collect_experiences",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Reviewed existing task material; no separate useful experience to save."
+        },
         {
           "step_id": "comprehension.explain",
           "status": "plain_fallback",
@@ -712,6 +736,12 @@
       "action": "comprehension_review",
       "available_capabilities": [],
       "method_evidence": [
+        {
+          "step_id": "comprehension.collect_experiences",
+          "status": "plain_fallback",
+          "capability": "",
+          "summary": "Reviewed existing task material; no separate useful experience to save."
+        },
         {
           "step_id": "comprehension.explain",
           "status": "plain_fallback",

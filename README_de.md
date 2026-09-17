@@ -25,6 +25,8 @@ Das eignet sich für Arbeiten an einem Repository, die mehrere Sitzungen dauern 
 für Dateien und Tests benötigen. Für einzelne Fragen, Code-Erklärungen und kleine Änderungen ohne
 gespeicherten Fortschritt ist die direkte Nutzung von Codex oder DeepSeek meist einfacher.
 
+**Erfahrungen festhalten:** Bei jeder Verständnisprüfung blickt die Aufgaben-KI automatisch auf die bisherige Arbeit zurück, speichert einige nützliche Erkenntnisse und erklärt die Gründe, die Anwendungsbedingungen und die nächsten Prüfschritte. Gibt es nichts Aufbewahrenswertes, entfällt der Eintrag; bei einer erneuten Prüfung werden vorhandene Erkenntnisse aktualisiert. Die ausdrückliche Verständnisbestätigung des Nutzers bleibt erforderlich. Nach Abschluss wird Markdown außerhalb des Arbeitsbaums exportiert. In der WebUI können Sie später nachlesen, nach Projekt und Stichwort suchen, eigene Notizen ergänzen und den Export wiederholen. Siehe [Aufgabenerfahrungen](docs/EXPERIENCES_en.md).
+
 ## Schnellstart
 
 > Die stabile npm-Version unter `@latest` ist derzeit auf macOS arm64 verifiziert. Verwende Node.js

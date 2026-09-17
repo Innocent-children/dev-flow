@@ -27,6 +27,9 @@ func TestOutputSchemasAcceptCurrentTaskAndActionProjections(t *testing.T) {
 			}
 			task := domain.ProcessTask{TaskID: "task", Revision: 1, CurrentNode: node, CurrentAction: action}
 			for _, definition := range ToolCatalog() {
+				if experienceTool(definition.Name) {
+					continue
+				} // Experience outputs are checked through real dispatch in the experience and Skill scenarios.
 				var result any = projectTask(task)
 				switch definition.Name {
 				case ToolServerInfo:

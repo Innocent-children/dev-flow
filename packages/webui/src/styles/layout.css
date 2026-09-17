@@ -365,6 +365,8 @@
 }
 
 .filter-panel > *,
+.experience-filters input,
+.experience-card textarea,
 .filter-panel input,
 .filter-panel .select-trigger {
   min-width: 0;
@@ -767,6 +769,8 @@
   width: 100%;
 }
 
+.experience-filters input,
+.experience-card textarea,
 .filter-panel input,
 .form-grid input,
 .form-grid textarea,
@@ -784,6 +788,8 @@
   transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
 }
 
+.experience-filters input:hover,
+.experience-card textarea:hover,
 .filter-panel input:hover,
 .form-grid input:hover,
 .form-grid textarea:hover,
@@ -794,6 +800,8 @@
   border-color: color-mix(in srgb, var(--text-muted) 68%, var(--border));
 }
 
+.experience-filters input:focus,
+.experience-card textarea:focus,
 .filter-panel input:focus,
 .form-grid input:focus,
 .form-grid textarea:focus,
@@ -2692,3 +2700,20 @@ td:last-child time {
     width: 100%;
   }
 }
+
+.experience-card { border-top: 1px solid var(--border); padding-block: 1.4rem; overflow-wrap: anywhere; }
+.experience-card header, .experience-export, .experience-filters { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.experience-card header h3 { margin: 0; flex: 1; }
+.experience-card dl { display: grid; gap: 1rem; }
+.experience-card dt { font-weight: 650; margin-bottom: .3rem; }
+.experience-card dd { margin: 0; white-space: pre-wrap; line-height: 1.65; }
+.experience-card blockquote p { white-space: pre-wrap; }
+.experience-card textarea { display: block; width: 100%; min-height: 5rem; margin-block: .5rem; }
+.experience-card form { margin-block: 1rem; }
+.experience-export code { flex-basis: 100%; overflow-wrap: anywhere; }
+.experience-status { border: 1px solid currentColor; border-radius: 1rem; padding: .2rem .6rem; font-size: .8rem; }
+.experience-status.supported { color: var(--success); } .experience-status.refuted { color: var(--danger); }
+.experience-meta { font-size: .85rem; opacity: .75; }
+.experience-history { margin-left: 1rem; padding-left: 1rem; border-left: 2px solid var(--border-strong); }
+.experience-filters label { flex: 1; min-width: 12rem; }
+.experience-filters input { display: block; width: 100%; }

@@ -211,6 +211,7 @@
         "reason": "The Factory and Writer layers are unnecessary for one direct write operation.",
         "artifacts": [],
         "method_evidence": [
+          {"step_id": "comprehension.collect_experiences", "status": "plain_fallback", "capability": "", "summary": "Reviewed current task material; no separate useful finding to save."},
           {"step_id": "comprehension.explain", "status": "plain_fallback", "capability": "", "summary": "Explained the current layered code path."},
           {"step_id": "comprehension.identify_complexity", "status": "plain_fallback", "capability": "", "summary": "Identified the unnecessary Factory and Writer layers."},
           {"step_id": "comprehension.obtain_user_verdict", "status": "plain_fallback", "capability": "", "summary": "Recorded the developer's explicit code complexity verdict."}
@@ -283,6 +284,7 @@
         "reason": "",
         "artifacts": [],
         "method_evidence": [
+          {"step_id": "comprehension.collect_experiences", "status": "plain_fallback", "capability": "", "summary": "Reviewed current task material; no separate useful finding to save."},
           {"step_id": "comprehension.explain", "status": "plain_fallback", "capability": "", "summary": "Explained the direct writeProof path."},
           {"step_id": "comprehension.identify_complexity", "status": "plain_fallback", "capability": "", "summary": "Confirmed no unnecessary abstraction remains."},
           {"step_id": "comprehension.obtain_user_verdict", "status": "plain_fallback", "capability": "", "summary": "Recorded the developer's explicit passing verdict."}

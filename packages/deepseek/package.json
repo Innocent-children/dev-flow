@@ -102,7 +102,13 @@
     "skills/dev-flow/references/successes/workspace-workspace_coordinator-consume.md",
     "skills/dev-flow/references/successes/workspace-workspace_coordinator-prepare_cleanup.md",
     "skills/dev-flow/references/successes/workspace-workspace_coordinator-provision-local.md",
-    "skills/dev-flow/references/successes/workspace-workspace_coordinator-provision-worktree.md"
+    "skills/dev-flow/references/successes/workspace-workspace_coordinator-provision-worktree.md",
+    "skills/dev-flow/references/experience.md",
+    "skills/dev-flow/references/successes/dev_flow_save_experience-experience_record.md",
+    "skills/dev-flow/references/successes/dev_flow_add_experience_note-experience_note.md",
+    "skills/dev-flow/references/successes/dev_flow_get_experiences-experience_read.md",
+    "skills/dev-flow/references/successes/dev_flow_search_experiences-experience_find.md",
+    "skills/dev-flow/references/successes/dev_flow_export_experiences-experience_export.md"
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",

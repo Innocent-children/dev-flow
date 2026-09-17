@@ -49,6 +49,11 @@ test("plugin identity and injection surface are fixed", () => {
     "mcp__dev_flow__dev_flow_recover_action",
     "mcp__dev_flow__dev_flow_cancel_task",
     "mcp__dev_flow__dev_flow_abandon_task",
+  "mcp__dev_flow__dev_flow_save_experience",
+  "mcp__dev_flow__dev_flow_add_experience_note",
+  "mcp__dev_flow__dev_flow_get_experiences",
+  "mcp__dev_flow__dev_flow_search_experiences",
+  "mcp__dev_flow__dev_flow_export_experiences",
   ]);
 });
 

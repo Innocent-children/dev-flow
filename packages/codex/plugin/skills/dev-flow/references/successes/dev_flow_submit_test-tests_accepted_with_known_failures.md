@@ -191,6 +191,7 @@ Complete response:
       "action_kind": "COMPLETE_COMPREHENSION_REVIEW",
       "allowed_effects": [
         "read_repository",
+        "record_experiences",
         "edit_process_artifacts",
         "request_user_decision"
       ],
@@ -245,6 +246,7 @@ Complete response:
         }
       ],
       "completion_conditions": [
+        "comprehension_experiences_reviewed",
         "comprehension_explanation_complete",
         "comprehension_complexity_classified",
         "comprehension_questions_resolved_or_routed",
@@ -264,7 +266,12 @@ Complete response:
       "method_profile": "plain",
       "method_steps": [
         {
-          "purpose": "Explain the current behavior, design, and code path in developer-readable terms.",
+          "purpose": "On every entry, review this task's existing requirements, design, code changes, discussion, checks, and experiences. Save a few useful findings or revise matching records before explaining them; skip writing when nothing is worth recording. Do not add investigation, tests, or scope.",
+          "required": true,
+          "step_id": "comprehension.collect_experiences"
+        },
+        {
+          "purpose": "Explain the current behavior, design, and code path using saved experience: why this approach, when it applies, and what to check next time. Answer follow-up questions, preserve actual user supplements, and revise changed conclusions.",
           "required": true,
           "step_id": "comprehension.explain"
         },
@@ -279,9 +286,9 @@ Complete response:
           "step_id": "comprehension.obtain_user_verdict"
         }
       ],
-      "node_purpose": "Verify that the developer can explain and maintain the current design and implementation.",
+      "node_purpose": "Review and preserve useful task experience, then verify that the developer can explain and maintain the current design and implementation.",
       "payload_contract": "comprehension-result",
-      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+      "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
       "process_id": "standard-development",
       "repository_binding_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "required_evidence": [
@@ -366,7 +373,7 @@ Complete response:
     "origin_host": "codex",
     "outcome": null,
     "primary_repository_key": "primary",
-    "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+    "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
     "process_id": "standard-development",
     "relocation": null,
     "repository": {

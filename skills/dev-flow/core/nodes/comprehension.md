@@ -8,10 +8,28 @@ Read the [common procedure](../node-payloads.md#common-submission-procedure) bef
 
 ## Inputs and prerequisites
 
-Explain the current requirements, design and code paths; identify concrete unnecessary abstractions
-and maintenance concerns, then ask: “Can you explain and maintain this implementation?” Wait for the
-actual user's verdict. A passed input requires that current explicit answer. Core validates the
-source/status fields; The Host is responsible for truthfully obtaining the human answer.
+Every entry starts with `comprehension.collect_experiences`: proactively review the Task's existing
+requirements, design, code changes, discussion, checks and saved experiences. Follow
+[task experience](../experience.md) to save a few useful findings before explaining them, or skip
+writing when there is nothing worth recording. Do not add investigation or tests for this purpose.
+When returning after code changes, revise matching experience IDs instead of duplicating them.
+
+Then perform `comprehension.explain`, `comprehension.identify_complexity` and
+`comprehension.obtain_user_verdict` in order. Explain why the implementation works this way, where the
+findings apply and what to check next time; answer follow-up questions, save genuine user supplements
+and revise changed conclusions. Identify concrete unnecessary abstractions and maintenance concerns,
+then ask: “Can you explain and maintain this implementation?” Wait for the actual user's verdict.
+Saving or exporting experience does not supply that answer. Core validates the source/status fields;
+the Host is responsible for truthfully obtaining the human answer.
+
+The collection method result describes the saved/revised findings, already-current records, or why
+the review found nothing useful. A failed save is not an empty review: follow its recovery instruction,
+explain the unsaved content and stay here until resolved. Only the current AI collects content; Core
+provides the node requirements and persistence. Product edits require a legal return transition.
+
+Omitting the collection method result reports `method_results.comprehension.collect_experiences` as
+a missing required member. A permitted bounded correction may describe only work already performed;
+it cannot invent a review or a user verdict.
 
 All problem transitions use `user_confirmation:null`. Record the concrete defect, complexity,
 verification gap or unresolved question that matches the selected edge. A generic continuation
@@ -37,6 +55,10 @@ Condition: `none`; Core guard `current_user_comprehension_confirmed`. Use an emp
     "other_process": []
   },
   "method_results": {
+    "comprehension.collect_experiences": {
+      "capability": "",
+      "summary": "Reviewed the existing task materials; no separate useful finding warranted an experience record."
+    },
     "comprehension.explain": {
       "capability": "",
       "summary": "Completed the current semantic work for the endpoint change."
@@ -70,14 +92,13 @@ Condition: `none`; Core guard `current_user_comprehension_confirmed`. Use an emp
 
 Complete successful request and response: [view every returned field](../successes/dev_flow_submit_comprehension-comprehension_passed.md).
 
-Possible error for this request: Assume the retained Task and Action are current. `node_result.user_confirmation.summary` is omitted from the request.
+Possible error for this request: Assume the retained Task and Action are current. `method_results.comprehension.collect_experiences` is omitted from the request.
 
 Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
-`internal/workflow/action_schema.go` — `ValidateSubmissionNodeResult`;
-`internal/workflow/payloads.go` — `requiredMemberViolations`;
+`internal/application/submit_action.go` — `submissionMethodEvidence`;
 `internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
 
-<!-- error-case: {"operation":"remove","path":"node_result.user_confirmation.summary"} -->
+<!-- error-case: {"operation":"set","path":"method_results","value":{"comprehension.explain":{"capability":"","summary":"Completed the current semantic work for the endpoint change."},"comprehension.identify_complexity":{"capability":"","summary":"Completed the current semantic work for the endpoint change."},"comprehension.obtain_user_verdict":{"capability":"","summary":"Completed the current semantic work for the endpoint change."}}} -->
 <!-- example:mcp-output dev_flow_submit_comprehension comprehension_passed-error -->
 ```json
 {
@@ -89,7 +110,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
     "message": "The request does not match the closed Core contract.",
     "details": [
       {
-        "path": "node_result.user_confirmation.summary",
+        "path": "method_results.comprehension.collect_experiences",
         "rule": "required_member_missing",
         "message": "the closed contract requires this member"
       }
@@ -100,7 +121,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
     "action": "correct_current_action",
     "message": "Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails.",
     "allowed_paths": [
-      "node_result.user_confirmation.summary"
+      "method_results.comprehension.collect_experiences"
     ]
   }
 }
@@ -129,6 +150,10 @@ Condition: `implementation_defect`; Core guard `implementation_defect_identified
     "other_process": []
   },
   "method_results": {
+    "comprehension.collect_experiences": {
+      "capability": "",
+      "summary": "Reviewed the existing task materials; no separate useful finding warranted an experience record."
+    },
     "comprehension.explain": {
       "capability": "",
       "summary": "Completed the current semantic work and recorded its findings."
@@ -219,6 +244,10 @@ Condition: `code_complexity`; Core guard `code_complexity_identified`. The requi
     "other_process": []
   },
   "method_results": {
+    "comprehension.collect_experiences": {
+      "capability": "",
+      "summary": "Reviewed the existing task materials; no separate useful finding warranted an experience record."
+    },
     "comprehension.explain": {
       "capability": "",
       "summary": "Completed the current semantic work and recorded its findings."
@@ -311,6 +340,10 @@ Condition: `design_complexity`; Core guard `design_complexity_identified`. The r
     "other_process": []
   },
   "method_results": {
+    "comprehension.collect_experiences": {
+      "capability": "",
+      "summary": "Reviewed the existing task materials; no separate useful finding warranted an experience record."
+    },
     "comprehension.explain": {
       "capability": "",
       "summary": "Completed the current semantic work and recorded its findings."
@@ -403,6 +436,10 @@ Condition: `verification_gap`; Core guard `verification_gap_identified`. The req
     "other_process": []
   },
   "method_results": {
+    "comprehension.collect_experiences": {
+      "capability": "",
+      "summary": "Reviewed the existing task materials; no separate useful finding warranted an experience record."
+    },
     "comprehension.explain": {
       "capability": "",
       "summary": "Completed the current semantic work and recorded its findings."
@@ -493,6 +530,10 @@ Condition: `requirement_gap`; Core guard `comprehension_requirement_gap_identifi
     "other_process": []
   },
   "method_results": {
+    "comprehension.collect_experiences": {
+      "capability": "",
+      "summary": "Reviewed the existing task materials; no separate useful finding warranted an experience record."
+    },
     "comprehension.explain": {
       "capability": "",
       "summary": "Completed the current semantic work and recorded its findings."

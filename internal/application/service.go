@@ -16,6 +16,7 @@ import (
 
 type idGenerator func(string) (domain.ID, error)
 type Service struct {
+	experienceExporter ExperienceExporter
 	taskStore          store.Store
 	repositoryObserver repository.RepositoryObserver
 	now                func() time.Time

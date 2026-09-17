@@ -15,7 +15,7 @@ func TestStandardDefinitionIsStableAndComplete(t *testing.T) {
 	if err := ValidateDefinition(definition); err != nil {
 		t.Fatalf("ValidateDefinition: %v", err)
 	}
-	if got, want := definition.Reference.DefinitionDigest, domain.Digest("eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430"); got != want {
+	if got, want := definition.Reference.DefinitionDigest, domain.Digest("54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e"); got != want {
 		t.Fatalf("digest = %s, want %s", got, want)
 	}
 	wantNodes := []domain.NodeID{domain.NodeRequirements, domain.NodeDesign, domain.NodeTasks, domain.NodeImplement, domain.NodeTest, domain.NodeComprehensionReview, domain.NodeRefactor, domain.NodeDelivery, domain.NodeDone, domain.NodeBlocked, domain.NodeCancelled}
@@ -65,7 +65,8 @@ func TestSemanticMethodCatalogExact(t *testing.T) {
 			{StepID: "test.classify_failure", Purpose: "Classify new versus known failures, record their comparison and obtain explicit acceptance of the exact known-failure set when appropriate.", Required: true},
 		},
 		domain.NodeComprehensionReview: {
-			{StepID: "comprehension.explain", Purpose: "Explain the current behavior, design, and code path in developer-readable terms.", Required: true},
+			{StepID: "comprehension.collect_experiences", Purpose: "On every entry, review this task's existing requirements, design, code changes, discussion, checks, and experiences. Save a few useful findings or revise matching records before explaining them; skip writing when nothing is worth recording. Do not add investigation, tests, or scope.", Required: true},
+			{StepID: "comprehension.explain", Purpose: "Explain the current behavior, design, and code path using saved experience: why this approach, when it applies, and what to check next time. Answer follow-up questions, preserve actual user supplements, and revise changed conclusions.", Required: true},
 			{StepID: "comprehension.identify_complexity", Purpose: "Identify unnecessary abstractions and maintenance risks.", Required: true},
 			{StepID: "comprehension.obtain_user_verdict", Purpose: "Obtain the developer's explicit understanding or remediation verdict.", Required: true},
 		},
@@ -102,7 +103,7 @@ func TestSemanticMethodCatalogExact(t *testing.T) {
 			t.Fatalf("terminal %s has method steps", node.NodeID)
 		}
 	}
-	if normalNodes != 8 || stepCount != 25 || len(seen) != 25 || len(standardMethodStepPurposes) != 25 {
+	if normalNodes != 8 || stepCount != 26 || len(seen) != 26 || len(standardMethodStepPurposes) != 26 {
 		t.Fatalf("normal nodes=%d steps=%d unique=%d purposes=%d", normalNodes, stepCount, len(seen), len(standardMethodStepPurposes))
 	}
 	blocked, err := NodeDefinition(definition, domain.NodeBlocked)

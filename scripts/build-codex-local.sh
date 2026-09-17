@@ -190,6 +190,12 @@ plugin/skills/dev-flow/references/tool-results.md
 plugin/skills/dev-flow/references/transport.md
 plugin/skills/dev-flow/references/verification.md
 plugin/skills/dev-flow/references/successes/dev_flow_abandon_task-abandon.md
+plugin/skills/dev-flow/references/experience.md
+plugin/skills/dev-flow/references/successes/dev_flow_save_experience-experience_record.md
+plugin/skills/dev-flow/references/successes/dev_flow_add_experience_note-experience_note.md
+plugin/skills/dev-flow/references/successes/dev_flow_get_experiences-experience_read.md
+plugin/skills/dev-flow/references/successes/dev_flow_search_experiences-experience_find.md
+plugin/skills/dev-flow/references/successes/dev_flow_export_experiences-experience_export.md
 plugin/skills/dev-flow/references/successes/dev_flow_cancel_task-cancel.md
 plugin/skills/dev-flow/references/successes/dev_flow_get_next_action-guarded-read.md
 plugin/skills/dev-flow/references/successes/dev_flow_get_task-read.md
@@ -350,6 +356,12 @@ const expected = [
   "plugin/skills/dev-flow/references/transport.md",
   "plugin/skills/dev-flow/references/verification.md",
   "plugin/skills/dev-flow/references/successes/dev_flow_abandon_task-abandon.md",
+  "plugin/skills/dev-flow/references/experience.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_save_experience-experience_record.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_add_experience_note-experience_note.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_get_experiences-experience_read.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_search_experiences-experience_find.md",
+  "plugin/skills/dev-flow/references/successes/dev_flow_export_experiences-experience_export.md",
   "plugin/skills/dev-flow/references/successes/dev_flow_cancel_task-cancel.md",
   "plugin/skills/dev-flow/references/successes/dev_flow_get_next_action-guarded-read.md",
   "plugin/skills/dev-flow/references/successes/dev_flow_get_task-read.md",

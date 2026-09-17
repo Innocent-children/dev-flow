@@ -16,12 +16,12 @@ func TestMCPToolCatalogIsExactStableAndConservative(t *testing.T) {
 	want := []string{core.ToolServerInfo, core.ToolOpenTask, core.ToolGetTask, core.ToolGetNextAction,
 		core.ToolSubmitRequirements, core.ToolSubmitDesign, core.ToolSubmitTasks, core.ToolSubmitImplementation,
 		core.ToolSubmitTest, core.ToolSubmitComprehension, core.ToolSubmitRefactor, core.ToolSubmitDelivery,
-		core.ToolPrepareTaskRelocation, core.ToolResolveBlocker, core.ToolRecoverAction, core.ToolCancelTask, core.ToolAbandonTask}
+		core.ToolPrepareTaskRelocation, core.ToolResolveBlocker, core.ToolRecoverAction, core.ToolCancelTask, core.ToolAbandonTask, core.ToolSaveExperience, core.ToolAddExperienceNote, core.ToolGetExperiences, core.ToolSearchExperiences, core.ToolExportExperiences}
 	if !slices.Equal(core.ToolNames(), want) {
 		t.Fatal(core.ToolNames())
 	}
 	for _, tool := range core.ToolCatalog() {
-		read := tool.Name == core.ToolServerInfo || tool.Name == core.ToolGetTask
+		read := tool.Name == core.ToolServerInfo || tool.Name == core.ToolGetTask || tool.Name == core.ToolGetExperiences || tool.Name == core.ToolSearchExperiences
 		idempotent := tool.Name != core.ToolOpenTask && tool.Name != core.ToolCancelTask && tool.Name != core.ToolAbandonTask
 		destructive := tool.Name == core.ToolCancelTask || tool.Name == core.ToolAbandonTask
 		if tool.Annotations.ReadOnly != read || tool.Annotations.Idempotent != idempotent || tool.Annotations.Destructive != destructive || tool.Annotations.OpenWorld {

@@ -30,6 +30,7 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
 	}
 	if stored.RecordedBy(task) {
+		s.exportCompletedExperiences(ctx, task)
 		return ApplyActionResult{Task: task}, nil
 	}
 	commit := stored.Commit
@@ -55,6 +56,7 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 	switch decision.Directive {
 	case recovery.DirectiveNoWrite:
 		if decision.Assessment.Classification != domain.RecoveryNotStarted {
+			s.exportCompletedExperiences(ctx, task)
 			return ApplyActionResult{Task: task}, nil
 		}
 		comparison, comparisonErr := recovery.CompareRepositoryScope(task, fresh)
@@ -63,6 +65,7 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 		}
 		return s.commitStandardActionOperation(ctx, operationStore, apply, task, fresh, comparison)
 	case recovery.DirectiveReturnExistingBlocker:
+		s.exportCompletedExperiences(ctx, task)
 		return ApplyActionResult{Task: task}, nil
 	case recovery.DirectiveCommitRecoveredTransition:
 		if commit.Operation.SourceCursor == domain.NodeBlocked {
@@ -77,6 +80,7 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 			if commitErr := operationStore.CommitActionOperation(ctx, apply.RequestID, mutation); commitErr != nil {
 				return ApplyActionResult{}, mapStoreError(commitErr)
 			}
+			s.exportCompletedExperiences(ctx, mutation.Task)
 			return ApplyActionResult{Task: mutation.Task}, nil
 		}
 		comparison, comparisonErr := recovery.CompareRepositoryScope(task, fresh)
@@ -92,6 +96,7 @@ func (s *Service) RecoverAction(ctx context.Context, request RecoverActionReques
 		if commitErr := operationStore.CommitActionOperation(ctx, apply.RequestID, mutation); commitErr != nil {
 			return ApplyActionResult{}, mapStoreError(commitErr)
 		}
+		s.exportCompletedExperiences(ctx, mutation.Task)
 		return ApplyActionResult{Task: mutation.Task}, nil
 	case recovery.DirectiveRevisionConflict:
 		return ApplyActionResult{}, domain.ErrRevisionConflict
@@ -120,6 +125,7 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	}
 	if found && existing.Commit.Operation.ActionID == request.ActionID {
 		if existing.RecordedBy(task) {
+			s.exportCompletedExperiences(ctx, task)
 			return ApplyActionResult{Task: task}, nil
 		}
 		return ApplyActionResult{}, domain.ErrRecoveryUnavailable
@@ -200,6 +206,7 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	if err := operationStore.CommitActionOperation(ctx, operation.OperationID, mutation); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
+	s.exportCompletedExperiences(ctx, mutation.Task)
 	return ApplyActionResult{Task: mutation.Task}, nil
 }
 
@@ -222,5 +229,6 @@ func (s *Service) commitStandardActionOperation(ctx context.Context, operationSt
 	if err := operationStore.CommitActionOperation(ctx, apply.RequestID, mutation); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
+	s.exportCompletedExperiences(ctx, mutation.Task)
 	return ApplyActionResult{Task: mutation.Task}, nil
 }

@@ -107,3 +107,7 @@ not a real Codex session running the OpenSpec executable or a Windows validation
 `collectArtifacts` compares current content with the retained Implementation/Test content digest in TEST, COMPREHENSION_REVIEW and DELIVERY; process files are included. Codex therefore completes process-file updates before final verification and reconciles them read-only afterward. If another update is needed, it uses a current legal return path and re-establishes verification. Classifying a file as `other_process` does not bypass the content check. Implementation: `internal/application/artifacts.go` and `internal/application/workspace.go`.
 
 The DeepSeek Skill packages `scripts/artifacts.mjs`. Invoke the same read-only Core preparation commands with `node <actual Skill directory>/scripts/artifacts.mjs collect` or `prepare`. Inputs and results use the shapes in this document with `host="deepseek"`. The script reuses the Adapter runtime/data-directory resolution and creates no store. Resolve its path from the actual DSH Skill resourceBase. `--help` reads no stdin and resolves no runtime. It is not a standalone dev-flow-deepseek CLI or an additional workspace_coordinator operation.
+
+## Experience snapshots
+
+Experience lives in independent SQLite records; exported Markdown is outside task repositories. It is not a process artifact and does not enter repository content digests. Historical experience grants no current test or comprehension authority; further code changes retain the existing invalidation rules. See [Task experiences](EXPERIENCES_en.md).

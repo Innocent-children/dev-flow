@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
+	"github.com/Innocent-children/dev-flow/internal/experienceexport"
 	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/store"
 )
@@ -229,6 +230,7 @@ func Serve(ctx context.Context, dataDirectory, coreIdentity string) error {
 	if err != nil {
 		return err
 	}
+	controlCenter.SetExperienceExporter(experienceexport.Writer{Directory: dataDirectory})
 	var server *Server
 	status := func() SystemStatusResponse {
 		url := ""

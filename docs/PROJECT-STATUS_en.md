@@ -25,7 +25,7 @@ activation, restart recovery, `DONE`, and reopen with retained data. See the
 
 ## Current source and preview capability
 
-The following capabilities exist on current `main`; some may be beta-only or source-only:
+The following capabilities exist in the current source; some may be beta-only or source-only:
 
 | User-visible capability | Current content |
 | --- | --- |
@@ -38,6 +38,7 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 | Automatic verification brake | Retain the three most recent test attempts and pause after the third exact repetition of the same failure, same result, or same changed-path and failure loop |
 | Uncertain Action recovery | Read-before-retry, Recovery assessment, Blocker, and resume |
 | Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
+| Task experiences | Independent SQLite revisions and user supplements; explanation at comprehension review, local Markdown export with retry, and WebUI project/keyword lookup including archives |
 | Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop` |
 | Current-source platforms | Exact `darwin-arm64` and `win32-x64` runtimes; Windows scope is Windows 10/11 desktop x64 |
 | Advanced repository capability | One primary plus up to seven explicit additional repositories; every root must first be isolated and authorized; same-machine relocation atomically replaces bindings and claims |
@@ -115,3 +116,34 @@ priority.
 ## Source DSH requirement
 
 The source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. This requirement describes source compatibility; stable-package validation remains listed separately in the [Support Matrix](SUPPORT-MATRIX_en.md).
+
+## Task experience verification (September 15, 2026)
+
+Environment: macOS arm64, Go 1.27.0, Node.js 24.19.0. These are September 15 results, before collection was concentrated at understanding review. They do not validate the new trigger below or establish a new stable release.
+
+| Check | Observed result and scope |
+| --- | --- |
+| `go test ./internal/domain ./internal/store ./internal/application ./internal/experienceexport ./internal/mcp ./internal/webui ./tests/contract` | Passed. SQLite reopen, retained revisions/supplements, request retries, unchanged Task/Action, completion and recovery export, corruption rejection, and shared MCP/WebUI data |
+| Export filesystem tests | Passed complete replacement, failure cleanup and repository-directory rejection; a temporary real Git repository kept the same status and file bytes |
+| WebUI build and component/API tests | Build passed; 9 tests passed, including stable supplement request identity and uncertain-response retry |
+| Codex/DeepSeek adapter and shared-reference tests | 25 tests passed; generated successful and failed MCP examples execute against Core and SQLite with fixed repository observations for both Hosts |
+| Package manifests and archive contents | 4 targeted package checks passed. Both source archives contained all 6 new reference files with identical bytes; this is a source archive check, not a final runtime-package or installed Host test |
+| Local browser | With a separate simulated archived task, verified keyword lookup, history, supplement saving, unchanged Task revision, and cancelled-task Markdown export |
+| Versions and documentation | Version checks passed; maintained README locales and paired guides were synchronized; shared references regenerated and checked |
+
+The experience feature has not been exercised as a complete task in newly installed Codex/DeepSeek packages, nor natively on Windows. Historical reasoning remains auxiliary material. Usage and limits: [Task experiences](EXPERIENCES_en.md).
+
+## Experience collection at understanding review: verification (September 17, 2026)
+
+Environment: macOS arm64, Go 1.27.0, Node.js 24.19.0. Current source data is separate from the original Task database. Go scenarios use temporary SQLite databases and fixed repository observations.
+
+| Check | Observed result and scope |
+| --- | --- |
+| Targeted Go tests in `workflow/application/store/experienceexport` | Passed. Selected Experience, Comprehension, StandardDefinition, StandardProcess, SemanticMethodCatalog, DefinitionDigest and MethodEvidence tests cover the new step order, original complete edge set, independent saves, empty review and explicit user-verdict requirement |
+| Return to implementation and save failure | Real Core/SQLite with simulated operations verifies returning to implementation, testing again and revising the same experience on reentry. Revisions, request retries and user supplements remain intact without changing the issued Action. An injected storage error is reported without changing saved experience or Task data |
+| MCP, current protocol fixtures and shared examples | Complete successful/error examples, output Schema and current process digest checks passed. The first run found a generic error for a missing collection result; after adjusting method validation, the full missing-field response and zero-write correction scope passed. The optional browser fixture was not enabled |
+| Host references and packaging | 22 Node checks passed, covering simulated Core, DeepSeek injection/connection, shared references and package manifests. Both Host copies were generated from the shared source; `sync-skill-references.mjs --check` passed |
+| Versions | `scripts/check-versions.mjs` passed. This change retains the current feature's Core version and does not change Host npm release versions |
+| Documentation and preserved work | Checks passed for 200 changed Markdown files, 409 local links and 39 preserved paths. Host references in shared sources resolve against both packaged locations. All nine READMEs and affected paired guides were synchronized |
+
+No full repository suite was run. WebUI source and generated assets were preserved; a read-only check confirmed that the Action form renders Core's `payload_schema` and method list. The browser flow was not rerun. These checks do not establish actual AI extraction quality, a complete task in newly installed Codex/DeepSeek final runtime packages, or native Windows execution; those areas remain unverified.

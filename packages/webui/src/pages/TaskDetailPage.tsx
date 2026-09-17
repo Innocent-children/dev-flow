@@ -1,3 +1,4 @@
+import { ExperiencePanel } from "../components/ExperiencePanel";
 import { useEffect, useRef, useState } from "react";
 
 import { AppLink, navigate } from "../app/router";
@@ -42,6 +43,7 @@ export function TaskDetailPage({ taskID }: { taskID: string }) {
     </header>
     {(error !== "" || data.readiness !== "ready") && <div className="notice warning" role="status"><strong>{t(error !== "" ? "detail.stale" : "detail.readOnly")}</strong> {error || t("detail.readOnlyGuidance")}</div>}
     <section className="detail-grid primary-summary"><article ref={resultFocus} className="surface current-stage" tabIndex={-1}><p className="eyebrow">{t("detail.stage")}</p><div className="stage-heading"><h2>{nodeLabel(data.summary.current_node, language)}</h2><code>{data.summary.current_node}</code></div><p className="task-intent">{data.intent}</p><dl className="fact-grid"><div><dt>{t("detail.method")}</dt><dd>{data.method_profile}</dd></div><div><dt>{t("detail.verification")}</dt><dd><VerificationBudget value={data.verification.current_budget} used={data.verification.usage.automatic_commands} /></dd></div>{data.current_action !== null && <><div><dt>{t("detail.action")}</dt><dd><code>{data.current_action.action_kind}</code></dd></div><div><dt>{t("detail.legalPaths")}</dt><dd>{data.current_action.legal_transition_ids.join(", ") || t("detail.none")}</dd></div></>}</dl></article><article className="surface repository-scope"><p className="eyebrow">{t("detail.scope")}</p><h2>{t("detail.repositories", { count: data.repositories.length })}</h2><ul className="repository-list">{data.repositories.map((repository) => <li key={repository.key}><span>{repository.role}</span><strong>{repository.key}</strong><small>{t("repository.group")} {repository.repository_group_id.slice(0, 12)}</small><code>{repository.path}</code></li>)}</ul></article></section>
+    <ExperiencePanel key={taskID} taskID={taskID} />
     <VerificationPanel value={data.verification} />
     <KnownFailureNotice records={data.records} />
     <WorkspacePanel task={data} />

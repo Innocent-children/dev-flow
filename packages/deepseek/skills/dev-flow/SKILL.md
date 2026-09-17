@@ -110,3 +110,7 @@ replace the complete original response.
 | [verification.md](references/verification.md) | Shared verification plan, budget and actual results |
 | [method-profiles.md](references/method-profiles.md) | Rendering current method steps with visible capabilities |
 | [host-lifecycle.md](references/host-lifecycle.md) | Cleanup confirmations, Host limitations and diagnosis |
+
+## Task experience
+
+On every entry to COMPREHENSION_REVIEW, proactively follow [task experience](references/experience.md): review the current Task's existing requirements, design, code changes, discussion, checks and saved experiences; save a few useful findings or revise matching records before explaining why, applicability and next checks. Skip writing if nothing is useful; do not add investigation or tests for experience. Continue answering questions, preserve actual user supplements and revise changed conclusions, then obtain the existing explicit user verdict. Failed saves remain unresolved work in this node. Other nodes have no automatic collection obligation. Core owns node requirements, storage and export; the current AI supplies content without another model or background chat monitoring. Historical reading, user supplements and manual export retain their existing permissions.

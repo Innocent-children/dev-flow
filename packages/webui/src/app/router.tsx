@@ -3,6 +3,7 @@ import { AnchorHTMLAttributes, useEffect, useState } from "react";
 export type Route =
   | { page: "dashboard" }
   | { page: "tasks" }
+  | { page: "experiences" }
   | { page: "open-task" }
   | { page: "system" }
   | { page: "task"; taskID: string }
@@ -11,6 +12,7 @@ export type Route =
 export function currentRoute(): Route {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   if (path === "/") return { page: "dashboard" };
+  if (path === "/experiences") return { page: "experiences" };
   if (path === "/tasks") return { page: "tasks" };
   if (path === "/tasks/new") return { page: "open-task" };
   if (path === "/system") return { page: "system" };

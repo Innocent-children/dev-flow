@@ -101,6 +101,7 @@ func (s *Service) applyRecovery(ctx context.Context, r ApplyActionRequest, opera
 	}
 	switch decision.Directive {
 	case recovery.DirectiveNoWrite, recovery.DirectiveReturnExistingBlocker:
+		s.exportCompletedExperiences(ctx, task)
 		return ApplyActionResult{Task: task}, nil
 	case recovery.DirectiveCommitRecoveredTransition:
 		if task.CurrentNode == domain.NodeBlocked && r.SourceCursor == domain.NodeBlocked {
@@ -165,6 +166,7 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 	if err := s.taskStore.CommitTask(ctx, mutation); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
+	s.exportCompletedExperiences(ctx, mutation.Task)
 	return ApplyActionResult{Task: mutation.Task}, nil
 }
 
@@ -399,6 +401,7 @@ func (s *Service) createRecoveryBlocker(ctx context.Context, r ApplyActionReques
 	if err := s.taskStore.CommitTask(ctx, mutation); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
+	s.exportCompletedExperiences(ctx, mutation.Task)
 	return ApplyActionResult{Task: mutation.Task}, nil
 }
 
@@ -488,6 +491,7 @@ func (s *Service) resolveBlockerMutation(ctx context.Context, r ApplyActionReque
 	if err := s.taskStore.CommitTask(ctx, mutation); err != nil {
 		return ApplyActionResult{}, mapStoreError(err)
 	}
+	s.exportCompletedExperiences(ctx, mutation.Task)
 	return ApplyActionResult{Task: mutation.Task}, nil
 }
 

@@ -25,6 +25,8 @@ Resulta útil para trabajo de repositorio que abarca varias sesiones o necesita 
 archivos y pruebas. Para preguntas puntuales, explicaciones de código y pequeños cambios que no
 necesitan guardar el progreso, suele ser más sencillo usar Codex o DeepSeek directamente.
 
+**Conservar la experiencia:** cada vez que se revisa la comprensión, la IA de la tarea repasa automáticamente el trabajo existente, guarda unos pocos hallazgos útiles y explica los motivos, cuándo se aplican y qué comprobar la próxima vez. Si no hay nada que merezca guardarse, omite el registro; al volver a la revisión, actualiza los hallazgos existentes. Sigue siendo necesaria la confirmación explícita del usuario. Al finalizar, exporta Markdown fuera del árbol de trabajo. WebUI permite consultarlo después, buscar por proyecto y palabras clave, añadir notas y reintentar la exportación. Consulta [Experiencias de tareas](docs/EXPERIENCES_en.md).
+
 ## Inicio rápido
 
 > La versión estable de npm `@latest` está verificada actualmente en macOS arm64. Usa Node.js `>=24`

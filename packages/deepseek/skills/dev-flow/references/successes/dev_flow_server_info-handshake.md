@@ -46,7 +46,7 @@ Complete response:
     ],
     "supported_processes": [
       {
-        "definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+        "definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
         "new_task_supported": true,
         "process_id": "standard-development"
       }
@@ -68,10 +68,15 @@ Complete response:
       "dev_flow_resolve_blocker",
       "dev_flow_recover_action",
       "dev_flow_cancel_task",
-      "dev_flow_abandon_task"
+      "dev_flow_abandon_task",
+      "dev_flow_save_experience",
+      "dev_flow_add_experience_note",
+      "dev_flow_get_experiences",
+      "dev_flow_search_experiences",
+      "dev_flow_export_experiences"
     ],
     "transport": "stdio",
-    "version": "0.14.0"
+    "version": "0.15.0"
   },
   "tool": "dev_flow_server_info"
 }

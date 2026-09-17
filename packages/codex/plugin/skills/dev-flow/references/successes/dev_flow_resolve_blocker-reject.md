@@ -207,7 +207,7 @@ Complete response:
       ],
       "node_purpose": "Execute the current task plan while Core records the actual changed surface.",
       "payload_contract": "implementation-result",
-      "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+      "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
       "process_id": "standard-development",
       "repository_binding_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "required_evidence": [
@@ -273,7 +273,7 @@ Complete response:
     "origin_host": "codex",
     "outcome": null,
     "primary_repository_key": "primary",
-    "process_definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
+    "process_definition_digest": "54815cb2fe2e191ff4327909869debbe5ac32a44ba2f33e61ab568b497e4ff5e",
     "process_id": "standard-development",
     "relocation": null,
     "repository": {

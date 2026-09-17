@@ -304,7 +304,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 			return ErrStorageUnavailable
 		}
 	}
-	return nil
+	return preflightExperiences(ctx, db, tasks)
 }
 
 func storedTaskEventValid(task domain.ProcessTask, event TaskEvent) bool {
@@ -495,6 +495,9 @@ func writeTaskMutation(ctx context.Context, tx *sql.Tx, m TaskMutation, snapshot
 		if _, err := tx.ExecContext(ctx, `UPDATE relocation_operations SET resolved_revision=? WHERE task_id=? AND resolved_revision IS NULL`, m.Task.Revision, m.Task.TaskID); err != nil {
 			return ErrStorageUnavailable
 		}
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE experience_exports SET generation=generation+1,error='' WHERE task_id=?`, m.Task.TaskID); err != nil {
+		return ErrStorageUnavailable
 	}
 	return nil
 }
