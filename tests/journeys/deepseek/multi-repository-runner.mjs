@@ -79,8 +79,8 @@ async function execute(selectedMode, options) {
       request: "Create exactly one bounded multi-repository Task.",
       profile: PROFILE,
       repositories: [
-        { repository_key: "core", source_repository_path: config.primaryRepository, remote_name: "origin", base_branch: "main", target_branch: "feature/core-proof" },
-        { repository_key: "docs", source_repository_path: config.additionalRepository, remote_name: "origin", base_branch: "main", target_branch: "feature/docs-proof" },
+        { repository_key: "core", workspace_mode: "dedicated_worktree", source_repository_path: config.primaryRepository, source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/core-proof" },
+        { repository_key: "docs", workspace_mode: "dedicated_worktree", source_repository_path: config.additionalRepository, source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/docs-proof" },
       ],
     });
     const consumed = await createWorkspaceCoordinator({ dataDirectory: config.dataDirectory, workspaceRoot: provisioned.workspace_root }).consume({ launchID: provisioned.launch_id });

@@ -10,6 +10,7 @@ import { writeHandoffFixture } from "../../../packages/codex/tests/fixtures/task
 import { inspectAdmissionAnchor, validateSuitabilityAssessment } from "../../../packages/codex/lib/task-admission.mjs";
 import {
   beginManagedTaskDispatch,
+  claimManagedTaskDispatch,
   beginTaskHandoff,
   bootstrapManagedTask,
   prepareTaskLaunch,
@@ -32,9 +33,9 @@ test("simulated Codex Host covers the worktree-first Task lifecycle without clai
     request,
     repositories: [{ key: "primary", repository_path: fixture.source }],
   });
-  validateSuitabilityAssessment({
+  const assessment = validateSuitabilityAssessment({
     change_level: "large",
-    observed_repositories: ["primary"],
+    observed_repositories: anchor.repositories.map((entry) => entry.canonical_root),
     candidate_components: ["Codex Host lifecycle", "Core protocol"],
     candidate_paths: ["src/proof.txt", "test/proof.test.mjs"],
     public_contract_flags: ["Host lifecycle"],
@@ -47,16 +48,19 @@ test("simulated Codex Host covers the worktree-first Task lifecycle without clai
     anchor,
   });
   assert.deepEqual(core.calls, [], "assessment and user choice make no Core call");
-  const userConfirmed = true;
-  assert.equal(userConfirmed, true);
+  const userChoice = { source: "user", mode: "dev_flow", summary: "Simulated user selected Dev Flow after reviewing the assessment." };
 
   const launch = await prepareTaskLaunch({
     launch_id: "codex-simulated-journey",
     request,
     handoff_file: await writeHandoffFixture(fixture.root, request),
-    assessment_anchor: anchor,
+    assessment,
+    user_choice: userChoice,
     repository_key: "primary",
     repository_path: fixture.source,
+    workspace_mode: "dedicated_worktree",
+    source_type: "remote",
+    carry_changes: false,
     remote_name: "origin",
     base_branch: "main",
     target_branch: "codex/simulated-journey",
@@ -68,7 +72,14 @@ test("simulated Codex Host covers the worktree-first Task lifecycle without clai
     repository_key: "primary",
     project_id: "simulated-project",
   }, fixture.options);
-  const hostCreation = await host.createManagedTask(dispatch.host_request, launch.receipt.fetched_commit);
+  assert.equal(dispatch.should_dispatch, false);
+  const claim = await claimManagedTaskDispatch({
+    launch_id: launch.receipt.launch_id,
+    repository_key: "primary",
+    dispatch_attempt_id: dispatch.receipt.operation_status.dispatch_attempt_id,
+  }, fixture.options);
+  assert.equal(claim.should_dispatch, true);
+  const hostCreation = await host.createManagedTask(claim.host_request, launch.receipt.base_commit);
   await recordManagedTaskDispatch({
     launch_id: launch.receipt.launch_id,
     repository_key: "primary",
@@ -176,7 +187,7 @@ class SimulatedCore {
 
   openTask(input) {
     assert.deepEqual(Object.keys(input.workspace_origin).sort(), [
-      "base_branch", "base_commit", "mode", "provisioning_receipt_id", "remote_name", "task_branch",
+      "base_branch", "base_commit", "carry_changes", "mode", "provisioning_receipt_id", "remote_name", "source_type", "task_branch",
     ]);
     this.calls.push({ operation: "open", input });
     this.node = "REQUIREMENTS";
@@ -225,7 +236,7 @@ class SimulatedCodexHost {
 
   async createManagedTask(request, commit) {
     assert.equal(request.target.environment.type, "worktree");
-    assert.equal(request.target.environment.startingState.branchName, "refs/remotes/origin/main");
+    assert.equal(request.target.environment.startingState.branchName, commit);
     assert.equal(Object.hasOwn(request.target.environment.startingState, "onMissing"), false);
     await git(this.fixture.source, "worktree", "add", "--detach", this.worktree, commit);
     return { threadId: "simulated-codex-thread", hostId: "local" };
