@@ -432,6 +432,7 @@ work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 | `internal/webui/`, `packages/webui/` | loopback Adapter and embedded interface |
 | `packages/codex/`, `packages/deepseek/`, `packages/claude/` | request assessment, worktree creation, session restart/handoff, and packaging |
 | `packages/host-workspace/` | Maintained Git observation, preparation and snapshot helpers; copied into consuming Host packages at build time |
+| `packages/host-command/` | Maintained command execution shared by Codex and Claude; generated into each package and assembled directly at build time |
 | `protocol/fixtures/`, `tests/` | public contracts, fault injection, Host end-to-end tests |
 
 Source, machine-readable schemas, package manifests, CLI parsers, and executable tests define current behavior.
@@ -486,7 +487,11 @@ See the [desktop pet guide](DESKTOP-PETS_en.md) for usage, artwork, and trigger 
 
 ## Platform responsibilities
 
-Each Node package selects platform implementations at `lib/platform.mjs`; paths, permissions, commands and cleanup live in `lib/platform/windows/` and `lib/platform/macos/`. Core keeps platform-neutral task semantics. Windows Git processes hide console windows; Codex version/status preflight uses the selected executable policy, and PowerShell launchers use UTF-8. Native validation is recorded separately in the [Windows report](WINDOWS-ADAPTATION_en.md).
+The three Host Adapters and unified manager select their platform policies at `lib/platform.mjs`, with system implementations in `lib/platform/windows/` and `lib/platform/macos/`. Each Adapter maintains its policies in `policies.mjs` under the corresponding system directory. Claude's `platformPolicy()` retains its own small interface; each Adapter continues to own Host registration, lifecycle and session rules. Go Core keeps platform mechanisms in platform-specific files within the responsible package and keeps task semantics platform-neutral.
+
+`packages/host-command/` maintains command execution shared by Codex and Claude. `command.mjs` provides the common entry point and selects the platform command implementation; `platform/windows/command.mjs` and `platform/macos/command.mjs` each handle command discovery, launcher identity and invocation arguments. `scripts/sync-host-commands.mjs` generates copies at the same paths under each Host's `lib/`, with headers identifying the source. Builds also assemble directly from the shared source, so installed packages depend only on their own files. The unified manager and DeepSeek retain their respective command interfaces. See [script maintenance](../scripts/README_en.md#shared-host-commands) for generation and consistency checks.
+
+Windows Git processes hide console windows; Codex version/status preflight uses the selected executable policy, and PowerShell launchers use UTF-8. Native validation is recorded separately in the [Windows report](WINDOWS-ADAPTATION_en.md).
 
 Windows Codex registration validates marketplace `name` and `root` together with Plugin identity; the Windows implementation normalizes the `\\?\` path prefix. macOS uses its own readback rules.
 
@@ -531,6 +536,8 @@ managed files and permissions without interpreting those Host fields.
 `internal/userconfig.Decode` owns configuration fields and defaults for Codex, DeepSeek and Claude. Core uses it when loading configuration at startup; the read-only `config validate` command accepts raw JSON on stdin for installation and diagnostics. The command enforces a 16 KiB limit and reads no configuration file, Task store or Git state. Results and exit codes are specified in the [command reference](COMMANDS_en.md#configuration-validation).
 
 Codex setup checks configuration paths, file types and permissions before passing existing file bytes to its packaged Core for validation; valid files remain unchanged. A missing configuration file is initialized with `{}`, leaving defaults to Core. The unified manager also initializes configuration with `{}` during factory-reset. Doctor validates existing files through the selected Core and explicitly reports that semantic validation is unavailable when no usable Core exists. Node installation and diagnostic code maintain no separate product-wide field allowlist or Host-default values.
+
+The manager's `resolveManagerPaths()` obtains permission policy from the platform implementation and passes it to `configuration.mjs` as `paths.enforcePrivateModes`. Configuration validation requires an explicit boolean and rejects a missing or incorrectly typed value before reading the file. It checks permissions against that policy without identifying the operating system again or deriving a default policy. Core continues to validate configuration semantics.
 
 ## Artifact preparation
 

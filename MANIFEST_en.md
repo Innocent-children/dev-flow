@@ -58,6 +58,7 @@ governs AI maintenance of this repository; Skills govern agent use of the instal
 | DeepSeek request assessment, WorkspaceCoordinator, run records/restart, and activation | `packages/deepseek/` |
 | `packages/claude/` | Claude plugin, CLI, permissions and session/workspace operations |
 | `packages/host-workspace/` | Shared Git helper source used by Host builds |
+| `packages/host-command/` | Shared command execution source for Codex and Claude; `scripts/sync-host-commands.mjs` generates and checks package copies |
 | Protocol fixtures | `protocol/fixtures/` |
 | Interface contract tests and end-to-end tests in actual Hosts | `tests/contract/`, `tests/journeys/` |
 | Release schemas, prepare, and publisher | `release/`, `scripts/release-*.mjs` |

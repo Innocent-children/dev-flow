@@ -1,4 +1,3 @@
-// Generated from packages/host-command/command.mjs; edit the shared source.
 import { execFile as execFileCallback } from "node:child_process";
 import * as macos from "./platform/macos/command.mjs";
 import * as windows from "./platform/windows/command.mjs";

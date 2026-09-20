@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { writeSharedSkillReferences } from "./sync-skill-references.mjs";
 import { syncWorkspaceFiles, workspaceFiles } from "../packages/host-workspace/build.mjs";
+import { hostCommandFiles, writeHostCommands } from "./sync-host-commands.mjs";
 import { desktopSourceFiles } from "./desktop-pet-package.mjs";
 
 import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
@@ -99,7 +100,13 @@ export async function stageAndPack(product, { root, stageRoot, outputRoot, coreA
     else if (["codex", "deepseek", "claude"].includes(product) && workspaceFiles.some(name => relativePath === `lib/${name}`)) {
       await syncWorkspaceFiles(root, product, join(destination, "lib"));
     }
+    else if (["codex", "claude"].includes(product) && hostCommandFiles.some(name => relativePath === `lib/${name}`)) {
+      continue;
+    }
     else await copyFile(join(packageRoot, relativePath), target);
+  }
+  if (["codex", "claude"].includes(product)) {
+    await writeHostCommands({ root, destination: join(destination, "lib") });
   }
   if (["codex", "deepseek", "claude"].includes(product)) {
     const skillPath = product === "deepseek" ? "skills/dev-flow" : "plugin/skills/dev-flow";

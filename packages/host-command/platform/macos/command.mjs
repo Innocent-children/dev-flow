@@ -1,4 +1,3 @@
-// Generated from packages/host-command/platform/macos/command.mjs; edit the shared source.
 import { access, lstat, realpath } from "node:fs/promises";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 

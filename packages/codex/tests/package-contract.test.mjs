@@ -10,6 +10,7 @@ import test from "node:test";
 import { promisify } from "node:util";
 
 import { sharedSkillReferences } from "../../../scripts/sync-skill-references.mjs";
+import { hostCommandFiles } from "../../../scripts/sync-host-commands.mjs";
 import { releaseOutputNames } from "../../../release/prepare.mjs";
 import { execPortableCommand, findCommandPath } from "../lib/command.mjs";
 
@@ -493,6 +494,10 @@ test("local package builder stages one exact non-final artifact in a temporary d
 
   const extractDirectory = await mkdtemp(join(tmpdir(), "dev-flow-codex-package-extract-"));
   await execFile("tar", ["-xzf", report.artifact_path, "-C", extractDirectory]);
+  for (const path of hostCommandFiles) {
+    const source = (await readFile(join(repositoryRoot, "packages/host-command", path), "utf8")).replace(/\r\n?/gu, "\n");
+    assert.equal(await readFile(join(extractDirectory, "package/lib", path), "utf8"), `// Generated from packages/host-command/${path}; edit the shared source.\n${source}`, path);
+  }
   for (const [path, expected] of await sharedSkillReferences({ root: repositoryRoot, host: "codex" })) {
     assert.equal(await readFile(join(extractDirectory, "package", "plugin", "skills", "dev-flow", path), "utf8"), expected, path);
   }

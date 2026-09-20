@@ -9,15 +9,18 @@ export async function validateConfigurationFile(path, {
   resolveRuntime = resolveCoreRuntime,
   run = runCore,
 } = {}) {
+  if (typeof paths?.enforcePrivateModes !== "boolean") {
+    throw new Error("configuration validation requires a boolean paths.enforcePrivateModes policy");
+  }
   const info = await lstat(path);
   if (info.isSymbolicLink() || !info.isFile()) throw new Error("configuration must be a regular non-symbolic-link file");
-  if ((paths?.enforcePrivateModes ?? process.platform !== "win32") && (info.mode & 0o077) !== 0) {
+  if (paths.enforcePrivateModes && (info.mode & 0o077) !== 0) {
     throw new Error("configuration permissions are unsafe");
   }
   const raw = await readFile(path);
   let runtime;
   try {
-    runtime = await resolveRuntime({ environment, host, homeDirectory: paths?.homeDirectory, platform: paths?.platform, arch: paths?.arch, requireData: false });
+    runtime = await resolveRuntime({ environment, host, homeDirectory: paths.homeDirectory, platform: paths.platform, arch: paths.arch, requireData: false });
   } catch (error) {
     throw new Error(`Core configuration validation unavailable: ${error.message}`, { cause: error });
   }

@@ -266,6 +266,9 @@ printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
   [ -n "$relative_path" ] || continue
   source_path="$repository_root/packages/codex/$relative_path"
   case "$relative_path" in
+    lib/command.mjs|lib/platform/windows/command.mjs|lib/platform/macos/command.mjs)
+      continue
+      ;;
     lib/worktree-lifecycle.mjs|lib/worktree-snapshot.mjs)
       source_path="$repository_root/packages/host-workspace/$(basename -- "$relative_path")"
       ;;
@@ -274,6 +277,7 @@ printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
   mkdir -p "$stage_root/$(dirname -- "$relative_path")"
   cp "$source_path" "$stage_root/$relative_path"
 done
+node "$repository_root/scripts/sync-host-commands.mjs" --output "$stage_root/lib"
 cp "$repository_root/LICENSE" "$stage_root/LICENSE"
 chmod 0755 "$stage_root/bin/dev-flow-codex.mjs"
 

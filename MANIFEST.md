@@ -57,6 +57,7 @@
 | DeepSeek 新请求评估、WorkspaceCoordinator、运行记录/会话重启和触发指令 | `packages/deepseek/` |
 | `packages/claude/` | Claude 插件、CLI、权限及会话/工作区操作 |
 | `packages/host-workspace/` | Host 构建使用的共享 Git 助手源 |
+| `packages/host-command/` | Codex、Claude 的共享命令执行源；`scripts/sync-host-commands.mjs` 生成和检查包内副本 |
 | Protocol fixtures | `protocol/fixtures/` |
 | 接口规范测试和实际宿主中的完整流程测试 | `tests/contract/`、`tests/journeys/` |
 | Release schemas、prepare 与 publisher | `release/`、`scripts/release-*.mjs` |

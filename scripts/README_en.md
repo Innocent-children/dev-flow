@@ -154,6 +154,21 @@ The Windows desktop development distribution now carries complete Codex, DeepSee
 
 WebUI semantic submission and recovery regressions run with `pnpm --dir packages/webui test`. They exercise current components and the HTTP client with simulated hooks and HTTP, covering transport failure, reopening pending Actions and recovery by Action ID. These are not native browser checks.
 
+## Shared Host commands
+
+Maintain the common Codex/Claude command entry point and its Windows/macOS implementations only in
+`packages/host-command/`. Run `node scripts/sync-host-commands.mjs` to generate `command.mjs`,
+`platform/windows/command.mjs` and `platform/macos/command.mjs` under each Host's `lib/`, with headers
+identifying the shared source. `node scripts/sync-host-commands.mjs --check` checks all six copies
+against the source without writing files. After changing the source, synchronize and commit the
+generated copies together; package-local import paths stay unchanged.
+
+`node scripts/sync-host-commands.mjs --output <ABSOLUTE_LIB_DIRECTORY>` generates the same three files
+into the specified absolute `lib` directory. Both `stageAndPack` in `dev-flow-local.mjs` and
+`build-codex-local.sh` generate staging contents directly from the shared source, so installed packages
+do not depend on the repository's shared directory. The unified manager and DeepSeek do not use these
+generated copies.
+
 ## Shared Skill references
 
 Edit common Core instructions and examples only in `skills/dev-flow/core/`. Run `node scripts/sync-skill-references.mjs` to generate the Codex, DeepSeek and Claude package copies, whose headers identify the source. These copies support source browsing and local loading. `node scripts/sync-skill-references.mjs --check` detects stale copies. The Codex local builder and `stageAndPack` also render references in temporary staging, so installed packages do not depend on a shared directory outside the package. Shared text substitutes only the Host value; Host operations remain separately authored. Validation covers the three Host MCP schemas, current transitions, DSH confirmation text and actual packaged files.

@@ -5,6 +5,7 @@ set -eu
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repository_root"
 node scripts/sync-skill-references.mjs --check
+node scripts/sync-host-commands.mjs --check
 
 run_step() {
   step_name=$1
@@ -338,6 +339,7 @@ run_step "Cross-platform WebUI build syntax" node --check scripts/build-webui.mj
 run_step "Cross-platform Core runtime build syntax" node --check scripts/build-core-runtimes.mjs
 run_step "Cross-platform local package syntax" node --check scripts/dev-flow-local.mjs
 run_step "Shared Skill reference generation" node --test scripts/sync-skill-references.test.mjs
+run_step "Shared Host command generation" node --test scripts/sync-host-commands.test.mjs packages/codex/tests/windows-command.test.mjs
 run_step "Cross-platform build contracts" node --test scripts/build-core-runtimes.test.mjs scripts/dev-flow-local.test.mjs
 run_step "Desktop pet artwork staging syntax" node --check scripts/desktop-pet-artwork.mjs
 run_step "Desktop pet artwork package contracts" node --test scripts/desktop-pet-artwork.test.mjs

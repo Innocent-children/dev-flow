@@ -133,6 +133,18 @@ Windows 桌面开发包现在同时携带完整的 Codex、DeepSeek 与 Claude �
 
 WebUI 的语义提交和恢复回归使用 `pnpm --dir packages/webui test`，运行当前组件与 HTTP 客户端的模拟检查，覆盖网络异常、待恢复页面重开和仅按 Action ID 恢复。这不是原生浏览器验证。
 
+## 共享 Host 命令
+
+Codex、Claude 的共同命令入口和 Windows、macOS 命令实现只在 `packages/host-command/` 维护。
+执行 `node scripts/sync-host-commands.mjs`，将 `command.mjs`、`platform/windows/command.mjs` 和
+`platform/macos/command.mjs` 生成到两个 Host 的 `lib/` 下；文件头标明共享来源。
+`node scripts/sync-host-commands.mjs --check` 只读检查这六个副本是否与共享源一致。修改共享源后，
+同步并一同提交生成副本，包内导入路径保持不变。
+
+`node scripts/sync-host-commands.mjs --output <ABSOLUTE_LIB_DIRECTORY>` 将同样的三个文件生成到指定
+的绝对 `lib` 目录。`dev-flow-local.mjs` 的 `stageAndPack` 和 `build-codex-local.sh` 均直接从共享源
+生成 staging 内容，安装包不依赖仓库中的共享目录。统一管理器与 DeepSeek 不使用这组生成副本。
+
 ## 共享 Skill 引用
 
 Core 通用说明和示例只在 `skills/dev-flow/core/` 编辑。执行 `node scripts/sync-skill-references.mjs` 生成 Codex、DeepSeek 与 Claude 包内副本；副本供源码阅读和本地加载，文件头标明来源。`node scripts/sync-skill-references.mjs --check` 检查副本是否与共享源一致。Codex 本地构建和 `stageAndPack` 都在临时 staging 中重新生成引用，安装包不依赖仓库外的共享目录。共享说明只替换 `host` 值，Host 操作说明分别维护。校验还覆盖三个 Host 的 MCP Schema、当前节点转移、DSH 确认文本及实际包内文件。

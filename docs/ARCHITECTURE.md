@@ -383,6 +383,7 @@ Core、Codex、DeepSeek、Claude 和统一 lifecycle package 独立版本。Core
 | `internal/webui/`, `packages/webui/` | loopback Adapter 与内嵌界面 |
 | `packages/codex/`, `packages/deepseek/`, `packages/claude/` | 新请求评估、工作树创建、会话重启/交接和安装包 |
 | `packages/host-workspace/` | Git 观察、准备和快照助手的维护源；构建时复制到使用它的 Host 包 |
+| `packages/host-command/` | Codex、Claude 共用的命令执行维护源；生成到各自包内并在构建时直接装配 |
 | `protocol/fixtures/`, `tests/` | 公开接口规范、故障注入和宿主完整流程测试 |
 
 源码、机器可读 Schema、package manifest、CLI parser 和可执行测试是判断当前行为的依据。
@@ -430,7 +431,11 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 
 ## 平台职责
 
-各 Node 包在 `lib/platform.mjs` 选择平台实现；路径、权限、命令与清理分别位于 `lib/platform/windows/` 和 `lib/platform/macos/`。Core 共用平台中立的任务语义。Windows Git 进程隐藏控制台窗口；Codex 版本与状态预检使用所选平台的可执行文件策略，PowerShell 启动器使用 UTF-8。原生验证单独记录在[Windows 报告](WINDOWS-ADAPTATION.md)。
+三个 Host Adapter 和统一管理器在 `lib/platform.mjs` 选择各自的平台策略，具体系统实现位于 `lib/platform/windows/` 和 `lib/platform/macos/`。三个 Adapter 的平台策略分别维护在对应系统目录的 `policies.mjs`；Claude 的 `platformPolicy()` 保留自己的小接口，Host 注册、生命周期和会话规则继续由各 Adapter 负责。Go Core 的平台机制使用所在职责包内的平台专用文件，任务语义保持平台中立。
+
+`packages/host-command/` 是 Codex、Claude 共用的命令执行维护源。`command.mjs` 提供共同入口并选择平台命令实现，`platform/windows/command.mjs` 和 `platform/macos/command.mjs` 各自处理命令发现、启动器身份和调用参数。`scripts/sync-host-commands.mjs` 在两个 Host 的 `lib/` 下生成同路径副本并标注来源；构建也直接从共享源装配，安装后只依赖包内文件。统一管理器与 DeepSeek 的命令接口仍由各自模块维护。生成与一致性检查见[脚本维护说明](../scripts/README.md#共享-host-命令)。
+
+Windows Git 进程隐藏控制台窗口；Codex 版本与状态预检使用所选平台的可执行文件策略，PowerShell 启动器使用 UTF-8。原生验证单独记录在[Windows 报告](WINDOWS-ADAPTATION.md)。
 
 Windows Codex 注册回读核对 marketplace 的 `name`、`root` 与 Plugin 身份，并在 Windows 实现中规范化 `\\?\` 路径前缀；macOS 使用自己的回读规则。
 
@@ -472,6 +477,8 @@ DeepSeek Profile 的位置、格式和读写移除由 `hosts/deepseek-receipts.m
 `internal/userconfig.Decode` 统一解释 Codex、DeepSeek 和 Claude 的配置字段及缺省值。Core 启动读取配置时直接复用它；只读 `config validate` 命令接受标准输入中的原始 JSON，供安装和诊断调用。命令限制为 16 KiB，不读取配置文件、Task 存储或 Git，结果与退出码见[命令参考](COMMANDS.md#配置校验)。
 
 Codex setup 先检查配置路径、文件类型和权限，再把已有文件的原始内容交给包内 Core 校验；合法文件保持原样。缺少配置时只写入 `{}`，默认偏好由 Core 解释。统一管理器的 factory-reset 同样以 `{}` 初始化配置；doctor 对已有文件复用选定 Core，找不到可用 Core 时明确报告无法完成配置语义校验。Node 安装和诊断代码不维护全产品字段白名单或 Host 默认值副本。
+
+统一管理器的 `resolveManagerPaths()` 从平台实现取得权限策略，并通过 `paths.enforcePrivateModes` 传入 `configuration.mjs`。配置校验要求该字段为显式布尔值，缺失或类型错误时在读取文件前拒绝；它只按该策略检查文件权限，不再次识别操作系统或推导缺省策略。配置内容的语义校验继续交给 Core。
 
 ## 文件提交准备
 

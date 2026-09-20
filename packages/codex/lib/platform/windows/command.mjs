@@ -1,3 +1,4 @@
+// Generated from packages/host-command/platform/windows/command.mjs; edit the shared source.
 import { access, lstat, readFile, realpath } from "node:fs/promises";
 import { basename, delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path";
 
