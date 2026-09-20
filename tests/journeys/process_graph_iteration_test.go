@@ -109,12 +109,30 @@ func TestManualHandoffFalseStillAllowsComprehensionJourney(t *testing.T) {
 	j := newIterationJourneyWithManualHandoff(t, false)
 	defer j.close()
 	j.toTest()
-	userTest := map[string]any{"checks": []map[string]any{{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false, "full_suite_reason": ""}}, "failed_items": []string{}, "unverified_items": []string{}, "manual_handoff_items": []string{}, "findings": []string{}, "budget_adjustment": nil}
-	j.assertRejected(domain.ErrVerificationBudgetExceeded, "tests_passed", "", userTest)
-	j.apply("tests_passed", "", passedTestJourneyResult())
+	pendingTest := failedTestJourneyResult("The failed check still requires a manual investigation.")
+	pendingTest["manual_handoff_items"] = []string{"Investigate the failed check manually."}
+	j.assertRejected(domain.ErrVerificationNotAllowed, "tests_failed_implementation", "The failed check requires manual investigation.", pendingTest)
+	completedTest := passedTestJourneyResult()
+	completedTest["checks"] = append(completedTest["checks"].([]map[string]any), map[string]any{"source": "user", "name": "manual-test", "status": "passed", "summary": "User performed test.", "command_count": 0, "full_suite": false, "full_suite_reason": ""})
+	j.apply("tests_passed", "", completedTest)
+	if j.task.CurrentVerificationUsage().AutomaticCommands != 1 || len(j.task.Test.ManualHandoffItems) != 0 {
+		t.Fatal("completed user verification consumed automatic commands or became pending manual work")
+	}
+	var manualEvidenceID domain.ID
+	for _, id := range j.task.Test.EvidenceIDs {
+		if evidence := j.evidence(id); evidence.Name == "manual-test" && evidence.Source == domain.EvidenceSourceUser && evidence.Status == domain.EvidencePassed {
+			manualEvidenceID = id
+			break
+		}
+	}
+	if manualEvidenceID == "" {
+		t.Fatal("completed user verification was not retained as passed user evidence")
+	}
 	j.apply("comprehension_passed", "", comprehensionJourneyResult([]string{"component"}, nil, nil, "user", "passed", nil))
-	j.apply("delivery_complete", "", deliveryJourneyResult(j.task))
-	if j.task.CurrentNode != domain.NodeDone || j.task.Outcome == nil || j.claimCount() != 0 {
+	delivery := deliveryJourneyResult(j.task)
+	delivery["manual_evidence_ids"] = []domain.ID{manualEvidenceID, j.task.Comprehension.UserEvidenceID}
+	j.apply("delivery_complete", "", delivery)
+	if j.task.CurrentNode != domain.NodeDone || j.task.Outcome == nil || len(j.task.Outcome.ManualEvidenceIDs) != 2 || j.claimCount() != 0 {
 		t.Fatal("mandatory comprehension confirmation was blocked by TEST manual-handoff budget")
 	}
 }

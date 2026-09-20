@@ -82,13 +82,13 @@ test("no-argument TTY home installs Codex without asking for a lifecycle operati
   assert.equal(request.operation, "install");
   assert.equal(request.host, "codex");
   assert.match(output.text, /1\. Install Codex/u);
-  assert.match(output.text, /4\. Manage existing installation/u);
+  assert.match(output.text, /5\. Manage existing installation/u);
   assert.doesNotMatch(output.text, /1\. status/u);
 });
 
 test("manage existing installation opens the complete operation menu", async () => {
   const output = captureOutput();
-  const input = scriptedInput(["4\n", "1\n", "3\n", "web\n"]);
+  const input = scriptedInput(["5\n", "1\n", "4\n", "web\n"]);
   const request = await promptForRequest({ input, output, language: "en" });
   assert.equal(request.operation, "status");
   assert.equal(request.host, "all");
@@ -98,13 +98,13 @@ test("manage existing installation opens the complete operation menu", async () 
 
 test("the home menu offers the desktop pet only on the runtime that ships it", async () => {
   const macos = captureOutput();
-  const started = await promptForRequest({ input: Readable.from(["5\n"]), output: macos, language: "en", platform: "darwin", arch: "arm64" });
+  const started = await promptForRequest({ input: Readable.from(["6\n"]), output: macos, language: "en", platform: "darwin", arch: "arm64" });
   assert.deepEqual(started, { pet: "start" });
-  assert.match(macos.text, /5\. Start the desktop pet/u);
-  assert.match(macos.text, /6\. Stop the desktop pet/u);
+  assert.match(macos.text, /6\. Start the desktop pet/u);
+  assert.match(macos.text, /7\. Stop the desktop pet/u);
 
   const stopped = await promptForRequest({
-    input: Readable.from(["6\n"]),
+    input: Readable.from(["7\n"]),
     output: captureOutput(),
     language: "en",
     platform: "darwin",
@@ -113,13 +113,13 @@ test("the home menu offers the desktop pet only on the runtime that ships it", a
   assert.deepEqual(stopped, { pet: "stop" });
 
   const chinese = captureOutput();
-  await promptForRequest({ input: Readable.from(["5\n"]), output: chinese, language: "zh-CN", platform: "darwin", arch: "arm64" });
-  assert.match(chinese.text, /5\. 开启桌面宠物/u);
-  assert.match(chinese.text, /6\. 关闭桌面宠物/u);
+  await promptForRequest({ input: Readable.from(["6\n"]), output: chinese, language: "zh-CN", platform: "darwin", arch: "arm64" });
+  assert.match(chinese.text, /6\. 开启桌面宠物/u);
+  assert.match(chinese.text, /7\. 关闭桌面宠物/u);
 
   const windows = captureOutput();
   const manage = await promptForRequest({
-    input: scriptedInput(["4\n", "1\n", "3\n", "web\n"]),
+    input: scriptedInput(["5\n", "1\n", "4\n", "web\n"]),
     output: windows,
     language: "en",
     platform: "win32",
@@ -127,18 +127,18 @@ test("the home menu offers the desktop pet only on the runtime that ships it", a
   });
   assert.equal(manage.operation, "status");
   assert.equal(manage.pet, undefined);
-  assert.match(windows.text, /5\. Start the desktop pet/u);
-  assert.match(windows.text, /6\. Stop the desktop pet/u);
+  assert.match(windows.text, /6\. Start the desktop pet/u);
+  assert.match(windows.text, /7\. Stop the desktop pet/u);
 });
 
 test("Chinese locale renders the complete interactive menu and plan in Chinese", async () => {
   const output = captureOutput();
-  const input = scriptedInput(["4\n", "8\n"]);
+  const input = scriptedInput(["5\n", "8\n"]);
   const request = await promptForRequest({ input, output, language: "zh-CN" });
   assert.equal(request.operation, "factory-reset");
   assert.equal(request.host, "all");
   assert.match(output.text, /Dev Flow 生命周期管理器/u);
-  assert.match(output.text, /4\. 管理现有安装/u);
+  assert.match(output.text, /5\. 管理现有安装/u);
   assert.match(output.text, /8\. 恢复出厂设置/u);
   assert.equal(request.allKnownProfiles, true);
   assert.doesNotMatch(output.text, /Manage existing installation|Choose:|Operation:/u);
@@ -198,7 +198,7 @@ function scriptedInput(lines, { isTTY = false } = {}) {
 
 test("menus retry invalid input, accept buffered lines and allow back and exit", async () => {
   const output = captureOutput();
-  const result = await promptForRequest({ input: Readable.from(['x\n4\n0\n0\n']), output, language: 'zh-CN' });
+  const result = await promptForRequest({ input: Readable.from(['x\n5\n0\n0\n']), output, language: 'zh-CN' });
   assert.equal(result.cancelled, true);
   assert.match(output.text, /请输入列表中的数字/u);
   assert.match(output.text, /0\. 返回/u);
@@ -216,4 +216,12 @@ test("JSON confirmation never prompts even on a TTY", async () => {
   const output = captureOutput();
   assert.equal(await confirmPlan({ confirmationClass: 'mutation' }, { outputMode: 'json' }, { input: { isTTY: true }, output }), false);
   assert.equal(output.text, '');
+});
+
+test("Claude selection does not ask for DeepSeek profiles", async () => {
+  const output = captureOutput();
+  const request = await promptForRequest({ input: Readable.from(["3\n"]), output, language: "en" });
+  assert.equal(request.host, "claude");
+  assert.deepEqual(request.profiles, []);
+  assert.doesNotMatch(output.text, /DeepSeek Profile/);
 });

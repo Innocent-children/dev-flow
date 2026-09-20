@@ -290,9 +290,10 @@ const (
 )
 
 type RecoveryAdvice struct {
-	Action    RecoveryAction `json:"action"`
-	RetrySafe bool           `json:"retry_safe"`
-	Message   string         `json:"message"`
+	AllowedPaths []string       `json:"allowed_paths,omitempty"`
+	Action       RecoveryAction `json:"action"`
+	RetrySafe    bool           `json:"retry_safe"`
+	Message      string         `json:"message"`
 }
 
 type MutationResponse struct {

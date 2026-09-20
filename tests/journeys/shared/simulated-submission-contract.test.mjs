@@ -15,14 +15,18 @@ const packageRoot = join(repositoryRoot, "packages", "codex");
 const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
 
 test("shared simulated MCP client omits system-state revisions for a Codex-owned Task", async (t) => {
-  const root = await temporaryRoot(t);
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-shared-submission-")));
+  let core;
+  t.after(async () => {
+    await core?.stop();
+    await rm(root, { recursive: true, force: true });
+  });
   const repository = join(root, "repository");
   const dataDirectory = join(root, "data");
   await mkdir(dataDirectory, { mode: 0o700 });
   const workspaceOrigin = await initializeGit(root, repository);
 
-  const core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot, useSourceRuntime: true });
-  t.after(() => core.stop());
+  core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot, useSourceRuntime: true });
   await core.start();
 
   const opened = await core.call(tool("dev_flow_open_task"), {
@@ -155,10 +159,4 @@ async function initializeGit(root, repository) {
     task_branch: "task/shared-submission",
     provisioning_receipt_id: "receipt-shared-submission",
   };
-}
-
-async function temporaryRoot(t) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-shared-submission-")));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  return root;
 }

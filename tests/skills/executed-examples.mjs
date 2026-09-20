@@ -1,7 +1,7 @@
 // Maintainer helpers for executing and comparing complete Skill examples.
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { examples, filesBelow } from "./resources.mjs";
 
 export async function readExamples(root, kind) {
@@ -18,8 +18,23 @@ export async function readExamples(root, kind) {
 export function exampleNormalizer(replacements = []) {
   const aliases = new Map();
   const counts = new Map();
+  const paths = replacements.toSorted((a, b) => b[0].length - a[0].length);
+  function mappedPath(value) {
+    for (const [actual, example] of paths) {
+      if (value === actual) return example;
+      if (value.startsWith(actual + sep)) return example + value.slice(actual.length).split(sep).join("/");
+    }
+    return value;
+  }
   function text(value) {
-    for (const [actual, example] of replacements.toSorted((a, b) => b[0].length - a[0].length)) {
+    value = value.replace(/"(?:[^"\\\r\n]|\\.)*"/gu, quoted => {
+      let original;
+      try { original = JSON.parse(quoted); } catch { return quoted; }
+      const mapped = mappedPath(original);
+      return mapped === original ? quoted : JSON.stringify(mapped);
+    });
+    value = mappedPath(value);
+    for (const [actual, example] of paths) {
       value = value.replaceAll(actual, example);
     }
     value = value.replace(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z/g, "2026-09-10T00:00:00.000Z");
@@ -58,7 +73,7 @@ export async function verifySuccessExample(example, input, output, normalize) {
     await writeFile(file, `# ${example.tool}: ${example.name}\n\nImplementation: ${implementation}.\n\nComplete result from the adapter implementation, executed in a temporary Git fixture.\nHost session creation, handoff completion and Core terminal reads are supplied test observations,\nnot live Host calls. Paths, generated identities, digests and timestamps use stable example values;\nall fields and their references are retained and compared.\n\nResolved request:\n\n<!-- example:resolved-${example.kind} ${example.tool} ${example.name} -->\n\`\`\`json\n${JSON.stringify(request, null, 2)}\n\`\`\`\n\nComplete response:\n\n<!-- example:${example.kind}-success ${example.tool} ${example.name} -->\n\`\`\`json\n${JSON.stringify(response, null, 2)}\n\`\`\`\n`);
     return;
   }
-  const source = await readFile(file, "utf8");
+  const source = (await readFile(file, "utf8")).replaceAll("\r\n", "\n");
   const blocks = [...source.matchAll(/```json\n([\s\S]*?)\n```/g)];
   assert.equal(blocks.length, 2, `${file}: requires a request and response`);
   assert.deepEqual(request, JSON.parse(blocks[0][1]), `${file}: resolved request changed`);

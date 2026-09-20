@@ -25,6 +25,8 @@ export async function checkVersions(root = repositoryRoot()) {
   const pluginVersion = packageVersion(codexPlugin, "dev-flow-codex", "Codex plugin");
   const deepseekVersion = packageVersion(deepseekPackage, "dev-flow-deepseek", "DeepSeek package");
   const devFlowVersion = packageVersion(devFlowPackage, "@imotong/dev-flow", "Dev Flow CLI package");
+  const claudeVersion = packageVersion(await readJSON(join(root, "packages/claude/package.json")), "dev-flow-claude", "Claude package");
+  if (packageVersion(await readJSON(join(root, "packages/claude/.claude-plugin/plugin.json")), "dev-flow-claude", "Claude plugin") !== claudeVersion) throw new Error("Claude plugin version must equal Claude package version");
   if (pluginVersion !== codexVersion) throw new Error("Codex plugin version must equal Codex package version");
   for (const [label, value] of [
     ["Core server-info fixture", serverInfo.version],
@@ -32,7 +34,7 @@ export async function checkVersions(root = repositoryRoot()) {
   ]) {
     if (value !== coreVersion) throw new Error(`${label} must equal CORE_VERSION`);
   }
-  return Object.freeze({ core: coreVersion, codex: codexVersion, deepseek: deepseekVersion, devFlow: devFlowVersion });
+  return Object.freeze({ core: coreVersion, codex: codexVersion, deepseek: deepseekVersion, claude: claudeVersion, devFlow: devFlowVersion });
 }
 
 async function readVersionFile(path, label) {
@@ -67,7 +69,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const versions = await checkVersions();
     process.stdout.write(`Core ${versions.core}\nCodex ${versions.codex}\nDeepSeek ${versions.deepseek}\n`);
-    process.stdout.write(`Dev Flow CLI ${versions.devFlow}\n`);
+    process.stdout.write(`Claude ${versions.claude}\nDev Flow CLI ${versions.devFlow}\n`);
   } catch (error) {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;

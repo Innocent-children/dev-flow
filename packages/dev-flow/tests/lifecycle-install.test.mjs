@@ -22,6 +22,8 @@ test("one install request makes Codex and DeepSeek ready and repeated install is
     "action_complete:codex.default.install",
     "action_start:deepseek.web.install",
     "action_complete:deepseek.web.install",
+    "action_start:claude.default.install",
+    "action_complete:claude.default.install",
   ]);
   const second = await runLifecycle(request, { ...fixture.dependencies, confirmPlan: async () => true });
   assert.equal(second.result.changed, false);
@@ -32,16 +34,17 @@ async function lifecycleFixture(t) {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-install-"));
   const home = join(root, "home");
   await mkdir(home);
-  const states = { codex: "absent", deepseek: "absent" };
+  const states = { codex: "absent", deepseek: "absent", claude: "absent" };
   const codexDriver = fakeDriver("codex", states, null);
   const deepseekDriver = fakeDriver("deepseek", states, "web");
   deepseekDriver.knownProfiles = async () => ["web"];
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
-  return { dependencies: { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver } };
+  return { dependencies: { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver, claudeDriver: fakeDriver("claude", states, null) } };
 }
 
 function fakeDriver(host, states, profile) {
   return {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     knownProfiles: async () => [],
     resolveTargetVersion: async () => "0.8.0",
     observe: async () => ({ host, profile, hostAvailable: true, hostVersion: "1.0.0", state: states[host], packageVersion: states[host] === "ready" ? "0.8.0" : null, coreVersion: host === "codex" && states[host] === "ready" ? "0.6.0" : null, receipt: states[host] === "ready" ? {} : null }),

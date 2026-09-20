@@ -8,7 +8,7 @@
 This document lists every currently supported public or managed Dev Flow command entrypoint. The
 command surface is derived from implementation: unified lifecycle commands from
 `packages/dev-flow/package.json` and its CLI, Codex commands from `packages/codex/package.json`
-and `packages/codex/bin/dev-flow-codex.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
+and `packages/codex/bin/dev-flow-codex.mjs`, Claude commands from `packages/claude/bin/dev-flow-claude.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
 DSH lifecycle tests, Core commands from `cmd/dev-flow/main.go`, and MCP tools from the closed
 catalog under `internal/mcp/`.
 
@@ -28,7 +28,7 @@ dev-flow
 ```
 
 After installation, Codex uses `$dev-flow-codex:dev-flow <task description>` and DeepSeek Harness
-uses `/dev-flow <task description>`. These are conversational Host selectors, not shell commands.
+uses `/dev-flow <task description>`; Claude Code uses `/dev-flow-claude:dev-flow <task description>`. These are conversational Host selectors, not shell commands.
 
 ## Unified Adapter lifecycle
 
@@ -40,7 +40,7 @@ dev-flow
 ```
 
 The supported operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
-`factory-reset`. Host is `codex|deepseek|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
+`factory-reset`. Host is `codex|deepseek|claude|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
 repair, and reinstall preserve configuration and Task data. Factory reset requires the token bound to the current
 plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to the user's Trash on macOS and to the
 recoverable `%LOCALAPPDATA%\dev-flow\trash` quarantine on Windows; the Windows target is not the system
@@ -59,7 +59,7 @@ artifact, and readiness step; `--json` omits these progress lines.
 | --- | --- |
 | `npm install -g @imotong/dev-flow@latest` | Install the public `dev-flow` command globally. |
 | `dev-flow` | Open the interactive lifecycle menu. |
-| `dev-flow status\|doctor --host codex\|deepseek\|all` | Inspect or diagnose without mutation. |
+| `dev-flow status\|doctor --host codex\|deepseek\|claude\|all` | Inspect or diagnose without mutation. |
 | `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
 | `dev-flow install\|repair --host deepseek\|all --adopt ...` | Adopt an existing identity-verified DeepSeek Profile contribution; other operations and Codex-only targets reject `--adopt`. |
 | `dev-flow install\|upgrade\|repair\|reinstall ... --confirm-downgrade <token>` | Explicitly confirm a downgrade with the token from the current plan when the target is older than the installed version. |
@@ -90,6 +90,16 @@ Before execution, the plan shows actions, current/target versions, resource path
 
 `status` retains absent targets and reports Host availability, Adapter/Core versions and issues. `doctor` adds installation and configuration checks and exits nonzero on failure. With all Hosts selected, an absent optional Adapter is informational when another Adapter is healthy. Codex self-check failures retain npm installation metadata for repair; DeepSeek checks Profile contribution, the managed receipt and the actual Core. An existing unmanaged DeepSeek contribution requires explicit `--adopt`.
 
+`doctor` validates existing user configuration through the selected Core's `config validate` command. Without a usable Core, it reports that semantic validation is unavailable rather than passing the check. An absent configuration file uses Core defaults. Factory reset initializes configuration with `{}`; ordinary maintenance preserves valid existing configuration.
+
+After reset confirmation, the manager stops WebUI, identifiable STDIO Core instances and the desktop
+pet for managed Adapters. It checks again after removal and cleans data only after confirming exit.
+If exit cannot be confirmed or a Host reconnects, cleanup does not proceed; close the corresponding
+Host session and follow the returned retry instructions. An explicit `DEV_FLOW_DATA_DIR` equal to the
+default directory is cleaned once, and still requires explicit-path confirmation.
+Retries after removal continue checking the previously confirmed Core locations until the associated
+processes have exited.
+
 Failures include `error.code/message/detail`, `operation_id`, `failed_action`, `completed_actions` and a recovery command. Text output preserves the same causes and completed steps. Repeating a command observes current installation state instead of replaying an old operation. Recovery commands pin the attempted version where applicable; reset generates a plan for the current state again. Successful installation retains hook review/trust and Profile restart instructions.
 
 Lifecycle exit codes: `0` success or no changes, `1` check/execution failure, `2` invalid arguments, `3` confirmation required or declined, `4` unmet plan/cleanup authorization, `5` partial execution or failed final verification. Exiting the menu returns `0`. Invalid WebUI arguments return `2`; launcher failures under `--json` also return JSON.
@@ -117,7 +127,7 @@ Native Host commands remain available for diagnostic recovery.
 
 ## Desktop pet (macOS arm64 and Windows x64)
 
-Install `@imotong/dev-flow@latest` for the bundled macOS arm64 and Windows 10/11 x64 desktop apps. Configure at least one Codex or DeepSeek Adapter to provide Core. `install`, `upgrade`, `repair` and `reinstall` refresh the application copy while preserving settings and appearances, even when the Adapter is already current. See the [desktop pet guide](DESKTOP-PETS_en.md).
+Install `@imotong/dev-flow@latest` for the bundled macOS arm64 and Windows 10/11 x64 desktop apps. Configure at least one Codex, DeepSeek or Claude Adapter to provide Core; see the [Host guide](CLAUDE_en.md) for Claude installation channels. `install`, `upgrade`, `repair` and `reinstall` refresh the application copy while preserving settings and appearances, even when the Adapter is already current. See the [desktop pet guide](DESKTOP-PETS_en.md).
 
 | Command | Behavior |
 | --- | --- |
@@ -148,9 +158,9 @@ dev-flow-codex --version
 
 The global npm installation only places the `dev-flow-codex` launcher on `PATH`. `setup` is a
 separate operation: it verifies the platform, package, bundled Core, and Codex version; registers the
-local marketplace, Plugin, and MCP configuration; and reads back the resulting ownership. When
-configuration is absent, setup first creates `$HOME/.dev-flow/config.json` on macOS or
-`%USERPROFILE%\.dev-flow\config.json` on Windows; success then reports
+local marketplace, Plugin, and MCP configuration; and reads back the resulting ownership. Setup retains configuration path, file-type and permission checks and validates existing configuration through its packaged Core without rewriting valid content. When
+configuration is absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
+`%USERPROFILE%\.dev-flow\config.json` on Windows with `{}`, leaving preference defaults to Core; success then reports
 actual configuration/receipt file changes and one next step. `--version`
 reports both the host package and bundled Core identities.
 
@@ -222,7 +232,7 @@ dev-flow-codex --version
 To uninstall while retaining Task data, run `dev-flow-codex remove` and then
 `npm uninstall -g dev-flow-codex`. Delete the shared default data directory at
 `$HOME/.dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows only
-after both the Codex and DeepSeek Adapters are removed and no Task is needed.
+after the Codex, DeepSeek and Claude Adapters are removed and no Task is needed.
 
 ### Codex smart activation and explicit selector
 
@@ -302,7 +312,7 @@ contains Dev Flow. If DSH is no longer needed, uninstall it separately with
 `npm uninstall -g @deepseek-ai/dsh`; profile data under `$HOME/.dsh` on macOS or
 `%USERPROFILE%\.dsh` on Windows is retained.
 
-For permanent Task-data cleanup, first remove both Host Adapters, then delete
+For permanent Task-data cleanup, first remove every installed Host Adapter, then delete
 `$HOME/.dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows. If
 `DEV_FLOW_DATA_DIR` was set, verify and delete its exact absolute directory separately. Deleting the
 user `.dsh` directory also deletes every DSH profile, session, and unrelated plugin.
@@ -326,6 +336,46 @@ Local modes retain their directory and branch; cleanup does not apply. For dedic
 source checkout. Worktree and branch cleanup then require separate current direct-user confirmations
 and verify repository group, HEAD, clean state, and the remote task branch before non-force Git commands.
 
+## Claude Code
+
+These commands are provided by the source/local `dev-flow-claude` package. See the [Host guide](CLAUDE_en.md) for installation. They are distinct from the version of the global manager installed through a public release.
+
+Implementation: `packages/claude/bin/dev-flow-claude.mjs`, `lib/lifecycle.mjs` and `lib/workspace.mjs`.
+
+Except for the first five entries, commands consume one UTF-8 JSON object on closed stdin, up to 1 MiB. The table lists command names and input fields, not interactive prompts.
+
+| Command | Input or purpose |
+| --- | --- |
+| `dev-flow-claude status --json` | Inspect package version, registration and cache; no stdin. |
+| `dev-flow-claude setup --json` | Register the user-scope plugin; no stdin. |
+| `dev-flow-claude remove --json` | Remove verified owned registration and retain task data; no stdin. |
+| `dev-flow-claude --version` | Print the packaged Core version. |
+| `dev-flow-claude mcp` | Start the stdio MCP service. |
+| `dev-flow-claude artifacts collect` | Core artifact collection request. |
+| `dev-flow-claude artifacts prepare` | Classified Core artifact collection. |
+| `dev-flow-claude host-check workspace-available` | repository_path. |
+| `dev-flow-claude host-check pre-file-write` | host, repository_path, tool_name, paths, intent_digest, path_parse_complete. |
+| `dev-flow-claude hook pre-tool-use` | Original Claude PreToolUse event. |
+| `dev-flow-claude host-launch inspect` | request, repositories[{key,repository_path}]; returns assessment anchor. |
+| `dev-flow-claude host-launch prepare` | request, assessment, user_choice, repositories, handoff; returns preparation record. |
+| `dev-flow-claude host-launch provision` | launch_id; provision every selected repository. |
+| `dev-flow-claude host-launch status` | launch_id; read retained launch record. |
+| `dev-flow-claude host-launch scope` | launch_id; verify workspaces and return Core creation scope, including primary_repository_key for a single repository. |
+| `dev-flow-claude host-launch bind-task` | launch_id, task_id from a successful Core response. |
+| `dev-flow-claude host-launch launch` | launch_id; return a session launch descriptor, without starting the interactive process. |
+| `dev-flow-claude host-launch resume` | launch_id; return the retained session resume descriptor. |
+| `dev-flow-claude host-launch record-session` | launch_id, actual session_id. |
+| `dev-flow-claude host-launch retry-launch` | launch_id, previous_caller_stopped, session_not_started, reason; both factual flags must be true. |
+| `dev-flow-claude host-launch relocate` | Input: launch_id, relocation_id, destinations[{repository_key,repository_path}], authorized. Returns relocation_id and relocation_destinations[{key,repository_path}] ready to submit directly to Core. |
+| `dev-flow-claude host-launch cleanup-worktree` | launch_id, repository_key, terminal, authorized. |
+| `dev-flow-claude host-launch cleanup-branch` | launch_id, repository_key, terminal, authorized; separate from worktree-removal authorization. |
+
+`prepare.repositories` requires key, repository_path, workspace_mode, source_type, remote_name, base_branch, target_branch, carry_changes and worktree_path in every entry. Repository keys follow Core's `^[a-z0-9][a-z0-9._-]{0,127}$` rule, are checked before Git changes, and retain their identity through creation and relocation. Modes are `new_branch`, `current_branch` and `dedicated_worktree`. Assessment contains the original `inspect` anchor, impact, verification and resolved unknowns; user_choice records the actual user decision. Exact Host-operation prerequisites and value sources are in the [admission reference](../packages/claude/plugin/skills/dev-flow/references/admission.md) and [lifecycle reference](../packages/claude/plugin/skills/dev-flow/references/host-lifecycle.md).
+
+`status`, `setup` and `remove` emit JSON with or without `--json`. Host-launch success emits the direct operation result. Artifact commands retain the Core `ok/result` or `ok/error` envelope; host-check returns its own check result. `mcp` uses the MCP protocol rather than a one-shot result. Ordinary CLI/input failures exit 1; a failed Hook exits 2; forwarded Core commands retain their failure output and exit code. Do not assume every command uses the MCP envelope.
+
+The selector is `/dev-flow-claude:dev-flow <task>`. `CLAUDE_CONFIG_DIR` selects Claude settings. `DEV_FLOW_DATA_DIR` selects an existing canonical absolute task data directory and must match across the Host, MCP and helpers.
+
 ## Packaged Core
 
 The Go Core bundled in host packages is not installed as a normal global user CLI. Its complete
@@ -338,9 +388,11 @@ accepted command surface is primarily for host integration, development, and dia
 | `dev-flow -h` | Short-option form of `help`. |
 | `dev-flow --help` | Long-option form of `help`. |
 | `dev-flow version` | Print `dev-flow <core-version>`. |
+| `dev-flow config validate` | Read raw UTF-8 configuration JSON from stdin, up to 16 KiB, and return the validation result. |
+| `dev-flow config validate --help` | Show configuration-validation help without reading stdin, configuration files, Task data or Git. |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | Start local STDIO MCP with an existing usable data directory. Startup fails when the path is missing or not a directory. |
 | `$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\data'; dev-flow.exe mcp --stdio` | Start local STDIO MCP with an existing usable data directory from Windows PowerShell. |
-| `dev-flow host-check pre-file-write` | **Managed Host command.** Read normalized structured-write targets from stdin, compare them with the active Task's cross-repository ExpectedPaths, and return `allow` or persist a file-scope blocker before returning `deny`. Codex/DeepSeek Adapters call it; ordinary users do not. |
+| `dev-flow host-check pre-file-write` | **Managed Host command.** Read normalized structured-write targets from stdin, compare them with the active Task's cross-repository ExpectedPaths, and return `allow` or persist a file-scope blocker before returning `deny`. Codex, DeepSeek and Claude Adapters call it; ordinary users do not. |
 | `dev-flow host-check workspace-available` | **Internal Host command.** Reads `{"repository_path":"<absolute root>"}` from stdin and checks active directory claims read-only. Writes `available`, canonical `repository_path` and optional `task_id`; errors exit nonzero. It neither creates a database nor reserves the directory. |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | Start or reuse the shared loopback WebUI; open the browser by default. |
 | `dev-flow webui open [--plain\|--json]` | Validate the receipt, process identity, and live Core status, then open the same URL. |
@@ -350,7 +402,31 @@ accepted command surface is primarily for host integration, development, and dia
 `dev-flow host-check pre-file-write` and `dev-flow webui serve` are internal Adapter/lifecycle entrypoints, not Host user commands. Core
 has no remote transport, generic HTTP/SSE transport, generic shell, or Git-mutation commands. Codex users start it
 through the managed `dev-flow-codex mcp` entrypoint; DeepSeek users start it through the DSH
-integration process.
+integration process; the Claude plugin starts it through `dev-flow-claude mcp`.
+
+For pre-write checks, `repository_path` locates the existing repository and `paths` retains the full
+write targets, whose parent directories may not exist yet. The DeepSeek Adapter starts from the target's
+nearest existing parent directory. Core observation failures such as timeouts or output limits exit
+nonzero and cannot count as an absent Task. Writes in repositories without a Task and ordinary non-Git
+directories remain allowed.
+
+### Configuration validation
+
+Here, `dev-flow` means the Go Core executable inside a Host package, not the global lifecycle manager. `config validate` accepts one UTF-8 JSON object on closed stdin. It takes no file-path argument, reads no user configuration, Task store or Git state, and writes no data. `internal/userconfig.Decode` defines configuration semantics: duplicate or unknown fields, invalid UTF-8, input exceeding 16 KiB and incorrect field types are rejected. An empty object `{}` uses defaults for every Host.
+
+Success exits `0` and writes the resolved preferences for all three Hosts to stdout. For example, `{}` produces:
+
+```json
+{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false}}}
+```
+
+Invalid configuration exits `1` and writes the specific reason to stdout. For example, `{"other":true}` produces:
+
+```json
+{"ok":false,"error":{"code":"INVALID_CONFIGURATION","message":"unknown top-level field \"other\""}}
+```
+
+Invalid command arguments exit `2`. `dev-flow config validate --help` exits `0` after showing help without consuming stdin. This command does not require `DEV_FLOW_DATA_DIR`.
 
 ## MCP tools
 
@@ -501,15 +577,16 @@ The `dev_flow_server_info({})` result includes:
 {
   "host_preferences": {
     "codex": { "codebase_memory": false },
-    "deepseek": { "codebase_memory": false }
+    "deepseek": { "codebase_memory": false },
+    "claude": { "codebase_memory": false }
   }
 }
 ```
 
 These values come from the process-start snapshot of the read-only user configuration:
 `$HOME/.dev-flow/config.json` on macOS or `%USERPROFILE%\.dev-flow\config.json` on Windows. They
-express preference, not installed or available index capability. Both are false when the file is
-absent, and Dev Flow does not create or modify it.
+express preference, not installed or available index capability. All three Hosts default to false when the file is
+absent. Core only interprets configuration and does not create or modify the file. Codex setup and manager initialization write `{}` when configuration is missing and preserve valid existing content.
 
 Current user instructions and applicable `AGENTS.md` take precedence over these defaults when the
 Host chooses discovery tools. Without such instructions, false selects ordinary file/text search
@@ -595,7 +672,6 @@ node release/dev-flow/prepare.mjs --output "/absolute/pet-release"
 ```
 
 Run on macOS arm64 with the repository toolchain and Swift >=6.0. This builds both application payloads and verifies the final tarball without publishing; output must be outside the repository.
-
 
 ## Host call examples
 

@@ -54,6 +54,16 @@ The publisher creates or reuses only matching Tag and GitHub Release state, publ
 once, verifies registry tarball bytes, uploads prepared assets, and finalizes without running Host or
 Task 完整流程测试.
 
+Every initial or resumed publication first validates the local prepared directory through
+`release/artifacts.mjs`, before any Git, npm, or GitHub command. It requires the exact product-specific
+file set, matching release identity, unique artifact names, regular non-symbolic-link files, and
+agreement between saved manifest digests, `SHA256SUMS`, and actual bytes. Codex and DeepSeek checksums
+cover the tarball, both Core binaries, and the manifest; the lifecycle CLI's current prepare format
+checksums only its tarball. Missing, extra, duplicated, linked, out-of-directory, or altered artifacts
+stop publication. Registry and GitHub read-back use the expectations saved by this validation rather
+than accepting a fresh digest from a changed local file. Preparation and publication require one
+operator to retain ownership of the output directory.
+
 For a new draft, the publisher writes a product-specific title and a compact Release summary. The
 summary names the exact npm package, links the immutable source commit and source-pinned
 installation/support documents, and points readers to `SHA256SUMS`. Codex and DeepSeek summaries also

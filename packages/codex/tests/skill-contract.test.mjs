@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
-import { assertSkillResources } from "../../../tests/skills/resources.mjs";
+import { assertSkillResources, examples, filesBelow } from "../../../tests/skills/resources.mjs";
 import { validateTaskHandoff } from "../lib/task-handoff.mjs";
 import { validateSuitabilityAssessment } from "../lib/task-admission.mjs";
 import { preparedWriteFromHook, hookDecision } from "../plugin/hooks/pre-tool-use.mjs";
@@ -15,22 +15,6 @@ const repositoryRoot = dirname(dirname(packageRoot));
 const pluginRoot = join(packageRoot, "plugin");
 const skillRoot = join(pluginRoot, "skills", "dev-flow");
 const skillPath = join(skillRoot, "SKILL.md");
-
-async function filesBelow(root) {
-  const files = [];
-  for (const entry of await readdir(root, { withFileTypes: true })) {
-    const path = join(root, entry.name);
-    if (entry.isDirectory()) files.push(...await filesBelow(path));
-    else files.push(path);
-  }
-  return files.sort();
-}
-
-function examples(markdown, kind) {
-  return [...markdown.matchAll(/<!-- example:([a-z-]+) ([a-z_-]+) ([a-z_-]+) -->\n```json\n([\s\S]*?)\n```/gu)]
-    .filter((match) => match[1] === kind)
-    .map((match) => ({ operation: match[2], name: match[3], value: JSON.parse(match[4]) }));
-}
 
 function marked(markdown, name) {
   const expression = new RegExp(`<!-- ${name}:start -->\\n([\\s\\S]*?)\\n<!-- ${name}:end -->`, "u");
@@ -44,10 +28,10 @@ test("plugin exposes one implicitly enabled Skill with the installed identity", 
   const skillFiles = (await filesBelow(join(pluginRoot, "skills"))).filter((path) => path.endsWith("SKILL.md"));
   assert.deepEqual(skillFiles, [skillPath]);
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  const skill = await readFile(skillPath, "utf8");
+  const skill = (await readFile(skillPath, "utf8")).replaceAll("\r\n", "\n");
   assert.match(skill, /^---\nname: dev-flow\ndescription: "[^\n]+"\n---/u);
   assert.equal(`${manifest.name}:dev-flow`, "dev-flow-codex:dev-flow");
-  assert.equal(await readFile(join(skillRoot, "agents", "openai.yaml"), "utf8"), "policy:\n  allow_implicit_invocation: true\n");
+  assert.equal((await readFile(join(skillRoot, "agents", "openai.yaml"), "utf8")).replaceAll("\r\n", "\n"), "policy:\n  allow_implicit_invocation: true\n");
   const plugin = JSON.parse(await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
   assert.deepEqual(plugin.interface.defaultPrompt, ["$dev-flow-codex:dev-flow assess the requested change in this repository before starting Dev Flow."]);
   const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
@@ -61,7 +45,15 @@ test("all Skill references are reachable, packaged and cite existing implementat
 test("assessment and handoff examples pass the actual Host validators", async () => {
   const admission = await readFile(join(skillRoot, "references", "admission.md"), "utf8");
   for (const example of examples(admission, "assessment")) {
-    assert.deepEqual(validateSuitabilityAssessment(example.value), example.value);
+    const value = {
+      ...example.value,
+      observed_repositories: example.value.observed_repositories.map(path => resolve(path)),
+      anchor: {
+        ...example.value.anchor,
+        repositories: example.value.anchor.repositories.map(repository => ({ ...repository, canonical_root: resolve(repository.canonical_root) })),
+      },
+    };
+    assert.deepEqual(validateSuitabilityAssessment(value), value);
   }
   const handoff = await readFile(join(skillRoot, "references", "task-handoff.md"), "utf8");
   const example = JSON.parse(marked(handoff, "task-handoff-example").match(/^```json\n([\s\S]*)\n```$/u)[1]);
@@ -72,7 +64,11 @@ test("Hook examples match the actual event translation and denial format", async
   const markdown = await readFile(join(skillRoot, "references", "artifacts.md"), "utf8");
   const event = examples(markdown, "hook")[0].value;
   const prepared = examples(markdown, "host-check")[0].value;
-  assert.deepEqual(preparedWriteFromHook(event), prepared);
+  assert.deepEqual(preparedWriteFromHook({ ...event, cwd: resolve(event.cwd) }), {
+    ...prepared,
+    repository_path: resolve(prepared.repository_path),
+    paths: prepared.paths.map(path => resolve(path)),
+  });
   const denial = examples(markdown, "hook-output")[0].value;
   assert.deepEqual(hookDecision({ decision: "deny", reason: denial.systemMessage }), denial);
   assert.equal(hookDecision({ decision: "allow" }), null);

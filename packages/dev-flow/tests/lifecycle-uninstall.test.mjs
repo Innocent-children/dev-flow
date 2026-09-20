@@ -16,11 +16,11 @@ test("ordinary all-Host uninstall removes Adapters and retains shared user data"
   await mkdir(paths.defaultDataDirectory, { recursive: true });
   await writeFile(paths.configurationPath, "preserve-config\n");
   await writeFile(join(paths.defaultDataDirectory, "dev-flow.db"), "preserve-task\n");
-  const states = { codex: "ready", deepseek: "ready" };
+  const states = { codex: "ready", deepseek: "ready", claude: "ready" };
   const codexDriver = driver("codex", null, states);
   const deepseekDriver = driver("deepseek", "web", states);
   deepseekDriver.knownProfiles = async () => ["web"];
-  const result = await runLifecycle(request(), { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver, confirmPlan: async () => true });
+  const result = await runLifecycle(request(), { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver, claudeDriver: driver("claude", null, states), confirmPlan: async () => true });
   assert.equal(result.result.status, "absent");
   assert.equal(await readFile(paths.configurationPath, "utf8"), "preserve-config\n");
   assert.equal(await readFile(join(paths.defaultDataDirectory, "dev-flow.db"), "utf8"), "preserve-task\n");
@@ -29,6 +29,7 @@ test("ordinary all-Host uninstall removes Adapters and retains shared user data"
 
 function driver(host, profile, states) {
   return {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     knownProfiles: async () => [], resolveTargetVersion: async () => "0.8.0",
     observe: async () => ({ host, profile, hostAvailable: true, state: states[host], packageVersion: states[host] === "ready" ? "0.8.0" : null, coreVersion: null, receipt: states[host] === "ready" ? {} : null }),
     execute: async () => { states[host] = "absent"; return { changed: true, completedSteps: [`${host}.uninstall`] }; },
@@ -47,6 +48,7 @@ test("repeated uninstall completes without invoking a Host mutation", async t =>
   let installed = true;
   let mutations = 0;
   const codexDriver = {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     observe: async () => ({ host: 'codex', profile: null, hostAvailable: true, state: installed ? 'ready' : 'absent', packageInstalled: installed, packageVersion: installed ? '1.0.0' : null }),
     execute: async () => { mutations++; installed = false; return { changed: true, completedSteps: ['codex.uninstall_package'] }; },
   };

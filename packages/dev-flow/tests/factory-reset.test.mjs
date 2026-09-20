@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -20,7 +20,7 @@ test("factory reset requires all Hosts and moves exact shared data to Trash", as
   assert.equal(result.plan.impacts.includes("Clear desktop pet records, preferences, and imported appearances"), true);
   assert.equal(result.result.data.pet, "absent");
   assert.equal(result.result.completed_actions.includes("manager.trash.pet"), true);
-  assert.deepEqual(fixture.events, ["pet.stop:null", "codex.uninstall", "deepseek.uninstall"]);
+  assert.deepEqual(fixture.events, ["pet.stop:null", "codex.uninstall", "deepseek.uninstall", "claude.uninstall"]);
   await assert.rejects(stat(fixture.paths.configurationPath), { code: "ENOENT" });
   await assert.rejects(stat(fixture.paths.defaultDataDirectory), { code: "ENOENT" });
   await assert.rejects(stat(fixture.paths.petDirectory), { code: "ENOENT" });
@@ -61,9 +61,7 @@ test("clean reinstall creates fresh active data after reset and never restores o
     random: () => "fixture-reinstall",
   });
   assert.equal(result.result.status, "ready");
-  assert.deepEqual(JSON.parse(await readFile(fixture.paths.configurationPath, "utf8")), {
-    codex: { codebase_memory: false }, deepseek: { codebase_memory: false },
-  });
+  assert.deepEqual(JSON.parse(await readFile(fixture.paths.configurationPath, "utf8")), {});
   await assert.rejects(readFile(join(fixture.paths.defaultDataDirectory, "dev-flow.db")), { code: "ENOENT" });
   assert.equal(fixture.states.codex, "ready");
   assert.equal(fixture.states.deepseek, "ready");
@@ -84,6 +82,8 @@ test("factory reset uninstalls a Codex package after its registration is already
   let packageInstalled = true;
   const operations = [];
   const codexDriver = {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     knownProfiles: async () => [],
     resolveTargetVersion: async () => "0.7.3",
     observe: async () => ({
@@ -104,6 +104,7 @@ test("factory reset uninstalls a Codex package after its registration is already
     },
   };
   const deepseekDriver = {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     knownProfiles: async () => [],
     resolveTargetVersion: async () => "0.7.3",
     observe: async (profile) => ({ host: "deepseek", profile, hostAvailable: true, state: "absent", packageVersion: null, coreVersion: null, receipt: null }),
@@ -112,10 +113,11 @@ test("factory reset uninstalls a Codex package after its registration is already
   const result = await runLifecycle(request({ reinstallAfterReset: false }), {
     homeDirectory: home,
     environment: {},
-    platform: "darwin",
-    arch: "arm64",
+    platform: process.platform,
+    arch: process.arch,
     codexDriver,
     deepseekDriver,
+    claudeDriver: { observe: async () => ({ host: "claude", profile: null, hostAvailable: true, state: "absent", packageVersion: null, receipt: null }) },
     confirmPlan: async () => true,
   });
 
@@ -128,7 +130,7 @@ test("factory reset uninstalls a Codex package after its registration is already
 });
 
 async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-reset-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-reset-")));
   const home = join(root, "home");
   let explicitData = join(root, "explicit-data");
   await mkdir(home);
@@ -137,7 +139,7 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
     explicitData = await realpath(explicitData);
   }
   const environment = explicit ? { DEV_FLOW_DATA_DIR: explicitData } : {};
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform: "darwin", arch: "arm64" });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform: process.platform, arch: process.arch });
   await mkdir(paths.configurationDirectory);
   await mkdir(paths.defaultDataDirectory, { recursive: true });
   await mkdir(paths.petDirectory, { recursive: true });
@@ -145,7 +147,7 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
   await writeFile(join(paths.defaultDataDirectory, "dev-flow.db"), "old-task\n");
   await writeFile(join(paths.petDirectory, "preferences.json"), "pet-preferences\n");
   if (explicit) await writeFile(join(explicitData, "dev-flow.db"), "explicit-task\n");
-  const states = { codex: "ready", deepseek: "ready" };
+  const states = { codex: "ready", deepseek: "ready", claude: "ready" };
   const events = [];
   const codexDriver = driver("codex", null, states, events);
   const deepseekDriver = driver("deepseek", "web", states, events);
@@ -158,10 +160,11 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
     dependencies: {
       homeDirectory: home,
       environment,
-      platform: "darwin",
-      arch: "arm64",
+      platform: process.platform,
+      arch: process.arch,
       codexDriver,
       deepseekDriver,
+      claudeDriver: driver("claude", null, states, events),
       stopPetForCore: stopPet ?? (async (options) => {
         events.push(`pet.stop:${options.corePath}`);
         return { stopped: true, reason: null };
@@ -172,6 +175,7 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
 
 function driver(host, profile, states, events) {
   return {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     knownProfiles: async () => [], resolveTargetVersion: async () => "0.8.0",
     observe: async () => ({ host, profile, hostAvailable: true, hostVersion: "1.0.0", state: states[host], packageVersion: states[host] === "ready" ? "0.8.0" : null, coreVersion: null, receipt: states[host] === "ready" ? {} : null }),
     execute: async (operation) => {
@@ -216,4 +220,112 @@ test("reset permits owned runtime records to disappear while stopping services",
   assert.equal(result.code, 0);
   assert.equal(result.result.data.pet, "absent");
   assert.equal(await readFile(join(result.result.data.trash_root, 'pet', 'preferences.json'), 'utf8'), 'pet-preferences\n');
+});
+
+test("reset without Codex stops Core before uninstall and verifies again before cleanup", async t => {
+  const fixture = await resetFixture(t);
+  fixture.states.codex = "absent";
+  const result = await runLifecycle(request({ reinstallAfterReset: false }), {
+    ...fixture.dependencies, confirmPlan: async () => true,
+    stopManagedCores: async ({ targets, dataDirectories }) => {
+      assert.deepEqual(targets.map(target => target.host), ["deepseek", "claude"]);
+      assert.deepEqual(dataDirectories, [fixture.paths.defaultDataDirectory]);
+      fixture.events.push("core.stop");
+      return { completeCleanup: async () => {}, verifyStopped: async () => {
+        assert.equal(fixture.states.deepseek, "absent");
+        assert.equal(fixture.states.claude, "absent");
+        assert.equal(await readFile(join(fixture.paths.defaultDataDirectory, "dev-flow.db"), "utf8"), "old-task\n");
+        fixture.events.push("core.verify");
+      } };
+    },
+  });
+  assert.equal(result.code, 0);
+  assert.deepEqual(fixture.events, ["pet.stop:null", "core.stop", "deepseek.uninstall", "claude.uninstall", "core.verify"]);
+});
+
+test("reset preserves shared data after Core stop failure or post-uninstall reconnection", async t => {
+  for (const phase of ["stop", "verify"]) {
+    const fixture = await resetFixture(t);
+    await assert.rejects(runLifecycle(request({ reinstallAfterReset: false }), {
+      ...fixture.dependencies, confirmPlan: async () => true,
+      stopManagedCores: async () => {
+        if (phase === "stop") throw new Error("Core shutdown failed");
+        return { completeCleanup: async () => {}, verifyStopped: async () => { throw new Error("Core reconnected"); } };
+      },
+    }), /Core shutdown failed|Core reconnected/);
+    assert.equal(await readFile(join(fixture.paths.defaultDataDirectory, "dev-flow.db"), "utf8"), "old-task\n");
+    assert.equal(await readFile(fixture.paths.configurationPath, "utf8"), "old-config\n");
+    if (phase === "stop") assert.equal(fixture.states.claude, "ready");
+  }
+});
+
+test("reset merges identical explicit and default data while preserving explicit approval", async t => {
+  for (const permanent of [false, true]) {
+    const fixture = await resetFixture(t);
+    const dependencies = { ...fixture.dependencies, environment: { DEV_FLOW_DATA_DIR: fixture.paths.defaultDataDirectory } };
+    const command = { ...request({ reinstallAfterReset: false }), permanent };
+    const preview = await runLifecycle(command, { ...dependencies, confirmPlan: async () => false });
+    assert.equal(preview.plan.cleanupTargets.filter(target => target.path === fixture.paths.defaultDataDirectory).length, 1);
+    assert.match(preview.result.next_step, /--confirm-explicit-data/);
+    await assert.rejects(runLifecycle(command, { ...dependencies, confirmPlan: async () => true }), /confirm-explicit-data/);
+    assert.deepEqual(fixture.events, []);
+    const result = await runLifecycle({ ...command, confirmedExplicitData: [fixture.paths.defaultDataDirectory] }, {
+      ...dependencies, confirmPlan: async () => true,
+    });
+    assert.equal(result.code, 0);
+    assert.equal(result.result.completed_actions.filter(value => /manager\.(trash|remove)\.default-data/.test(value)).length, 1);
+    await assert.rejects(stat(fixture.paths.defaultDataDirectory), { code: "ENOENT" });
+  }
+});
+
+test("independent reset retries retain a reconnected Core after Adapter records are removed", async t => {
+  const fixture = await resetFixture(t);
+  fixture.states.codex = "absent";
+  fixture.states.deepseek = "absent";
+  const packageRoot = join(fixture.paths.homeDirectory, "isolated-claude");
+  const runtimePath = join(packageRoot, "runtime", fixture.paths.runtimeDirectory, fixture.paths.runtimeExecutable);
+  await mkdir(join(packageRoot, "runtime", fixture.paths.runtimeDirectory), { recursive: true });
+  await writeFile(join(packageRoot, "package.json"), '{"name":"dev-flow-claude"}');
+  await writeFile(runtimePath, "isolated fixture, never executed");
+  await chmod(runtimePath, 0o755);
+  let alive = true, signalCount = 0;
+  const original = fixture.dependencies.claudeDriver;
+  const dependencies = { ...fixture.dependencies, confirmPlan: async () => true,
+    claudeDriver: { ...original,
+      maintenanceTargets: async () => ({ registeredCorePaths: [runtimePath], installedRuntime: {
+        packageName: "dev-flow-claude", packageRoot, runtimePath,
+      } }),
+      execute: async (operation, options) => {
+        const result = await original.execute(operation, options);
+        // A reconnect started before unlink can keep running after all installation records vanish.
+        alive = true;
+        await rm(packageRoot, { recursive: true });
+        return result;
+      },
+    },
+    loadMaintenancePlatform: async () => ({
+      stopStdioCores: async paths => { if (paths.length) { signalCount++; alive = false; } },
+      assertManagedCoresStopped: async paths => { if (alive && paths.includes(runtimePath)) throw new Error("Core reconnected"); },
+    }),
+  };
+  const command = request({ reinstallAfterReset: false });
+  await assert.rejects(runLifecycle(command, dependencies), /Core reconnected/);
+  assert.equal(fixture.states.claude, "absent");
+  await assert.rejects(stat(packageRoot), { code: "ENOENT" });
+  const recordPath = join(fixture.paths.managerRoot, "reset-core-maintenance.json");
+  assert.deepEqual(JSON.parse(await readFile(recordPath, "utf8")), { runtime_paths: [runtimePath] });
+  assert.equal(signalCount, 1);
+
+  // A fresh call observes no installed Adapter and must still consult the private reset record.
+  await assert.rejects(runLifecycle(command, dependencies), /Core reconnected/);
+  assert.equal(signalCount, 1);
+  assert.equal(await readFile(join(fixture.paths.defaultDataDirectory, "dev-flow.db"), "utf8"), "old-task\n");
+  assert.ok(await readFile(recordPath));
+
+  alive = false;
+  const completed = await runLifecycle(command, dependencies);
+  assert.equal(completed.code, 0);
+  assert.equal(signalCount, 1);
+  await assert.rejects(stat(recordPath), { code: "ENOENT" });
+  await assert.rejects(stat(fixture.paths.defaultDataDirectory), { code: "ENOENT" });
 });

@@ -13,7 +13,7 @@ test("a declared development distribution binds both artifact paths and bytes", 
   t.after(() => rm(root, {recursive:true, force:true}));
   await mkdir(join(root,"local-packages"));
   const entries = {};
-  for (const product of ["codex","deepseek"]) {
+  for (const product of ["claude","codex","deepseek"]) {
     const bytes = Buffer.from(`${product} artifact fixture`);
     entries[product] = {path:`local-packages/${product}.tgz`,version:"1.2.3",sha256:createHash("sha256").update(bytes).digest("hex")};
     await writeFile(join(root,entries[product].path),bytes);

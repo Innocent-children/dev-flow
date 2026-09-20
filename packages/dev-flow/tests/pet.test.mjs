@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { EventEmitter } from "node:events";
-import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -9,6 +9,7 @@ import test from "node:test";
 import { runMain } from "../lib/lifecycle.mjs";
 import { resolveManagerPaths } from "../lib/ownership.mjs";
 import { runPet, stopPetForCore } from "../lib/pet.mjs";
+import { loadPetPlatform } from "../lib/platform.mjs";
 import {
   bundledPetExecutable,
   isBundledPetApplicationAvailable,
@@ -20,6 +21,8 @@ import {
 import { messagesForLanguage } from "../lib/presentation.mjs";
 import { NoRuntimeError } from "../lib/runtime.mjs";
 import { ensurePetInstalled } from "../lib/platform/macos/pet-installer.mjs";
+
+const currentPetPlatform = await loadPetPlatform(process.platform, process.arch);
 
 test("macOS application replacement preserves the installed copy when source staging fails", async t => {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-mac-pet-copy-"));
@@ -115,8 +118,8 @@ test("start resolves the existing Adapter Core and hands its verified identity t
   assert.deepEqual(selection.calls, [{
     environment: {},
     homeDirectory: fixture.home,
-    platform: "darwin",
-    arch: "arm64",
+    platform: fixture.dependencies.platform,
+    arch: fixture.dependencies.arch,
     exec: core.exec,
     requireData: true,
     initializeDefaultData: true,
@@ -131,7 +134,7 @@ test("start resolves the existing Adapter Core and hands its verified identity t
     options: { signal: service_.calls[0].options.signal, redirect: "error" },
   }]);
   assert.equal(native.calls.launch.length, 1);
-  assert.equal(native.calls.launch[0].executable, bundledPetExecutable(fixture.packageRoot));
+  assert.equal(native.calls.launch[0].executable, currentPetPlatform.bundledPetExecutable(fixture.packageRoot));
   assert.deepEqual(native.calls.launch[0].request, {
     corePath: fixture.selection.runtimePath,
     dataDirectory: fixture.selection.dataDirectory,
@@ -244,7 +247,7 @@ test("start prioritizes installed pet in petDirectory over package bundle", asyn
   assert.equal(stdout.text(), "✓ Desktop pet started\n");
   assert.equal(
     native.calls.launch[0].executable,
-    `${fixture.paths.petDirectory}/DevFlowPet.app/Contents/MacOS/DevFlowPet`,
+    currentPetPlatform.installedPetExecutable(fixture.paths.petDirectory),
   );
 });
 
@@ -333,7 +336,7 @@ test("stop ends the running pet without resolving an Adapter or touching the ser
   assert.deepEqual(core.calls, []);
   assert.deepEqual(service_.calls, []);
   assert.deepEqual(native.calls.shutdown, [{
-    executable: bundledPetExecutable(fixture.packageRoot),
+    executable: currentPetPlatform.bundledPetExecutable(fixture.packageRoot),
     productRoot: fixture.paths.productRoot,
     corePath: null,
     environment: {},
@@ -387,21 +390,21 @@ test("pet results render in the language the launcher already resolved", async (
 
 test("Adapter maintenance stops only a pet that runs the maintained Core", async (t) => {
   const fixture = await petFixture(t);
-  const maintainedCore = join(fixture.packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  const maintainedCore = fixture.selection.runtimePath;
   const native = nativePlatform();
 
   const stopped = await stopPetForCore({
     corePath: maintainedCore,
     environment: {},
     homeDirectory: fixture.home,
-    platform: "darwin",
-    arch: "arm64",
+    platform: fixture.dependencies.platform,
+    arch: fixture.dependencies.arch,
     packageRoot: fixture.packageRoot,
     platformModule: native.module,
   });
   assert.deepEqual(stopped, { stopped: true, reason: null });
   assert.deepEqual(native.calls.shutdown, [{
-    executable: bundledPetExecutable(fixture.packageRoot),
+    executable: currentPetPlatform.bundledPetExecutable(fixture.packageRoot),
     productRoot: fixture.paths.productRoot,
     corePath: maintainedCore,
     environment: {},
@@ -412,8 +415,8 @@ test("Adapter maintenance stops only a pet that runs the maintained Core", async
     corePath: maintainedCore,
     environment: {},
     homeDirectory: fixture.home,
-    platform: "darwin",
-    arch: "arm64",
+    platform: fixture.dependencies.platform,
+    arch: fixture.dependencies.arch,
     packageRoot: fixture.packageRoot,
     platformModule: failing.module,
   }), /another Core is in use/u);
@@ -439,16 +442,17 @@ test("Adapter maintenance skips a runtime or package that has no desktop compone
     corePath: null,
     environment: {},
     homeDirectory: fixture.home,
-    platform: "darwin",
-    arch: "arm64",
+    platform: fixture.dependencies.platform,
+    arch: fixture.dependencies.arch,
     packageRoot: fixture.packageRoot,
     platformModule: missing.module,
   }), { stopped: false, reason: "application-unavailable" });
   assert.deepEqual(missing.calls.shutdown, []);
 });
 
-test("the packaged application location and its executable requirement are fixed", async (t) => {
+test("the macOS packaged application location requires a regular file", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-pet-bundle-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
   assert.equal(
     bundledPetExecutable(join(root, "package")),
     join(root, "package", "runtime", "darwin-arm64", "DevFlowPet.app", "Contents", "MacOS", "DevFlowPet"),
@@ -457,10 +461,18 @@ test("the packaged application location and its executable requirement are fixed
   await writeFile(executable, "#!/bin/sh\n");
   await chmod(executable, 0o755);
   assert.equal(await isBundledPetApplicationAvailable(executable), true);
-  await chmod(executable, 0o644);
-  assert.equal(await isBundledPetApplicationAvailable(executable), false);
   assert.equal(await isBundledPetApplicationAvailable(join(root, "absent")), false);
   assert.equal(await isBundledPetApplicationAvailable(root), false);
+});
+
+test("the macOS packaged application requires POSIX executable permission", { skip: process.platform !== "darwin" }, async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "dev-flow-pet-mode-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const executable = join(root, "DevFlowPet");
+  await writeFile(executable, "#!/bin/sh\n", { mode: 0o755 });
+  assert.equal(await isBundledPetApplicationAvailable(executable), true);
+  await chmod(executable, 0o644);
+  assert.equal(await isBundledPetApplicationAvailable(executable), false);
 });
 
 test("the native argument arrays are the exact private entry contract", () => {
@@ -599,22 +611,22 @@ test("an interactive pet selection reuses the pet launcher and returns to the me
 });
 
 async function petFixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-pet-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-pet-")));
   const home = join(root, "home");
   const packageRoot = join(root, "package");
   await mkdir(home);
   await mkdir(packageRoot);
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64" });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: process.platform, arch: process.arch });
   const selection = Object.freeze({
     source: "codex",
     packageRoot: join(root, "adapter", "dev-flow-codex"),
-    runtimePath: join(root, "adapter", "dev-flow-codex", "runtime", "darwin-arm64", "dev-flow"),
+    runtimePath: join(root, "adapter", "dev-flow-codex", "runtime", paths.runtimeDirectory, paths.runtimeExecutable),
     version: "0.6.2",
     dataDirectory: paths.defaultDataDirectory,
-    platform: "darwin",
-    arch: "arm64",
-    runtimeKey: "darwin-arm64",
-    forwardedSignals: Object.freeze(["SIGINT", "SIGTERM", "SIGHUP"]),
+    platform: paths.platform,
+    arch: paths.arch,
+    runtimeKey: paths.runtimeKey,
+    forwardedSignals: paths.forwardedSignals,
   });
   t.after(async () => {
     const { rm } = await import("node:fs/promises");
@@ -631,8 +643,8 @@ async function petFixture(t) {
       stderr: output(),
       environment: {},
       language: "en",
-      platform: "darwin",
-      arch: "arm64",
+      platform: paths.platform,
+      arch: paths.arch,
       homeDirectory: home,
       packageRoot,
       resolveCoreRuntime: async () => selection,
@@ -687,14 +699,18 @@ function service(live = {
 
 function nativePlatform({ available = true, confirmation = "ready", shutdown = { code: 0, detail: null }, launchError = null, installedAvailable = false } = {}) {
   const calls = { launch: [], shutdown: [] };
+  let installedExecutable;
   return {
     calls,
     module: {
-      bundledPetExecutable,
-      installedPetExecutable: (petDirectory) => `${petDirectory}/DevFlowPet.app/Contents/MacOS/DevFlowPet`,
+      bundledPetExecutable: currentPetPlatform.bundledPetExecutable,
+      installedPetExecutable: (petDirectory) => {
+        installedExecutable = currentPetPlatform.installedPetExecutable(petDirectory);
+        return installedExecutable;
+      },
       isBundledPetApplicationAvailable: async (candidate) => {
         if (!available) return false;
-        if (candidate.includes(".dev-flow/pet")) return installedAvailable;
+        if (candidate === installedExecutable) return installedAvailable;
         return true;
       },
       launchPet: async (options) => {

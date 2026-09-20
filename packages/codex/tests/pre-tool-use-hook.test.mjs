@@ -50,7 +50,7 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
     tool_input: { command: "*** Begin Patch\n*** Update File: src/a.go\n*** End Patch" },
   });
   const writes = [];
-  const absent = runHook({ readInput: () => event, output: { write: (value) => writes.push(value) }, error: { write: () => undefined }, environment: { HOME: root, PLUGIN_ROOT: join(root, "plugin") }, platform: "darwin" });
+  const absent = runHook({ readInput: () => event, output: { write: (value) => writes.push(value) }, error: { write: () => undefined }, environment: { HOME: root, PLUGIN_ROOT: join(root, "plugin") }, platform: "darwin", arch: "arm64" });
   assert.equal(absent, 0);
   assert.deepEqual(writes, []);
 
@@ -61,6 +61,7 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
     error: { write: () => undefined },
     environment: { DEV_FLOW_DATA_DIR: root },
     platform: "darwin",
+    arch: "arm64",
     spawn: (executable, arguments_, options) => {
       invocation = { executable, arguments_, options };
       return { status: 0, stdout: JSON.stringify({ decision: "allow" }), stderr: "" };
@@ -83,6 +84,7 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
     error: { write: (value) => errors.push(value) },
     environment: { DEV_FLOW_DATA_DIR: root, PLUGIN_ROOT: join(root, "plugin") },
     platform: "darwin",
+    arch: "arm64",
     spawn: () => ({ status: 1, stdout: "", stderr: "failed" }),
   });
   assert.equal(failed, 2);

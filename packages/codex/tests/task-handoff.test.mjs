@@ -56,7 +56,7 @@ test("handoff retains multi-turn corrections, original text, and separate unacce
   for (const key of ["terminology", "scope_and_constraints", "investigation", "work_requirements", "assumptions", "open_questions"]) {
     assert.ok(prompt.includes(material[key][0]), key);
   }
-  assert.ok(prompt.includes(handoff.markdown_path));
+  assertHandoffLocations(prompt, handoff);
   const original = await readFile(handoff.markdown_path, "utf8");
   assert.ok(original.indexOf("### m1") < original.indexOf("### m5"));
   assert.ok(original.includes("格式化结果"));
@@ -72,7 +72,7 @@ test("large handoffs use complete files without truncating original messages or 
   const handoff = await readTaskHandoff(fixture.receiptPath, taskHandoffDigest(material));
   const prompt = buildManagedBootstrapPrompt({ launchId: "launch-large", repositoryKey: "primary", handoff });
   assert.ok(Buffer.byteLength(prompt, "utf8") < 24 * 1024);
-  assert.ok(prompt.includes(handoff.markdown_path));
+  assertHandoffLocations(prompt, handoff);
   assert.ok(prompt.includes("Read the complete handoff"));
   assert.equal(handoff.material.discussion[0].text, text);
   assert.equal(handoff.material.confirmed_requirements[0].text, text);
@@ -124,4 +124,9 @@ async function materialFixture(t) {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-handoff-中文 ")));
   t.after(() => rm(root, { recursive: true, force: true }));
   return { root, receiptPath: join(root, "primary.json"), options: { enforcePrivateModes: process.platform !== "win32" } };
+}
+
+function assertHandoffLocations(prompt, handoff) {
+  assert.equal(JSON.parse(prompt.match(/^Complete handoff and original discussion: (.+)$/mu)[1]), handoff.markdown_path);
+  assert.equal(JSON.parse(prompt.match(/^Structured material with original message text: (.+)$/mu)[1]), handoff.json_path);
 }

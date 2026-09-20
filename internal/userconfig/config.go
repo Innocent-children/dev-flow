@@ -19,6 +19,7 @@ type HostPreferences struct {
 type Preferences struct {
 	Codex    HostPreferences `json:"codex"`
 	DeepSeek HostPreferences `json:"deepseek"`
+	Claude   HostPreferences `json:"claude"`
 }
 
 func Load(homeDirectory string) (Preferences, error) {
@@ -39,17 +40,20 @@ func Load(homeDirectory string) (Preferences, error) {
 	if err != nil {
 		return Preferences{}, fmt.Errorf("user configuration %q: read failed", path)
 	}
-	if len(raw) > MaxConfigBytes {
-		return Preferences{}, fmt.Errorf("user configuration %q: exceeds 16 KiB", path)
-	}
-	preferences, err := decode(raw)
+	preferences, err := Decode(raw)
 	if err != nil {
 		return Preferences{}, fmt.Errorf("user configuration %q: %w", path, err)
 	}
 	return preferences, nil
 }
 
-func decode(raw []byte) (Preferences, error) {
+/**
+ * Installation checks and runtime loading use the same configuration rules.
+ */
+func Decode(raw []byte) (Preferences, error) {
+	if len(raw) > MaxConfigBytes {
+		return Preferences{}, fmt.Errorf("exceeds 16 KiB")
+	}
 	if !utf8.Valid(raw) {
 		return Preferences{}, fmt.Errorf("invalid UTF-8")
 	}
@@ -77,6 +81,8 @@ func decode(raw []byte) (Preferences, error) {
 			destination = &preferences.Codex
 		case "deepseek":
 			destination = &preferences.DeepSeek
+		case "claude":
+			destination = &preferences.Claude
 		default:
 			return Preferences{}, fmt.Errorf("unknown top-level field %q", name)
 		}

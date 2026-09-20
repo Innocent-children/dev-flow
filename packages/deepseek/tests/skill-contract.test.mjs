@@ -58,7 +58,7 @@ test("all workspace examples match registered operations and exact current-turn 
   } }, { dataDirectory: "/private/tmp/dev-flow-schema", workspaceRoot: "/work/project" });
   const seen = new Set();
   for (const path of ["admission.md", "host-lifecycle.md"]) {
-    const text = await readFile(join(skillRoot, "references", path), "utf8");
+    const text = (await readFile(join(skillRoot, "references", path), "utf8")).replaceAll("\r\n", "\n");
     for (const example of examples(text, "workspace")) {
       const args = example.value;
       assert.equal(example.operation, WORKSPACE_COORDINATOR_TOOL);

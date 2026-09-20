@@ -1,10 +1,12 @@
-import { readFile } from "node:fs/promises";
+import { validateConfigurationFile } from "./configuration.mjs";
 
-// Lifecycle diagnostics describe installation health without changing user files.
-export async function diagnoseInstallation(observed, { host } = {}) {
+/**
+ * Lifecycle diagnostics describe installation health without changing user files.
+ */
+export async function diagnoseInstallation(observed, { host, paths, environment, validateConfiguration = validateConfigurationFile } = {}) {
   const checks = [];
-  const hasReadyAdapter = [observed.codex, ...observed.deepseek].some(target => target?.state === "ready");
-  for (const target of [observed.codex, ...observed.deepseek].filter(Boolean)) {
+  const hasReadyAdapter = [observed.codex, ...observed.deepseek, observed.claude].some(target => target?.state === "ready");
+  for (const target of [observed.codex, ...observed.deepseek, observed.claude].filter(Boolean)) {
     const name = `${target.host}${target.profile ? `/${target.profile}` : ""}`;
     checks.push({ name, status: target.state === "ready" ? "passed" : host === "all" && hasReadyAdapter && target.state === "absent" ? "not_installed" : "failed",
       message: target.state === "ready" ? `Adapter ${target.packageVersion}, Core ${target.coreVersion ?? "unknown"}`
@@ -13,13 +15,7 @@ export async function diagnoseInstallation(observed, { host } = {}) {
   const configuration = observed.resources.configuration;
   if (configuration.exists) {
     try {
-      const value = JSON.parse(await readFile(configuration.path, "utf8"));
-      if (!value || typeof value !== "object" || Array.isArray(value) ||
-          Object.keys(value).some(key => !["codex", "deepseek"].includes(key)) ||
-          ["codex", "deepseek"].some(key => value[key] !== undefined &&
-            (!value[key] || typeof value[key] !== "object" || Array.isArray(value[key]) ||
-             Object.keys(value[key]).some(field => field !== "codebase_memory") ||
-             typeof value[key].codebase_memory !== "boolean"))) throw new Error("invalid Host preference fields");
+      await validateConfiguration(configuration.path, { host, paths, environment });
       checks.push({ name: "configuration", status: "passed", message: configuration.path });
     } catch (error) {
       checks.push({ name: "configuration", status: "failed", message: `${configuration.path}: ${error.message}` });

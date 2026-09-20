@@ -12,6 +12,18 @@ import { readExamples, exampleNormalizer, verifySuccessExample } from "../../../
 
 const root = fileURLToPath(new URL("../plugin/skills/dev-flow/", import.meta.url));
 const examples = await readExamples(root, "host");
+test("Skill response normalization maps native paths and quoted paths without changing other text", () => {
+  const directory = join(tmpdir(), "dev-flow-normalizer");
+  const path = join(directory, "handoffs", "material.md");
+  const normalize = exampleNormalizer([[directory, "/example"]]);
+  const unchanged = String.raw`Keep \n and "C:\unmapped\path" unchanged.`;
+  assert.deepEqual(normalize({ path, prompt: `Read ${JSON.stringify(path)}. ${unchanged}`, unchanged }), {
+    path: "/example/handoffs/material.md",
+    prompt: `Read "/example/handoffs/material.md". ${unchanged}`,
+    unchanged,
+  });
+});
+
 for (const example of examples) {
   test(`complete Skill response ${example.tool}/${example.name}`, async (t) => {
     const dir = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-skill-codex-")));

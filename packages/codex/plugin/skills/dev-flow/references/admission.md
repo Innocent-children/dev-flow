@@ -298,6 +298,12 @@ It preserves the source checkout/index/stash. Read `receipt.launch_id`, `reposit
 A stale assessment, branch collision, unsupported source, snapshot failure or partial setup stops
 before Core creation. Preserve failed/uncertain destinations for inspection.
 
+Snapshot capture compares HEAD and the index, working-file, and untracked Git trees from two reads.
+Changed content stops preparation even if status is unchanged; it does not retry automatically.
+Inspect the retained source and receipt before continuing. Keep one writer during preparation:
+this is not an atomic snapshot under arbitrary concurrent writes. This content check does not change
+the assessment anchor's HEAD/status contract described above.
+
 ### status
 
 Implementation: `packages/codex/bin/dev-flow-codex.mjs` — `runHostLaunchCommand`.

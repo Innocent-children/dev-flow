@@ -32,6 +32,7 @@ executable tests decide current behavior, and the documentation must be correcte
 | `internal/README*`, `scripts/README*`, `tests/**/README.md`, `protocol/fixtures/README.md` | Directory structure, development commands, test procedures, and fixture usage |
 | `release/**/README.md`, `docs/RELEASE-STRATEGY.md`, `docs/VERSIONING.md` | Maintainer procedures for versions, artifact checks, and publication |
 | `skills/dev-flow/core/` and Host Skill directories | Core interaction instructions and Host operations used by agents running the installed product |
+| [Claude guide](docs/CLAUDE_en.md), [package README](packages/claude/README.md) | Installation, task use, resume, maintenance and removal for Claude users |
 | `SECURITY.md` | Vulnerability reporting and the security reporting policy |
 
 Root READMEs follow user operations and link to dedicated references for technical detail.
@@ -45,6 +46,7 @@ governs AI maintenance of this repository; Skills govern agent use of the instal
 | Core product version | `CORE_VERSION` |
 | Codex product version and package contents | `packages/codex/package.json` |
 | DeepSeek product version and package contents | `packages/deepseek/package.json` |
+| Claude product version and package contents | `packages/claude/package.json` |
 | Unified lifecycle package and `dev-flow` bin | `packages/dev-flow/package.json`, `packages/dev-flow/` |
 | Process nodes, transitions, and guards | `internal/workflow/` |
 | Task aggregate, WorkspaceOrigin/Binding, and validation | `internal/domain/` |
@@ -54,6 +56,9 @@ governs AI maintenance of this repository; Skills govern agent use of the instal
 | MCP tools, allowed input fields, and response data | `internal/mcp/` |
 | Codex request assessment, worktree creation, session restart/handoff, and activation | `packages/codex/` |
 | DeepSeek request assessment, WorkspaceCoordinator, run records/restart, and activation | `packages/deepseek/` |
+| `packages/claude/` | Claude plugin, CLI, permissions and session/workspace operations |
+| `packages/host-workspace/` | Shared Git helper source used by Host builds |
+| `packages/host-command/` | Shared command execution source for Codex and Claude; `scripts/sync-host-commands.mjs` generates and checks package copies |
 | Protocol fixtures | `protocol/fixtures/` |
 | Interface contract tests and end-to-end tests in actual Hosts | `tests/contract/`, `tests/journeys/` |
 | Release schemas, prepare, and publisher | `release/`, `scripts/release-*.mjs` |

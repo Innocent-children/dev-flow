@@ -48,7 +48,7 @@ test("DeepSeek stale contribution is removed only after target artifact verifica
   let present = true;
   const paths = {
     managerRoot: "/manager",
-    profilesDirectory: "/manager/profiles",
+    managerRoot: "/manager",
     runsDirectory: "/manager/runs",
     homeDirectory: "/home",
   };

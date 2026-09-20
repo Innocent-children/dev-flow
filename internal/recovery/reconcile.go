@@ -125,12 +125,9 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 				return RecoveryDecision{}, decodeErr
 			}
 			canonical = raw
-			effect = RepositoryEffect{Kind: EffectExactBlockerRestoration}
-			if payload.Condition.Kind == domain.BlockerConditionResolveFileScope {
-				effect = RepositoryEffect{Kind: EffectFileScopeResolution}
-			}
-			if input.Task.Blocker == nil || payload.BlockerID != input.Task.Blocker.BlockerID ||
-				payload.Condition != input.Task.Blocker.Condition || payload.ObservedBindingDigest != comparison.ObservedDigest {
+			if ValidateBlockerResolution(input.Task, observation, comparison, payload) == nil {
+				evidence = OperationEvidenceComplete
+			} else {
 				evidence = OperationEvidenceContradictory
 			}
 		} else {
@@ -159,7 +156,7 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 			return RecoveryDecision{}, domain.ErrInvalidArgument
 		}
 		payloadDigest = &digest
-		if evidence != OperationEvidenceContradictory {
+		if input.Operation.SourceCursor != domain.NodeBlocked {
 			evidence = RepositoryScopeEffectEvidence(input.Task, observation, comparison, effect)
 		}
 	}
@@ -244,12 +241,6 @@ func RepositoryScopeEffectEvidence(task domain.ProcessTask, observed RepositoryS
 		authoritative[entry.Key] = entry.Binding
 		fresh[entry.Key] = observed.Additional[i].Binding
 	}
-	if effect.Kind == EffectFileScopeResolution {
-		if comparison.Relation == RepositoryExact || comparison.Relation == RepositoryWorktreeOnlyChanged {
-			return OperationEvidenceComplete
-		}
-		return OperationEvidenceContradictory
-	}
 	declared := map[domain.RepositoryKey][]string{}
 	for _, scopedPath := range effect.Paths {
 		keyText, path, ok := strings.Cut(scopedPath, "::")
@@ -325,7 +316,7 @@ func processArtifactEffect(artifacts []domain.ArtifactReference) RepositoryEffec
 func RepositoryEffectAllowed(allowed []domain.AllowedEffect, effect RepositoryEffect) bool {
 	var wanted domain.AllowedEffect
 	switch effect.Kind {
-	case EffectExactBinding, EffectExactBlockerRestoration:
+	case EffectExactBinding:
 		return len(effect.Paths) == 0
 	case EffectProcessArtifactOnly:
 		wanted = domain.EffectEditProcessArtifacts
@@ -348,10 +339,8 @@ func RepositoryEffectMatches(effect RepositoryEffect, relation RepositoryRelatio
 	}
 	delta := bindingDeltaPaths(authoritative, observed)
 	switch effect.Kind {
-	case EffectExactBinding, EffectExactBlockerRestoration:
+	case EffectExactBinding:
 		return len(delta) == 0
-	case EffectFileScopeResolution:
-		return relation == RepositoryExact || relation == RepositoryWorktreeOnlyChanged
 	case EffectProcessArtifactOnly:
 		return len(delta) == 0 || containsEveryPath(effect.Paths, delta)
 	case EffectProductFileChange:

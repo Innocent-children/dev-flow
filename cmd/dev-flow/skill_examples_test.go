@@ -13,7 +13,7 @@ import (
 )
 
 func TestSkillArtifactExamplesMatchCommandDTOs(t *testing.T) {
-	for _, host := range []string{"codex", "deepseek"} {
+	for _, host := range []string{"codex", "deepseek", "claude"} {
 		t.Run(host, func(t *testing.T) { validateSkillArtifactExamples(t, host) })
 	}
 }
@@ -21,6 +21,9 @@ func validateSkillArtifactExamples(t *testing.T, host string) {
 	path := filepath.Join("..", "..", "packages", "codex", "plugin", "skills", "dev-flow", "references", "artifact-contract.md")
 	if host == "deepseek" {
 		path = filepath.Join("..", "..", "packages", "deepseek", "skills", "dev-flow", "references", "artifact-contract.md")
+	}
+	if host == "claude" {
+		path = filepath.Join("..", "..", "packages", "claude", "plugin", "skills", "dev-flow", "references", "artifact-contract.md")
 	}
 	text, err := os.ReadFile(path)
 	if err != nil {

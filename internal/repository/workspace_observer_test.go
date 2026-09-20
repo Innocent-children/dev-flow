@@ -1,12 +1,16 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
@@ -126,7 +130,7 @@ func TestWorkspaceObserverGitlinkDigestTracksStagedObjectID(t *testing.T) {
 	root := t.TempDir()
 	remote := filepath.Join(root, "module.git")
 	source := filepath.Join(root, "module-source")
-	runObserverGit(t, "", "init", "--bare", remote)
+	runObserverGit(t, "", "init", "--bare", "--initial-branch=main", remote)
 	runObserverGit(t, "", "clone", remote, source)
 	runObserverGit(t, source, "switch", "-c", "main")
 	if err := os.WriteFile(filepath.Join(source, "module.txt"), []byte("one\n"), 0o644); err != nil {
@@ -295,7 +299,7 @@ func TestWorkspaceObserverRejectsDirtySubmoduleAndUnstableSecondPass(t *testing.
 	root := t.TempDir()
 	remote := filepath.Join(root, "dirty.git")
 	source := filepath.Join(root, "dirty-source")
-	runObserverGit(t, "", "init", "--bare", remote)
+	runObserverGit(t, "", "init", "--bare", "--initial-branch=main", remote)
 	runObserverGit(t, "", "clone", remote, source)
 	runObserverGit(t, source, "switch", "-c", "main")
 	if err := os.WriteFile(filepath.Join(source, "file.txt"), []byte("base\n"), 0o644); err != nil {
@@ -326,7 +330,7 @@ func provisionObserverWorktree(t *testing.T) (string, string, WorkspaceOriginSel
 	remote := filepath.Join(root, "remote.git")
 	source := filepath.Join(root, "source")
 	worktree := filepath.Join(root, "task")
-	runObserverGit(t, "", "init", "--bare", remote)
+	runObserverGit(t, "", "init", "--bare", "--initial-branch=main", remote)
 	runObserverGit(t, "", "clone", remote, source)
 	runObserverGit(t, source, "switch", "-c", "main")
 	if err := os.WriteFile(filepath.Join(source, "tracked.txt"), []byte("initial\n"), 0o644); err != nil {
@@ -387,5 +391,47 @@ func TestWorkspaceObserverLocalSourceRequiresCarryChoiceForInitialChanges(t *tes
 	selection.SourceType, selection.RemoteName = "remote", "origin"
 	if _, _, err := observer.ObserveWorkspace(context.Background(), worktree, selection, nil); !errors.Is(err, ErrProvisioningRequired) {
 		t.Fatalf("remote carry accepted: %v", err)
+	}
+}
+
+func TestWorkspaceObserverLargeChangeFitsArtifactDeadline(t *testing.T) {
+	_, root, selection := provisionObserverWorktree(t)
+	observer := NewGitObserver()
+	_, initial, err := observer.ObserveWorkspace(context.Background(), root, selection, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 300; i++ {
+		if err := os.WriteFile(filepath.Join(root, fmt.Sprintf("new-%03d.txt", i)), []byte("content\r\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	_, binding, err := observer.ObserveWorkspace(ctx, root, selection, &initial)
+	if err != nil || len(binding.ChangedEntries) != 300 || len(binding.TaskSurface) != 300 {
+		t.Fatalf("changed=%d surface=%d err=%v", len(binding.ChangedEntries), len(binding.TaskSurface), err)
+	}
+}
+func TestGitBlobMatchesRawGitObjects(t *testing.T) {
+	for _, format := range []string{"sha1", "sha256"} {
+		t.Run(format, func(t *testing.T) {
+			root := t.TempDir()
+			runObserverGit(t, root, "init", "--object-format="+format)
+			raw := []byte("raw\r\nbytes\x00tail")
+			if err := os.WriteFile(filepath.Join(root, "blob"), raw, 0644); err != nil {
+				t.Fatal(err)
+			}
+			expected := strings.TrimSpace(runObserverGit(t, root, "hash-object", "--no-filters", "--", "blob"))
+			actual, err := gitBlob(context.Background(), int64(len(raw)), bytes.NewReader(raw), len(expected))
+			if err != nil || actual != expected {
+				t.Fatalf("actual=%s expected=%s err=%v", actual, expected, err)
+			}
+		})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := gitBlob(ctx, 0, bytes.NewReader(nil), 40); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancellation lost: %v", err)
 	}
 }

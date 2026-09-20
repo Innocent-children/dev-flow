@@ -32,7 +32,7 @@ import {
   validateWorkspaceOrigin,
 } from "../lib/task-launch.mjs";
 import { createProvisioningReceipt as rawCreateProvisioningReceipt, provisioningReceiptPath, readProvisioningReceipt, updateProvisioningReceipt, writeProvisioningReceiptAtomic } from "../lib/provisioning-receipt.mjs";
-import { terminalCleanupDecision } from "../lib/worktree-lifecycle.mjs";
+import { defaultRunGit, terminalCleanupDecision } from "../lib/worktree-lifecycle.mjs";
 
 const execFile = promisify(execFileCallback);
 
@@ -668,6 +668,56 @@ for (const carry of [false, true]) test(`local CLI launch selects an offline bra
   } else await assert.rejects(readFile(join(input.worktree_path, "新增 file.txt")), { code: "ENOENT" });
   await assert.rejects(readFile(join(input.worktree_path, "ignored.txt")), { code: "ENOENT" });
   assert.equal(await gitOutput(fixture.source, "stash", "list"), "");
+});
+
+test("snapshot rejects changed contents even when Git status is unchanged", async (t) => {
+  const fixture = await makeRemoteFixture(t, "changing-snapshot");
+  await writeFile(join(fixture.source, "base.txt"), "staged\n");
+  await git(fixture.source, "add", "base.txt");
+  await writeFile(join(fixture.source, "base.txt"), "tracked-A\n");
+  await writeFile(join(fixture.source, "new.txt"), "untracked-A\n");
+  const before = await gitOutput(fixture.source, "status", "--porcelain=v2", "--untracked-files=all");
+  const index = await gitOutput(fixture.source, "write-tree");
+  const head = await gitOutput(fixture.source, "rev-parse", "HEAD");
+  const stash = await gitOutput(fixture.source, "stash", "list");
+  let captures = 0;
+  const runGit = async (args, options) => {
+    const output = await defaultRunGit(args, options);
+    if (args.includes("stash") && args.includes("create") && ++captures === 1) {
+      await writeFile(join(fixture.source, "base.txt"), "tracked-B\n");
+      await writeFile(join(fixture.source, "new.txt"), "untracked-B\n");
+      assert.equal(await gitOutput(fixture.source, "status", "--porcelain=v2", "--untracked-files=all"), before);
+    }
+    return output;
+  };
+  const request = "Carry one stable source snapshot.";
+  const input = {
+    request, ...admissionFixture(await assessmentAnchor(fixture, request)), launch_id: "changing-snapshot",
+    repository_key: "primary", repository_path: fixture.source, workspace_mode: "dedicated_worktree",
+    source_type: "local", carry_changes: true, remote_name: "", base_branch: "main", target_branch: "codex/snapshot",
+    surface: "cli_worktree", worktree_path: join(fixture.root, "task"),
+    handoff_file: await writeHandoffFixture(fixture.root, request),
+  };
+  await assert.rejects(prepareTaskLaunch(input, { ...fixture.options, runGit }), /Source workspace changed while capturing/);
+  assert.equal(captures, 2);
+  const receipt = await readProvisioningReceipt(provisioningReceiptPath(fixture.productSupportRoot, input.launch_id, "primary"), fixture.options);
+  assert.equal(receipt.operation_status.phase, "failed");
+  assert.equal(receipt.snapshot_commit, null);
+  await assert.rejects(stat(input.worktree_path), { code: "ENOENT" });
+  assert.equal(await gitOutput(fixture.source, "branch", "--list", input.target_branch), "");
+  assert.equal(await readFile(join(fixture.source, "base.txt"), "utf8"), "tracked-B\n");
+  assert.equal(await readFile(join(fixture.source, "new.txt"), "utf8"), "untracked-B\n");
+  assert.equal(await gitOutput(fixture.source, "write-tree"), index);
+  assert.equal(await gitOutput(fixture.source, "rev-parse", "HEAD"), head);
+  assert.equal(await gitOutput(fixture.source, "stash", "list"), stash);
+});
+
+test("snapshot helpers in all Host packages match their shared source", async () => {
+  const source = (await readFile(new URL("../../host-workspace/worktree-snapshot.mjs", import.meta.url), "utf8")).replaceAll("\r\n", "\n");
+  for (const host of ["codex", "claude", "deepseek"]) {
+    const generated = (await readFile(new URL(`../../${host}/lib/worktree-snapshot.mjs`, import.meta.url), "utf8")).replaceAll("\r\n", "\n");
+    assert.equal(generated, "// Generated from packages/host-workspace/worktree-snapshot.mjs; edit the shared source.\n" + source, host);
+  }
 });
 
 for (const conflict of [false, true]) test(`local managed bootstrap applies the frozen snapshot to another branch; conflict=${conflict}`, async (t) => {

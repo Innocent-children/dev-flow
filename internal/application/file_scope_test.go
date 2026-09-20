@@ -76,6 +76,25 @@ func TestPrepareFileChangeChecksPlanAndPersistsDecisions(t *testing.T) {
 	})
 }
 
+func TestClaudeWriteGateUsesCorePlan(t *testing.T) {
+	now := time.Date(2026, 9, 14, 1, 0, 0, 0, time.UTC)
+	for _, tool := range []string{"Write", "Edit", "NotebookEdit"} {
+		t.Run(tool, func(t *testing.T) {
+			task := fileScopeTask(t, now, []string{"src/**"})
+			task.OriginHost = domain.HostClaude
+			service, taskStore := fileScopeService(t, now, task)
+			result, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostClaude, RepositoryPath: testPath("repo"), ToolName: tool, Paths: []string{testPath("repo", "src", "file.go")}, IntentDigest: testDigest('c'), PathParseComplete: true})
+			if err != nil || result.Decision != FileChangeAllow || taskStore.commits != 0 {
+				t.Fatalf("planned result=%#v err=%v commits=%d", result, err, taskStore.commits)
+			}
+			result, err = service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostClaude, RepositoryPath: testPath("repo"), ToolName: tool, Paths: []string{testPath("repo", "outside.go")}, IntentDigest: testDigest('d'), PathParseComplete: true})
+			if err != nil || result.Decision != FileChangeDeny || taskStore.commits != 1 {
+				t.Fatalf("outside result=%#v err=%v commits=%d", result, err, taskStore.commits)
+			}
+		})
+	}
+}
+
 func TestPrepareFileChangeUsesAllDeclaredRepositories(t *testing.T) {
 	now := time.Date(2026, 9, 1, 2, 0, 0, 0, time.UTC)
 	corePath := testPath("core")

@@ -656,40 +656,58 @@ export async function runClosedCommand(executable, arguments_, {
     const stdout = [];
     const stderr = [];
     let bytes = 0;
-    let timedOut = false;
-    const collect = (target) => (chunk) => {
-      bytes += chunk.length;
-      if (bytes > maxOutputBytes) {
-        timedOut = true;
-        child.kill("SIGKILL");
-      } else target.push(Buffer.from(chunk));
+    let interrupted = false;
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", interrupt);
     };
-    child.stdout.on("data", collect(stdout));
-    child.stderr.on("data", collect(stderr));
-    const abort = () => child.kill("SIGKILL");
-    signal?.addEventListener("abort", abort, { once: true });
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGKILL");
-    }, timeoutMs);
-    child.once("error", (error) => {
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", abort);
-      reject(error);
-    });
-    child.once("exit", (code, exitSignal) => {
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", abort);
+    const closeStreams = () => {
+      child.stdin?.destroy();
+      child.stdout.destroy();
+      child.stderr.destroy();
+    };
+    const complete = (code, exitSignal) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       const result = { code: code ?? -1, signal: exitSignal, stdout: Buffer.concat(stdout).toString("utf8"), stderr: Buffer.concat(stderr).toString("utf8") };
-      if (!timedOut && !signal?.aborted && exitSignal === null && allowExitCodes.includes(result.code)) {
+      if (!interrupted && !signal?.aborted && exitSignal === null && allowExitCodes.includes(result.code)) {
         resolvePromise(result);
         return;
       }
       const error = new Error(`${executable} command failed`);
       error.exitCode = result.code;
-      error.operationUncertain = mutating && (timedOut || signal?.aborted || exitSignal !== null);
+      error.operationUncertain = mutating && (interrupted || signal?.aborted || exitSignal !== null);
+      reject(error);
+    };
+    const interrupt = () => {
+      if (settled) return;
+      interrupted = true;
+      child.kill("SIGKILL");
+      // Descendants may retain the pipes after the direct child has exited.
+      closeStreams();
+      complete(child.exitCode, child.signalCode);
+    };
+    const collect = (target) => (chunk) => {
+      if (settled) return;
+      bytes += chunk.length;
+      if (bytes > maxOutputBytes) {
+        interrupt();
+      } else target.push(Buffer.from(chunk));
+    };
+    child.stdout.on("data", collect(stdout));
+    child.stderr.on("data", collect(stderr));
+    signal?.addEventListener("abort", interrupt, { once: true });
+    const timer = setTimeout(interrupt, timeoutMs);
+    child.once("error", (error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      closeStreams();
       reject(error);
     });
+    child.once("close", complete);
   });
 }
 

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { chmod, lstat, mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { chmod, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { after, before } from "node:test";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import {
   DEFAULT_USER_CONFIGURATION,
@@ -13,13 +16,24 @@ import {
   resolveSetupLanguage,
   selectSetupPresentationMode,
 } from "../lib/install-experience.mjs";
+import { permissionPolicy } from "../lib/platform.mjs";
 
-test("creates one closed default user configuration with private modes", async () => {
+let coreDirectory, runtimePath;
+before(async () => {
+  coreDirectory = await mkdtemp(join(tmpdir(), "dev-flow-configuration-core-"));
+  runtimePath = join(coreDirectory, process.platform === "win32" ? "dev-flow.exe" : "dev-flow");
+  await promisify(execFile)("go", ["build", "-o", runtimePath, "./cmd/dev-flow"], {
+    cwd: fileURLToPath(new URL("../../..", import.meta.url)), timeout: 120000,
+  });
+});
+after(async () => { if (coreDirectory) await rm(coreDirectory, { recursive: true, force: true }); });
+
+test("creates one closed default user configuration with the platform permission policy", async () => {
   const paths = await fixturePaths();
   const result = await ensureUserConfiguration(paths);
   assert.deepEqual(result.fileChange, { path: paths.configurationPath, change: "created" });
   assert.equal(await readFile(paths.configurationPath, "utf8"), DEFAULT_USER_CONFIGURATION);
-  if (process.platform !== "win32") {
+  if (paths.enforcePrivateModes) {
     assert.equal((await lstat(paths.configurationDirectory)).mode & 0o777, 0o700);
     assert.equal((await lstat(paths.configurationPath)).mode & 0o777, 0o600);
   }
@@ -27,7 +41,7 @@ test("creates one closed default user configuration with private modes", async (
 
 test("preserves valid existing configuration and adjacent files byte for byte", async () => {
   const paths = await fixturePaths();
-  const existing = '{"codex":{"codebase_memory":true}}\n';
+  const existing = '{"claude":{"codebase_memory":true},"deepseek":{},"codex":{"codebase_memory":true}}\n';
   const adjacent = join(paths.configurationDirectory, "notes.txt");
   await mkdir(paths.configurationDirectory, { recursive: true, mode: 0o700 });
   await writeFile(paths.configurationPath, existing, { mode: 0o600 });
@@ -38,10 +52,10 @@ test("preserves valid existing configuration and adjacent files byte for byte", 
   assert.equal(await readFile(adjacent, "utf8"), "keep\n");
 });
 
-test("rejects invalid, duplicate, unknown, nonboolean, oversized, and unsafe existing files", async (t) => {
+test("rejects invalid, duplicate, unknown, nonboolean, and oversized existing files", async (t) => {
   const cases = [
     ["invalid", "{", /invalid JSON/],
-    ["duplicate", '{"codex":{},"codex":{}}', /invalid JSON/],
+    ["duplicate", '{"codex":{},"codex":{}}', /duplicate field/],
     ["unknown", '{"other":{}}', /unknown top-level/],
     ["nonboolean", '{"codex":{"codebase_memory":"yes"}}', /must be a boolean/],
     ["oversized", `{"codex":{}}${" ".repeat(16 * 1024)}`, /exceeds 16 KiB/],
@@ -55,12 +69,15 @@ test("rejects invalid, duplicate, unknown, nonboolean, oversized, and unsafe exi
       assert.equal(await readFile(paths.configurationPath, "utf8"), contents);
     });
   }
+});
 
+test("rejects unsafe existing file permissions on POSIX", {
+  skip: process.platform === "win32" ? "Windows does not enforce POSIX private mode bits" : false,
+}, async () => {
   const unsafe = await fixturePaths();
   await mkdir(unsafe.configurationDirectory, { recursive: true, mode: 0o700 });
   await writeFile(unsafe.configurationPath, "{}\n", { mode: 0o644 });
   await chmod(unsafe.configurationPath, 0o644);
-  unsafe.platform = "darwin";
   await assert.rejects(ensureUserConfiguration(unsafe), /permissions are unsafe/);
 });
 
@@ -143,7 +160,9 @@ async function fixturePaths() {
   return {
     homeDirectory,
     platform: process.platform,
+    enforcePrivateModes: permissionPolicy(process.platform, process.arch).enforcePrivateModes,
     configurationDirectory,
     configurationPath: join(configurationDirectory, "config.json"),
+    runtimePath,
   };
 }

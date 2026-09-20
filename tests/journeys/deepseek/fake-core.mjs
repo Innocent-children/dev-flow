@@ -74,7 +74,7 @@ export class DeterministicCoreHost {
     if (this.portableRuntimePath !== undefined) return this.portableRuntimePath;
 
     const runtimeDirectory = join(dirname(this.dataDirectory), "current-platform-runtime");
-    const runtimePath = join(runtimeDirectory, "dev-flow");
+    const runtimePath = join(runtimeDirectory, platform() === "win32" ? "dev-flow.exe" : "dev-flow");
     const version = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
     await mkdir(runtimeDirectory, { recursive: true });
     await execFile("go", [

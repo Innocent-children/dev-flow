@@ -12,7 +12,7 @@
 
 ## Dev Flow로 할 수 있는 일
 
-Dev Flow는 Codex 또는 DeepSeek에서 오래 이어지는 AI 코딩 작업을 관리하도록 돕습니다. 합의한 요구사항,
+Dev Flow는 Codex, DeepSeek 또는 Claude Code에서 오래 이어지는 AI 코딩 작업을 관리하도록 돕습니다. 합의한 요구사항,
 파일 범위, 검증 계획, 진행 상황과 결과를 로컬에 저장해 세션이 끝난 뒤에도 작업을 이어갈 수 있습니다.
 
 - **변경 범위 확인:** 수정할 파일을 기록하고 실제 변경 사항을 계획과 비교합니다.
@@ -21,38 +21,43 @@ Dev Flow는 Codex 또는 DeepSeek에서 오래 이어지는 AI 코딩 작업을 
 - **결과 확인:** 진행 상황, 검사 결과, 처리가 필요한 문제를 확인합니다.
 
 여러 세션에 걸치거나 파일 범위와 테스트 작업량을 명확히 정해야 하는 저장소 작업에 적합합니다.
-일회성 질문, 코드 설명, 진행 상황을 저장할 필요가 없는 작은 수정은 Codex나 DeepSeek를 직접 쓰는 편이 간단합니다.
+일회성 질문, 코드 설명, 진행 상황을 저장할 필요가 없는 작은 수정은 Codex, DeepSeek 또는 Claude Code를 직접 쓰는 편이 간단합니다.
 
 ## 빠른 시작
 
-> npm 안정 버전 `@latest`는 현재 macOS arm64에서 검증되었습니다. Node.js `>=24`와 지원되는
-> Codex 또는 DeepSeek Harness를 먼저 설치하세요. 호스트 버전 요구사항과 다른 환경의 상태는
-> [지원 범위](docs/SUPPORT-MATRIX_en.md)를 참고하세요.
+> Node.js `>=24`와 사용할 Host를 먼저 설치하세요. 필요한 버전과 검증된 플랫폼은 [지원 표](docs/SUPPORT-MATRIX_en.md)를 확인하세요.
 
 ### 1. Dev Flow 설치
 
-```bash
+아래 공개 패키지는 배포된 Codex와 DeepSeek 연동을 위한 것입니다. Claude Code는 [소스 설치 안내](docs/CLAUDE_en.md)를 따르세요. 기존 공개 CLI는 소스로만 제공되는 Adapter를 설치하지 않습니다.
+
+```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-대화형 설정에서 Codex, DeepSeek 또는 둘 다 선택한 뒤 설치 프로그램의 안내를 따르세요.
-
-- **Codex:** `/hooks`를 열어 Dev Flow hook을 검토하고 신뢰하면 지원되는 쓰기 전 검사가 활성화됩니다.
-- **DeepSeek Harness:** 설치 후 선택한 DSH Profile을 다시 시작하세요.
+사용하는 설치 메뉴에서 해당 Host를 선택하세요. Codex는 `/hooks`에서 Dev Flow hook을 검토하고 신뢰하며, DeepSeek는 선택한 Profile을 다시 시작합니다. Claude Code는 플러그인을 다시 불러오거나 새 대화를 열고 권한 안내를 확인하세요.
 
 ### 2. 작업 시작
 
-**Codex**에서 다음 메시지를 보내세요.
+해당 설치를 마친 뒤 Host 대화에 다음 메시지 중 하나를 보내세요.
+
+**Codex**
 
 ```text
 $dev-flow-codex:dev-flow 로그인 실패 속도 제한을 추가하세요. 인증 관련 파일만 변경하고 대상 확인을 최대 4개 실행하세요.
 ```
 
-**DeepSeek Harness**에서는 다음 메시지를 보내세요.
+**DeepSeek Harness**
 
 ```text
 /dev-flow 로그인 실패 속도 제한을 추가하세요. 인증 관련 파일만 변경하고 대상 확인을 최대 4개 실행하세요.
+```
+
+**Claude Code**
+
+```text
+/dev-flow-claude:dev-flow 로그인 실패 속도 제한을 추가하세요. 인증 관련 파일만 변경하고 대상 확인을 최대 4개 실행하세요.
 ```
 
 이 메시지는 터미널이 아닌 대화창에 입력합니다. 목표, 인수 조건, 파일 범위와 테스트 한도를 구체적으로 적으세요.
@@ -64,7 +69,7 @@ $dev-flow-codex:dev-flow 로그인 실패 속도 제한을 추가하세요. 인�
 
 현재 브랜치를 그대로 사용하거나 별도의 Git 작업 트리를 만들도록 명시적으로 선택할 수도 있습니다. 별도
 작업 트리는 로컬 또는 원격 소스와 시작 브랜치도 선택합니다. Codex는 호스트가 지원하면 새 디렉터리를 열고,
-DeepSeek는 필요한 재시작 명령을 제공합니다.
+DeepSeek와 Claude Code는 필요한 재시작 명령을 제공합니다.
 
 한 디렉터리에는 활성 Task가 하나만 있을 수 있습니다. 수동 편집이나 다른 도구의 로컬 변경도 확인 대상이며,
 작업 도중 브랜치를 바꾸면 진행이 일시 중지됩니다. 완료 후에도 로컬 디렉터리와 브랜치를 유지합니다.
@@ -80,6 +85,10 @@ Dev Flow는 저장된 진행 상황부터 이어갑니다. 원래 작업 디렉�
 
 DeepSeek Harness에서는 재개를 요청하는 메시지에도 `/dev-flow`를 포함하세요.
 
+Claude에서는 원래 작업 디렉터리와 대화로 돌아가 `/dev-flow-claude:dev-flow`로 저장된 작업을 계속한다고 명시하세요.
+
+아래 명령은 설치된 전역 관리자를 사용합니다. 소스 설치에서는 안내서의 해당 실행 경로를 사용하세요.
+
 ```bash
 # 설치된 연동 확인
 dev-flow status --host all
@@ -93,7 +102,9 @@ dev-flow webui start
 
 ## 데스크톱 펫
 
-데스크톱 펫은 여러 작업을 겹친 말풍선으로 표시하고 각 작업의 WebUI를 엽니다. 차단된 작업을 우선 표시하며, 작업이 완료되면 다른 미완료 작업으로 자동 전환합니다. 특정 작업을 고정할 수도 있습니다. 외형 변경, 애니메이션 제어, 크기 조절, 개별 시작과 중지를 지원합니다. 사용하기 전에 위의 설치와 Codex 또는 DeepSeek 설정을 완료하세요.
+펫을 사용하려면 설정된 Adapter와 설치된 데스크톱 앱이 모두 필요합니다. Claude Adapter만 설치하면 데스크톱 앱은 설치되지 않습니다.
+
+데스크톱 펫은 여러 작업을 겹친 말풍선으로 표시하고 각 작업의 WebUI를 엽니다. 차단된 작업을 우선 표시하며, 작업이 완료되면 다른 미완료 작업으로 자동 전환합니다. 특정 작업을 고정할 수도 있습니다. 외형 변경, 애니메이션 제어, 크기 조절, 개별 시작과 중지를 지원합니다.
 
 ```bash
 dev-flow pet start
@@ -111,7 +122,7 @@ dev-flow pet stop
 
 ## 문서
 
-- **사용 방법:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [명령어](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **사용 방법:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [명령어](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **프로젝트:** [제품 정의](docs/PRODUCT_en.md) · [지원 범위](docs/SUPPORT-MATRIX_en.md) · [보안](SECURITY.md)
 - **개발 및 기여:** [문서 목록](MANIFEST_en.md) · [기여 안내](CONTRIBUTING.md)
 

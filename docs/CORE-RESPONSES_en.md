@@ -56,6 +56,11 @@ come from the current failure details. Missing explanations for established chec
 user confirmation, acceptance and unknown test results cannot be fabricated through correction.
 Check required members before submission. Do not add the response request_id to tools that do not accept it. If the correction fails, report the new specific problem.
 
+`internal/recovery/correction.go` owns correction eligibility and allowed members for ordinary Actions.
+Every rule in a failure must permit correction. Unknown rules, unsafe field paths, user decisions or
+unknown results prevent automatic correction. Filtering details from a public response must not make
+an otherwise ineligible failure retryable.
+
 For missing, malformed or timed-out responses and uncertain writes, read the saved operation of the
 original Task/Action before using a Core-authorized recovery path. Never reinterpret a failure as
 success or substitute an earlier successful operation's result.
@@ -65,7 +70,7 @@ success or substitute an earlier successful operation's result.
 MCP tests validate real success/failure responses against output schemas, covering result locations,
 invalid mixed envelopes, detailed failures, quantity versus permission restrictions, zero-write
 correction and uncertain outcomes. Shared Skill examples validate against the same interface for
-Codex and DeepSeek. Error changes update the implementation, schema, this contract and affected examples.
+Codex, DeepSeek and Claude Code. Error changes update the implementation, schema, this contract and affected examples.
 
 ## WebUI HTTP mapping
 
@@ -75,9 +80,20 @@ the former is established by the current boundary, while the latter requires rea
 operation. HTTP recovery keeps the same correction prerequisites and never treats an uncertain
 outcome as a parameter correction.
 
+HTTP `correct_current_action` also returns nonempty `recovery.allowed_paths` and permits one correction
+from established facts. HTTP paths retain the request's `payload.` prefix; ordinary MCP submission
+tools accept those semantic members directly and remove that prefix. Both adapters use the same
+eligibility decision while retaining their own response shape, status codes and form highlighting.
+
+Recovery validates a retained blocker decision with the same repository rules as ordinary submission.
+A still-applicable decision replays its saved payload. Further repository changes retain the original
+blocker and pending operation and return `stop_for_repository_drift`. Restore the repository state
+required by that saved decision, then recover the same Action; a new submission cannot replace the
+pending decision.
+
 ## Requests and complete response examples
 
-Both Host Skills link a complete successful response and place an error response directly after every complete MCP request. Success files include the resolved request using current Task values. Tests execute it through the application and store with fixed repository observations and compare the complete response; generated identities, timestamps and operation digests use stable example values. Codex Host helpers and DeepSeek workspace requests also have complete responses checked by actual adapter operations in temporary Git repositories, with explicitly simulated Host sessions and terminal Core reads. Each error pair states
+All three Host Skills link a complete successful response and place an error response directly after every complete MCP request. Success files include the resolved request using current Task values. Tests execute it through the application and store with fixed repository observations and compare the complete response; generated identities, timestamps and operation digests use stable example values. Codex Host helpers and DeepSeek workspace requests also have complete responses checked by actual adapter operations in temporary Git repositories, with explicitly simulated Host sessions and terminal Core reads. Each error pair states
 its failure condition and the functions responsible for validation and encoding. Tests construct the
 described failed input from the preceding valid request and compare the complete response, including
 message, details, guard and recovery. The examples illustrate supported failures rather than exhaust

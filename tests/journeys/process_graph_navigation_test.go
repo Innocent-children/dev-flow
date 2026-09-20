@@ -41,7 +41,7 @@ func (o graphObserver) Observe(context.Context, string) (domain.RepositoryBindin
 	return o.b, nil
 }
 func (o graphObserver) ObserveWorkspace(_ context.Context, path string, selection repository.WorkspaceOriginSelection, _ *domain.RepositoryBinding) (domain.WorkspaceOrigin, domain.RepositoryBinding, error) {
-	return domain.WorkspaceOrigin{Mode: selection.Mode, RemoteName: selection.RemoteName, BaseBranch: selection.BaseBranch, BaseCommit: selection.BaseCommit, TaskBranch: selection.TaskBranch, SourceRepositoryGroupDigest: o.b.IdentityDigest, CanonicalWorktreeRoot: path, WorktreeGitDirDigest: o.b.WorktreeInstanceDigest, ProvisioningReceiptID: selection.ProvisioningReceiptID}, o.b, nil
+	return domain.WorkspaceOrigin{Mode: selection.Mode, SourceType: selection.SourceType, CarryChanges: selection.CarryChanges, RemoteName: selection.RemoteName, BaseBranch: selection.BaseBranch, BaseCommit: selection.BaseCommit, TaskBranch: selection.TaskBranch, SourceRepositoryGroupDigest: o.b.IdentityDigest, CanonicalWorktreeRoot: path, WorktreeGitDirDigest: o.b.WorktreeInstanceDigest, ProvisioningReceiptID: selection.ProvisioningReceiptID}, o.b, nil
 }
 func TestProcessGraphNavigation(t *testing.T) {
 	now := time.Now().UTC()
@@ -50,7 +50,7 @@ func TestProcessGraphNavigation(t *testing.T) {
 	head := strings.Repeat("b", 40)
 	repositoryPath := testPath("repo")
 	b := domain.RepositoryBinding{WorktreeInstanceDigest: d, IdentityDigest: d, HistoryDigest: d, ContentDigest: d, CurrentBranch: &branch, CurrentHead: head, HeadTree: head, HistoryRelation: domain.RepositoryHistoryExact, BaseCommitAncestor: true, ChangedEntries: []domain.RepositoryChangedEntry{}, TaskSurface: []domain.RepositoryChangedEntry{}, ObservedAt: now, BindingDigest: d}
-	origin := application.WorkspaceOriginInput{Mode: domain.WorkspaceModeDedicatedWorktree, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, ProvisioningReceiptID: "receipt-navigation"}
+	origin := application.WorkspaceOriginInput{Mode: domain.WorkspaceModeDedicatedWorktree, SourceType: "remote", CarryChanges: false, RemoteName: "origin", BaseBranch: "main", BaseCommit: head, TaskBranch: branch, ProvisioningReceiptID: "receipt-navigation"}
 	s := &graphStore{}
 	service, err := application.NewService(s, graphObserver{b})
 	if err != nil {

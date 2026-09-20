@@ -17,8 +17,8 @@ test("Windows x64 menu exposes both pet commands and rejects other Windows archi
     "win32-x64",
   );
   for (const [input, expected] of [
-    ["5\n", "start"],
-    ["6\n", "stop"],
+    ["6\n", "start"],
+    ["7\n", "stop"],
   ]) {
     let text = "";
     const request = await promptForRequest({

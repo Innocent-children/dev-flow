@@ -4,7 +4,6 @@ import {
   lstat,
   mkdir,
   readFile,
-  readdir,
   realpath,
   rename,
   rm,
@@ -73,7 +72,6 @@ export async function resolveManagerPaths({
     productRoot,
     managerRoot,
     runsDirectory: ownedPath(managerRoot, join(managerRoot, "runs"), "runs directory"),
-    profilesDirectory: ownedPath(managerRoot, join(managerRoot, "profiles"), "profiles directory"),
     configurationDirectory,
     configurationPath,
     defaultDataDirectory,
@@ -87,9 +85,8 @@ export async function resolveManagerPaths({
 export async function ensureManagerDirectories(paths) {
   await rejectSymlinkComponents(paths.applicationDataInspectionRoot, paths.managerRoot);
   await mkdir(paths.runsDirectory, { recursive: true, mode: 0o700 });
-  await mkdir(paths.profilesDirectory, { recursive: true, mode: 0o700 });
   if (paths.enforcePrivateModes) {
-    await Promise.all([chmod(paths.managerRoot, 0o700), chmod(paths.runsDirectory, 0o700), chmod(paths.profilesDirectory, 0o700)]);
+    await Promise.all([chmod(paths.managerRoot, 0o700), chmod(paths.runsDirectory, 0o700)]);
   }
 }
 
@@ -172,41 +169,6 @@ export async function readOwnedJSON(path, { root, validate }) {
   return validate(value);
 }
 
-export async function writeProfileReceipt(paths, receipt) {
-  validateProfileReceipt(receipt);
-  await ensureManagerDirectories(paths);
-  await writeOwnedJSON(profileReceiptPath(paths, receipt.profile), receipt, {
-    root: paths.managerRoot,
-    enforcePrivateModes: paths.enforcePrivateModes,
-  });
-}
-
-export async function removeProfileReceipt(paths, profile) {
-  await unlink(profileReceiptPath(paths, profile)).catch((error) => {
-    if (error?.code !== "ENOENT") throw error;
-  });
-}
-
-export async function listProfileReceipts(paths) {
-  let names;
-  try {
-    names = await readdir(paths.profilesDirectory);
-  } catch (error) {
-    if (error?.code === "ENOENT") return [];
-    throw error;
-  }
-  const receipts = [];
-  for (const name of names.sort()) {
-    if (!name.endsWith(".json")) throw new OwnershipError("profiles directory contains an unknown file");
-    const receipt = await readOwnedJSON(join(paths.profilesDirectory, name), {
-      root: paths.managerRoot,
-      validate: validateProfileReceipt,
-    });
-    receipts.push(receipt);
-  }
-  return receipts;
-}
-
 export async function moveTargetsToTrash(paths, targets, { now = () => new Date(), random = () => randomBytes(6).toString("hex") } = {}) {
   await rejectSymlinkComponents(paths.trashInspectionRoot, paths.trashDirectory);
   await mkdir(paths.trashDirectory, { recursive: true, mode: 0o700 });
@@ -246,19 +208,6 @@ export function planDigest(value) {
   return createHash("sha256").update(stableJSON(value)).digest("hex");
 }
 
-export function validateProfileReceipt(value) {
-  assertExactKeys(value, ["profile", "package_name", "installed_version", "origin", "dsh_version", "created_at", "updated_at"], "Profile receipt");
-  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(value.profile) || value.package_name !== "dev-flow-deepseek") {
-    throw new OwnershipError("Profile receipt identity is invalid");
-  }
-  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.test(value.installed_version)) throw new OwnershipError("Profile receipt version is invalid");
-  if (!["installed", "adopted_by_reinstall"].includes(value.origin) || typeof value.dsh_version !== "string" || value.dsh_version === "") {
-    throw new OwnershipError("Profile receipt owner facts are invalid");
-  }
-  for (const field of ["created_at", "updated_at"]) if (!Number.isFinite(Date.parse(value[field]))) throw new OwnershipError(`Profile receipt ${field} is invalid`);
-  return structuredClone(value);
-}
-
 export class OwnershipError extends Error {
   constructor(message, options) {
     super(message, options);
@@ -277,11 +226,6 @@ export class CleanupPartialError extends Error {
     this.completedSteps = moved.map(entry => `manager.trash.${entry.label}`);
     this.changed = moved.length > 0;
   }
-}
-
-function profileReceiptPath(paths, profile) {
-  const filename = `${createHash("sha256").update(profile).digest("hex")}.json`;
-  return ownedPath(paths.profilesDirectory, join(paths.profilesDirectory, filename), "Profile receipt");
 }
 
 function safeLabel(value) {
@@ -328,12 +272,6 @@ async function rejectSymlinkComponents(root, candidate) {
       throw error;
     }
   }
-}
-
-function assertExactKeys(value, expected, label) {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new OwnershipError(`${label} must be an object`);
-  const actual = Object.keys(value).sort();
-  if (JSON.stringify(actual) !== JSON.stringify([...expected].sort())) throw new OwnershipError(`${label} fields are invalid`);
 }
 
 function stableJSON(value) {

@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_Last reviewed: September 3, 2026._
+_Last checked: September 20, 2026._
 
 Dev Flow remains an early open-source project. This page separates stable releases, beta or source
 capabilities, unverified claims, and product gaps. A buildable source tree or passing tests do not
@@ -25,14 +25,14 @@ activation, restart recovery, `DONE`, and reopen with retained data. See the
 
 ## Current source and preview capability
 
-The following capabilities exist on current `main`; some may be beta-only or source-only:
+The following capabilities exist in the current source; some may be beta-only or source-only:
 
 | User-visible capability | Current content |
 | --- | --- |
 | New-request assessment | The Host performs a read-only `small|standard|large|uncertain` assessment and waits for a choice; an exact selector cannot skip it |
 | Workspace selection | Default new branch in the current directory, with current-branch and dedicated-worktree alternatives; check claims, accept initial content and prepare all roots before Task creation. Targeted checks cover local Host helpers and real Core/Git/SQLite; actual Host-session end-to-end coverage remains as stated below |
 | Durable Task | Locally retain request, scope, current stage, the post-analysis verification plan, current budget/usage, increase reasons, records, blockers, and outcome |
-| Continue after interruption | Codex and DeepSeek resume the current stage and next step from the same Task |
+| Continue after interruption | Codex, DeepSeek and Claude Code resume the current stage and next step from the same Task |
 | Scope and verification limits | TASKS retains the initial verification plan; Core counts the current Task Plan revision, accepts concretely justified TEST increases, and applies ExpectedPaths plus record invalidation |
 | Testing and review scoped to the change | The Host checks current relevance before commands, full suites, test-code changes, and post-change review; a review fix receives only related targeted rechecks |
 | Automatic verification brake | Retain the three most recent test attempts and pause after the third exact repetition of the same failure, same result, or same changed-path and failure loop |
@@ -41,10 +41,58 @@ The following capabilities exist on current `main`; some may be beta-only or sou
 | Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop` |
 | Current-source platforms | Exact `darwin-arm64` and `win32-x64` runtimes; Windows scope is Windows 10/11 desktop x64 |
 | Advanced repository capability | One primary plus up to seven explicit additional repositories; every root must first be isolated and authorized; same-machine relocation atomically replaces bindings and claims |
-| Host lifecycle | Unified `dev-flow` entry for Codex and DeepSeek installation, diagnosis, maintenance, and removal |
+| Host lifecycle | Unified `dev-flow` entry for Codex, DeepSeek and Claude Code installation, diagnosis, maintenance, and removal |
 
 Multi-repository and worktree behavior is advanced capability, not the primary user scenario. Source
 presence also does not imply a corresponding end-to-end test of a stable package.
+
+## Verification records
+
+### 2026-09-20: Responsibility boundaries and failure recovery
+
+Environment: macOS arm64, Node.js 24.19.0 and Go 1.27.0. Checks used current source; no package was published and no real user installation or data was changed.
+
+| Check | Actual result and scope |
+| --- | --- |
+| Core recovery | Targeted Application/Recovery checks passed; real SQLite covered single- and multi-repository allow_once, expand_scope and accepted history in six stage/interruption/reopen/recovery/idempotence combinations; repository observations used test fixtures |
+| SQLite preflight | Two real connections with a controlled commit verified one snapshot across related tables; corrupt snapshot/schema rejection, unchanged database/WAL contents and sidecar membership/size checks passed; live WAL reads may update existing shm reader marks |
+| HTTP/MCP | Shared correction eligibility, HTTP field projection and rejection of missing user decisions passed; complete three-Host request/response examples, error transport and shared error examples passed revalidation |
+| Host snapshots | 57 related checks passed with temporary Git repositories for three Hosts, including rejecting mixed contents when status text stays unchanged and preserving source files and index state |
+| Maintenance and records | 67 maintenance, directory-deduplication, DeepSeek-record and package-dependency checks passed; 22 additional checks covered independent retries, cached Core discovery and private maintenance records |
+| Publication and frontend | 66 publication checks passed using temporary artifacts and fake remotes; 7 frontend recovery checks, type checking/build, version references and three-Host generated-content consistency passed |
+
+Native macOS process checks used an isolated Node executable with simulated STDIO arguments to verify termination and retention of processes with other arguments; they do not replace real Core/Host sessions. Windows maintenance used command simulation, not native Windows execution. No full repository suite or real publication ran, and this record does not expand stable support.
+
+### 2026-09-19: Host responsibility changes and the local macOS Claude package
+
+Environment: macOS arm64, Node.js 24.19.0, Go 1.27.0 and Claude Code 2.1.274. Checks used the current source and a locally built package; no npm package was published.
+
+| Check | Actual result and scope |
+| --- | --- |
+| Core | Targeted userconfig, CLI, domain, application, repository, mcp and public-contract checks passed; the new configuration command reuses Core parsing for three-Host settings, defaults and principal invalid inputs |
+| Manager | 54 driver, runtime, lifecycle and package-dependency checks passed; 20 menu, Windows-interface and local-package checks passed, with 3 native Windows checks skipped; 4 configuration-bridge checks passed, including a real Core subprocess |
+| Existing Adapters | 36 Codex configuration/launcher checks and 45 Codex/DeepSeek workspace regression checks passed |
+| Claude workspaces | 14 passed with the default macOS temporary directory; real Core/Git covered custom primary keys for single- and three-repository creation, relocation and original-Task resume, with uppercase keys rejected before Git writes |
+| Local Claude package | Both Core targets and packaging passed; isolated HOME, configuration and data were used for real CLI installation, byte-for-byte cache comparison, repeated setup, independent Core handshake, removal and unrelated-configuration retention |
+| Generated content | Three-Host shared Skills, version checks, targeted generator tests and the WebUI build passed |
+
+Windows manager maintenance was verified through Windows platform-branch simulation on macOS, not native Windows acceptance. No authenticated Claude model development session ran; plugin installation and an independent Core handshake do not establish model-driven Task completion. The complete repository suite was not run, and these results do not expand stable support.
+
+### 2026-09-14: Windows source distribution
+
+Artifact: the local Windows desktop distribution containing three Adapters. Environment: Windows x64, Claude Code 2.1.270, Node.js >=24 and Go 1.27.0. It is not a stable npm release.
+
+| Check | Actual result and scope |
+| --- | --- |
+| Claude Adapter | 10 passed: three workspace modes, local/remote sources, staged/unstaged/untracked carry, partial multi-repository failure, replaced instances, session identity, relocation and separate cleanup authorization |
+| Manager and build | 95 targeted checks passed, including native Windows Claude-only Core discovery, menus, lifecycle, orphan registration, configuration retention and source packaging |
+| Shared Git operations | 48 relevant Codex/DeepSeek checks passed; LF fixtures use process-local core.autocrlf=false without changing global Git configuration |
+| Core | Targeted domain/application/mcp/userconfig/CLI checks passed; public contract checks passed |
+| Repository observation | Existing regression checks, 300 changed files, and SHA-1/SHA-256 raw blob comparison against Git passed; actual Task artifact collection took about 1.12 seconds within the existing 30-second deadline |
+| Final Windows package | Complete desktop source package built with all three Adapters; digest readback passed, the real Claude CLI installed its package, cached files matched byte for byte, repeated setup made no changes, packaged Core handshake passed, and removal retained unrelated configuration and was repeatable |
+| Documentation | Nine root README locales synchronized, all three generated Skills consistent, version and link checks passed |
+
+Limits: no authenticated Claude model development session was executed; the local authentication status was logged out. The macOS Core was built but not executed natively. Other Windows checks reported failures in unchanged macOS pet tests and two Codex handoff path-string assertions. The passing scope in the table excludes those tests and is not a repository-wide pass. The native installation entry is tests/claude/verify-package.mjs. Its results are distinct from actual model sessions and simulated interface tests.
 
 ## Not yet verified
 

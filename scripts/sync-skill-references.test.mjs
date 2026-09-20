@@ -11,7 +11,7 @@ test("shared references render each Host and detect a changed package copy", asy
   const source = join(root, "skills/dev-flow/core");
   await mkdir(source, { recursive: true });
   await writeFile(join(source, "example.md"), '# Example\r\n\r\n{"host":"{{host}}"}\r\n');
-  for (const host of ["codex", "deepseek"]) {
+  for (const host of ["codex", "deepseek", "claude"]) {
     await writeSharedSkillReferences({ root, host });
     const rendered = (await sharedSkillReferences({ root, host })).get("references/example.md");
     assert.ok(rendered.includes(`{"host":"${host}"}`));
@@ -30,6 +30,6 @@ test("shared rendering rejects an unsupported Host or unknown substitution", asy
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(join(root, "skills/dev-flow/core"), { recursive: true });
   await writeFile(join(root, "skills/dev-flow/core/example.md"), "{{unknown}}\n");
-  await assert.rejects(sharedSkillReferences({ root, host: "other" }), /host must be codex or deepseek/u);
+  await assert.rejects(sharedSkillReferences({ root, host: "other" }), /host must be codex, deepseek or claude/u);
   await assert.rejects(sharedSkillReferences({ root, host: "codex" }), /Unknown Skill substitution/u);
 });

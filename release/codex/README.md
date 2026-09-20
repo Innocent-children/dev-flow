@@ -42,3 +42,10 @@ assets. Host setup,
 Task flow, removal, and uninstall remain covered by product tests and do not run inside publication.
 The npm tarball read-back retries only propagation responses such as `ETARGET` and `E404` for up to
 ten minutes; authentication failures and byte mismatches stop immediately.
+
+Before any remote command, both initial publication and resume run the shared local artifact check.
+The directory must contain exactly the five files above. Every artifact must be a regular file, and
+the tarball/Core digests must match both the saved manifest and `SHA256SUMS`; the manifest must also
+match its checksum entry. Duplicate, missing, extra, linked, or out-of-directory entries are rejected.
+Subsequent npm and GitHub byte checks keep these validated expectations instead of recomputing them
+from local files after publication has started.

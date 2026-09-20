@@ -28,7 +28,7 @@ export async function assertSkillResources({ skillRoot, packageRoot, repositoryR
   const skillPath = join(skillRoot, "SKILL.md");
   const markdownFiles = (await filesBelow(skillRoot)).filter((path) => path.endsWith(".md"));
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  const texts = new Map(await Promise.all(markdownFiles.map(async (path) => [path, await readFile(path, "utf8")])));
+  const texts = new Map(await Promise.all(markdownFiles.map(async (path) => [path, (await readFile(path, "utf8")).replaceAll("\r\n", "\n")])));
   const edges = new Map();
   for (const [path, markdown] of texts) {
     const packaged = relative(packageRoot, path).split("\\").join("/");

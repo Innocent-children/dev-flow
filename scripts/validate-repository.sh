@@ -5,6 +5,7 @@ set -eu
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repository_root"
 node scripts/sync-skill-references.mjs --check
+node scripts/sync-host-commands.mjs --check
 
 run_step() {
   step_name=$1
@@ -72,6 +73,7 @@ const codexFinalStagingFiles = [
   "LICENSE",
   "README.md",
   "bin/dev-flow-codex.mjs",
+  "lib/artifacts-help.mjs",
   "lib/command.mjs",
   "lib/install-experience.mjs",
   "lib/json.mjs",
@@ -292,8 +294,16 @@ const expectedByProfile = {
     "bin/dev-flow.mjs",
     "lib/cli.mjs",
     "lib/command.mjs",
+    "lib/configuration.mjs",
+    "lib/core-maintenance.mjs",
+    "lib/core-runtime.mjs",
+    "lib/diagnostics.mjs",
+    "lib/hosts/claude.mjs",
+    "lib/hosts/codex-orphan.mjs",
     "lib/hosts/codex.mjs",
+    "lib/hosts/deepseek-receipts.mjs",
     "lib/hosts/deepseek.mjs",
+    "lib/hosts/index.mjs",
     "lib/journal.mjs",
     "lib/lifecycle.mjs",
     "lib/local-packages.mjs",
@@ -305,7 +315,9 @@ const expectedByProfile = {
     "lib/platform/macos/policies.mjs",
     "lib/platform/windows/policies.mjs",
     "lib/platform/macos/command.mjs",
+    "lib/platform/macos/core-processes.mjs",
     "lib/platform/windows/command.mjs",
+    "lib/platform/windows/core-processes.mjs",
     "lib/platform/macos/pet-installer.mjs",
     "lib/platform/macos/pet.mjs",
     "lib/platform/windows/pet.mjs",
@@ -313,6 +325,7 @@ const expectedByProfile = {
     "lib/plan.mjs",
     "lib/presentation.mjs",
     "lib/runtime.mjs",
+    "lib/terminal.mjs",
     "package.json",
   ].sort(),
 };
@@ -338,6 +351,7 @@ run_step "Cross-platform WebUI build syntax" node --check scripts/build-webui.mj
 run_step "Cross-platform Core runtime build syntax" node --check scripts/build-core-runtimes.mjs
 run_step "Cross-platform local package syntax" node --check scripts/dev-flow-local.mjs
 run_step "Shared Skill reference generation" node --test scripts/sync-skill-references.test.mjs
+run_step "Shared Host command generation" node --test scripts/sync-host-commands.test.mjs packages/codex/tests/windows-command.test.mjs
 run_step "Cross-platform build contracts" node --test scripts/build-core-runtimes.test.mjs scripts/dev-flow-local.test.mjs
 run_step "Desktop pet artwork staging syntax" node --check scripts/desktop-pet-artwork.mjs
 run_step "Desktop pet artwork package contracts" node --test scripts/desktop-pet-artwork.test.mjs
@@ -371,7 +385,8 @@ run_step "DeepSeek package and adapter contracts" \
     packages/deepseek/tests/file-scope.test.mjs \
     packages/deepseek/tests/mcp-result-gate.test.mjs \
     packages/deepseek/tests/skill-contract.test.mjs \
-    packages/deepseek/tests/workspace-coordinator.test.mjs
+    packages/deepseek/tests/workspace-coordinator.test.mjs \
+    packages/deepseek/tests/workspace-command.test.mjs
 run_step "DeepSeek simulated graph journey" \
   node --test tests/journeys/deepseek/simulated-graph-journey.test.mjs
 run_step "Shared and Codex worktree-first simulated journeys" \
@@ -386,6 +401,7 @@ run_step "Go tests and repository contracts" go test -p 1 ./...
 run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
 run_step "DeepSeek package dry-pack" validate_package_pack packages/deepseek dev-flow-deepseek deepseek-source
+run_step "Claude Adapter tests" node --test packages/claude/tests/*.test.mjs
 run_step "Dev Flow manager and public launcher tests" node --test packages/dev-flow/tests/*.test.mjs
 run_step "Dev Flow manager dry-pack" validate_package_pack packages/dev-flow @imotong/dev-flow dev-flow-source
 

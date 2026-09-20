@@ -1,9 +1,10 @@
 import { mkdir } from "node:fs/promises";
 
 import { diagnoseInstallation } from "./diagnostics.mjs";
+import { stopManagedCores } from "./core-maintenance.mjs";
 import { CLIError, confirmPlan, parseArguments, promptForRequest, renderHelp } from "./cli.mjs";
-import { createCodexDriver, CODEX_ACTIVATION_STEP } from "./hosts/codex.mjs";
-import { createDeepSeekDriver } from "./hosts/deepseek.mjs";
+import { CODEX_ACTIVATION_STEP } from "./hosts/codex.mjs";
+import { createHostDrivers } from "./hosts/index.mjs";
 import { clearRunRecords, createRun, recordRun } from "./journal.mjs";
 import {
   inspectResource,
@@ -19,7 +20,7 @@ import { createLifecyclePlan } from "./plan.mjs";
 import { renderPlan, renderProgress, renderResult, resolveLanguage } from "./presentation.mjs";
 import { createTerminalSession } from "./terminal.mjs";
 import { formatCommand } from "./command.mjs";
-import { listAdapterCoreRuntimes, runDevFlow } from "./runtime.mjs";
+import { runDevFlow } from "./runtime.mjs";
 import { installedPackageRoot, readLocalPackages } from "./local-packages.mjs";
 
 export async function runMain(arguments_, dependencies = {}) {
@@ -82,7 +83,7 @@ export async function runLifecycle(request, dependencies = {}) {
   const packagedLocalPackages = usesArtifacts ? await readLocalPackages(packageRoot) : null;
   const localPackages = dependencies.localPackages ?? packagedLocalPackages;
   if (localPackages && request.targetVersion && request.targetVersion !== "latest" && ["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
-    const products = request.host === "all" ? ["codex", "deepseek"] : [request.host];
+    const products = request.host === "all" ? ["codex", "deepseek", "claude"] : [request.host];
     if (products.some(product => localPackages[product].version !== request.targetVersion)) {
       throw new Error("the selected version is not contained in this local development package");
     }
@@ -93,30 +94,20 @@ export async function runLifecycle(request, dependencies = {}) {
     platform: dependencies.platform,
     arch: dependencies.arch,
   });
-  const codex = dependencies.codexDriver ?? createCodexDriver({
-    paths,
-    environment,
-    run: dependencies.runCodexChild,
-    localPackage: localPackages?.codex ?? null,
-  });
-  let deepseek = dependencies.deepseekDriver ?? createDeepSeekDriver({
-    paths,
-    environment,
-    run: dependencies.runDeepSeekChild,
-    localPackage: localPackages?.deepseek ?? null,
-  });
+  const makeDrivers = () => (dependencies.createHostDrivers ?? createHostDrivers)({ ...dependencies, paths, environment, localPackages });
+  let drivers = makeDrivers();
   dependencies.onProgress?.({ type: "phase", message: (dependencies.language ?? resolveLanguage(environment)) === "zh-CN" ? "检查 Host、Adapter 与本地资源" : "Checking Hosts, Adapters and local resources" });
-  const observed = await observeLifecycle(request, { paths, codex, deepseek });
+  const observed = await observeLifecycle(request, { paths, drivers });
   if (["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
-    const missing = [observed.codex, ...observed.deepseek].filter(target => target?.hostAvailable === false);
+    const missing = [observed.codex, ...observed.deepseek, observed.claude].filter(target => target?.hostAvailable === false);
     if (missing.length) {
       const error = new Error(`Required Host unavailable: ${missing.map(target => target.host).join(", ")}`);
-      error.nextStep = missing[0].host === "codex" ? "codex --version" : "dsh --version";
+      error.nextStep = missing[0].issues?.find(issue => issue.code === "host_missing")?.command ?? `dev-flow doctor --host ${missing[0].host}`;
       throw error;
     }
     dependencies.onProgress?.({ type: "phase", message: (dependencies.language ?? resolveLanguage(environment)) === "zh-CN" ? "确认目标版本" : "Resolving target versions" });
   }
-  const targetVersions = await resolveTargetVersions(request, observed, { codex, deepseek, localPackages });
+  const targetVersions = await resolveTargetVersions(request, observed, { drivers, localPackages });
   const petPlatform = usesArtifacts && supportsDesktopPet(paths.platform, paths.arch)
     ? await loadPetPlatform(paths.platform, paths.arch) : null;
   const installDesktopPet = petPlatform !== null && await petPlatform.isBundledPetApplicationAvailable(petPlatform.bundledPetExecutable(packageRoot));
@@ -134,7 +125,7 @@ export async function runLifecycle(request, dependencies = {}) {
   if (["status", "doctor"].includes(request.operation)) {
     const result = resultFromObservation(request.operation, observed);
     if (request.operation === "doctor") {
-      result.checks = await diagnoseInstallation(observed, { host: request.host });
+      result.checks = await diagnoseInstallation(observed, { host: request.host, paths, environment, validateConfiguration: dependencies.validateConfiguration });
       if (result.checks.some(check => check.status === "failed") && result.status === "ready") result.status = "partial";
     }
     return { code: request.operation === "doctor" && result.status !== "ready" ? 1 : 0, plan: null, result };
@@ -162,9 +153,8 @@ export async function runLifecycle(request, dependencies = {}) {
   }
 
   // All reset inputs are checked before removing any Adapter.
-  if (request.operation === "factory-reset" && observed.resources.explicitData?.exists &&
-      !request.confirmedExplicitData.includes(observed.resources.explicitData.path)) {
-    const path = observed.resources.explicitData.path;
+  for (const target of plan.cleanupTargets.filter(target => target.requiresExplicitConfirmation && !request.confirmedExplicitData.includes(target.path))) {
+    const path = target.path;
     if (request.fromMenu && dependencies.session) {
       const answer = await dependencies.session.question(`${dependencies.language === "zh-CN" ? "输入完整路径确认清理" : "Type the full path to confirm cleanup"}: ${path}\n> `);
       if (answer !== path) return { code: 3, plan, result: confirmationResult(request, plan, paths.platform) };
@@ -178,20 +168,17 @@ export async function runLifecycle(request, dependencies = {}) {
   }
 
   if (["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
-    const maintenance = await loadMaintenancePlatform(paths.platform, paths.arch);
+    const maintenance = await (dependencies.loadMaintenancePlatform ?? loadMaintenancePlatform)(paths.platform, paths.arch);
     if (await maintenance.prepareInstallation(paths)) {
       paths = await (dependencies.resolveManagerPaths ?? resolveManagerPaths)({
         homeDirectory: dependencies.homeDirectory, environment,
         platform: dependencies.platform, arch: dependencies.arch,
       });
-      deepseek = dependencies.deepseekDriver ?? createDeepSeekDriver({
-        paths, environment, run: dependencies.runDeepSeekChild,
-        localPackage: localPackages?.deepseek ?? null,
-      });
+      drivers = makeDrivers();
     }
   }
   dependencies.onProgress?.({ type: "phase", message: (dependencies.language ?? resolveLanguage(environment)) === "zh-CN" ? "准备维护，停止受影响的桌面进程" : "Preparing maintenance and stopping affected desktop processes" });
-  await stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies, replaceDesktop: installDesktopPet });
+  const resetCores = await prepareMaintenance(request, plan, { paths, environment, drivers, dependencies, replaceDesktop: installDesktopPet });
 
   let run = await (dependencies.createRun ?? createRun)(paths, plan, { now: dependencies.now, operationId: dependencies.operationId });
   const completedActions = [];
@@ -204,17 +191,10 @@ export async function runLifecycle(request, dependencies = {}) {
       currentAction = action;
       dependencies.onProgress?.({ type: "action_start", action });
       let effect;
-      if (action.owner === "codex") {
-        const current = await codex.observe();
-        effect = await codex.execute(action.operation, {
-          targetVersion: action.targetVersion,
-          observed: current,
-          onProgress: (stepId) => dependencies.onProgress?.({ type: "step_complete", action, stepId }),
-          onStepStart: (stepId) => dependencies.onProgress?.({ type: "step_start", action, stepId }),
-        });
-      } else if (action.owner === "deepseek") {
-        const current = await deepseek.observe(action.profile);
-        effect = await deepseek.execute(action.operation, {
+      if (Object.hasOwn(drivers, action.owner)) {
+        const driver = drivers[action.owner];
+        const current = await driver.observe(action.profile);
+        effect = await driver.execute(action.operation, {
           profile: action.profile,
           targetVersion: action.targetVersion,
           observed: current,
@@ -231,7 +211,8 @@ export async function runLifecycle(request, dependencies = {}) {
         if (!installation.installed) throw new Error("the package did not install its desktop application");
         effect = { changed: installation.newlyInstalled === true };
       } else if (action.operation === "cleanup") {
-        effect = await executeCleanup(request, observed, paths, dependencies);
+        await resetCores.verifyStopped();
+        effect = await executeCleanup(request, plan.cleanupTargets, paths, dependencies);
         trashRoot = effect.trashRoot ?? null;
       } else if (action.operation === "initialize") {
         effect = await initializeFreshState(paths);
@@ -241,6 +222,7 @@ export async function runLifecycle(request, dependencies = {}) {
       changed ||= effect.changed;
       if (effect.nextSteps) nextSteps.push(...effect.nextSteps);
       completedActions.push(action.actionId, ...(effect.completedSteps ?? []));
+      if (action.operation === "cleanup") await resetCores.completeCleanup();
       dependencies.onProgress?.({ type: "action_complete", action });
       run = await (dependencies.recordRun ?? recordRun)(paths, run, {
         completed_action_ids: [...completedActions],
@@ -270,7 +252,7 @@ export async function runLifecycle(request, dependencies = {}) {
   }
 
   let finalObserved;
-  try { finalObserved = await observeLifecycle(request, { paths, codex, deepseek }); }
+  try { finalObserved = await observeLifecycle(request, { paths, drivers }); }
   catch (error) {
     error.completedSteps = completedActions;
     error.operationId = run.operation_id;
@@ -310,14 +292,15 @@ export async function runLifecycle(request, dependencies = {}) {
   return { code: verified ? 0 : 5, plan, result };
 }
 
-export async function observeLifecycle(request, { paths, codex, deepseek }) {
-  const knownDeepSeekProfiles = request.host === "codex" ? [] : await deepseek.knownProfiles();
-  let profiles = request.host === "codex" ? [] : request.allKnownProfiles
+export async function observeLifecycle(request, { paths, drivers }) {
+  const { codex, deepseek, claude } = drivers;
+  const knownDeepSeekProfiles = !["deepseek", "all"].includes(request.host) ? [] : await deepseek.knownProfiles();
+  let profiles = !["deepseek", "all"].includes(request.host) ? [] : request.allKnownProfiles
     ? [...new Set([...knownDeepSeekProfiles, ...request.profiles])]
     : request.profiles;
-  if (request.host !== "codex" && profiles.length === 0 && ["install", "upgrade", "repair", "reinstall", "status", "doctor"].includes(request.operation)) profiles = ["web"];
+  if (["deepseek", "all"].includes(request.host) && profiles.length === 0 && ["install", "upgrade", "repair", "reinstall", "status", "doctor"].includes(request.operation)) profiles = ["web"];
   const [codexState, deepseekStates, configuration, defaultData, pet, explicitData] = await Promise.all([
-    request.host === "deepseek" ? Promise.resolve(null) : codex.observe(),
+    ["codex", "all"].includes(request.host) ? codex.observe() : Promise.resolve(null),
     Promise.all(profiles.map((profile) => deepseek.observe(profile))),
     inspectResource(paths.configurationPath, "configuration"),
     inspectResource(paths.defaultDataDirectory, "default-data"),
@@ -326,18 +309,19 @@ export async function observeLifecycle(request, { paths, codex, deepseek }) {
   ]);
   return Object.freeze({
     codex: codexState,
+    claude: ["claude", "all"].includes(request.host) ? await claude.observe() : null,
     deepseek: deepseekStates,
     knownDeepSeekProfiles,
     resources: { configuration, defaultData, pet, explicitData },
   });
 }
 
-async function resolveTargetVersions(request, observed, { codex, deepseek, localPackages }) {
+async function resolveTargetVersions(request, observed, { drivers, localPackages }) {
   const result = {};
   if (!["install", "upgrade", "repair", "reinstall"].includes(request.operation) && !request.reinstallAfterReset) return result;
-  const targets = [observed.codex, ...observed.deepseek].filter(Boolean);
+  const targets = [observed.codex, ...observed.deepseek, observed.claude].filter(Boolean);
   for (const target of targets) {
-    const driver = target.host === "codex" ? codex : deepseek;
+    const driver = drivers[target.host];
     const requested = request.targetVersion ?? (request.operation === "upgrade" || request.reinstallAfterReset ? "latest" : target.packageVersion ?? "latest");
     // A known installed version needs no registry access to produce an unchanged plan.
     result[`${target.host}:${target.profile ?? "default"}`] = !localPackages && requested === target.packageVersion
@@ -358,12 +342,12 @@ function retryCommand(request, action, platform) {
   return formatCommand(args, platform);
 }
 
-// The desktop pet runs a Core runtime owned by an Adapter. A confirmed operation
-// that changes that Adapter replaces the very binary the pet is running, so the
-// pet is stopped first through the native entry that filters by `core_path`.
-// An unconfirmed preview, a read-only status or doctor call, and maintenance of a
-// different Adapter all leave the running pet untouched.
-async function stopDesktopPetForMaintainedCores(request, plan, { paths, environment, dependencies, replaceDesktop = false }) {
+/**
+ * Drivers locate the managed executables before Host removal can erase registrations.
+ * Reset keeps these locations for its final process check; ordinary maintenance uses
+ * the platform replacement rules.
+ */
+async function prepareMaintenance(request, plan, { paths, environment, drivers, dependencies, replaceDesktop = false }) {
   const stop = dependencies.stopPetForCore ?? stopPetForCore;
   const shutdown = {
     environment,
@@ -376,27 +360,44 @@ async function stopDesktopPetForMaintainedCores(request, plan, { paths, environm
     // desktop instance is stopped before cleanup regardless of which Core it runs.
     await stop({ ...shutdown, corePath: null });
   }
-  const maintained = plan.actions.filter((action) => action.owner === "codex" || action.owner === "deepseek");
-  if (maintained.length === 0) return;
-  const runtimes = await (dependencies.listAdapterCoreRuntimes ?? listAdapterCoreRuntimes)({ paths, environment });
-  const maintenance = await loadMaintenancePlatform(paths.platform, paths.arch);
+  const maintained = plan.actions.filter(action => Object.hasOwn(drivers, action.owner));
+  if (maintained.length === 0 && request.operation !== "factory-reset") return null;
+  const maintenance = await (dependencies.loadMaintenancePlatform ?? loadMaintenancePlatform)(paths.platform, paths.arch);
+  const prepared = new Set();
+  const resetTargets = [];
   for (const action of maintained) {
-    const runtime = await maintenance.runtimeForAction(action, paths, environment, runtimes);
-    if (runtime === undefined) continue;
-    if (request.operation !== "factory-reset" && !replaceDesktop) await stop({ ...shutdown, corePath: runtime.runtimePath });
-    await maintenance.prepareReplacement({ runtime, paths, environment });
+    const key = `${action.host}:${action.profile ?? "default"}`;
+    if (prepared.has(key)) continue;
+    prepared.add(key);
+    const driver = drivers[action.host];
+    const observed = await driver.observe(action.profile);
+    const targets = await driver.maintenanceTargets({ profile: action.profile, observed, operation: request.operation });
+    if (request.operation === "factory-reset") {
+      resetTargets.push({ ...targets, host: action.host });
+      continue;
+    }
+    if (!replaceDesktop) {
+      for (const corePath of targets.registeredCorePaths) await stop({ ...shutdown, corePath });
+    }
+    if (targets.installedRuntime) await maintenance.prepareReplacement({ runtime: targets.installedRuntime, paths, environment });
   }
+  if (request.operation === "factory-reset") {
+    return (dependencies.stopManagedCores ?? stopManagedCores)({
+      targets: resetTargets,
+      dataDirectories: plan.cleanupTargets.filter(target => target.label === "default-data" || target.requiresExplicitConfirmation).map(target => target.path),
+      paths, environment, processes: maintenance,
+    });
+  }
+  return null;
 }
 
-async function executeCleanup(request, observed, paths, dependencies) {
-  const targets = [observed.resources.configuration, observed.resources.defaultData, observed.resources.pet].filter((target) => target.exists);
-  if (observed.resources.explicitData?.exists) {
-    if (!request.confirmedExplicitData.includes(observed.resources.explicitData.path)) {
+async function executeCleanup(request, targets, paths, dependencies) {
+  for (const target of targets) {
+    if (target.requiresExplicitConfirmation && !request.confirmedExplicitData.includes(target.path)) {
       const error = new Error("explicit Task data requires exact --confirm-explicit-data");
       error.exitCode = 4;
       throw error;
     }
-    targets.push(observed.resources.explicitData);
   }
   if (request.permanent) {
     const removed = await (dependencies.permanentlyRemoveTargets ?? permanentlyRemoveTargets)(targets, { allowedPaths: targets.map((target) => target.path) });
@@ -408,10 +409,7 @@ async function executeCleanup(request, observed, paths, dependencies) {
 
 async function initializeFreshState(paths) {
   await mkdir(paths.defaultDataDirectory, { recursive: true, mode: 0o700 });
-  await writeOwnedJSON(paths.configurationPath, {
-    codex: { codebase_memory: false },
-    deepseek: { codebase_memory: false },
-  }, {
+  await writeOwnedJSON(paths.configurationPath, {}, {
     root: paths.configurationDirectory,
     enforcePrivateModes: paths.enforcePrivateModes,
   });
@@ -426,7 +424,7 @@ function resultFromObservation(operation, observed, {
   dataPolicy = "preserve",
   trashRoot = null,
 } = {}) {
-  const targets = [observed.codex, ...observed.deepseek]
+  const targets = [observed.codex, ...observed.deepseek, observed.claude]
     .filter(Boolean)
     .map((target) => ({ host: target.host, profile: target.profile, package_version: target.packageVersion, core_version: target.coreVersion ?? null, state: target.state, host_available: target.hostAvailable ?? null, issues: target.issues ?? [] }));
   const states = targets.map((target) => target.state);
@@ -467,7 +465,7 @@ function confirmationResult(request, plan, platform = process.platform) {
   if (plan.permanentToken) args.push("--confirm-permanent", plan.permanentToken);
   if (plan.downgradeToken) args.push("--confirm-downgrade", plan.downgradeToken);
   if (plan.confirmationClass === "mutation") args.push("--yes");
-  for (const resource of plan.resources ?? []) if (request.operation === "factory-reset" && resource.label === "explicit-data") args.push("--confirm-explicit-data", resource.path);
+  for (const target of plan.cleanupTargets) if (target.requiresExplicitConfirmation) args.push("--confirm-explicit-data", target.path);
   return {
     operation_id: null,
     operation: request.operation,

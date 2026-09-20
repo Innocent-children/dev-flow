@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { execPortableCommand as codexCommand } from "../lib/command.mjs";
 import { execPortableCommand as managerCommand } from "../../dev-flow/lib/command.mjs";
+import { execPortableCommand as claudeCommand } from "../../claude/lib/command.mjs";
 
 const nativeWindows = process.platform === "win32" && process.arch === "x64";
 
@@ -20,7 +21,7 @@ test("Windows command adapters preserve UTF-8, literal arguments and exit status
   await writeFile(nodeScript, "console.log(JSON.stringify(process.argv.slice(2)));\n");
   await writeFile(failed, "exit 7\r\n");
   const args = ["中文", "space text", '{"key":"value"}', "a&b", "$(exit 9)", "a'b", ""];
-  for (const run of [codexCommand, managerCommand]) {
+  for (const run of [codexCommand, claudeCommand, managerCommand]) {
     for (const executable of [script, nodeScript]) {
       const output = await run(executable, args, { encoding: "utf8", windowsHide: true });
       assert.deepEqual(JSON.parse(output.stdout), args);

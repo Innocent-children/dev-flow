@@ -1,3 +1,5 @@
+import { join, resolve } from "node:path";
+import { adapterCoreRuntimePath, installedCoreRuntime, readRuntimeJSON } from "../core-runtime.mjs";
 import { execPortableCommand } from "../command.mjs";
 import { inspectOrphanRegistration, removeOrphanRegistration } from "./codex-orphan.mjs";
 
@@ -13,6 +15,39 @@ export function createCodexDriver({
   paths = null,
 } = {}) {
   return Object.freeze({
+    async runtimeCandidates() {
+      const receipt = await readRuntimeJSON(join(paths.productRoot, "registrations", "codex.json"), "Codex receipt");
+      if (receipt === null) return [];
+      const product = exactObject(receipt.product, ["name", "version", "core_version", "codex_compatibility"], "Codex receipt product");
+      const host = exactObject(receipt.host, ["surface", "version", "os", "arch"], "Codex receipt host");
+      const recorded = exactObject(receipt.paths, ["package_root", "runtime_path", "data_dir", "receipt_path"], "Codex receipt paths");
+      if (product.name !== "dev-flow-codex") throw new Error("Codex receipt product identity is invalid");
+      stableVersion(product.version, "Codex receipt package version");
+      stableVersion(product.core_version, "Codex receipt Core version");
+      if (host.surface !== "codex-cli" || `${host.os}-${host.arch}` !== paths.runtimeKey) {
+        throw new Error("Codex receipt host platform differs from this runtime");
+      }
+      if (resolve(recorded.runtime_path) !== resolve(adapterCoreRuntimePath(recorded.package_root, paths))) {
+        throw new Error("Codex receipt runtime path differs from the supported package layout");
+      }
+      return [{ source: "codex", packageName: "dev-flow-codex", packageVersion: product.version,
+        expectedCoreVersion: product.core_version, packageRoot: recorded.package_root, runtimePath: recorded.runtime_path }];
+    },
+
+    async maintenanceTargets({ observed }) {
+      const receipt = await readRuntimeJSON(join(paths.productRoot, "registrations", "codex.json"), "Codex receipt").catch(() => null);
+      const recorded = receipt?.paths?.runtime_path;
+      let installedRuntime = null;
+      if (observed.packageInstalled) {
+        const result = await run(npmExecutable, ["root", "--global"], { environment, timeout: 10_000 });
+        const root = result.stdout.trim();
+        if (!root) throw new Error("npm did not return its global package directory");
+        installedRuntime = await installedCoreRuntime(join(root, "dev-flow-codex"), paths,
+          { host: "codex", profile: null, packageName: "dev-flow-codex" });
+      }
+      return { registeredCorePaths: typeof recorded === "string" && recorded !== "" ? [recorded] : [], installedRuntime };
+    },
+
     async observe() {
       const issues = [];
       let host = { available: false };
@@ -240,4 +275,11 @@ function compareVersions(left, right) {
   const b = right.split(".").map(Number);
   for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
   return 0;
+}
+
+function exactObject(value, keys, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort())) {
+    throw new Error(`${label} fields are invalid`);
+  }
+  return value;
 }

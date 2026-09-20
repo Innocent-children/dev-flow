@@ -3,6 +3,7 @@ package webui
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
@@ -105,22 +106,37 @@ func writeActionError(w http.ResponseWriter, requestID string, err error, bounda
 		}
 	}
 	paths := domain.ViolationPaths(err)
+	for index, path := range paths {
+		paths[index] = actionRequestPath(path)
+	}
 	var guardID *string
 	if typed != nil && typed.Guard != nil && workflow.KnownTransitionGuard(typed.Guard.GuardID) {
 		value := string(typed.Guard.GuardID)
 		guardID = &value
 	}
 	advice := RecoveryAdvice{Action: RecoveryNone, RetrySafe: false, Message: "Assess the retained operation before another write."}
-	if writeState == "not_committed" && actionCorrectionSafe(typed) {
-		advice = RecoveryAdvice{Action: RecoveryCorrectCurrentAction, RetrySafe: true, Message: "Correct only the listed fields while this Action identity remains current."}
+	if allowed := recovery.ActionCorrectionPaths(typed); writeState == "not_committed" && len(allowed) != 0 {
+		for index, path := range allowed {
+			allowed[index] = actionRequestPath(path)
+		}
+		advice = RecoveryAdvice{Action: RecoveryCorrectCurrentAction, RetrySafe: true, AllowedPaths: allowed, Message: "Correct only allowed_paths using established facts and resubmit once while this Action identity remains current. Do not guess a user decision; stop if the correction fails."}
 	} else if code == domain.ErrorRevisionConflict || code == domain.ErrorActionStale {
 		advice = RecoveryAdvice{Action: RecoveryReadNextAction, RetrySafe: false, Message: "Read the authoritative current Task before another mutation."}
 	}
 	var details []domain.ContractViolation
 	var budget *domain.BudgetFailure
 	if typed != nil {
-		for _, item := range typed.Violations {
-			if detail := domain.Violation(item.Path, item.Rule); detail.Path != "" {
+		entries := append([]domain.ContractViolation(nil), typed.Violations...)
+		if guardID != nil {
+			entries = append(entries, typed.Guard.Failures...)
+		}
+		for _, item := range entries {
+			detail := domain.Violation(item.Path, item.Rule)
+			if detail.Path == "" {
+				detail = domain.GuardViolation(item.Path, domain.GuardRule(item.Rule))
+			}
+			if detail.Path != "" {
+				detail.Path = actionRequestPath(detail.Path)
 				details = append(details, detail)
 			}
 		}
@@ -133,29 +149,17 @@ func writeActionError(w http.ResponseWriter, requestID string, err error, bounda
 	_ = WriteFailure(w, status, requestID, writeState, ErrorResponse{Code: string(code), Message: message, FieldPaths: paths, GuardID: guardID, RepositoryPaths: repositoryPaths, Details: details, Budget: budget}, advice)
 }
 
-func actionCorrectionSafe(failure *domain.Error) bool {
-	if failure == nil || !failure.ZeroWrite || failure.Code != domain.ErrorInvalidArgument && failure.Code != domain.ErrorTransitionNotAllowed {
-		return false
+/**
+ * Application errors can name semantic members directly; HTTP nests those
+ * members under payload while keeping request identity and budget paths outside.
+ */
+func actionRequestPath(path string) string {
+	member, _, _ := strings.Cut(path, ".")
+	switch member {
+	case "transition_id", "summary", "reason", "artifacts", "method_results", "node_result",
+		"choice", "history_resolution", "relocation_id", "relocation_destinations":
+		return "payload." + path
+	default:
+		return path
 	}
-	entries := append([]domain.ContractViolation(nil), failure.Violations...)
-	if failure.Guard != nil {
-		entries = append(entries, failure.Guard.Failures...)
-	}
-	if len(entries) == 0 {
-		return false
-	}
-	for _, entry := range entries {
-		switch entry.Rule {
-		case domain.RuleBudgetChecksRequired, domain.RuleNonAutomatedCommandCountZero, domain.RuleNonAutomatedFullSuiteFalse, domain.RuleUnknownMember:
-		case domain.RuleArtifactManifestIncomplete:
-			if len(domain.ViolationRepositoryPaths(failure)) == 0 {
-				return false
-			}
-		default:
-			if domain.GuardRule(entry.Rule) != domain.GuardForwardFindingsEmpty {
-				return false
-			}
-		}
-	}
-	return true
 }

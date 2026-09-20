@@ -38,6 +38,7 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 	for _, relative := range []string{
 		"packages/codex/lib/platform.mjs",
 		"packages/deepseek/lib/platform.mjs",
+		"packages/claude/lib/platform.mjs",
 		"packages/dev-flow/lib/platform.mjs",
 	} {
 		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
@@ -47,6 +48,23 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		for _, runtimeKey := range []string{"darwin-arm64", "win32-x64"} {
 			if !strings.Contains(string(raw), `"`+runtimeKey+`"`) {
 				t.Errorf("%s is missing %s", relative, runtimeKey)
+			}
+		}
+	}
+
+	// Command selection is an OS boundary, independent of Core runtime architecture.
+	for _, relative := range []string{
+		"packages/host-command/command.mjs",
+		"packages/codex/lib/command.mjs",
+		"packages/claude/lib/command.mjs",
+	} {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, platform := range []string{"macos", "windows"} {
+			if !strings.Contains(string(raw), `"./platform/`+platform+`/command.mjs"`) {
+				t.Errorf("%s is missing its %s command implementation", relative, platform)
 			}
 		}
 	}
@@ -61,6 +79,12 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		"packages/deepseek/lib/paths.mjs",
 		"packages/deepseek/lib/runtime.mjs",
 		"packages/deepseek/lib/provisioning-receipt.mjs",
+		"packages/claude/lib/runtime.mjs",
+		"packages/claude/lib/lifecycle.mjs",
+		"packages/claude/lib/workspace.mjs",
+		"packages/claude/bin/dev-flow-claude.mjs",
+		"packages/claude/plugin/hooks/pre-tool-use.mjs",
+		"packages/dev-flow/lib/configuration.mjs",
 		"packages/dev-flow/lib/lifecycle.mjs",
 		"packages/dev-flow/lib/ownership.mjs",
 		"packages/dev-flow/lib/plan.mjs",
@@ -78,10 +102,19 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 
 func TestHostPlatformImplementationsRemainSeparate(t *testing.T) {
 	root := currentStorageRepositoryRoot(t)
-	for _, product := range []string{"codex", "deepseek", "dev-flow"} {
+	for _, surface := range []struct {
+		directory    string
+		requiredFile string
+	}{
+		{"packages/codex/lib/platform", "policies.mjs"},
+		{"packages/deepseek/lib/platform", "policies.mjs"},
+		{"packages/claude/lib/platform", "policies.mjs"},
+		{"packages/dev-flow/lib/platform", "policies.mjs"},
+		{"packages/host-command/platform", "command.mjs"},
+	} {
 		for _, platform := range []string{"windows", "macos"} {
-			directory := filepath.Join(root, "packages", product, "lib", "platform", platform)
-			if _, err := os.Stat(filepath.Join(directory, "policies.mjs")); err != nil {
+			directory := filepath.Join(root, filepath.FromSlash(surface.directory), platform)
+			if _, err := os.Stat(filepath.Join(directory, surface.requiredFile)); err != nil {
 				t.Fatal(err)
 			}
 			err := filepath.WalkDir(directory, func(path string, entry os.DirEntry, err error) error {

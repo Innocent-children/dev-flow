@@ -31,6 +31,7 @@
 | `internal/README*`、`scripts/README*`、`tests/**/README.md`、`protocol/fixtures/README.md` | 所在目录的结构、开发命令、测试方法和样例用法 |
 | `release/**/README.md`、`docs/RELEASE-STRATEGY.md`、`docs/VERSIONING.md` | 维护者使用的版本、产物检查和发布流程 |
 | `skills/dev-flow/core/` 与各 Host Skill 目录 | 安装后由 Agent 使用的 Core 交互说明和 Host 操作规则 |
+| [Claude 指南](docs/CLAUDE.md)、[包 README](packages/claude/README.md) | Claude 用户的安装、任务操作、恢复、维护和移除 |
 | `SECURITY.md` | 漏洞报告方式与安全报告政策 |
 
 根 README 按用户操作组织内容，技术细节通过专门文档查阅；目录内面向维护者的 README 说明该目录的
@@ -44,6 +45,7 @@
 | Core product version | `CORE_VERSION` |
 | Codex product version 与 package 内容 | `packages/codex/package.json` |
 | DeepSeek product version 与 package 内容 | `packages/deepseek/package.json` |
+| Claude product version 与 package 内容 | `packages/claude/package.json` |
 | 统一 lifecycle package 与 `dev-flow` bin | `packages/dev-flow/package.json`、`packages/dev-flow/` |
 | Process nodes、transitions 与 guards | `internal/workflow/` |
 | Task aggregate、WorkspaceOrigin/Binding 与 validation | `internal/domain/` |
@@ -53,6 +55,9 @@
 | MCP 工具、允许的输入字段和返回数据 | `internal/mcp/` |
 | Codex 新请求评估、工作树创建、会话重启/交接和触发指令 | `packages/codex/` |
 | DeepSeek 新请求评估、WorkspaceCoordinator、运行记录/会话重启和触发指令 | `packages/deepseek/` |
+| `packages/claude/` | Claude 插件、CLI、权限及会话/工作区操作 |
+| `packages/host-workspace/` | Host 构建使用的共享 Git 助手源 |
+| `packages/host-command/` | Codex、Claude 的共享命令执行源；`scripts/sync-host-commands.mjs` 生成和检查包内副本 |
 | Protocol fixtures | `protocol/fixtures/` |
 | 接口规范测试和实际宿主中的完整流程测试 | `tests/contract/`、`tests/journeys/` |
 | Release schemas、prepare 与 publisher | `release/`、`scripts/release-*.mjs` |

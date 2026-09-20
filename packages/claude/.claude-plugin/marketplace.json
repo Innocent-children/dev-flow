@@ -1,0 +1,15 @@
+{
+  "name": "dev-flow-claude-local",
+  "owner": {
+    "name": "Dev Flow"
+  },
+  "plugins": [
+    {
+      "name": "dev-flow-claude",
+      "source": "./"
+    }
+  ],
+  "metadata": {
+    "description": "Local Dev Flow integration for Claude Code"
+  }
+}

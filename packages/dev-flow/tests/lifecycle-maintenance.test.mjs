@@ -18,6 +18,7 @@ test("upgrade and forced reinstall preserve configuration and Task bytes", async
   await writeFile(join(paths.defaultDataDirectory, "dev-flow.db"), "task-bytes\n");
   let version = "0.7.0";
   const codexDriver = {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     observe: async () => ({ host: "codex", profile: null, hostAvailable: true, state: "ready", packageVersion: version, coreVersion: "0.6.0", receipt: true }),
     resolveTargetVersion: async () => "0.8.0",
     execute: async () => { version = "0.8.0"; return { changed: true, completedSteps: ["codex.maintenance"] }; },
@@ -36,7 +37,7 @@ test("confirmed Adapter maintenance stops the pet running that Core before the A
   const result = await runLifecycle(request("upgrade"), {
     ...fixture.dependencies,
     confirmPlan: async () => true,
-    listAdapterCoreRuntimes: async () => [{ host: "codex", profile: null, runtimePath: fixture.codexRuntime }],
+    codexDriver: { ...fixture.dependencies.codexDriver, maintenanceTargets: async () => ({ registeredCorePaths: [fixture.codexRuntime], installedRuntime: null }) },
   });
   assert.equal(result.code, 0);
   assert.deepEqual(fixture.events, [`pet.stop:${fixture.codexRuntime}`, "codex.execute"]);
@@ -47,7 +48,7 @@ test("a pet that does not stop prevents the confirmed Adapter change", async (t)
   await assert.rejects(runLifecycle(request("upgrade"), {
     ...fixture.dependencies,
     confirmPlan: async () => true,
-    listAdapterCoreRuntimes: async () => [{ host: "codex", profile: null, runtimePath: fixture.codexRuntime }],
+    codexDriver: { ...fixture.dependencies.codexDriver, maintenanceTargets: async () => ({ registeredCorePaths: [fixture.codexRuntime], installedRuntime: null }) },
     stopPetForCore: async () => { throw new Error("the pet did not stop"); },
   }), /the pet did not stop/u);
   assert.deepEqual(fixture.events, []);
@@ -57,25 +58,24 @@ test("a pet that does not stop prevents the confirmed Adapter change", async (t)
 test("read-only, unconfirmed, and other-Adapter maintenance leave a running pet alone", async (t) => {
   const fixture = await maintenanceFixture(t);
   const deepseekRuntime = join(fixture.root, "deepseek", "runtime", "darwin-arm64", "dev-flow");
-  const codexRuntimes = async () => [{ host: "codex", profile: null, runtimePath: fixture.codexRuntime }];
+  const codexDriver = { ...fixture.dependencies.codexDriver, maintenanceTargets: async () => ({ registeredCorePaths: [fixture.codexRuntime], installedRuntime: null }) };
 
-  await runLifecycle(request("status"), { ...fixture.dependencies, listAdapterCoreRuntimes: codexRuntimes });
+  await runLifecycle(request("status"), { ...fixture.dependencies, codexDriver });
   assert.deepEqual(fixture.events, []);
 
   const unconfirmed = await runLifecycle(request("upgrade"), {
     ...fixture.dependencies,
     confirmPlan: async () => false,
-    listAdapterCoreRuntimes: codexRuntimes,
+    codexDriver,
   });
   assert.equal(unconfirmed.code, 3);
   assert.deepEqual(fixture.events, []);
 
-  // The maintained Codex Adapter changes, but only a DeepSeek Core is recorded,
-  // so no running pet uses a Core this operation replaces.
+  // Only the maintained Host may contribute paths or run installation checks.
   const other = await runLifecycle(request("upgrade"), {
     ...fixture.dependencies,
     confirmPlan: async () => true,
-    listAdapterCoreRuntimes: async () => [{ host: "deepseek", profile: "web", runtimePath: deepseekRuntime }],
+    deepseekDriver: { ...fixture.dependencies.deepseekDriver, maintenanceTargets: async () => { throw new Error(`must not inspect unrelated ${deepseekRuntime}`); } },
   });
   assert.equal(other.code, 0);
   assert.deepEqual(fixture.events, ["codex.execute"]);
@@ -94,6 +94,7 @@ async function maintenanceFixture(t) {
   const events = [];
   const state = { version: "0.7.0" };
   const codexDriver = {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     observe: async () => ({ host: "codex", profile: null, hostAvailable: true, state: "ready", packageVersion: state.version, coreVersion: "0.6.0", receipt: true }),
     resolveTargetVersion: async () => "0.8.0",
     execute: async () => {
@@ -147,7 +148,6 @@ test("bundled pet maintenance runs even when the Adapter is current and preserve
     const result = await runLifecycle({ ...request(operation), targetVersion: "0.7.0" }, {
       ...fixture.dependencies, packageRoot,
       codexDriver: { ...fixture.dependencies.codexDriver, execute: async () => ({ changed: false }) },
-      listAdapterCoreRuntimes: async () => [],
     });
     assert.equal(result.code, 0);
     assert.equal(result.plan.actions.at(-1).actionId, "pet.install");
@@ -168,7 +168,7 @@ test("bundled pet maintenance runs even when the Adapter is current and preserve
     ...fixture.dependencies, packageRoot, stopPetForCore: async () => { throw new Error("stop failed"); },
   }), /stop failed/);
   await assert.rejects(runLifecycle({ ...request("repair"), targetVersion: "0.7.0" }, {
-    ...fixture.dependencies, packageRoot, listAdapterCoreRuntimes: async () => [],
+    ...fixture.dependencies, packageRoot,
     petInstaller: { ensurePetInstalled: async () => { throw new Error("copy failed"); } },
   }), error => error.message === "copy failed" && error.failedAction === "pet.install");
 });
@@ -177,6 +177,7 @@ test("install and repair keep the installed version offline; reinstall deliberat
   const fixture = await maintenanceFixture(t);
   let executed = 0;
   const codexDriver = {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     ...fixture.dependencies.codexDriver,
     resolveTargetVersion: async () => { throw new Error('must not query registry'); },
     execute: async (_operation, { targetVersion }) => {
@@ -247,7 +248,7 @@ test("one interactive session can inspect state and return to the menu", async t
   const fixture = await maintenanceFixture(t);
   let text = '';
   const output = { write: value => { text += value; } };
-  const result = await runMain([], { ...fixture.dependencies, input: Readable.from(['4\n1\n1\n0\n']), output, errorOutput: output, isTTY: true });
+  const result = await runMain([], { ...fixture.dependencies, input: Readable.from(['5\n1\n1\n0\n']), output, errorOutput: output, isTTY: true });
   assert.equal(result.code, 0);
   assert.equal(fixture.events.length, 0);
   assert.equal(text.split('Dev Flow Lifecycle Manager').length >= 3, true);
@@ -271,6 +272,8 @@ test("all-Host diagnostics do not classify an unused absent Adapter as a broken 
   await writeFile(fixture.paths.configurationPath, '{}\n');
   const result = await runLifecycle({ ...request('doctor'), host: 'all', profiles: ['web'] }, {
     ...fixture.dependencies,
+    validateConfiguration: async () => {},
+    claudeDriver: { observe: async () => ({ host: 'claude', profile: null, hostAvailable: false, state: 'absent', packageVersion: null, issues: [{ code: 'host_missing', message: 'Claude missing', command: 'claude --version' }] }) },
     deepseekDriver: { knownProfiles: async () => [], observe: async () => ({ host: 'deepseek', profile: 'web', hostAvailable: false, state: 'absent', packageVersion: null,
       issues: [{ code: 'host_missing', message: 'DSH missing', command: 'dsh --version' }] }) },
   });

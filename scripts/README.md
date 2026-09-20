@@ -11,8 +11,10 @@
 | --- | --- |
 | `pnpm run validate` | 运行仓库规定的检查 |
 | `pnpm run validate:contracts` | 只运行公开接口规范测试 |
-| `pnpm run versions:check` | 检查 Core、Codex、DeepSeek 版本文件与同步副本 |
-| `pnpm run dev-flow:local` | 从当前源码打包三个产品并进入与 `dev-flow` 相同的本地安装菜单 |
+| `pnpm run versions:check` | 检查 Core、Codex、DeepSeek、Claude 版本文件与同步副本 |
+| `pnpm run dev-flow:local` | 从当前源码打包三个 Adapter 和统一入口并进入与 `dev-flow` 相同的本地安装菜单 |
+| `node scripts/build-claude-local.mjs --output <绝对目录>` | 将 Claude Adapter tarball 构建到仓库外，不执行安装 |
+| `node tests/claude/verify-package.mjs <解包目录> <Claude可执行文件>` | 使用真实 CLI 和隔离配置验证最终包，不执行已认证模型会话 |
 | `pnpm --dir packages/codex test` | 运行 Codex package-local tests |
 | `pnpm --dir packages/deepseek test` | 运行 DeepSeek package-local tests |
 
@@ -33,7 +35,7 @@
 ## 本地安装测试
 
 下面一条命令会构建 WebUI 和 bundled Core，在仓库外的临时目录生成 `@imotong/dev-flow`、
-`dev-flow-codex` 与 `dev-flow-deepseek` tarball，再从本地 tarball 启动统一安装菜单：
+`dev-flow-codex`、`dev-flow-deepseek` 与 `dev-flow-claude` tarball，再从本地 tarball 启动统一安装菜单：
 
 ```bash
 pnpm run dev-flow:local
@@ -46,7 +48,7 @@ pnpm run dev-flow:local -- reinstall --host codex --yes
 ```
 
 本地模式会真实替换所选 Host 的 Adapter，即使 manifest 版本与已安装版本相同；安装计划、确认、
-注册、receipt 和就绪状态检查仍由现有 `dev-flow` 生命周期负责。脚本退出时删除临时构建文件，不调用
+注册、receipt 和就绪状态检查仍由现有 `dev-flow` 生命周期负责。它使用临时管理器，不升级已有的全局 `dev-flow`；源码诊断应从仓库根目录运行 `node packages/dev-flow/bin/dev-flow.mjs`。脚本退出时删除临时构建文件，不调用
 `npm publish`，也不创建 Tag 或 GitHub Release。发布后仍需从 npm 下载并逐字节核对安装包，同时检查 Release 附件。
 
 `dev-flow:local` 的 Node orchestrator 可在 macOS arm64 和 Windows 10/11 x64 运行，并同时构建、
@@ -61,7 +63,7 @@ Node.js、npm 和 pnpm；不要求 Bash 来启动这个入口。
 - `build-deepseek-local.mjs`：在系统临时 staging 中使用统一 runtime 报告构建 DeepSeek 源码 tarball；
 - `build-codex-release.sh`、`build-deepseek-release.sh`：为 standalone release 准备确定性构建产物。
 
-Codex 与 DeepSeek 的源码 package 都不保存预编译 Core。两者的 `package.json` 仍声明最终 npm 包内的
+各 Host Adapter 源码 package 均不保存预编译 Core。各自的 `package.json` 仍声明最终 npm 包内的
 两个 runtime 路径；本地构建和 release staging 现场生成这些文件后再打包。
 
 最终安装包和测试记录必须写入仓库外、由操作者选择的目录。
@@ -125,14 +127,26 @@ Adapter 安装、不发布 npm。安装、确认运行路径和替换已有应�
 
 构建通过 `scripts/desktop-pet-artwork.mjs` 从 `packages/desktop-pet/default-appearance/` 复制默认 SVG 形象，并逐文件核对内容；该素材包包含九类动作、312 帧。构建结果的 `frames` 和 `asset_bytes` 记录默认动画帧数与素材文件大小。鲸鱼娘等自定义形象通过外部素材包导入。生成的应用包和外部素材目录不纳入 Git 跟踪。
 
-Windows 桌面包由 `build-desktop-pet-windows.mjs` 构建；在仓库根目录先执行 `npm ci --prefix packages/desktop-pet/windows`，再执行 `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`。输出必须在仓库外。该入口装配 Windows 桌面应用、统一入口及两个 Adapter 安装包；复用 Core 构建目标表，不运行 Mac 程序或测试，也不执行发布。
+Windows 桌面包由 `build-desktop-pet-windows.mjs` 构建；在仓库根目录先执行 `npm ci --prefix packages/desktop-pet/windows`，再执行 `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`。输出必须在仓库外。该入口装配 Windows 桌面应用、统一入口及三个 Adapter 安装包；复用 Core 构建目标表，不运行 Mac 程序或测试，也不执行发布。
 
-Windows 桌面开发包现在同时携带完整的 Codex 与 DeepSeek 安装包；构建复用 buildCoreRuntimes 和 stageAndPack，不生成缺少另一平台 Core 的临时特制 Adapter 包。安装统一入口后，两个插件与桌面应用由 dev-flow install --host all --yes 完成。
+Windows 桌面开发包现在同时携带完整的 Codex、DeepSeek 与 Claude 安装包；构建复用 buildCoreRuntimes 和 stageAndPack，不生成缺少另一平台 Core 的临时特制 Adapter 包。安装统一入口后，三个插件与桌面应用由 dev-flow install --host all --yes 完成。
 
 WebUI 的语义提交和恢复回归使用 `pnpm --dir packages/webui test`，运行当前组件与 HTTP 客户端的模拟检查，覆盖网络异常、待恢复页面重开和仅按 Action ID 恢复。这不是原生浏览器验证。
 
+## 共享 Host 命令
+
+Codex、Claude 的共同命令入口和 Windows、macOS 命令实现只在 `packages/host-command/` 维护。
+执行 `node scripts/sync-host-commands.mjs`，将 `command.mjs`、`platform/windows/command.mjs` 和
+`platform/macos/command.mjs` 生成到两个 Host 的 `lib/` 下；文件头标明共享来源。
+`node scripts/sync-host-commands.mjs --check` 只读检查这六个副本是否与共享源一致。修改共享源后，
+同步并一同提交生成副本，包内导入路径保持不变。
+
+`node scripts/sync-host-commands.mjs --output <ABSOLUTE_LIB_DIRECTORY>` 将同样的三个文件生成到指定
+的绝对 `lib` 目录。`dev-flow-local.mjs` 的 `stageAndPack` 和 `build-codex-local.sh` 均直接从共享源
+生成 staging 内容，安装包不依赖仓库中的共享目录。统一管理器与 DeepSeek 不使用这组生成副本。
+
 ## 共享 Skill 引用
 
-Core 通用说明和示例只在 `skills/dev-flow/core/` 编辑。执行 `node scripts/sync-skill-references.mjs` 生成 Codex 与 DeepSeek 包内副本；副本供源码阅读和本地加载，文件头标明来源。`node scripts/sync-skill-references.mjs --check` 检查副本是否与共享源一致。Codex 本地构建和 `stageAndPack` 都在临时 staging 中重新生成引用，安装包不依赖仓库外的共享目录。共享说明只替换 `host` 值，Host 操作说明分别维护。校验还覆盖两边 MCP Schema、当前节点转移、DSH 确认文本及实际包内文件。
+Core 通用说明和示例只在 `skills/dev-flow/core/` 编辑。执行 `node scripts/sync-skill-references.mjs` 生成 Codex、DeepSeek 与 Claude 包内副本；副本供源码阅读和本地加载，文件头标明来源。`node scripts/sync-skill-references.mjs --check` 检查副本是否与共享源一致。Codex 本地构建和 `stageAndPack` 都在临时 staging 中重新生成引用，安装包不依赖仓库外的共享目录。共享说明只替换 `host` 值，Host 操作说明分别维护。校验还覆盖三个 Host 的 MCP Schema、当前节点转移、DSH 确认文本及实际包内文件。
 
 完整响应示例由定向测试维护。修改共享请求后先同步包内引用。更新 Core 示例运行 `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 go test ./internal/mcp -run TestSkillSuccessExamplesMatchExecution -count=1`，再运行共享引用同步命令。更新 Host 示例运行 `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 node --test packages/codex/tests/skill-success-examples.test.mjs packages/deepseek/tests/skill-success-examples.test.mjs`。正常测试不写文件，而是逐字段比较已保存的请求和响应；修改示例字段时须检查差异，新增文件时同步包清单与 staging 清单。Node 测试的读取、稳定值替换和比较辅助函数位于 `tests/skills/executed-examples.mjs`。

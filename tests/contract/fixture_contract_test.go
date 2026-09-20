@@ -224,7 +224,7 @@ func TestGraphServerInfoFixtureContainsCompletePublicDTO(t *testing.T) {
 		t.Fatalf("tools=%#v", tools)
 	}
 	preferences, ok := value["host_preferences"].(map[string]any)
-	if !ok || len(preferences) != 2 || preferences["codex"].(map[string]any)["codebase_memory"] != false || preferences["deepseek"].(map[string]any)["codebase_memory"] != false {
+	if !ok || len(preferences) != 3 || preferences["codex"].(map[string]any)["codebase_memory"] != false || preferences["deepseek"].(map[string]any)["codebase_memory"] != false || preferences["claude"].(map[string]any)["codebase_memory"] != false {
 		t.Fatalf("host_preferences=%#v", value["host_preferences"])
 	}
 	previous := -1

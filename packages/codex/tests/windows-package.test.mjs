@@ -5,10 +5,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import { execPortableCommand } from "../lib/command.mjs";
+import { desktopSourceFiles } from "../../../scripts/desktop-pet-package.mjs";
 
 const core = process.env.DEV_FLOW_WINDOWS_CORE;
 const repository = fileURLToPath(new URL("../../../", import.meta.url));
-test("Windows verification archives contain and load every declared platform module", {
+test("Windows source verification archives load platform modules and the native Core", {
   skip: process.platform === "win32" && process.arch === "x64" && core ? false : "set DEV_FLOW_WINDOWS_CORE on Windows x64",
 }, async (t) => {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-windows-package-"));
@@ -17,8 +18,9 @@ test("Windows verification archives contain and load every declared platform mod
   for (const product of ["codex", "deepseek", "dev-flow"]) {
     const source = join(repository, "packages", product);
     const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
-    // These are Windows verification archives, not publishable dual-runtime packages.
-    const files = [...new Set(["package.json", "README.md", ...manifest.files])]
+    // Source and native Core verification excludes generated desktop apps and publishable dual-runtime packages.
+    const sourceFiles = product === "dev-flow" ? desktopSourceFiles(manifest) : manifest.files;
+    const files = [...new Set(["package.json", "README.md", ...sourceFiles])]
       .filter(path => !path.startsWith("runtime/darwin-arm64/"));
     const stage = join(root, product, "stage");
     for (const path of files) {

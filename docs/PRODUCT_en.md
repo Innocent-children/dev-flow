@@ -6,11 +6,11 @@
 
 Dev Flow helps developers decide whether a request needs a full development process, and preserves requirements, change scope, verification effort and progress so long-running AI coding tasks can continue after a session ends.
 
-Codex or DeepSeek understands code, edits files and executes commands. Go Core retains the one Task state, observes the actual worktree, checks current results and decides the legal next step. A Task is a persisted development job; an Action is an operation Core issues for its current stage.
+Codex, DeepSeek or Claude Code understands code, edits files and executes commands. Go Core retains the one Task state, observes the actual worktree, checks current results and decides the legal next step. A Task is a persisted development job; an Action is an operation Core issues for its current stage.
 
 ## Target users and use cases
 
-The product serves developers using Codex or DeepSeek on real repositories over multiple sessions or days. It fits public-interface, persistence, multi-component and recovery-sensitive changes, as well as work requiring explicit file scope and verification effort.
+The product serves developers using Codex, DeepSeek or Claude Code on real repositories over multiple sessions or days. It fits public-interface, persistence, multi-component and recovery-sensitive changes, as well as work requiring explicit file scope and verification effort.
 
 Other changes in a shared checkout can obscure ownership. Chat history alone may not establish whether tests remain valid, an operation succeeded, or work remains after an interruption. Dev Flow defaults to a new branch in the current directory, also supports the current branch or a dedicated worktree, and retains requirements, plans, check results, blocker reasons and recovery information.
 
@@ -88,7 +88,7 @@ DONE or CANCELLED ends the Task and releases repository claims without automatic
 
 | Component | User purpose |
 | --- | --- |
-| Codex / DeepSeek | Assess requests, perform confirmed development and Host operations, and resume the same Core Task |
+| Codex / DeepSeek / Claude Code | Assess requests, perform confirmed development and Host operations, and resume the same Core Task |
 | Unified lifecycle CLI | Install, diagnose, maintain and remove Adapters, preserving Task data and configuration during ordinary maintenance |
 | Local WebUI | Inspect tasks, results, blockers and recovery, and submit supported operations through Core |
 | Desktop pet | Show multiple Tasks in stacked bubbles and open each WebUI; prioritize blocked tasks, follow unfinished work after completion, and provide pinning, custom appearances, animation controls, resizing and independent start/stop |
@@ -114,12 +114,9 @@ Source capability does not establish stable-package support. Results apply only 
 
 See the [Support Matrix](SUPPORT-MATRIX_en.md) for stable support and unverified scope, and [Project Status](PROJECT-STATUS_en.md) for delivered capabilities and gaps. Protocols and implementation belong in [Architecture](ARCHITECTURE_en.md), and operation parameters in the [Command Reference](COMMANDS_en.md).
 
+## Host interaction
 
-## Host interaction references
-
-Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
-
-[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
+The Host translates developer requests into the shared task workflow. Permissions and session operations differ between Hosts; task state, completion conditions and recovery decisions remain Core-owned. See the [Codex guide](CODEX_en.md), [DeepSeek guide](DEEPSEEK_en.md) and [Claude guide](CLAUDE_en.md) for their actual operations.
 
 ## Acceptance with known failures
 

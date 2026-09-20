@@ -3,10 +3,14 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
+	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/store"
 )
 
@@ -153,5 +157,145 @@ func TestOpenLocalTaskRetainsCarriedSurfaceAndRequirementsAction(t *testing.T) {
 	next, err := service.GetNextAction(context.Background(), GetNextActionRequest{Host: domain.HostCodex, TaskID: task.TaskID})
 	if err != nil || next.CurrentNode != domain.NodeRequirements {
 		t.Fatalf("next=%+v err=%v", next, err)
+	}
+}
+
+func TestBlockerResolutionRecoversStoredDecisionAfterReopen(t *testing.T) {
+	for _, repositories := range []int{1, 2} {
+		for _, choice := range []string{"allow_once", "expand_scope", "accept_current_history"} {
+			t.Run(fmt.Sprintf("%d_repositories/%s", repositories, choice), func(t *testing.T) {
+				ctx := context.Background()
+				path := filepath.Join(t.TempDir(), "recovery.db")
+				database, err := store.Open(ctx, path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() { database.Close() }()
+				now := time.Date(2026, 9, 20, 3, 0, 0, 0, time.UTC)
+				root := testPath("core")
+				primary := multiRepositoryBinding(now, root, 'a')
+				observer := &multiRepositoryObserver{bindings: map[string]domain.RepositoryBinding{root: primary}}
+				request := multiRepositoryOpenRequest("open-blocker-recovery", root, primary)
+				target := root
+				if repositories == 2 {
+					target = testPath("docs")
+					additional := multiRepositoryBinding(now, target, 'b')
+					observer.bindings[target] = additional
+					request.AdditionalRepositories = []AdditionalRepositoryInput{additionalRepositoryInput("docs", target, additional)}
+				}
+				failing := &controlCenterCommitFailureStore{SQLite: database}
+				ids := sequentialTestIDs()
+				service, err := newService(failing, observer, func() time.Time { return now }, ids)
+				if err != nil {
+					t.Fatal(err)
+				}
+				opened, err := service.OpenTask(ctx, request)
+				if err != nil {
+					t.Fatal(err)
+				}
+				task := applyPhase5(t, service, opened.Task, "requirements_ready", "", requirementsNodeResult("Recovery goal", []string{"Recovery works"}))
+				task = applyPhase5(t, service, task, "design_ready", "", designNodeResult(1, "Shared decision validation"))
+				item := workItem("work-a", []uint32{0}, nil)
+				if repositories == 2 {
+					item["expected_paths"] = []string{"docs::internal/file.go"}
+				}
+				task = applyPhase5(t, service, task, "tasks_ready", "", tasksNodeResult(1, []map[string]any{item}))
+				accepted := observer.bindings[target].Clone()
+				if choice == "accept_current_history" {
+					accepted.HistoryRelation = domain.RepositoryHistoryRewrite
+					accepted.HistoryDigest, accepted.BindingDigest = digestOf("c"), digestOf("c")
+				} else {
+					accepted = phase5BindingWithSurface(accepted, []string{"internal/extra.go"}, "c")
+				}
+				observer.bindings[target] = accepted
+				blocked, err := service.GetNextAction(ctx, GetNextActionRequest{Host: task.OriginHost, TaskID: task.TaskID})
+				if err != nil || blocked.CurrentNode != domain.NodeBlocked {
+					t.Fatalf("blocked=%+v err=%v", blocked, err)
+				}
+				resolve := RecoverActionRequest{Host: task.OriginHost, TaskID: task.TaskID, ActionID: blocked.Action.ActionID}
+				if choice == "accept_current_history" {
+					resolve.HistoryResolution = &domain.WorkspaceHistoryResolutionInput{Choice: choice, Reason: "Accept the reviewed task branch history."}
+				} else {
+					resolve.FileScopeDecision = &domain.FileScopeDecisionInput{Choice: domain.FileScopeDecision(choice), Reason: "The observed path is required by this task."}
+				}
+				failing.fail = true
+				if _, err := service.ResolveBlockerAction(ctx, resolve, "saved-resolution"); !errors.Is(err, domain.ErrStorageUnavailable) {
+					t.Fatalf("injected commit error=%v", err)
+				}
+				stored, found, err := database.LoadActionOperation(ctx, task.TaskID)
+				if err != nil || !found || stored.AppliedRevision != nil {
+					t.Fatalf("staged operation=%+v found=%v err=%v", stored, found, err)
+				}
+				before, err := database.LoadTask(ctx, task.TaskID)
+				if err != nil || before.Revision != blocked.Revision {
+					t.Fatalf("stage changed task revision: %d err=%v", before.Revision, err)
+				}
+				events, err := database.LoadTaskEvents(ctx, task.TaskID)
+				if err != nil || len(events) != int(blocked.Revision) {
+					t.Fatalf("stage changed events: %d err=%v", len(events), err)
+				}
+				if err := database.Close(); err != nil {
+					t.Fatal(err)
+				}
+				database, err = store.Open(ctx, path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				service, err = newService(database, observer, func() time.Time { return now }, ids)
+				if err != nil {
+					t.Fatal(err)
+				}
+				drifted := phase5BindingWithSurface(accepted, []string{"internal/extra.go", "unreviewed.go"}, "d")
+				observer.bindings[target] = drifted
+				read, err := service.GetTask(ctx, GetTaskRequest{Host: task.OriginHost, TaskID: task.TaskID})
+				if err != nil || read.RecoveryAssessment == nil || read.RecoveryAssessment.Classification != domain.RecoveryConflicting || read.RecoveryAssessment.NextAdvice != recovery.AdviceStopForRepositoryDrift {
+					t.Fatalf("drift assessment=%+v err=%v", read.RecoveryAssessment, err)
+				}
+				unchanged, err := service.RecoverAction(ctx, resolve)
+				if err != nil || !reflect.DeepEqual(before, unchanged.Task) {
+					t.Fatalf("conflicting recovery changed the existing blocker: err=%v", err)
+				}
+				observer.bindings[target] = accepted
+				read, err = service.GetTask(ctx, GetTaskRequest{Host: task.OriginHost, TaskID: task.TaskID})
+				if err != nil || read.RecoveryAssessment == nil || read.RecoveryAssessment.Classification != domain.RecoveryCompletedButUnrecorded {
+					t.Fatalf("restored assessment=%+v err=%v", read.RecoveryAssessment, err)
+				}
+				if choice == "accept_current_history" && read.RecoveryAssessment.RepositoryRelation != recovery.RepositoryForbiddenChange {
+					t.Fatal("accepted history lost its actual relation")
+				}
+				recovered, err := service.RecoverAction(ctx, resolve)
+				want := domain.NodeImplement
+				if choice == "expand_scope" {
+					want = domain.NodeTasks
+				}
+				if err != nil || recovered.Task.CurrentNode != want || recovered.Task.Revision != blocked.Revision+1 || recovered.Task.Blocker != nil || recovered.Task.ResumeNode != nil {
+					t.Fatalf("recovery node=%s revision=%d err=%v", recovered.Task.CurrentNode, recovered.Task.Revision, err)
+				}
+				if choice == "allow_once" && (len(recovered.Task.FileScopeRecords) != 1 || !recovered.Task.FileScopeRecords[0].Consumed || len(recovered.Task.FileScopeRecords[0].AcceptedPathStates) != 1) {
+					t.Fatal("recovery did not retain the accepted file state")
+				}
+				if choice == "expand_scope" && recovered.Task.TaskPlan != nil {
+					t.Fatal("scope expansion retained the old plan")
+				}
+				repeated, err := service.RecoverAction(ctx, resolve)
+				if err != nil || !reflect.DeepEqual(repeated.Task, recovered.Task) {
+					t.Fatalf("repeated recovery changed the task: %v", err)
+				}
+				applied, found, err := database.LoadActionOperation(ctx, task.TaskID)
+				if err != nil || !found || !applied.Commit.Equal(stored.Commit) || !applied.RecordedBy(recovered.Task) {
+					t.Fatalf("saved payload or identity changed: found=%v err=%v", found, err)
+				}
+				events, err = database.LoadTaskEvents(ctx, task.TaskID)
+				if err != nil || len(events) != int(blocked.Revision+1) || events[len(events)-1].RequestID != stored.Commit.Operation.OperationID {
+					t.Fatalf("events after recovery=%d err=%v", len(events), err)
+				}
+				for _, identity := range store.RepositoryClaimIdentities(recovered.Task) {
+					claimed, err := database.LoadActiveTask(ctx, identity)
+					if err != nil || claimed.TaskID != task.TaskID {
+						t.Fatalf("claim changed: %v", err)
+					}
+				}
+			})
+		}
 	}
 }

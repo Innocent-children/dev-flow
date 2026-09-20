@@ -22,6 +22,8 @@ Builds target two exact runtime pairs: Go `darwin/arm64` maps to Node `darwin-ar
 
 Native macOS and Windows checks run separately. Cross-compilation establishes buildability, not execution in the target OS or actual Host. A Windows CI runner does not establish Windows Server support. See [Scripts](../scripts/README_en.md) for check entry points and [Release](../release/README.md) for publication requirements.
 
+Windows CI uses `pnpm/action-setup` in `standalone` mode to provide native `pnpm.exe`. Before installing dependencies, it checks the version through the repository's command execution entry point so later Node builds can use the same tool. The pnpm major-version range is unchanged; see the [CI workflow](../.github/workflows/ci.yml).
+
 ## Core dependencies
 
 | Dependency | Compatible range and purpose |

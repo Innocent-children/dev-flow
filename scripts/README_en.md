@@ -12,8 +12,10 @@ install real Host products or create npm, Tag, or GitHub Release state.
 | --- | --- |
 | `pnpm run validate` | Run the repository's required checks |
 | `pnpm run validate:contracts` | Run public contract tests only |
-| `pnpm run versions:check` | Verify Core, Codex, and DeepSeek version files and mirrors |
-| `pnpm run dev-flow:local` | Pack all three products from current source and open the normal `dev-flow` install menu |
+| `pnpm run versions:check` | Verify Core, Codex, DeepSeek, and Claude version files and mirrors |
+| `pnpm run dev-flow:local` | Pack three Adapters and the manager from current source and open the normal `dev-flow` install menu |
+| `node scripts/build-claude-local.mjs --output <absolute-directory>` | Build a Claude Adapter tarball outside the repository; does not install it |
+| `node tests/claude/verify-package.mjs <extracted-package> <claude-executable>` | Verify a final package with an actual Claude CLI and isolated configuration; does not authenticate a model session |
 | `pnpm --dir packages/codex test` | Run Codex package-local tests |
 | `pnpm --dir packages/deepseek test` | Run DeepSeek package-local tests |
 
@@ -35,7 +37,7 @@ Tests are separated by the environment they actually require:
 ## Local installation testing
 
 This one command builds the WebUI and bundled Core, creates `@imotong/dev-flow`, `dev-flow-codex`,
-and `dev-flow-deepseek` tarballs in a temporary directory outside the repository, and starts the
+`dev-flow-deepseek` and `dev-flow-claude` tarballs in a temporary directory outside the repository, and starts the
 unified install menu from the local tarball:
 
 ```bash
@@ -58,6 +60,8 @@ The `dev-flow:local` Node orchestrator runs on macOS arm64 and Windows 10/11 x64
 verifies, and stages both `darwin-arm64/dev-flow` and `win32-x64/dev-flow.exe`. A Windows development
 host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launch.
 
+The local installer runs a temporary manager and does not upgrade an existing global `dev-flow`. Diagnose source installations from the repository root with `node packages/dev-flow/bin/dev-flow.mjs`.
+
 ## Local source builds
 
 - `build-webui.mjs`: build and synchronize the embedded WebUI cross-platform;
@@ -70,7 +74,7 @@ host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launc
 - `build-codex-release.sh` and `build-deepseek-release.sh`: prepare deterministic artifacts for a
   standalone release.
 
-Neither the Codex nor DeepSeek source package stores a precompiled Core. Each `package.json` still
+Host Adapter source packages do not store precompiled Core executables. Each `package.json` still
 declares the two runtime paths required in the final npm package; local builds and release staging
 create those files before packing.
 
@@ -144,14 +148,29 @@ built by this entry.
 
 The build uses `scripts/desktop-pet-artwork.mjs` to copy the default SVG appearance from `packages/desktop-pet/default-appearance/` and compare each delivered file with its source. The pack contains nine clips and 312 frames; the `frames` and `asset_bytes` result fields record its animation frame count and artwork file size. Custom appearances such as Whale Girl are imported from external artwork packs. Generated application bundles and external artwork directories are not tracked by Git.
 
-Build the Windows desktop package with `build-desktop-pet-windows.mjs`. From the repository root, run `npm ci --prefix packages/desktop-pet/windows`, then `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`. Output must be outside the repository. This entry assembles the Windows desktop, launcher and both Adapter packages through the Core target catalog; it does not execute Mac programs, Mac tests or publication.
+Build the Windows desktop package with `build-desktop-pet-windows.mjs`. From the repository root, run `npm ci --prefix packages/desktop-pet/windows`, then `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`. Output must be outside the repository. This entry assembles the Windows desktop, launcher and all three Adapter packages through the Core target catalog; it does not execute Mac programs, Mac tests or publication.
 
-The Windows desktop development distribution now carries complete Codex and DeepSeek packages through buildCoreRuntimes and stageAndPack. It does not create special Adapter archives missing the other Core runtime. After launcher bootstrap, dev-flow install --host all --yes installs both Adapters and the desktop app.
+The Windows desktop development distribution now carries complete Codex, DeepSeek and Claude packages through buildCoreRuntimes and stageAndPack. It does not create special Adapter archives missing the other Core runtime. After launcher bootstrap, dev-flow install --host all --yes installs all three Adapters and the desktop app.
 
 WebUI semantic submission and recovery regressions run with `pnpm --dir packages/webui test`. They exercise current components and the HTTP client with simulated hooks and HTTP, covering transport failure, reopening pending Actions and recovery by Action ID. These are not native browser checks.
 
+## Shared Host commands
+
+Maintain the common Codex/Claude command entry point and its Windows/macOS implementations only in
+`packages/host-command/`. Run `node scripts/sync-host-commands.mjs` to generate `command.mjs`,
+`platform/windows/command.mjs` and `platform/macos/command.mjs` under each Host's `lib/`, with headers
+identifying the shared source. `node scripts/sync-host-commands.mjs --check` checks all six copies
+against the source without writing files. After changing the source, synchronize and commit the
+generated copies together; package-local import paths stay unchanged.
+
+`node scripts/sync-host-commands.mjs --output <ABSOLUTE_LIB_DIRECTORY>` generates the same three files
+into the specified absolute `lib` directory. Both `stageAndPack` in `dev-flow-local.mjs` and
+`build-codex-local.sh` generate staging contents directly from the shared source, so installed packages
+do not depend on the repository's shared directory. The unified manager and DeepSeek do not use these
+generated copies.
+
 ## Shared Skill references
 
-Edit common Core instructions and examples only in `skills/dev-flow/core/`. Run `node scripts/sync-skill-references.mjs` to generate the Codex and DeepSeek package copies, whose headers identify the source. These copies support source browsing and local loading. `node scripts/sync-skill-references.mjs --check` detects stale copies. The Codex local builder and `stageAndPack` also render references in temporary staging, so installed packages do not depend on a shared directory outside the package. Shared text substitutes only the Host value; Host operations remain separately authored. Validation covers both MCP schemas, current transitions, DSH confirmation text and actual packaged files.
+Edit common Core instructions and examples only in `skills/dev-flow/core/`. Run `node scripts/sync-skill-references.mjs` to generate the Codex, DeepSeek and Claude package copies, whose headers identify the source. These copies support source browsing and local loading. `node scripts/sync-skill-references.mjs --check` detects stale copies. The Codex local builder and `stageAndPack` also render references in temporary staging, so installed packages do not depend on a shared directory outside the package. Shared text substitutes only the Host value; Host operations remain separately authored. Validation covers the three Host MCP schemas, current transitions, DSH confirmation text and actual packaged files.
 
 Targeted tests maintain the complete response examples. After editing shared requests, synchronize the package copies first. To update Core examples, run `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 go test ./internal/mcp -run TestSkillSuccessExamplesMatchExecution -count=1`, then synchronize shared references. To update Host examples, run `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 node --test packages/codex/tests/skill-success-examples.test.mjs packages/deepseek/tests/skill-success-examples.test.mjs`. Normal tests compare saved requests and responses without writing files. Review changed example fields and update package and staging lists when adding files. Node test helpers for reading examples, substituting stable values and comparing results live in `tests/skills/executed-examples.mjs`.

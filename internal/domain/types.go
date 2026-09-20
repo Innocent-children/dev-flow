@@ -17,9 +17,10 @@ type Host string
 const (
 	HostCodex    Host = "codex"
 	HostDeepSeek Host = "deepseek"
+	HostClaude   Host = "claude"
 )
 
-func (h Host) IsValid() bool { return h == HostCodex || h == HostDeepSeek }
+func (h Host) IsValid() bool { return h == HostCodex || h == HostDeepSeek || h == HostClaude }
 
 type ActionKind string
 

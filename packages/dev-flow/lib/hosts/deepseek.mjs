@@ -1,10 +1,10 @@
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 import { execPortableCommand } from "../command.mjs";
-import { inspectDeepSeekRuntime } from "../runtime.mjs";
-import { listProfileReceipts, removeProfileReceipt, writeProfileReceipt } from "../ownership.mjs";
+import { adapterCoreRuntimePath, installedCoreRuntime, inspectCoreRuntime } from "../core-runtime.mjs";
+import { listProfileReceipts, removeProfileReceipt, writeProfileReceipt } from "./deepseek-receipts.mjs";
 
 export function createDeepSeekDriver({
   paths,
@@ -17,6 +17,20 @@ export function createDeepSeekDriver({
   inspectRuntime = inspectDeepSeekRuntime,
 } = {}) {
   return Object.freeze({
+    async runtimeCandidates() {
+      return (await listProfileReceipts(paths)).map(receipt => runtimeCandidate(paths, receipt.profile, receipt.installed_version, environment));
+    },
+
+    async maintenanceTargets({ profile, observed }) {
+      const packageRoot = profilePackageRoot(paths, profile, environment);
+      const registered = Boolean(observed.receipt);
+      return {
+        registeredCorePaths: registered ? [adapterCoreRuntimePath(packageRoot, paths)] : [],
+        installedRuntime: await installedCoreRuntime(packageRoot, paths,
+          { host: "deepseek", profile, packageName: "dev-flow-deepseek" }),
+      };
+    },
+
     async knownProfiles() {
       return (await listProfileReceipts(paths)).map((receipt) => receipt.profile);
     },
@@ -194,4 +208,19 @@ function nextStepError(message, nextStep) {
   const error = new Error(message);
   error.nextStep = nextStep;
   return error;
+}
+
+function profilePackageRoot(paths, profile, environment) {
+  return join(resolve(environment.DSH_HOME || join(paths.homeDirectory, ".dsh")), "profiles", profile, "node_modules", "dev-flow-deepseek");
+}
+
+function runtimeCandidate(paths, profile, packageVersion, environment) {
+  const packageRoot = profilePackageRoot(paths, profile, environment);
+  return { source: `deepseek/${profile}`, packageName: "dev-flow-deepseek", packageVersion,
+    expectedCoreVersion: null, packageRoot, runtimePath: adapterCoreRuntimePath(packageRoot, paths) };
+}
+
+async function inspectDeepSeekRuntime(paths, profile, packageVersion, environment) {
+  return inspectCoreRuntime(runtimeCandidate(paths, profile, packageVersion, environment),
+    { environment, requireExecutableMode: paths.requireExecutableMode });
 }

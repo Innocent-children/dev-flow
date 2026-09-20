@@ -80,9 +80,27 @@ name and `carry_changes=false`. `target_branch` names the new task branch. Missi
    Task opens. Recovery reads the original receipt. Uncertain results never repeat creation or snapshot
    application. Later source edits do not alter captured content.
 
+A dedicated worktree does not require a clean or unclaimed source checkout. When changes are not
+carried, the Host creates a clean destination from the frozen commit and leaves the source directory
+and its claim intact. The local-mode checks for accepting initial edits and source claims do not apply
+to this read-only source.
+
 Snapshot preparation rejects unresolved conflicts and submodule changes. Ignored files are excluded.
 DeepSeek assisted cleanup retains local-source branches for separate user inspection and handling;
 local creation does not gain a remote dependency.
+
+All three Hosts use the same shared snapshot implementation. Before returning a snapshot, it reads
+HEAD, the index tree, the working-file tree, and the untracked tree twice in succession. A difference
+stops preparation without returning a snapshot or retrying automatically. Further edits to already
+modified files are compared through their content trees even when Git status stays the same. Failure
+retains source files, staged state, and the launch record; inspect the source before deciding how to
+continue. Preparation still requires one writer. This check does not provide an atomic snapshot under
+arbitrary external concurrency or guarantee detection of content that changes and then changes back.
+
+The assessment anchor has a different responsibility: it retains observations such as the request,
+directory, HEAD, and status without comparing working-file contents. Equal status digests do not prove
+that an already modified file is unchanged. Hosts reassess known requirement or code changes while
+waiting for a choice.
 
 ## Launch records and Task state
 
@@ -108,6 +126,10 @@ counts toward the Task surface; it is not completed work or a passed verificatio
   frozen snapshots, different base branches, managed bootstrap and conflict retention.
 - DeepSeek `workspace-coordinator.test.mjs`: explicit choices, offline creation, binary untracked content
   and consume after relaunch.
+- Targeted snapshot regressions for all three Hosts edit already dirty tracked/untracked files after
+  the first tracked-content capture. They check that unchanged status still stops preparation and
+  preserves source files, the index tree, HEAD, and stash. The Codex tests also compare all three
+  generated copies with the shared source byte for byte.
 - Core `workspace_observer_test.go`: local admission without a remote, required carry authorization for
   initial changes, rejection of remote carry, and retained actual Task surface.
 - Core `workspace_check_test.go`: real Git and SQLite cover local creation, accepted initial changes, unique claims, same-content commits, resume, branch-switch blocking, relocation rejection and cancellation without deleting local files. The availability check creates no database when none exists.

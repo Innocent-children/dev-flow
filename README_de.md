@@ -12,7 +12,7 @@
 
 ## Was du mit Dev Flow tun kannst
 
-Dev Flow hilft dir, lange KI-Programmieraufgaben in Codex oder DeepSeek zu verwalten. Es speichert
+Dev Flow hilft dir, lange KI-Programmieraufgaben in Codex, DeepSeek oder Claude Code zu verwalten. Es speichert
 die vereinbarten Anforderungen, den Dateiumfang, den Prüfplan, den Fortschritt und die Ergebnisse
 lokal, damit du nach dem Ende einer Sitzung weiterarbeiten kannst.
 
@@ -23,38 +23,43 @@ lokal, damit du nach dem Ende einer Sitzung weiterarbeiten kannst.
 
 Das eignet sich für Arbeiten an einem Repository, die mehrere Sitzungen dauern oder klare Grenzen
 für Dateien und Tests benötigen. Für einzelne Fragen, Code-Erklärungen und kleine Änderungen ohne
-gespeicherten Fortschritt ist die direkte Nutzung von Codex oder DeepSeek meist einfacher.
+gespeicherten Fortschritt ist die direkte Nutzung von Codex, DeepSeek oder Claude Code meist einfacher.
 
 ## Schnellstart
 
-> Die stabile npm-Version unter `@latest` ist derzeit auf macOS arm64 verifiziert. Verwende Node.js
-> `>=24` und installiere zuerst eine unterstützte Version von Codex oder DeepSeek Harness. Die nötigen
-> Host-Versionen und weitere Umgebungen stehen in der [Support-Matrix](docs/SUPPORT-MATRIX_en.md).
+> Installiere Node.js `>=24` und den gewünschten Host. Die nötigen Versionen und geprüften Plattformen stehen in der [Support-Matrix](docs/SUPPORT-MATRIX_en.md).
 
 ### 1. Dev Flow installieren
 
-```bash
+Die folgende öffentliche Installation gilt für die veröffentlichten Codex- und DeepSeek-Integrationen. Für Claude Code gilt die [Installationsanleitung aus dem Quellcode](docs/CLAUDE_en.md); die bisherige öffentliche CLI installiert keinen Adapter, der nur im Quellcode vorliegt.
+
+```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Wähle in der interaktiven Einrichtung Codex, DeepSeek oder beide und folge den Hinweisen des Installers:
-
-- **Codex:** Öffne `/hooks`, prüfe den Dev-Flow-Hook und vertraue ihm, um die unterstützten Prüfungen vor Schreibzugriffen zu aktivieren.
-- **DeepSeek Harness:** Starte das ausgewählte DSH Profile nach der Installation neu.
+Wähle deinen Host aus den Optionen des verwendeten Installers. Prüfe und bestätige in Codex den Dev-Flow-Hook unter `/hooks`; starte in DeepSeek das gewählte Profile neu. Lade in Claude Code die Plugins neu oder beginne eine neue Unterhaltung und prüfe die angeforderten Berechtigungen.
 
 ### 2. Eine Aufgabe starten
 
-Sende diese Nachricht in **Codex**:
+Sende nach der jeweiligen Installation eine dieser Nachrichten in der Unterhaltung des Hosts:
+
+**Codex**
 
 ```text
 $dev-flow-codex:dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
 ```
 
-Oder in **DeepSeek Harness**:
+**DeepSeek Harness**
 
 ```text
 /dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
+```
+
+**Claude Code**
+
+```text
+/dev-flow-claude:dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
 ```
 
 Sende diese Nachrichten im Gespräch, nicht im Terminal. Beschreibe Ziel, Abnahmekriterien,
@@ -68,7 +73,7 @@ wenn sie auf alle beteiligten Verzeichnisse zugreifen kann.
 
 Du kannst ausdrücklich den aktuellen Branch weiterverwenden oder einen eigenen Git-Worktree erstellen.
 Für einen Worktree wählst du zusätzlich die lokale oder entfernte Quelle und den Ausgangsbranch. Codex
-öffnet das neue Verzeichnis, wenn der Host dies unterstützt; DeepSeek liefert den passenden Neustartbefehl.
+öffnet das neue Verzeichnis, wenn der Host dies unterstützt; DeepSeek und Claude Code liefern den passenden Neustartbefehl.
 
 Pro Verzeichnis ist nur eine aktive Task möglich. Auch manuelle Änderungen und Änderungen anderer
 Werkzeuge werden erfasst; ein Branchwechsel während der Aufgabe hält den Ablauf an. Lokale Verzeichnisse
@@ -85,6 +90,10 @@ wurde es ersetzt, pausiert die Aufgabe, bis du es wiederherstellst oder die Aufg
 
 Füge in DeepSeek Harness auch der Nachricht zum Fortsetzen `/dev-flow` hinzu.
 
+Öffne in Claude das ursprüngliche Arbeitsverzeichnis und die ursprüngliche Unterhaltung und fordere mit `/dev-flow-claude:dev-flow` ausdrücklich die Fortsetzung der gespeicherten Aufgabe an.
+
+Diese Befehle verwenden den installierten globalen Manager. Bei einer Quellinstallation gilt der entsprechende Einstieg aus der Anleitung.
+
 ```bash
 # Installierte Integrationen anzeigen
 dev-flow status --host all
@@ -98,7 +107,9 @@ die [Befehlsreferenz](docs/COMMANDS_en.md).
 
 ## Desktop-Maskottchen
 
-Das Desktop-Maskottchen zeigt mehrere Aufgaben in gestapelten Sprechblasen und öffnet die jeweilige WebUI. Blockierte Aufgaben haben Vorrang. Nach Abschluss einer Aufgabe wechselt es automatisch zu einer noch offenen Aufgabe; du kannst auch eine Aufgabe anheften. Du kannst das Aussehen anpassen, Animationen steuern, die Größe ändern und das Maskottchen unabhängig starten oder stoppen. Schließe vorher die oben beschriebene Installation und Einrichtung von Codex oder DeepSeek ab.
+Das Maskottchen benötigt einen eingerichteten Adapter und die installierte Desktop-Anwendung. Die alleinige Installation des Claude-Adapters installiert diese Anwendung nicht.
+
+Das Desktop-Maskottchen zeigt mehrere Aufgaben in gestapelten Sprechblasen und öffnet die jeweilige WebUI. Blockierte Aufgaben haben Vorrang. Nach Abschluss einer Aufgabe wechselt es automatisch zu einer noch offenen Aufgabe; du kannst auch eine Aufgabe anheften. Du kannst das Aussehen anpassen, Animationen steuern, die Größe ändern und das Maskottchen unabhängig starten oder stoppen.
 
 ```bash
 dev-flow pet start
@@ -119,7 +130,7 @@ keinen Worktree. Diese Vorgänge erfordern deine gesonderte Zustimmung.
 
 ## Dokumentation
 
-- **Nutzung:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Befehle](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Nutzung:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [Befehle](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **Projekt:** [Produktbeschreibung](docs/PRODUCT_en.md) · [Support-Matrix](docs/SUPPORT-MATRIX_en.md) · [Sicherheit](SECURITY.md)
 - **Entwicklung und Beiträge:** [Dokumentationsübersicht](MANIFEST_en.md) · [Beitragsleitfaden](CONTRIBUTING.md)
 

@@ -17,7 +17,7 @@ export function OpenTaskPage() {
     const data = new FormData(event.currentTarget);
     try {
       const result = await resumeTask({
-        execution_host: String(data.get("execution_host")) as "codex" | "deepseek",
+        execution_host: String(data.get("execution_host")) as "codex" | "deepseek" | "claude",
         repository_path: String(data.get("repository_path") ?? ""),
       });
       if (result.redirect !== null) navigate(result.redirect);
@@ -32,7 +32,7 @@ export function OpenTaskPage() {
     <div className="notice warning" role="note"><strong>{t("open.createInHost")}</strong> {t("open.createInHostDetail")}</div>
     {error !== "" && <div className="notice error" role="alert">{error}</div>}
     <form className="surface lifecycle-form" onSubmit={submit}>
-      <fieldset><legend>{t("open.scope")}</legend><div className="form-grid"><label>{t("open.executionHost")}<SelectField name="execution_host" ariaLabel={t("open.executionHost")} defaultValue="codex" options={[{ value: "codex", label: "Codex" }, { value: "deepseek", label: "DeepSeek" }]} /></label><label>{t("open.worktreePath")}<input name="repository_path" placeholder="/absolute/path/to/original/task-worktree" required /></label></div></fieldset>
+      <fieldset><legend>{t("open.scope")}</legend><div className="form-grid"><label>{t("open.executionHost")}<SelectField name="execution_host" ariaLabel={t("open.executionHost")} defaultValue="codex" options={[{ value: "codex", label: "Codex" }, { value: "deepseek", label: "DeepSeek" }, { value: "claude", label: "Claude Code" }]} /></label><label>{t("open.worktreePath")}<input name="repository_path" placeholder="/absolute/path/to/original/task-worktree" required /></label></div></fieldset>
       <p className="graph-disclaimer">{t("open.resumeInstanceHint")}</p>
       <div className="form-actions"><button className="button primary" disabled={busy}>{busy ? t("open.submitting") : t("open.resumeSubmit")}</button></div>
     </form>

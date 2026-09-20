@@ -19,7 +19,12 @@ const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
 const [serverInfoTool, openTool, getTaskTool, getNextTool] = DEV_FLOW_QUALIFIED_TOOL_NAMES;
 
 test("deterministic DeepSeek Host follows the real Core graph through restart, recovery, refactor, and DONE", async (t) => {
-  const root = await temporaryRoot(t);
+  const root = await temporaryRoot();
+  let core;
+  t.after(async () => {
+    await core?.stop();
+    await rm(root, { recursive: true, force: true });
+  });
   const sources = join(root, "sources");
   const sourceRepository = join(sources, "core");
   const sourceAdditionalRepository = join(sources, "docs");
@@ -34,16 +39,15 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
     request: "Prove the deterministic DeepSeek graph loop.",
     profile: "headless",
     repositories: [
-      { repository_key: "core", source_repository_path: sourceRepository, source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/core-proof" },
-      { repository_key: "docs", source_repository_path: sourceAdditionalRepository, source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/docs-proof" },
+      { repository_key: "core", source_repository_path: sourceRepository, workspace_mode: "dedicated_worktree", source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/core-proof" },
+      { repository_key: "docs", source_repository_path: sourceAdditionalRepository, workspace_mode: "dedicated_worktree", source_type: "remote", carry_changes: false, remote_name: "origin", base_branch: "main", target_branch: "feature/docs-proof" },
     ],
   });
   const consumed = await createWorkspaceCoordinator({ dataDirectory, workspaceRoot: provisioned.workspace_root }).consume({ launchID: provisioned.launch_id });
   const repository = consumed.open_task.repository_path;
   const additionalRepository = consumed.open_task.additional_repositories[0].repository_path;
 
-  const core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot, useSourceRuntime: true });
-  t.after(() => core.stop());
+  core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot, useSourceRuntime: true });
   await core.start();
 
   const deniedBefore = core.calls.length;
@@ -368,8 +372,6 @@ async function initializeGit(repository, remote) {
   await execFile("git", ["push", "-u", "origin", "main"], { cwd: repository, env });
 }
 
-async function temporaryRoot(t) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-graph-")));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  return root;
+async function temporaryRoot() {
+  return await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-graph-")));
 }

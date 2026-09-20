@@ -7,7 +7,7 @@ const chinese = {
   profilePrompt: "DeepSeek Profile [web]：",
   installCodex: "安装 Codex Adapter",
   installDeepSeek: "安装 DeepSeek Adapter",
-  installAll: "安装两个 Adapter",
+  installAll: "安装全部 Adapter",
   plan: "执行计划",
   next: "下一步",
   changed: "已变更",
@@ -39,7 +39,7 @@ const chinese = {
     uninstall: "卸载",
     "factory-reset": "恢复出厂设置",
   },
-  hosts: { codex: "Codex", deepseek: "DeepSeek", all: "全部" },
+  hosts: { codex: "Codex", deepseek: "DeepSeek", claude: "Claude Code", all: "全部" },
   statuses: {
     ready: "就绪",
     absent: "未安装",
@@ -80,7 +80,7 @@ const english = {
   profilePrompt: "DeepSeek Profile [web]: ",
   installCodex: "Install Codex Adapter",
   installDeepSeek: "Install DeepSeek Adapter",
-  installAll: "Install both Adapters",
+  installAll: "Install all Adapters",
   plan: "Plan",
   next: "Next step",
   changed: "Changed",
@@ -105,7 +105,7 @@ const english = {
   operations: Object.fromEntries([
     "status", "doctor", "install", "upgrade", "repair", "reinstall", "uninstall", "factory-reset",
   ].map((operation) => [operation, operation])),
-  hosts: { codex: "codex", deepseek: "deepseek", all: "all" },
+  hosts: { codex: "codex", deepseek: "deepseek", claude: "Claude Code", all: "all" },
   statuses: Object.fromEntries([
     "ready", "absent", "partial", "incompatible", "conflicted", "unknown", "restart_required",
     "confirmation_required", "failed",
@@ -248,7 +248,7 @@ function translateImpact(impact, language, messages) {
     "Preserve Dev Flow user configuration and Task data": "保留 Dev Flow 用户配置和 Task 数据",
   };
   if (fixed[impact]) return fixed[impact];
-  const target = /^(status|doctor|install|upgrade|repair|reinstall|uninstall|factory-reset) (codex|deepseek)(?: Profile (.+)| Adapter)$/u.exec(impact);
+  const target = /^(status|doctor|install|upgrade|repair|reinstall|uninstall|factory-reset) (codex|deepseek|claude)(?: Profile (.+)| Adapter)$/u.exec(impact);
   if (!target) return impact;
   const [, operation, host, profile] = target;
   return `${messages.operations[operation]} ${messages.hosts[host]}${profile ? ` Profile ${profile}` : " Adapter"}`;

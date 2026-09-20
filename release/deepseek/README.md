@@ -45,3 +45,10 @@ bytes, uploads both standalone Core assets, and finalizes the GitHub Release. DS
 remain covered by product tests and do not run inside publication.
 The npm tarball read-back retries only propagation responses such as `ETARGET` and `E404` for up to
 ten minutes; authentication failures and byte mismatches stop immediately.
+
+The shared publisher checks the complete local five-file directory before any remote command on
+both first publication and resume. It requires regular non-symbolic-link files, unique exact artifact
+names, matching release identity, matching tarball/Core digests in the manifest and `SHA256SUMS`, and
+a matching checksum for the manifest itself. Missing, extra, duplicated, out-of-directory, or altered
+files stop publication. npm and GitHub read-back compare against those saved expectations even if a
+local file changes after the initial check.

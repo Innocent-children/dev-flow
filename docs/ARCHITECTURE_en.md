@@ -9,13 +9,13 @@
 ## Core rule
 
 Dev Flow stores business state once. Go Core owns the Task, node, legal transitions, scope,
-verification, Recovery, blockers, claims, and outcome. Codex, DeepSeek, and WebUI are Host Adapters.
+verification, Recovery, blockers, claims, and outcome. Codex, DeepSeek, Claude Code, and WebUI are Host Adapters.
 Core observes Git read-only; only a Host may perform developer-confirmed fetch, branch, worktree,
 relaunch, handoff, and cleanup operations.
 
 ```mermaid
 flowchart TB
-    U[Developer] --> H[Codex / DeepSeek Adapter]
+    U[Developer] --> H[Codex / DeepSeek / Claude Code Adapter]
     H --> A[Read-only change assessment]
     A --> C{Choose Dev Flow?}
     C -->|No| D[Direct work · no Core Task]
@@ -200,6 +200,13 @@ from the current surface, so a path restored to base does not remain a delivery 
 exact-content linear commit therefore preserves it; a real content change invalidates Test and
 Comprehension. Actions bind issuance identity, history, and content digests, and Recovery uses the same facts.
 
+Repository retains separate raw digests for the index and working file. When the path has neither
+`assume-unchanged` nor `skip-worktree`, Git reports no unstaged change, the modes match, and converting
+only CRLF to LF makes the working file match the index, effective
+content uses the raw working-file digest. Git's line-ending conversion therefore does not invalidate
+verification after staging or a linear commit. Actual working-file bytes, modes, and other staged-content
+differences still affect the digest. Observation does not write the index.
+
 ## Observation and blockers
 
 Explicit resume through `dev_flow_open_task` and `dev_flow_get_next_action` observe every Task root
@@ -222,6 +229,13 @@ and intent, `expand_scope` returns to TASKS, and reject/restore requires actual 
 external processes may write first; Core uses the observed content digest for the same scope decision
 on its next observation. A dedicated Task worktree has no "ignore external change" route.
 
+Before a DeepSeek write into a new directory, the Host locates the target's nearest existing parent
+directory and asks Core to identify its repository, retaining the full absolute target for scope checks.
+This also locates the target repository beneath a shared multi-repository Workspace Root. If identification
+fails, Core retains the input directory to check existing claims; timeouts, output limits, and similar
+observation failures cannot count as an absent Task. Repositories without a Task and ordinary non-Git
+directories still allow ordinary writes.
+
 ## Action submission
 
 The eight ordinary node submission tools accept only semantic results, artifacts, method results, a
@@ -241,6 +255,13 @@ A normal mutation:
 After a lost response, the Host retains only Task ID and Action ID and follows the `next_advice` backed
 by Core's retained operation. It does not reconstruct the payload or infer success from files.
 
+Ordinary blocker submission and retained recovery share `recovery.ValidateBlockerResolution`, which
+checks file-scope decisions, accepted history and the saved repository observation. Application builds
+the payload and mutation; Recovery makes the pure decision. Single- and multi-repository Tasks follow
+the same rules, replaying the retained decision after stage succeeds but commit does not. Further
+drift retains the existing blocker and pending operation rather than creating a blocker with BLOCKED
+as its resume node. Relocation retains its separate destination observation and migration checks.
+
 ## Completion record relationships
 
 `internal/domain/completion.go` validates the relationships among plans, implementation, acceptance and current checks. Application reports field or transition errors before writing and uses the same constraints when constructing a mutation. Persisted snapshots validate these relationships as well.
@@ -250,6 +271,10 @@ IMPLEMENT→TEST and REFACTOR→TEST require `completed_work_item_ids` to cover 
 ## Shared HTTP and MCP submission
 
 Ordinary Actions use `Service.SubmitAction`; blockers use `Service.ResolveBlockerAction`. Both assemble canonical payloads in Core and use `StageActionOperation` followed by `CommitActionOperation`. HTTP retains the page revision check. `workflow.ActionSubmissionSchema` defines shared semantic fields; MCP adapts Host schema constraints, while WebUI uses the same semantic structure for its form.
+
+`recovery.ActionCorrectionPaths` owns zero-write correction eligibility and allowed members for ordinary
+Actions. MCP and HTTP project field paths and recovery responses; HTTP retains `payload.` and returns
+`allowed_paths` without maintaining another correction-rule allowlist.
 
 Task detail returns `pending_action_id` for a retained operation that has not been applied. HTTP recovery accepts only the Action ID; `GetTask` and `RecoverAction` read the retained payload and decide the next step. A browser network failure first queries Core, and ordinary submission is hidden while recovery is pending. Reloading the page reads the pending reference from Core. The browser no longer assembles an internal OperationProbe.
 
@@ -359,6 +384,15 @@ Store implements one current SQLite Schema, strict snapshot codec, Action operat
 TaskEvent, claims, and revision CAS. Claim lookup uses directly observable worktree-instance identity so the prewrite hook
 can still find a Task after an illicit branch switch.
 
+Startup validation reads schema metadata, Tasks, Action operations, relocations, claims and events in
+one read transaction. Both live preflight and ordinary read-only connections use SQLite `mode=ro`,
+without declaring the changing database immutable. A concurrent commit is observed as one complete
+version; it cannot mix a previously read Task with newer operations or claims. Unsupported schemas
+and inconsistent records remain errors rather than triggering a fallback or retry.
+Read-only preflight writes no Task or persistent database pages. Reading a live WAL can update reader
+marks in the existing `-shm` file as part of SQLite lock coordination. Checks distinguish unchanged
+database/WAL contents and sidecar membership from those shared-memory read locks.
+
 WebUI is a loopback HTTP Adapter that projects WorkspaceOrigin, observation/surface, blockers,
 relocation, the verification plan, current budget/usage, adjustment reasons, and cleanup choices. It
 no longer creates a Task from an arbitrary checkout and performs no Git mutation or Host handoff.
@@ -374,9 +408,15 @@ no longer creates a Task from an arbitrary checkout and performs no Git mutation
 - Multi-repository Task creation requires every root to be provisioned, authorized, and verified; one
   failure creates no partial Task or claims.
 
+### Claude Code
+
+`packages/claude/` independently owns Claude plugin registration, MCP/Hook transport, sessions and launch records. The plugin root is the complete package root, containing lib, bin, runtime and Skills inside the cache; it must not reference sibling packages outside that cache. `packages/host-workspace/` maintains Git observation, preparation and snapshot functions copied into each Host by the build. It contains no Core nodes or Claude/Codex session decisions.
+
+Claude Write/Edit/NotebookEdit inputs supply complete targets and original-input digests to Core file_scope. Allowing a path does not override Host permissions. Launch records retain requests, origins, operation status and Claude session identity, without a second workflow cursor. Dedicated-worktree relocation retains partial effects until Core verifies every new binding. The unified manager uses `hosts/claude.mjs` for package/registration operations and Claude-specific installation records; that driver supplies Core candidates to the common runtime for WebUI/pet selection.
+
 ## Versions, distribution, and source map
 
-Core, Codex, DeepSeek, and the unified lifecycle package have independent versions. `CORE_VERSION` is
+Core, Codex, DeepSeek, Claude, and the unified lifecycle package have independent versions. `CORE_VERSION` is
 the machine-readable Core version file; npm versions remain in each `package.json`, and ordinary product
 work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 `win32-x64/dev-flow.exe` runtime pairs.
@@ -390,7 +430,9 @@ work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 | `internal/store/` | current-only SQLite, codec, operations, events, claims |
 | `internal/mcp/` | seventeen tools, field restrictions, tool annotations, and the common response structure |
 | `internal/webui/`, `packages/webui/` | loopback Adapter and embedded interface |
-| `packages/codex/`, `packages/deepseek/` | request assessment, worktree creation, session restart/handoff, and packaging |
+| `packages/codex/`, `packages/deepseek/`, `packages/claude/` | request assessment, worktree creation, session restart/handoff, and packaging |
+| `packages/host-workspace/` | Maintained Git observation, preparation and snapshot helpers; copied into consuming Host packages at build time |
+| `packages/host-command/` | Maintained command execution shared by Codex and Claude; generated into each package and assembled directly at build time |
 | `protocol/fixtures/`, `tests/` | public contracts, fault injection, Host end-to-end tests |
 
 Source, machine-readable schemas, package manifests, CLI parsers, and executable tests define current behavior.
@@ -445,13 +487,17 @@ See the [desktop pet guide](DESKTOP-PETS_en.md) for usage, artwork, and trigger 
 
 ## Platform responsibilities
 
-The three Node packages select platform implementations at `lib/platform.mjs`; paths, permissions, commands and cleanup live in `lib/platform/windows/` and `lib/platform/macos/`. Core keeps platform-neutral task semantics. Windows Git processes hide console windows; Codex version/status preflight uses the selected executable policy, and PowerShell launchers use UTF-8. Native validation is recorded separately in the [Windows report](WINDOWS-ADAPTATION_en.md).
+The three Host Adapters and unified manager select their platform policies at `lib/platform.mjs`, with system implementations in `lib/platform/windows/` and `lib/platform/macos/`. Each Adapter maintains its policies in `policies.mjs` under the corresponding system directory. Claude's `platformPolicy()` retains its own small interface; each Adapter continues to own Host registration, lifecycle and session rules. Go Core keeps platform mechanisms in platform-specific files within the responsible package and keeps task semantics platform-neutral.
+
+`packages/host-command/` maintains command execution shared by Codex and Claude. `command.mjs` provides the common entry point and selects the platform command implementation; `platform/windows/command.mjs` and `platform/macos/command.mjs` each handle command discovery, launcher identity and invocation arguments. `scripts/sync-host-commands.mjs` generates copies at the same paths under each Host's `lib/`, with headers identifying the source. Builds also assemble directly from the shared source, so installed packages depend only on their own files. The unified manager and DeepSeek retain their respective command interfaces. See [script maintenance](../scripts/README_en.md#shared-host-commands) for generation and consistency checks.
+
+Windows Git processes hide console windows; Codex version/status preflight uses the selected executable policy, and PowerShell launchers use UTF-8. Native validation is recorded separately in the [Windows report](WINDOWS-ADAPTATION_en.md).
 
 Windows Codex registration validates marketplace `name` and `root` together with Plugin identity; the Windows implementation normalizes the `\\?\` path prefix. macOS uses its own readback rules.
 
 ## Windows desktop responsibilities
 
-`packages/desktop-pet/windows/` owns the Electron window, tray, renderer, local observation and artwork handling; macOS retains Swift/AppKit. Both read Core state. `scripts/build-desktop-pet-windows.mjs` assembles the Windows desktop distribution with both Adapter packages. The launcher verifies bundled hashes and manages application replacement while preserving settings and artwork in `%LOCALAPPDATA%\dev-flow\pet`.
+`packages/desktop-pet/windows/` owns the Electron window, tray, renderer, local observation and artwork handling; macOS retains Swift/AppKit. Both read Core state. `scripts/build-desktop-pet-windows.mjs` assembles the Windows desktop distribution with the Codex, DeepSeek and Claude Adapter packages. The launcher verifies bundled hashes and manages application replacement while preserving settings and artwork in `%LOCALAPPDATA%\dev-flow\pet`.
 
 The Windows path implementation resolves existing AppData directories to actual paths, including aliases supplied by packaged desktop hosts, while rejecting symbolic links. GUI launch uses `Start-Process` and a per-launch acknowledgment, so the persistent desktop process does not retain the invoking terminal’s output handles. Platform maintenance identifies Core by full executable path, command and creation time before stopping instances for replacement.
 
@@ -459,9 +505,41 @@ The Windows path implementation resolves existing AppData directories to actual 
 
 The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
 
+The workspace command runner, `runClosedCommand()`, returns complete results after the child process exits and stdout/stderr close, so incomplete Git output cannot determine repository identity or content. Timeout, cancellation, or output overflow stops collection and rejects success, with bounded completion even when descendants retain output pipes after the parent exits. Mutating commands that have started report an uncertain outcome in these cases so the Host can preserve resources and recover.
+
 ## Lifecycle CLI responsibilities
 
-`packages/dev-flow/lib/cli.mjs` parses arguments and organizes menus; `terminal.mjs` retains input across one interactive session, and `presentation.mjs` renders plans, progress and results. `plan.mjs` creates maintenance actions and confirmation requirements. `lifecycle.mjs` observes state, resolves target versions, presents the plan and obtains confirmation before executing and recording results. `diagnostics.mjs` collects installation and user-configuration checks. Host drivers inspect Codex/npm or DeepSeek Profile/Core and execute confirmed Adapter operations. Platform modules own processes, paths, permissions, cleanup and argument quoting for copyable commands. Retries observe actual installation state; installation records do not determine Core Task state.
+`packages/dev-flow/lib/cli.mjs` parses arguments and organizes menus; `terminal.mjs` retains input across one interactive session, and `presentation.mjs` renders plans, progress and results. `plan.mjs` creates maintenance actions and confirmation requirements. `lifecycle.mjs` observes state, resolves target versions, presents the plan and obtains confirmation before executing and recording results. It calls drivers for the explicitly selected Host/Profile and recreates them after installation paths are canonicalized, so subsequent operations use the same paths. `diagnostics.mjs` collects installation and user-configuration checks. Retries observe actual installation state; installation records do not determine Core Task state.
+
+| Module | Responsibility |
+| --- | --- |
+| `packages/dev-flow/lib/hosts/` | Codex, DeepSeek and Claude drivers each own package discovery and private installation records; DeepSeek also owns Profile rules. Each driver executes confirmed Adapter operations. `runtimeCandidates()` supplies startup candidates; `maintenanceTargets()` supplies package and Core locations for registered installations and packages left by interrupted installation. |
+| `packages/dev-flow/lib/core-runtime.mjs` | Check the common packaged runtime layout, package identity, canonical paths, executable file and Core version. |
+| `packages/dev-flow/lib/core-maintenance.mjs` | Coordinate the known Core service locations for reset and use the existing WebUI status/stop protocol; platform implementations own process inspection and termination. |
+| `packages/dev-flow/lib/runtime.mjs` | Collect driver candidates and call shared validation, select by Core version and source, prepare the data directory, and forward startup arguments and signals. |
+| `packages/dev-flow/lib/platform/` | Receive resolved package and Core executable locations, then handle system paths, permissions, process shutdown, cleanup and command argument quoting. Windows maintenance identifies processes to stop by the actual executable, command and creation time. |
+
+Reset keeps shared-service shutdown separate from executable replacement. After confirmation the manager
+retains the managed Adapter locations, stops the pet, WebUI and identified STDIO Core instances, removes
+the Adapters, then checks again before cleaning data. Failed shutdown, changed process identity or a
+reconnecting matching Core stops cleanup. This covers identifiable managed installations, not arbitrary
+Core executables started elsewhere by hand. Ordinary maintenance preserves Task data.
+Confirmed Core paths remain in a private reset maintenance record until data cleanup succeeds.
+Independent retries still check them after Adapter removal. A retained path whose package is gone
+can block unsafe cleanup, but cannot authorize signalling a process without current ownership checks.
+
+The plan deduplicates cleanup targets by canonical path while retaining explicit-data confirmation.
+Display, confirmation and execution use those same targets. DeepSeek Profile location, format and
+read/write/remove operations belong to `hosts/deepseek-receipts.mjs`; the shared ownership module handles
+managed files and permissions without interpreting those Host fields.
+
+## Shared user configuration
+
+`internal/userconfig.Decode` owns configuration fields and defaults for Codex, DeepSeek and Claude. Core uses it when loading configuration at startup; the read-only `config validate` command accepts raw JSON on stdin for installation and diagnostics. The command enforces a 16 KiB limit and reads no configuration file, Task store or Git state. Results and exit codes are specified in the [command reference](COMMANDS_en.md#configuration-validation).
+
+Codex setup checks configuration paths, file types and permissions before passing existing file bytes to its packaged Core for validation; valid files remain unchanged. A missing configuration file is initialized with `{}`, leaving defaults to Core. The unified manager also initializes configuration with `{}` during factory-reset. Doctor validates existing files through the selected Core and explicitly reports that semantic validation is unavailable when no usable Core exists. Node installation and diagnostic code maintain no separate product-wide field allowlist or Host-default values.
+
+The manager's `resolveManagerPaths()` obtains permission policy from the platform implementation and passes it to `configuration.mjs` as `paths.enforcePrivateModes`. Configuration validation requires an explicit boolean and rejects a missing or incorrectly typed value before reading the file. It checks permissions against that policy without identifying the operating system again or deriving a default policy. Core continues to validate configuration semantics.
 
 ## Artifact preparation
 
@@ -510,4 +588,4 @@ COMPREHENSION_REVIEW and DELIVERY require a current completed Test satisfying or
 
 The current persisted Schema changes without historical readers or migration. MCP, CLI and WebUI expose the same record and transitions. Errors follow the [Core response contract](CORE-RESPONSES_en.md).
 
-Acceptance uses targeted Core and storage integration checks: ordinary passing, accepted known failures, missing comparison/decision, omitted new failures, stale acceptance, restart then delivery, actual limits, completed user checks, permission restrictions, and zero-write correction of missing check explanations. Shared Skill examples cover both Hosts. One transition and attached record preserve truthful results and allow delivery; no additional node, second cursor, automatic log parser, generic waiver or release workflow is introduced. Scope covers workflow/domain/application/store, direct MCP/WebUI consumers, docs and Skills.
+Acceptance uses targeted Core and storage integration checks: ordinary passing, accepted known failures, missing comparison/decision, omitted new failures, stale acceptance, restart then delivery, actual limits, completed user checks, permission restrictions, and zero-write correction of missing check explanations. Shared Skill examples cover all three Hosts. One transition and attached record preserve truthful results and allow delivery; no additional node, second cursor, automatic log parser, generic waiver or release workflow is introduced. Scope covers workflow/domain/application/store, direct MCP/WebUI consumers, docs and Skills.

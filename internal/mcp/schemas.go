@@ -516,19 +516,19 @@ func buildCatalog() []ToolDefinition {
 	// Recovery probes copy saved operations. Core validates all identity fields;
 	// the Host projection retains their types and the three primary required members.
 	probe := obj([]string{"operation_id", "action_id", "payload"}, map[string]any{"operation_id": id(), "process_id": map[string]any{"const": "standard-development"}, "process_definition_digest": digest(), "source_cursor": id(), "expected_revision": map[string]any{"type": "integer", "minimum": 1}, "action_id": id(), "action_kind": id(), "repository_binding_digest": digest(), "issuance_identity_digest": digest(), "issuance_history_digest": digest(), "issuance_content_digest": digest(), "payload": projectForHostBudget(projectableUnion([]any{payload, map[string]any{"type": "null"}}), "payload")})
-	read := obj([]string{"host", "task_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "operation_probe": projectableUnion([]any{probe, map[string]any{"type": "null"}})})
+	read := obj([]string{"host", "task_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek", "claude"}}, "task_id": id(), "operation_probe": projectableUnion([]any{probe, map[string]any{"type": "null"}})})
 	repositoryKey := map[string]any{"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"}
 	workspaceOrigin := obj([]string{"mode", "source_type", "carry_changes", "remote_name", "base_branch", "base_commit", "task_branch", "provisioning_receipt_id"}, map[string]any{"mode": map[string]any{"enum": []string{"new_branch", "current_branch", "dedicated_worktree"}}, "source_type": map[string]any{"enum": []string{"local", "remote"}}, "carry_changes": map[string]any{"type": "boolean"}, "remote_name": map[string]any{"type": "string", "maxLength": 128}, "base_branch": str(), "base_commit": map[string]any{"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}, "task_branch": str(), "provisioning_receipt_id": id()})
 	additionalRepository := obj([]string{"key", "repository_path", "workspace_origin"}, map[string]any{"key": repositoryKey, "repository_path": str(), "workspace_origin": workspaceOrigin})
 	open := obj([]string{"host", "repository_path"}, map[string]any{
-		"host":                    map[string]any{"enum": []string{"codex", "deepseek"}},
+		"host":                    map[string]any{"enum": []string{"codex", "deepseek", "claude"}},
 		"repository_path":         str(),
 		"workspace_origin":        workspaceOrigin,
 		"primary_repository_key":  repositoryKey,
 		"additional_repositories": map[string]any{"type": "array", "maxItems": 7, "items": additionalRepository},
 		"new_task":                map[string]any{"anyOf": []any{newTask, map[string]any{"type": "null"}}},
 	})
-	cancel := obj([]string{"request_id", "host", "task_id", "revision", "reason"}, map[string]any{"request_id": id(), "host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "reason": str()})
+	cancel := obj([]string{"request_id", "host", "task_id", "revision", "reason"}, map[string]any{"request_id": id(), "host": map[string]any{"enum": []string{"codex", "deepseek", "claude"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "reason": str()})
 	defs := map[string]any{"newTask": newTask}
 	open["$defs"] = defs
 	tools := []ToolDefinition{
@@ -540,13 +540,13 @@ func buildCatalog() []ToolDefinition {
 	for _, entry := range actionSubmissionTools {
 		tools = append(tools, makeTool(entry.Name, actionSubmissionDescription(entry.Kind), actionSubmissionSchema(entry.Kind), false, true, false))
 	}
-	actionReference := obj([]string{"host", "task_id", "action_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "action_id": id()})
+	actionReference := obj([]string{"host", "task_id", "action_id"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek", "claude"}}, "task_id": id(), "action_id": id()})
 	resolveBlocker := obj([]string{"host", "task_id", "action_id"}, map[string]any{
-		"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "action_id": id(),
+		"host": map[string]any{"enum": []string{"codex", "deepseek", "claude"}}, "task_id": id(), "action_id": id(),
 		"choice": map[string]any{"enum": []string{"allow_once", "expand_scope", "reject"}}, "reason": str(), "relocation_id": id(), "relocation_destinations": map[string]any{"type": "array", "maxItems": domain.MaxRepositoryScopeEntries, "items": additionalRepositoryPathSchema(repositoryKey)}, "history_resolution": obj([]string{"choice", "reason"}, map[string]any{"choice": map[string]any{"const": "accept_current_history"}, "reason": str()}),
 	})
-	lifecycle := obj([]string{"host", "task_id", "revision"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}})
-	abandon := obj([]string{"host", "task_id", "revision", "reason"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "reason": str()})
+	lifecycle := obj([]string{"host", "task_id", "revision"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek", "claude"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}})
+	abandon := obj([]string{"host", "task_id", "revision", "reason"}, map[string]any{"host": map[string]any{"enum": []string{"codex", "deepseek", "claude"}}, "task_id": id(), "revision": map[string]any{"type": "integer", "minimum": 1}, "reason": str()})
 	tools = append(tools,
 		makeTool(ToolPrepareTaskRelocation, "Prepare one same-machine Task relocation and retain its exact source workspace state.", lifecycle, false, true, false),
 		makeTool(ToolResolveBlocker, "Resolve the current blocker after Core verifies the required repository condition. File-scope blockers also require choice and reason.", resolveBlocker, false, true, false),
@@ -581,7 +581,7 @@ func actionSubmissionSchema(kind domain.ActionKind) map[string]any {
 		panic("missing Action submission schema")
 	}
 	properties := schema["properties"].(map[string]any)
-	properties["host"] = map[string]any{"enum": []string{"codex", "deepseek"}}
+	properties["host"] = map[string]any{"enum": []string{"codex", "deepseek", "claude"}}
 	properties["task_id"], properties["action_id"] = id(), id()
 	schema["required"] = append([]string{"host", "task_id", "action_id"}, schema["required"].([]string)...)
 	return flattenSchema(schema)

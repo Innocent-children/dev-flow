@@ -12,7 +12,7 @@
 
 ## What Dev Flow helps you do
 
-Dev Flow helps you manage long AI coding tasks in Codex or DeepSeek. It saves the agreed requirements,
+Dev Flow helps you manage long AI coding tasks in Codex, DeepSeek or Claude Code. It saves the agreed requirements,
 file scope, verification plan, progress, and results locally so you can continue after a session ends.
 
 - **Keep scope clear:** record the intended files and check the actual changes against the plan.
@@ -21,39 +21,44 @@ file scope, verification plan, progress, and results locally so you can continue
 - **Inspect results:** view progress, checks, and reasons a task needs attention.
 
 It suits repository work that spans sessions or needs explicit scope and testing limits. For one-off
-questions, code explanations, and small edits that need no saved progress, using Codex or DeepSeek
+questions, code explanations, and small edits that need no saved progress, using Codex, DeepSeek or Claude Code
 directly is usually simpler.
 
 ## Quick start
 
-> Stable npm `@latest` is currently verified on macOS arm64. Use Node.js `>=24` and install a supported
-> Codex or DeepSeek Harness first. See the [Support Matrix](docs/SUPPORT-MATRIX_en.md) for Host versions
-> and other environments.
+> Use Node.js `>=24` and install the Host you intend to use. Check Host versions and validated platforms in the [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
 ### 1. Install Dev Flow
 
-```bash
+The public installation below serves the released Codex and DeepSeek integrations. For Claude Code, follow the [source installation guide](docs/CLAUDE_en.md); a source-only adapter is not installed by the older public CLI.
+
+```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Choose Codex, DeepSeek, or both in the interactive setup, then complete the installer's instructions:
-
-- **Codex:** open `/hooks`, review the Dev Flow hook, and trust it to enable supported pre-write checks.
-- **DeepSeek Harness:** restart the selected DSH Profile after installation.
+Choose your Host from the options offered by your installation entry. After setup, review and trust the Dev Flow hook in Codex `/hooks`, restart the selected DeepSeek Profile, or reload Claude plugins/start a new Claude session and review its permission prompts.
 
 ### 2. Start a task
 
-Send this message in **Codex**:
+After completing the appropriate installation, send one of these messages in your Host conversation:
+
+**Codex**
 
 ```text
 $dev-flow-codex:dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
-Or in **DeepSeek Harness**:
+**DeepSeek Harness**
 
 ```text
 /dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
+```
+
+**Claude Code**
+
+```text
+/dev-flow-claude:dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
 Send these in the conversation, not a terminal. Describe your goal, acceptance conditions, file
@@ -67,7 +72,7 @@ all participating directories.
 
 You can explicitly choose to use the current branch or create a dedicated Git worktree. A dedicated
 worktree additionally selects a local or remote source and a starting branch. Codex opens the new
-directory when supported; DeepSeek provides the required relaunch command.
+directory when supported; DeepSeek and Claude Code provide a relaunch command.
 
 One directory supports one active Task. Local manual or external edits are also observed, and changing
 branches during a Task pauses progress. Local directories and branches remain after completion;
@@ -83,6 +88,10 @@ restore it or explicitly abandon the task.
 
 In DeepSeek Harness, include `/dev-flow` in the message asking to resume.
 
+For Claude, reopen the original workspace and conversation and invoke `/dev-flow-claude:dev-flow` to continue the saved task.
+
+These commands use an installed global manager. For source installations, use the corresponding entry in the source guide.
+
 ```bash
 # Inspect installed integrations
 dev-flow status --host all
@@ -96,7 +105,9 @@ For non-interactive installation, custom DSH Profiles, upgrades, repair, and rem
 
 ## Desktop pet
 
-The desktop pet shows multiple tasks in stacked bubbles and opens each task's WebUI. It prioritizes blocked tasks and automatically follows unfinished work after a task completes; you can also pin a task. Customize its appearance, control animations, resize it, and start or stop it independently. Complete the installation and Codex or DeepSeek setup above before using it.
+The pet requires both a configured Adapter and an installed desktop application. Installing the Claude Adapter alone does not install the desktop app.
+
+The desktop pet shows multiple tasks in stacked bubbles and opens each task's WebUI. It prioritizes blocked tasks and automatically follows unfinished work after a task completes; you can also pin a task. Customize its appearance, control animations, resize it, and start or stop it independently.
 
 ```bash
 dev-flow pet start
@@ -117,7 +128,7 @@ require your separate authorization.
 
 ## Documentation
 
-- **Usage:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Usage:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [Commands](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **Project:** [Product](docs/PRODUCT_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md) · [Security](SECURITY.md)
 - **Development and contributions:** [Documentation index](MANIFEST_en.md) · [Contributing](CONTRIBUTING.md)
 

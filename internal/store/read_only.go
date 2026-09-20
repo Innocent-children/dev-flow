@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"net/url"
 	"os"
 	"path/filepath"
 )
@@ -22,14 +21,7 @@ func OpenReadOnly(ctx context.Context, path string) (*SQLite, error) {
 	if err != nil || !info.Mode().IsRegular() {
 		return nil, ErrStorageUnavailable
 	}
-	u, err := url.Parse(dataSource(absolute, false))
-	if err != nil {
-		return nil, ErrStorageUnavailable
-	}
-	query := u.Query()
-	query.Set("mode", "ro")
-	u.RawQuery = query.Encode()
-	db, err := sql.Open("sqlite", u.String())
+	db, err := sql.Open("sqlite", dataSource(absolute, true))
 	if err != nil {
 		return nil, ErrStorageUnavailable
 	}

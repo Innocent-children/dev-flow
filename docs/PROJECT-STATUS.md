@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_最后核对：2026 年 9 月 3 日。_
+_最后核对：2026 年 9 月 20 日。_
 
 Dev Flow 仍是一个早期开源项目。本页区分已经稳定发布、只在 beta 或源码中出现、尚未验证，以及
 产品仍需改进的内容。源码可构建或测试通过不会自动扩大稳定支持。
@@ -23,14 +23,14 @@ npm `@latest` 当前选择以下稳定 package：
 
 ## 当前源码与预览能力
 
-以下能力存在于当前 `main`，其中部分可能只在 beta 或源码中：
+以下为当前源码能力，其中部分可能只在 beta 或源码中：
 
 | 用户可见能力 | 当前内容 |
 | --- | --- |
 | 新请求评估 | Host 先做只读 `small|standard|large|uncertain` 评估并等待用户选择；显式 selector 也不能跳过 |
 | 工作位置选择 | 默认在当前目录新建分支，另可选当前分支或独立工作树；检查目录占用并明确初始修改，全部仓库准备后创建 Task。本地 Host helper 与真实 Core/Git/SQLite 已做定向验证，实际 Host 会话端到端范围仍见下文 |
 | 持久 Task | 本地保存请求、范围、当前阶段、分析后形成的验证计划、当前预算/消耗、调整原因、记录、阻塞和结果 |
-| 中断后继续 | Codex 和 DeepSeek 从同一 Task 恢复当前阶段与下一步 |
+| 中断后继续 | Codex、DeepSeek 和 Claude Code 从同一 Task 恢复当前阶段与下一步 |
 | 范围与验证限制 | TASKS 保存初始验证计划；Core 按当前 Task Plan revision 统计消耗，允许 TEST 用具体原因增加，并继续执行 ExpectedPaths 和记录失效规则 |
 | 按改动范围测试与复核 | Host 对每次命令、完整套件、测试文件修改和修改后复核判断当前相关性；修复后只做相关定向复核 |
 | 自动刹车 | 保存最近三次测试尝试；相同失败、相同结果或相同修改与失败循环第三次精确重复后暂停 |
@@ -39,10 +39,58 @@ npm `@latest` 当前选择以下稳定 package：
 | 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop` |
 | 当前源码平台 | 精确支持 `darwin-arm64` 与 `win32-x64` runtime；Windows 范围是 Windows 10/11 桌面版 x64 |
 | 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；全部 roots 都必须先隔离和授权；同机 relocation 原子替换 bindings 与 claims |
-| Host 生命周期 | 统一 `dev-flow` 入口管理 Codex 与 DeepSeek 的安装、诊断、维护和移除 |
+| Host 生命周期 | 统一 `dev-flow` 入口管理 Codex、DeepSeek 与 Claude Code 的安装、诊断、维护和移除 |
 
 多仓库与 worktree 是高级能力，不代表 Dev Flow 的主要用户场景。它们的源码存在也不表示已有对应
 稳定最终安装包的完整流程测试。
+
+## 验证记录
+
+### 2026-09-20：职责边界与失败恢复
+
+环境：macOS arm64、Node.js 24.19.0、Go 1.27.0。检查当前源码，未发布安装包，未操作真实用户安装或数据。
+
+| 检查 | 实际结果与范围 |
+| --- | --- |
+| Core 恢复 | Application/Recovery 定向检查通过；真实 SQLite 覆盖单仓与多仓的 allow_once、expand_scope、已确认历史，共六组暂存后中断、重开恢复及重复恢复；仓库观察使用测试 fixture |
+| SQLite 预检 | 真实两连接受控提交验证跨表读取同一快照；损坏快照/Schema 拒绝、数据库与 WAL 内容不变及 sidecar 集合/大小检查通过；活跃 WAL 读取允许 SQLite 更新已有 shm 读者标记 |
+| HTTP/MCP | 共享纠正资格、HTTP 字段投影与缺失用户决定拒绝通过；三个 Host 的完整请求/响应示例、错误传输和共享错误示例复验通过 |
+| Host 快照 | 三个 Host 的临时 Git 仓库相关检查 57 项通过；包含状态文本不变而内容变化时拒绝混合快照、源文件及暂存状态保留 |
+| 维护与记录 | 维护、目录去重、DeepSeek 记录及包依赖检查 67 项通过；追加跨调用重试、缓存 Core 定位和私有维护记录检查 22 项通过 |
+| 发布与前端 | 发布校验 66 项通过，均为临时产物和模拟远端；前端恢复 7 项、类型检查与构建、版本引用和三 Host 生成一致性检查通过 |
+
+macOS 进程检查用隔离 Node 可执行文件模拟 STDIO 参数，实际验证停止与保留其他参数进程；没有用该检查替代真实 Core/Host 会话。Windows 维护仅作命令模拟，不是原生 Windows 验证。未运行全仓库套件或真实发布，本记录不扩大稳定支持。
+
+### 2026-09-19：Host 职责修正与 macOS Claude 本地包
+
+环境：macOS arm64、Node.js 24.19.0、Go 1.27.0、Claude Code 2.1.274。检查对象为本次源码和本地构建包，没有发布 npm 包。
+
+| 检查 | 实际结果与范围 |
+| --- | --- |
+| Core | userconfig、CLI、domain、application、repository、mcp 和公开契约定向检查通过；新增配置命令复用 Core 解析，覆盖三 Host 配置、默认值及主要非法输入 |
+| 管理器 | 驱动、运行时、安装维护和打包依赖 54 项通过；菜单、Windows 接口与本地包 20 项通过、3 项原生 Windows 检查跳过；配置桥接 4 项通过，包含真实 Core 子进程 |
+| 既有 Adapter | Codex 配置与启动 36 项通过；Codex/DeepSeek 工作区回归 45 项通过 |
+| Claude 工作区 | 14 项通过；默认 macOS 临时目录下，真实 Core/Git 覆盖自定义主仓库 key 的单仓库、三仓库创建、迁移和原 Task 恢复，非法大写 key 在 Git 写入前拒绝 |
+| Claude 本地包 | 双平台 Core 构建和打包通过；隔离 HOME、配置和数据后，真实 CLI 安装、缓存逐文件核对、重复 setup、独立 Core 握手、移除及无关配置保留通过 |
+| 生成内容 | 三端共享 Skill、版本检查、生成器定向测试和 WebUI 构建通过 |
+
+Windows 管理器维护流程由 macOS 上的 Windows 平台分支模拟验证，不能代替原生 Windows 验收。没有执行已认证 Claude 模型开发会话；插件安装和独立 Core 握手不代表模型已完成任务。未执行全仓库测试，本记录不扩大稳定支持声明。
+
+### 2026-09-14：Windows 源码产物
+
+产物：包含 Codex、DeepSeek 和 Claude Adapter 的本地 Windows 桌面分发包。环境：Windows x64、Claude Code 2.1.270、Node.js >=24、Go 1.27.0。该产物不是稳定 npm 发布。
+
+| 检查 | 实际结果与范围 |
+| --- | --- |
+| Claude Adapter | 10 项通过；覆盖三种工作区模式、本地与远端来源、携带暂存/未暂存/新增内容、多仓库部分失败、实例替换、会话身份、迁移及独立清理授权 |
+| 统一管理器与构建 | 95 项定向检查通过；包含原生 Windows Claude-only Core 发现、菜单、安装维护、残留注册、配置保留及源码打包规则 |
+| 共享 Git 操作 | 48 项 Codex/DeepSeek 相关回归通过；LF fixture 使用仅对测试进程生效的 core.autocrlf=false，全局 Git 配置不变 |
+| Core | domain/application/mcp/userconfig/CLI 定向检查通过；公开契约检查通过 |
+| 仓库观察 | 原有回归、300 文件场景及 SHA-1/SHA-256 原始 blob 与 Git 对照通过；实际任务产物收集约 1.12 秒，在既有 30 秒期限内完成 |
+| Windows 最终包 | 完整桌面源码包构建成功，内含三个 Adapter；摘要回读通过，Claude 包由真实 CLI 安装，缓存逐文件一致，重复安装无变化，包内 Core 握手通过，卸载保留无关配置且可重复执行 |
+| 文档 | 根 README 九语言同步、共享 Skill 三端生成一致、版本检查与链接检查通过 |
+
+验证限制：未执行已认证的 Claude 模型开发会话；本机认证状态为未登录。macOS 仅构建对应 Core，没有原生运行验收。Windows 上的其他检查包括未改动的 macOS 宠物测试失败和两个 Codex handoff 路径字符串断言失败；表中通过范围不包含这些测试，不代表全仓库通过。原生安装验证入口为 tests/claude/verify-package.mjs，逐项结果必须和真实模型会话、模拟接口测试分开理解。
 
 ## 尚未验证
 

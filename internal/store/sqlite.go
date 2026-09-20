@@ -58,7 +58,7 @@ func Open(ctx context.Context, path string) (*SQLite, error) {
 		db.Close()
 		return nil, err
 	}
-	if err := preflightRows(ctx, db); err != nil {
+	if err := preflightDatabase(ctx, db); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -76,7 +76,6 @@ func dataSource(path string, readOnly bool) string {
 	q.Set("_busy_timeout", strconv.FormatInt(domain.SQLiteBusyTimeout.Milliseconds(), 10))
 	if readOnly {
 		q.Set("mode", "ro")
-		q.Set("immutable", "1")
 	}
 	u.RawQuery = q.Encode()
 	return u.String()
@@ -107,13 +106,27 @@ func preflightExisting(ctx context.Context, path string) error {
 	if err := db.PingContext(ctx); err != nil {
 		return ErrSchemaUnsupported
 	}
-	if err := verifyCurrentSchema(ctx, db); err != nil {
+	return preflightDatabase(ctx, db)
+}
+
+/**
+ * Schema and related rows must come from one SQLite snapshot while other Core
+ * processes may commit to the same database.
+ */
+func preflightDatabase(ctx context.Context, db *sql.DB) error {
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return ErrStorageUnavailable
+	}
+	defer tx.Rollback()
+	return preflightSnapshot(ctx, tx)
+}
+
+func preflightSnapshot(ctx context.Context, q queryer) error {
+	if err := verifyCurrentSchema(ctx, q); err != nil {
 		return err
 	}
-	return preflightRows(ctx, db)
-}
-func preflightRows(ctx context.Context, db *sql.DB) error {
-	rows, err := db.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at,archived_at FROM tasks`)
+	rows, err := q.QueryContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at,archived_at FROM tasks`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
@@ -154,7 +167,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 	if rows.Err() != nil || rows.Close() != nil {
 		return ErrStorageUnavailable
 	}
-	operations, err := db.QueryContext(ctx, `SELECT task_id,operation_id,process_id,process_definition_digest,source_node,expected_revision,action_id,action_kind,repository_binding_digest,issuance_identity_digest,issuance_history_digest,issuance_content_digest,payload,payload_digest,prepared_at,applied_revision FROM action_operations`)
+	operations, err := q.QueryContext(ctx, `SELECT task_id,operation_id,process_id,process_definition_digest,source_node,expected_revision,action_id,action_kind,repository_binding_digest,issuance_identity_digest,issuance_history_digest,issuance_content_digest,payload,payload_digest,prepared_at,applied_revision FROM action_operations`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
@@ -181,7 +194,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 	if operations.Err() != nil || operations.Close() != nil {
 		return ErrStorageUnavailable
 	}
-	relocations, err := db.QueryContext(ctx, `SELECT relocation_id,task_id,request_id,source_binding_digest,prepared_at,resolved_revision FROM relocation_operations`)
+	relocations, err := q.QueryContext(ctx, `SELECT relocation_id,task_id,request_id,source_binding_digest,prepared_at,resolved_revision FROM relocation_operations`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
@@ -235,7 +248,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 			return ErrStorageUnavailable
 		}
 	}
-	claims, err := db.QueryContext(ctx, `SELECT worktree_instance_digest,canonical_worktree_root,task_id,origin_host FROM repository_claims`)
+	claims, err := q.QueryContext(ctx, `SELECT worktree_instance_digest,canonical_worktree_root,task_id,origin_host FROM repository_claims`)
 	if err != nil {
 		return ErrSchemaUnsupported
 	}
@@ -266,7 +279,7 @@ func preflightRows(ctx context.Context, db *sql.DB) error {
 		if task.terminal && claimCount[taskID] != 0 || !task.terminal && claimCount[taskID] != len(task.expectedClaims) {
 			return ErrStorageUnavailable
 		}
-		events, err := loadTaskEvents(ctx, db, domain.ID(taskID))
+		events, err := loadTaskEvents(ctx, q, domain.ID(taskID))
 		if err != nil {
 			return ErrStorageUnavailable
 		}

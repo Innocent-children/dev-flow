@@ -498,21 +498,11 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	}
 	fileScopeBlocker := task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseFileScopeDecision
 	historyBlocker := task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseWorkspaceHistoryConflict
-	if fileScopeBlocker {
-		if payload.FileScopeDecision == nil || payload.FileScopeDecision.Validate() != nil {
-			return store.TaskMutation{}, domain.ErrInvalidArgument
-		}
-		if !fileScopeResolutionRepositoryCurrent(task, fresh, comparison) {
+	if err := recovery.ValidateBlockerResolution(task, fresh, comparison, payload); err != nil {
+		if errors.Is(err, domain.ErrRepositoryDrift) {
 			return store.TaskMutation{}, repositoryDriftError(comparison)
 		}
-	} else if payload.FileScopeDecision != nil {
-		return store.TaskMutation{}, domain.ErrInvalidArgument
-	} else if !historyBlocker && comparison.Relation != recovery.RepositoryExact {
-		return store.TaskMutation{}, repositoryDriftError(comparison)
-	}
-	if payload.BlockerID != task.Blocker.BlockerID || payload.Condition != task.Blocker.Condition ||
-		payload.Condition.ExpectedBindingDigest != task.Blocker.Condition.ExpectedBindingDigest || payload.ObservedBindingDigest != comparison.ObservedDigest {
-		return store.TaskMutation{}, domain.ErrInvalidArgument
+		return store.TaskMutation{}, err
 	}
 	next, err := cloneProcessTask(task)
 	if err != nil {
@@ -533,9 +523,6 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 			return store.TaskMutation{}, domain.ErrInvalidArgument
 		}
 		record := &next.FileScopeRecords[fileScopeRecordIndex]
-		if payload.FileScopeDecision.Choice == domain.FileScopeReject && len(unexplainedTaskPaths(task, fresh.Primary, fresh.Additional)) != 0 {
-			return store.TaskMutation{}, domain.ErrRepositoryDrift
-		}
 		record.Decision = payload.FileScopeDecision.Choice
 		record.Reason = payload.FileScopeDecision.Reason
 		record.DecidedAt = &now
@@ -573,12 +560,6 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 		}
 	}
 	if historyBlocker {
-		if payload.HistoryResolution == nil || payload.HistoryResolution.Validate() != nil {
-			return store.TaskMutation{}, domain.ErrInvalidArgument
-		}
-		if !historyResolutionMatchesReviewedWorkspace(task, fresh, comparison) {
-			return store.TaskMutation{}, domain.ErrWorkspaceHistoryConflict
-		}
 		before, err := task.EffectiveWorkspaceDigests()
 		if err != nil {
 			return store.TaskMutation{}, domain.ErrInternal
