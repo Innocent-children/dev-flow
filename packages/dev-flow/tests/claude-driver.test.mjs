@@ -38,3 +38,40 @@ test("Claude orphan removal refuses a replacement marketplace without mutation",
   assert.equal(f.effects.length, 0); assert.ok(await readFile(f.receiptPath));
 });
 
+test("Claude reset includes the owned user plugin cache Core before uninstall", async t => {
+  const root = await mkdtemp(join(tmpdir(), "claude-reset-cache-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const paths = { productRoot: join(root, "dev-flow"), homeDirectory: root, runtimeDirectory: "darwin-arm64", runtimeExecutable: "dev-flow" };
+  const npmRoot = join(root, "npm"), packageRoot = join(npmRoot, "dev-flow-claude");
+  const cachedRoot = join(root, "claude-cache", "dev-flow-claude");
+  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+  await mkdir(join(packageRoot, "runtime", "darwin-arm64"), { recursive: true });
+  await writeFile(runtimePath, "fixture");
+  await mkdir(join(paths.productRoot, "registrations"), { recursive: true });
+  await writeFile(join(paths.productRoot, "registrations", "claude.json"), JSON.stringify({ paths: { package_root: packageRoot, runtime_path: runtimePath } }));
+  let marketplacePath = packageRoot, scope = "user", installPath = cachedRoot;
+  const calls = [];
+  const run = async (exe, args) => {
+    calls.push([exe, ...args]);
+    if (exe === "npm") { assert.deepEqual(args, ["root", "--global"]); return { stdout: npmRoot }; }
+    assert.equal(exe, "claude");
+    if (args[1] === "marketplace") return { stdout: JSON.stringify([{ name: "dev-flow-claude-local", source: "directory", path: marketplacePath }]) };
+    assert.deepEqual(args, ["plugin", "list", "--json"]);
+    return { stdout: JSON.stringify([{ id: "dev-flow-claude@dev-flow-claude-local", scope, installPath }]) };
+  };
+  const driver = createClaudeDriver({ paths, environment: {}, run });
+  const observed = { packageInstalled: true, receipt: true };
+  const replacement = await driver.maintenanceTargets({ observed, operation: "upgrade" });
+  assert.deepEqual(replacement.registeredCorePaths, [runtimePath]);
+  assert.equal(calls.length, 1);
+  const reset = await driver.maintenanceTargets({ observed, operation: "factory-reset" });
+  assert.deepEqual(reset.registeredCorePaths, [runtimePath, join(cachedRoot, "runtime", "darwin-arm64", "dev-flow")]);
+  assert.equal(reset.installedRuntime.runtimePath, runtimePath);
+  marketplacePath = join(root, "foreign-source");
+  await assert.rejects(driver.maintenanceTargets({ observed, operation: "factory-reset" }), /ownership changed/);
+  marketplacePath = packageRoot;
+  scope = "project";
+  await assert.rejects(driver.maintenanceTargets({ observed, operation: "factory-reset" }), /Other plugin scopes/);
+  scope = "user"; installPath = "relative-cache";
+  await assert.rejects(driver.maintenanceTargets({ observed, operation: "factory-reset" }), /path is unavailable/);
+});

@@ -5,15 +5,148 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/dev-flow/internal/mcp"
 	"github.com/Innocent-children/dev-flow/internal/recovery"
 	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
+
+func TestActionCorrectionMatchesMCPForRejectedSemanticPayload(t *testing.T) {
+	action, err := workflow.BuildProcessAction(workflow.StandardProcess(), domain.NodeRequirements, "task", 1, domain.Digest(strings.Repeat("a", 64)), domain.MethodPlain, "action", time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := json.RawMessage(`{"transition_id":"requirements_ready","reason":"","artifacts":{"current":[],"other_process":[]},"method_results":{"requirements.capture":{"capability":"","summary":"Captured."},"requirements.clarify":{"capability":"","summary":"Clarified."},"requirements.validate":{"capability":"","summary":"Validated."}},"node_result":{"problem_class":"none","baseline":{"goal":"Correct errors consistently.","scope":["Error responses"],"out_of_scope":[],"acceptance_criteria":["Both adapters allow the same correction."],"constraints":[],"assumptions":[]},"unresolved_questions":[]}}`)
+	failure := workflow.ValidateCurrentSubmission(action, nil, payload)
+	if failure == nil {
+		t.Fatal("missing summary was accepted")
+	}
+	response := httptest.NewRecorder()
+	writeActionError(response, "request-correction", failure, false)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d", response.Code)
+	}
+	wantHTTP := `{"ok":false,"request_id":"request-correction","workflow_write_state":"not_committed","error":{"details":[{"path":"payload.summary","rule":"required_member_missing","message":"the closed contract requires this member"}],"code":"INVALID_ARGUMENT","message":"the domain value is invalid","field_paths":["payload.summary"],"guard_id":null},"recovery":{"allowed_paths":["payload.summary"],"action":"correct_current_action","retry_safe":true,"message":"Correct only allowed_paths using established facts and resubmit once while this Action identity remains current. Do not guess a user decision; stop if the correction fails."}}`
+	wantMCP := `{"ok":false,"request_id":"request-correction","tool":"dev_flow_submit_requirements","error":{"code":"INVALID_ARGUMENT","message":"The request does not match the closed Core contract.","details":[{"path":"summary","rule":"required_member_missing","message":"the closed contract requires this member"}]},"recovery":{"retry_safe":true,"action":"correct_current_action","message":"Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails.","allowed_paths":["summary"]}}`
+	for name, pair := range map[string][2][]byte{
+		"HTTP": {response.Body.Bytes(), []byte(wantHTTP)},
+		"MCP":  {mcp.EncodeError("request-correction", mcp.ToolSubmitRequirements, failure).JSON, []byte(wantMCP)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var actual, expected any
+			if err := json.Unmarshal(pair[0], &actual); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(pair[1], &expected); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(actual, expected) {
+				t.Fatalf("response=%s\nwant=%s", pair[0], pair[1])
+			}
+		})
+	}
+}
+
+func TestActionCorrectionParityForCurrentFactsAndRejectedDecisions(t *testing.T) {
+	cases := []struct {
+		name    string
+		failure error
+		allowed []string
+	}{
+		{"current set", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.manual_evidence_ids", domain.RuleCurrentSetRequired)), []string{"payload.node_result.manual_evidence_ids"}},
+		{"guard", domain.TransitionGuardFailure("delivery_current_and_complete", domain.GuardViolation("payload.node_result.test_record_id", domain.GuardCurrentValueRequired)), []string{"payload.node_result.test_record_id"}},
+		{"user decision", domain.TransitionGuardFailure("current_user_comprehension_confirmed", domain.GuardViolation("payload.node_result.user_confirmation", domain.GuardUserConfirmationRequired)), nil},
+		{"mixed", domain.InvalidArgumentViolations(domain.Violation("payload.node_result.summary", domain.RuleRequiredMemberMissing), domain.Violation("payload.node_result.checks[0].status", domain.RuleEvidenceStatusInvalid)), nil},
+		{"uncertain", domain.WithoutZeroWriteProof(domain.InvalidArgumentViolations(domain.Violation("payload.summary", domain.RuleRequiredMemberMissing))), nil},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			writeActionError(response, "request-parity", item.failure, false)
+			var httpResult FailureResponse
+			var mcpResult mcp.Envelope
+			if err := json.Unmarshal(response.Body.Bytes(), &httpResult); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(mcp.EncodeError("request-parity", mcp.ToolSubmitDelivery, item.failure).JSON, &mcpResult); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(httpResult.Recovery.AllowedPaths, item.allowed) || httpResult.Recovery.RetrySafe != (len(item.allowed) != 0) || httpResult.Recovery.RetrySafe != mcpResult.Recovery.RetrySafe {
+				t.Fatalf("HTTP=%+v MCP=%+v", httpResult.Recovery, mcpResult.Recovery)
+			}
+			for index, path := range item.allowed {
+				if mcpResult.Recovery.AllowedPaths[index] != strings.TrimPrefix(path, "payload.") {
+					t.Fatalf("paths=%v", mcpResult.Recovery.AllowedPaths)
+				}
+			}
+		})
+	}
+}
+
+func TestActionCorrectionRejectsMissingDecisionMembersFromCurrentSchema(t *testing.T) {
+	cases := []struct {
+		name       string
+		node       domain.NodeID
+		blocker    *domain.ProcessBlocker
+		payload    map[string]any
+		nodeResult map[string]any
+		path       string
+		tool       string
+	}{
+		{name: "file scope choice", node: domain.NodeBlocked, blocker: &domain.ProcessBlocker{Cause: domain.BlockerCauseFileScopeDecision}, payload: map[string]any{"reason": "The paths need a user choice."}, path: "payload.choice", tool: mcp.ToolResolveBlocker},
+		{name: "history decision", node: domain.NodeBlocked, blocker: &domain.ProcessBlocker{Cause: domain.BlockerCauseWorkspaceHistoryConflict}, payload: map[string]any{}, path: "payload.history_resolution", tool: mcp.ToolResolveBlocker},
+		{name: "plan confirmation", node: domain.NodeTasks, nodeResult: map[string]any{"baseline": nil, "findings": []string{}, "problem_class": "none"}, path: "payload.node_result.user_confirmation", tool: mcp.ToolSubmitTasks},
+		{name: "understanding confirmation", node: domain.NodeComprehensionReview, nodeResult: map[string]any{"explained_components": []string{"Core"}, "findings": []string{}, "maintenance_risks": []string{}, "unnecessary_abstractions": []string{}, "unresolved_questions": []string{}, "problem_class": "none"}, path: "payload.node_result.user_confirmation", tool: mcp.ToolSubmitComprehension},
+		{name: "whole result", node: domain.NodeTasks, path: "payload.node_result", tool: mcp.ToolSubmitTasks},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			action, err := workflow.BuildProcessAction(workflow.StandardProcess(), item.node, "task", 1, domain.Digest(strings.Repeat("a", 64)), domain.MethodPlain, "action", time.Now().UTC())
+			if err != nil {
+				t.Fatal(err)
+			}
+			payload := item.payload
+			if payload == nil {
+				methods := map[string]any{}
+				for _, step := range action.SemanticMethodSteps {
+					methods[string(step.StepID)] = map[string]any{"capability": "", "summary": "Current work recorded."}
+				}
+				payload = map[string]any{"transition_id": action.AvailableTransitions[0].TransitionID, "summary": "Submitted current facts.", "reason": "", "artifacts": map[string]any{"current": []any{}, "other_process": []any{}}, "method_results": methods}
+				if item.nodeResult != nil {
+					payload["node_result"] = item.nodeResult
+				}
+			}
+			raw, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			failure := workflow.ValidateCurrentSubmission(action, item.blocker, raw)
+			if failure == nil || !reflect.DeepEqual(domain.ViolationPaths(failure), []string{item.path}) {
+				t.Fatalf("failure=%v paths=%v", failure, domain.ViolationPaths(failure))
+			}
+			response := httptest.NewRecorder()
+			writeActionError(response, "request-decision", failure, false)
+			var httpResult FailureResponse
+			var mcpResult mcp.Envelope
+			if err := json.Unmarshal(response.Body.Bytes(), &httpResult); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(mcp.EncodeError("request-decision", item.tool, failure).JSON, &mcpResult); err != nil {
+				t.Fatal(err)
+			}
+			if httpResult.Recovery.RetrySafe || len(httpResult.Recovery.AllowedPaths) != 0 || mcpResult.Recovery.RetrySafe || len(mcpResult.Recovery.AllowedPaths) != 0 {
+				t.Fatalf("missing decision: HTTP=%+v MCP=%+v", httpResult.Recovery, mcpResult.Recovery)
+			}
+		})
+	}
+}
 
 func TestActionErrorShowsMissingRepositoryPathsAndCorrection(t *testing.T) {
 	failure := domain.InvalidArgumentViolations(domain.Violation("artifacts.other_process", domain.RuleArtifactManifestIncomplete))
@@ -23,8 +156,9 @@ func TestActionErrorShowsMissingRepositoryPathsAndCorrection(t *testing.T) {
 	var body FailureResponse
 	if json.Unmarshal(response.Body.Bytes(), &body) != nil || body.WorkflowWriteState != "not_committed" ||
 		len(body.Error.RepositoryPaths) != 1 || body.Error.RepositoryPaths[0] != "openspec/config.yaml" ||
-		len(body.Error.FieldPaths) != 1 || body.Error.FieldPaths[0] != "artifacts.other_process" ||
-		body.Recovery.Action != RecoveryCorrectCurrentAction || !body.Recovery.RetrySafe {
+		len(body.Error.FieldPaths) != 1 || body.Error.FieldPaths[0] != "payload.artifacts.other_process" ||
+		body.Recovery.Action != RecoveryCorrectCurrentAction || !body.Recovery.RetrySafe ||
+		!reflect.DeepEqual(body.Recovery.AllowedPaths, []string{"payload.artifacts.other_process"}) {
 		t.Fatalf("body=%s", response.Body.String())
 	}
 }

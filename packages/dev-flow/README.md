@@ -57,13 +57,20 @@ After installation, review/trust the Dev Flow hook in Codex, restart the selecte
 
 An absent optional Host is informational in an all-Host diagnostic when another integration is healthy. Installation problems retain available package and registration information for repair. Codex and Claude removal can handle their owned registration after the Adapter package has disappeared; unknown ownership is not permission to remove another installation. Existing unmanaged DeepSeek contributions require explicit `--adopt`.
 
+Doctor checks existing user configuration through an installed Core. If no usable Core is available, it reports that configuration validation could not be completed. A missing configuration file uses Core defaults.
+
 If maintenance fails, keep its output. The result identifies completed work and the next recovery command. Do not remove files manually to make the status appear clean.
 
 ## Task data and reset
 
 Ordinary maintenance and removal retain task data and unrelated Host settings. Default task data is stored in `~/.dev-flow/data` on macOS or `%LOCALAPPDATA%\dev-flow\data` on Windows. An explicit `DEV_FLOW_DATA_DIR` must name an existing canonical directory and remain consistent across the Host and management commands.
 
-Reset displays the exact affected directories and requires its plan-specific token. Recoverable reset uses macOS Trash or the product recovery directory `%LOCALAPPDATA%\dev-flow\trash` on Windows. The latter is not the Windows Recycle Bin. Permanent deletion and clearing an explicitly selected data directory require their own confirmations.
+Reset displays the exact affected directories and requires its plan-specific token. Recoverable reset uses macOS Trash or the product recovery directory `%LOCALAPPDATA%\dev-flow\trash` on Windows. The latter is not the Windows Recycle Bin. Permanent deletion and clearing an explicitly selected data directory require their own confirmations. When reset initializes user configuration, it writes `{}` so Core supplies the defaults for each Host.
+
+Reset stops the managed Adapters' local WebUI and identifiable STDIO Core processes before removing
+them, then checks again before cleaning data. If a process cannot be stopped or a Host reconnects,
+cleanup stops; close that Host session and follow the reported retry instructions. Selecting the same
+directory as both default and explicit data cleans it once while retaining explicit confirmation.
 
 ## WebUI and desktop pet
 

@@ -168,7 +168,7 @@ export async function runCLI(arguments_, dependencies = {}) {
     }
     if (arguments_[0] === "setup") {
       setupAttempted = true;
-      const configuration = await ensureConfiguration(paths);
+      const configuration = await ensureConfiguration(paths, { environment });
       if (configuration.fileChange) completedSetupChanges = [configuration.fileChange];
       const result = await setup({
         paths,

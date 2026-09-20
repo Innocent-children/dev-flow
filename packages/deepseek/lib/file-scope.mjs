@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { statSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 
 import { deriveCurrentTurn } from "./authorization.mjs";
@@ -23,9 +24,9 @@ export function registerFileScopeGate(ctx, {
     if (execution.name === "str_replace_editor" && execution.arguments?.command === "view") {
       return next();
     }
-    const request = preparedWrite(execution, workspaceRoot);
     let result;
     try {
+      const request = preparedWrite(execution, workspaceRoot);
       result = await runCoreCheck(request, { runtimePath, dataDirectory, spawnImpl });
     } catch {
       return { kind: "deny", reason: "Dev Flow file-scope check was unavailable; the write was stopped." };
@@ -54,12 +55,29 @@ export function preparedWrite(execution, workspaceRoot) {
   const normalizedArguments = stableJSON(execution?.arguments ?? {});
   return {
     host: "deepseek",
-    repository_path: dirname(absolute),
+    repository_path: existingTargetDirectory(dirname(absolute)),
     tool_name: execution?.name ?? "",
     paths: complete ? [absolute] : [],
     intent_digest: createHash("sha256").update(`${execution?.name ?? ""}\0${normalizedArguments}`).digest("hex"),
     path_parse_complete: complete && isAbsolute(absolute),
   };
+}
+
+/**
+ * New-file parents may not exist; Git must start in an existing directory of
+ * the target repository, which may be below a multi-repository Workspace Root.
+ */
+function existingTargetDirectory(path) {
+  for (;;) {
+    try {
+      if (!statSync(path).isDirectory()) throw new Error("write target parent is not a directory");
+      return path;
+    } catch (error) {
+      const parent = dirname(path);
+      if (error?.code !== "ENOENT" || parent === path) throw error;
+      path = parent;
+    }
+  }
 }
 
 async function runCoreCheck(request, { runtimePath, dataDirectory, spawnImpl }) {

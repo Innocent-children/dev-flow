@@ -109,3 +109,15 @@ test("every version replacement requires a separate downgrade confirmation", () 
     assert.equal(plan.confirmationClass, 'downgrade', operation);
   }
 });
+
+test("reset plan shares one cleanup target for the same observed canonical directory", () => {
+  const current = observed();
+  current.resources.defaultData = { label: "default-data", path: "/same/data", exists: true, kind: "directory", identity: "same" };
+  current.resources.explicitData = { ...current.resources.defaultData, label: "explicit-data" };
+  const plan = createLifecyclePlan({ ...request("factory-reset", "all"), allKnownProfiles: true }, current);
+  assert.equal(plan.cleanupTargets.length, 1);
+  assert.equal(plan.cleanupTargets[0].requiresExplicitConfirmation, true);
+  assert.deepEqual(plan.resources, [{ label: "default-data", path: "/same/data" }]);
+  current.resources.explicitData.identity = "changed";
+  assert.throws(() => createLifecyclePlan({ ...request("factory-reset", "all"), allKnownProfiles: true }, current), /changed during observation/);
+});

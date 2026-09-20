@@ -58,11 +58,9 @@ type RepositoryScopeComparison struct {
 type RepositoryEffectKind string
 
 const (
-	EffectExactBinding            RepositoryEffectKind = "exact_binding"
-	EffectProcessArtifactOnly     RepositoryEffectKind = "process_artifact_only"
-	EffectProductFileChange       RepositoryEffectKind = "product_file_change"
-	EffectExactBlockerRestoration RepositoryEffectKind = "exact_blocker_restoration"
-	EffectFileScopeResolution     RepositoryEffectKind = "file_scope_resolution"
+	EffectExactBinding        RepositoryEffectKind = "exact_binding"
+	EffectProcessArtifactOnly RepositoryEffectKind = "process_artifact_only"
+	EffectProductFileChange   RepositoryEffectKind = "product_file_change"
 )
 
 type RepositoryEffect struct {

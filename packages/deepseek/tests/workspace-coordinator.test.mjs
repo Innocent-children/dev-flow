@@ -11,6 +11,7 @@ import {
   WORKSPACE_COORDINATOR_TOOL,
   authorizeWorkspaceExecution,
   createWorkspaceCoordinator,
+  runClosedCommand,
   workspaceConfirmationText,
   workspaceCleanupText,
   workspaceResumeText,
@@ -281,6 +282,50 @@ for (const carry of [false, true]) test(`local coordinator works without a remot
   const consumed = await relaunched.consume({ launchID: fixedLaunchID });
   assert.equal(consumed.open_task.workspace_origin.carry_changes, carry);
   assert.equal(consumed.open_task.workspace_origin.source_type, "local");
+});
+
+test("snapshot rejects changed contents even when Git status is unchanged", async (t) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-changing-dsh-snapshot-")));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = join(root, "source"), data = join(root, "data");
+  await mkdir(data);
+  await execFile("git", ["init", "--initial-branch=main", source]);
+  await git(source, ["config", "user.name", "Test"]);
+  await git(source, ["config", "user.email", "test@example.invalid"]);
+  await writeFile(join(source, "file.txt"), "base\n");
+  await git(source, ["add", "."]); await git(source, ["commit", "-m", "base"]);
+  await writeFile(join(source, "file.txt"), "staged\n"); await git(source, ["add", "file.txt"]);
+  await writeFile(join(source, "file.txt"), "tracked-A\n"); await writeFile(join(source, "new.txt"), "untracked-A\n");
+  const before = (await git(source, ["status", "--porcelain=v2", "--untracked-files=all"])).stdout;
+  const index = (await git(source, ["write-tree"])).stdout;
+  const head = (await git(source, ["rev-parse", "HEAD"])).stdout;
+  const stash = (await git(source, ["stash", "list"])).stdout;
+  let captures = 0;
+  const command = async (executable, args, options) => {
+    const result = await runClosedCommand(executable, args, options);
+    if (executable === "git" && args.includes("stash") && args.includes("create") && ++captures === 1) {
+      await writeFile(join(source, "file.txt"), "tracked-B\n");
+      await writeFile(join(source, "new.txt"), "untracked-B\n");
+      assert.equal((await git(source, ["status", "--porcelain=v2", "--untracked-files=all"])).stdout, before);
+    }
+    return result;
+  };
+  const coordinator = createWorkspaceCoordinator({ dataDirectory: data, workspaceRoot: source, launchID: () => fixedLaunchID, command });
+  await assert.rejects(coordinator.provision({ request: "Carry one stable source snapshot", profile: "headless", repositories: [{
+    repository_key: "primary", source_repository_path: source, workspace_mode: "dedicated_worktree", source_type: "local", carry_changes: true,
+    remote_name: "", base_branch: "main", target_branch: "feature/snapshot",
+  }] }), /Source workspace changed while capturing/);
+  assert.equal(captures, 2);
+  const receipt = await readProvisioningReceipt(data, fixedLaunchID);
+  assert.equal(receipt.operation_status, "failed");
+  assert.equal(receipt.repositories[0].snapshot_commit, null);
+  await assert.rejects(stat(receipt.repositories[0].worktree_path), { code: "ENOENT" });
+  assert.equal((await git(source, ["branch", "--list", "feature/snapshot"])).stdout, "");
+  assert.equal(await readFile(join(source, "file.txt"), "utf8"), "tracked-B\n");
+  assert.equal(await readFile(join(source, "new.txt"), "utf8"), "untracked-B\n");
+  assert.equal((await git(source, ["write-tree"])).stdout, index);
+  assert.equal((await git(source, ["rev-parse", "HEAD"])).stdout, head);
+  assert.equal((await git(source, ["stash", "list"])).stdout, stash);
 });
 
 for (const mode of ["new_branch", "current_branch"]) {

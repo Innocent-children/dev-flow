@@ -50,7 +50,7 @@ dev-flow-codex --version
 ```
 
 `setup` 在缺少固定用户配置时创建 macOS 的 `$HOME/.dev-flow/config.json` 或 Windows 的
-`%USERPROFILE%\.dev-flow\config.json`，验证 package、bundled Core 和 Codex 兼容性，再注册
+`%USERPROFILE%\.dev-flow\config.json`，初始内容为 `{}`，默认偏好由 Core 解释。已有配置先经过路径、文件类型和权限检查，再由包内 Core 校验内容；合法配置保持原样，包括 DeepSeek 和 Claude 的设置。`setup` 验证 package、bundled Core 和 Codex 兼容性后注册
 marketplace、Plugin 与 MCP。桌面宠物另按本文的本地开发包说明获取与启动。默认 Task 数据在 macOS 位于 `$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。所有参数和机器可读输出见
 [命令参考](../../docs/COMMANDS.md#codex)。
 

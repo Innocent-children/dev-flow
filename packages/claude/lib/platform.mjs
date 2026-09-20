@@ -7,4 +7,3 @@ export function platformPolicy(platform = process.platform, arch = process.arch)
   return policy;
 }
 export const nativeGitPath = value => platformPolicy().nativeGitPath(value);
-

@@ -34,7 +34,7 @@ After setup, use Codex `/hooks` to inspect and trust the packaged hook. Until th
 complete parser surface.
 
 When absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
-`%USERPROFILE%\.dev-flow\config.json` on Windows. Default Task data is
+`%USERPROFILE%\.dev-flow\config.json` on Windows with `{}`, leaving preference defaults to Core. Existing configuration passes path, file-type and permission checks before its content is validated by the packaged Core. Valid configuration remains unchanged, including DeepSeek and Claude settings. Default Task data is
 `$HOME/.dev-flow/data` or `%LOCALAPPDATA%\dev-flow\data`.
 
 ## Approve the plan before implementation

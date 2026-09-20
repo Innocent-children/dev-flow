@@ -1,17 +1,17 @@
 import { spawn } from "node:child_process";
 import { execFile as execFileCallback } from "node:child_process";
-import { constants as fsConstants } from "node:fs";
-import { access, lstat, readFile, realpath, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
+
+import { createHostDrivers } from "./hosts/index.mjs";
+import { assertCanonicalDirectory, inspectCoreRuntime } from "./core-runtime.mjs";
 
 import { renderHelp } from "./cli.mjs";
 import { resolveLanguage } from "./presentation.mjs";
-import { ensureDefaultDataDirectory, listProfileReceipts, resolveManagerPaths } from "./ownership.mjs";
+import { ensureDefaultDataDirectory, resolveManagerPaths } from "./ownership.mjs";
 
 const execFile = promisify(execFileCallback);
 const packageVersion = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
-const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 
 export async function runDevFlow(arguments_, dependencies = {}) {
   const stdout = dependencies.stdout ?? process.stdout;
@@ -64,6 +64,7 @@ export async function runDevFlow(arguments_, dependencies = {}) {
 }
 
 export async function resolveCoreRuntime({
+  host = "all",
   environment = process.env,
   homeDirectory,
   platform = process.platform,
@@ -76,54 +77,17 @@ export async function resolveCoreRuntime({
   const dataDirectory = paths.explicitDataDirectory ?? paths.defaultDataDirectory;
   const candidates = [];
 
-  const codexReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "codex.json"), "Codex receipt");
-  if (codexReceipt !== null) {
-    const product = exactObject(codexReceipt.product, ["name", "version", "core_version", "codex_compatibility"], "Codex receipt product");
-    const host = exactObject(codexReceipt.host, ["surface", "version", "os", "arch"], "Codex receipt host");
-    const receiptPaths = exactObject(codexReceipt.paths, ["package_root", "runtime_path", "data_dir", "receipt_path"], "Codex receipt paths");
-    if (product.name !== "dev-flow-codex" || !semverPattern.test(product.version) || !semverPattern.test(product.core_version)) {
-      throw new Error("Codex receipt product identity is invalid");
+  const drivers = createHostDrivers({ paths, environment });
+  if (host !== "all" && !Object.hasOwn(drivers, host)) throw new Error(`unsupported runtime Host ${host}`);
+  for (const driver of host === "all" ? Object.values(drivers) : [drivers[host]]) {
+    for (const candidate of await driver.runtimeCandidates()) {
+      candidates.push(await inspectCoreRuntime(candidate, { exec, environment, requireExecutableMode: paths.requireExecutableMode }));
     }
-    if (host.surface !== "codex-cli" || `${host.os}-${host.arch}` !== paths.runtimeKey) {
-      throw new Error("Codex receipt host platform differs from this runtime");
-    }
-    const expectedRuntimePath = adapterCoreRuntimePath(receiptPaths.package_root, paths);
-    if (resolve(receiptPaths.runtime_path) !== resolve(expectedRuntimePath)) {
-      throw new Error("Codex receipt runtime path differs from the supported package layout");
-    }
-    candidates.push(await preflightCandidate({
-      source: "codex",
-      packageName: "dev-flow-codex",
-      packageVersion: product.version,
-      expectedCoreVersion: product.core_version,
-      packageRoot: receiptPaths.package_root,
-      runtimePath: receiptPaths.runtime_path,
-    }, exec, environment, paths.requireExecutableMode));
   }
 
-  const claudeReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "claude.json"), "Claude receipt");
-  if (claudeReceipt !== null) {
-    const product = exactObject(claudeReceipt.product, ["name", "version", "core_version"], "Claude receipt product");
-    const host = exactObject(claudeReceipt.host, ["surface", "version", "os", "arch"], "Claude receipt host");
-    const recorded = exactObject(claudeReceipt.paths, ["package_root", "runtime_path", "data_dir", "receipt_path", "config_root"], "Claude receipt paths");
-    if (product.name !== "dev-flow-claude" || !semverPattern.test(product.version) || !semverPattern.test(product.core_version) || host.surface !== "claude-cli" || `${host.os}-${host.arch}` !== paths.runtimeKey) throw new Error("Claude receipt identity is invalid");
-    if (resolve(recorded.runtime_path) !== resolve(adapterCoreRuntimePath(recorded.package_root, paths))) throw new Error("Claude runtime differs from its package layout");
-    candidates.push(await preflightCandidate({ source: "claude", packageName: "dev-flow-claude", packageVersion: product.version, expectedCoreVersion: product.core_version, packageRoot: recorded.package_root, runtimePath: recorded.runtime_path }, exec, environment, paths.requireExecutableMode));
-  }
-  const dshHome = deepseekHome(environment, paths);
-  for (const receipt of await listProfileReceipts(paths)) {
-    const packageRoot = join(dshHome, "profiles", receipt.profile, "node_modules", "dev-flow-deepseek");
-    candidates.push(await preflightCandidate({
-      source: `deepseek/${receipt.profile}`,
-      packageName: "dev-flow-deepseek",
-      packageVersion: receipt.installed_version,
-      expectedCoreVersion: null,
-      packageRoot,
-      runtimePath: adapterCoreRuntimePath(packageRoot, paths),
-    }, exec, environment, paths.requireExecutableMode));
-  }
-
-  if (candidates.length === 0) throw new NoRuntimeError("no installed Codex, DeepSeek or Claude Adapter provides a Core runtime");
+  if (candidates.length === 0) throw new NoRuntimeError(host === "all"
+    ? "no installed Codex, DeepSeek or Claude Adapter provides a Core runtime"
+    : `no installed ${host} Adapter provides a Core runtime`);
   if (requireData) {
     if (initializeDefaultData && paths.explicitDataDirectory === null) await ensureDefaultDataDirectory(paths);
     else await assertCanonicalDirectory(dataDirectory, "Dev Flow data directory");
@@ -144,67 +108,6 @@ export class NoRuntimeError extends Error {
     super(message);
     this.name = "NoRuntimeError";
   }
-}
-
-// The Core runtime an Adapter package provides in the single supported package
-// layout. Runtime selection and Adapter maintenance both name it through this
-// function, so the layout is stated once.
-export function adapterCoreRuntimePath(packageRoot, paths) {
-  return join(packageRoot, "runtime", paths.runtimeDirectory, paths.runtimeExecutable);
-}
-
-// Names the Core runtime of every Adapter the current installation records
-// describe, without executing anything and without verifying the package.
-// Adapter maintenance uses it to stop only a desktop pet that runs a Core it is
-// about to change. A missing or unreadable record simply names no runtime,
-// because such an Adapter could not have been selected to start a pet either.
-export async function listAdapterCoreRuntimes({ paths, environment = process.env }) {
-  const runtimes = [];
-  const claudeReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "claude.json"), "Claude receipt").catch(() => null);
-  if (typeof claudeReceipt?.paths?.runtime_path === "string") runtimes.push(Object.freeze({ host: "claude", profile: null, runtimePath: claudeReceipt.paths.runtime_path }));
-  const codexReceipt = await readOptionalJSON(join(paths.productRoot, "registrations", "codex.json"), "Codex receipt").catch(() => null);
-  const codexRuntimePath = codexReceipt?.paths?.runtime_path;
-  if (typeof codexRuntimePath === "string" && codexRuntimePath !== "") {
-    runtimes.push(Object.freeze({ host: "codex", profile: null, runtimePath: codexRuntimePath }));
-  }
-  const dshHome = deepseekHome(environment, paths);
-  for (const receipt of await listProfileReceipts(paths).catch(() => [])) {
-    const packageRoot = join(dshHome, "profiles", receipt.profile, "node_modules", "dev-flow-deepseek");
-    runtimes.push(Object.freeze({
-      host: "deepseek",
-      profile: receipt.profile,
-      runtimePath: adapterCoreRuntimePath(packageRoot, paths),
-    }));
-  }
-  return Object.freeze(runtimes);
-}
-
-function deepseekHome(environment, paths) {
-  return resolve(environment.DSH_HOME || join(paths.homeDirectory, ".dsh"));
-}
-
-async function preflightCandidate(candidate, exec, environment, requireExecutableMode) {
-  const packageRoot = await realpath(candidate.packageRoot).catch((error) => {
-    throw new Error(`${candidate.source} package root is unavailable`, { cause: error });
-  });
-  if (packageRoot !== resolve(candidate.packageRoot) || !(await stat(packageRoot)).isDirectory()) {
-    throw new Error(`${candidate.source} package root is not canonical`);
-  }
-  const manifest = await readOptionalJSON(join(packageRoot, "package.json"), `${candidate.source} package manifest`);
-  if (manifest?.name !== candidate.packageName || manifest.version !== candidate.packageVersion) {
-    throw new Error(`${candidate.source} package identity differs from its receipt`);
-  }
-  const runtimePath = await assertCanonicalExecutable(
-    candidate.runtimePath,
-    `${candidate.source} Core runtime`,
-    requireExecutableMode,
-  );
-  const result = await exec(runtimePath, ["version"], { cwd: packageRoot, encoding: "utf8", maxBuffer: 64 * 1024, timeout: 15_000, env: environment });
-  const match = /^dev-flow (\S+)\n?$/u.exec(result.stdout);
-  if (!match || !semverPattern.test(match[1]) || candidate.expectedCoreVersion && match[1] !== candidate.expectedCoreVersion) {
-    throw new Error(`${candidate.source} Core identity differs from its receipt`);
-  }
-  return Object.freeze({ source: candidate.source, packageRoot, runtimePath, version: match[1] });
 }
 
 function assertWebUIArguments(arguments_) {
@@ -242,43 +145,9 @@ async function launchCore(selection, arguments_, { environment, spawnImpl, signa
   });
 }
 
-async function readOptionalJSON(path, label) {
-  let info;
-  try { info = await lstat(path); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
-  if (!info.isFile() || info.isSymbolicLink() || info.size > 64 * 1024) throw new Error(`${label} must be a bounded regular file`);
-  try { return JSON.parse(await readFile(path, "utf8")); } catch (error) { throw new Error(`${label} is invalid`, { cause: error }); }
-}
-
-function exactObject(value, keys, label) {
-  if (value === null || typeof value !== "object" || Array.isArray(value) || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort())) {
-    throw new Error(`${label} fields are invalid`);
-  }
-  return value;
-}
-
-async function assertCanonicalDirectory(path, label) {
-  const canonical = await realpath(path).catch((error) => { throw new Error(`${label} is unavailable`, { cause: error }); });
-  if (canonical !== resolve(path) || !(await stat(canonical)).isDirectory()) throw new Error(`${label} must be a canonical directory`);
-}
-
-async function assertCanonicalExecutable(path, label, requireExecutableMode) {
-  const info = await lstat(path).catch((error) => { throw new Error(`${label} is unavailable`, { cause: error }); });
-  if (!info.isFile() || info.isSymbolicLink() || requireExecutableMode && (info.mode & 0o111) === 0) throw new Error(`${label} must be a regular executable file`);
-  await access(path, requireExecutableMode ? fsConstants.X_OK : fsConstants.F_OK);
-  const canonical = await realpath(path);
-  if (canonical !== resolve(path)) throw new Error(`${label} must be canonical`);
-  return canonical;
-}
-
 function compareSemver(left, right) {
   const a = left.split(".").map(Number);
   const b = right.split(".").map(Number);
   for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
   return 0;
-}
-
-export async function inspectDeepSeekRuntime(paths, profile, packageVersion, environment, exec = execFile) {
-  const packageRoot = join(deepseekHome(environment, paths), "profiles", profile, "node_modules", "dev-flow-deepseek");
-  return preflightCandidate({ source: `deepseek/${profile}`, packageName: "dev-flow-deepseek", packageVersion,
-    expectedCoreVersion: null, packageRoot, runtimePath: adapterCoreRuntimePath(packageRoot, paths) }, exec, environment, paths.requireExecutableMode);
 }

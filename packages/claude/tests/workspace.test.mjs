@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bindTask, cleanup, inspect, prepare, provision, relocate, scope, session } from "../lib/workspace.mjs";
+import { bindTask, cleanup, inspect, prepare, provision, relocate, scope, session, status as launchStatus } from "../lib/workspace.mjs";
+import { paths } from "../lib/runtime.mjs";
 import { defaultRunGit as git } from "../lib/worktree-lifecycle.mjs";
 async function fixture(t) {
-  const parent = await mkdtemp(join(tmpdir(), "claude-workspace-"));
+  const parent = await realpath(await mkdtemp(join(tmpdir(), "claude-workspace-")));
   const root = join(parent, "repo"); await mkdir(root);
   t.after(() => rm(parent, { recursive: true, force: true }));
   await git(["init", "-b", "main", root]); await git(["-C", root, "config", "user.name", "Test"]); await git(["-C", root, "config", "user.email", "test@example.invalid"]);
@@ -42,6 +43,19 @@ test("unresolved assessment cannot write Git", async t => {
   assert.equal(String(await git(["-C", root, "branch", "--show-current"])).trim(), "main");
 });
 
+test("uppercase repository keys are rejected before preparation changes Git", async t => {
+  const { root, options } = await fixture(t);
+  const before = await git(["-C", root, "show-ref"]);
+  await assert.rejects(prepare({ request: "Keep repository keys consistent with Core", assessment: {
+    change_level: "standard", candidate_components: ["workspace"], candidate_paths: ["base.txt"],
+    public_contract_flags: [], persistence_or_state_flags: [], host_or_platform_flags: ["Claude"],
+    verification_shape: ["workspace checks"], reasons: ["Core repository identity"], unknowns: [],
+  }, user_choice: { source: "user", mode: "dev_flow", summary: "Confirmed" },
+  repositories: [dedicated(root, "Backend")], handoff: null }, options), /Repository key/);
+  assert.equal(await git(["-C", root, "show-ref"]), before);
+  assert.equal(String(await git(["-C", root, "branch", "--show-current"])).trim(), "main");
+});
+
 async function prepareSelections(repositories, options) {
   const request = "Complete a multi-repository change";
   const anchor = await inspect({ request, repositories: repositories.map(({ key, repository_path }) => ({ key, repository_path })) });
@@ -52,6 +66,75 @@ async function prepareSelections(repositories, options) {
 function dedicated(root, key = "primary", carry = false) {
   return { key, repository_path: root, workspace_mode: "dedicated_worktree", source_type: "local", remote_name: "", base_branch: "main", target_branch: "task", carry_changes: carry, worktree_path: join(root, "..", "worktree") };
 }
+test("dedicated worktree can exclude changes from an occupied source directory", async t => {
+  for (const sourceType of ["local", "remote"]) await t.test(sourceType, async t => {
+    const { root, options } = await fixture(t);
+    const selection = { ...dedicated(root), source_type: sourceType };
+    if (sourceType === "remote") {
+      const remote = await fixture(t);
+      await writeFile(join(remote.root, "base.txt"), "remote base");
+      await git(["-C", remote.root, "commit", "-am", "remote base"]);
+      await git(["-C", root, "remote", "add", "origin", remote.root]);
+      selection.remote_name = "origin";
+    }
+    await writeFile(join(root, "base.txt"), "staged"); await git(["-C", root, "add", "base.txt"]);
+    await writeFile(join(root, "base.txt"), "working"); await writeFile(join(root, "new.txt"), "untracked");
+    const before = await git(["-C", root, "status", "--porcelain=v2", "--untracked-files=all"]);
+    const index = await git(["-C", root, "write-tree"]);
+    const head = await git(["-C", root, "rev-parse", "HEAD"]);
+    const checks = [];
+    const occupied = { ...options, checkWorkspaceAvailable: async repository_path => {
+      checks.push(repository_path);
+      return { available: false, repository_path, task_id: "existing-source-task" };
+    } };
+    const receipt = await prepareSelections([selection], occupied);
+    assert.equal(receipt.repositories[0].snapshot, null);
+    await provision(receipt.launch_id, occupied);
+    const bound = await scope(receipt.launch_id, occupied);
+    assert.equal(bound.repository_path, selection.worktree_path);
+    assert.equal(bound.workspace_origin.source_type, sourceType);
+    assert.equal(bound.workspace_origin.carry_changes, false);
+    assert.equal(await readFile(join(selection.worktree_path, "base.txt"), "utf8"), sourceType === "remote" ? "remote base" : "base");
+    assert.equal(await git(["-C", selection.worktree_path, "status", "--porcelain=v2"]), "");
+    await assert.rejects(stat(join(selection.worktree_path, "new.txt")), { code: "ENOENT" });
+    assert.deepEqual(checks, []);
+    assert.equal(await readFile(join(root, "base.txt"), "utf8"), "working");
+    assert.equal(await readFile(join(root, "new.txt"), "utf8"), "untracked");
+    assert.equal(await git(["-C", root, "status", "--porcelain=v2", "--untracked-files=all"]), before);
+    assert.equal(await git(["-C", root, "write-tree"]), index);
+    assert.equal(await git(["-C", root, "rev-parse", "HEAD"]), head);
+    assert.equal(String(await git(["-C", root, "branch", "--show-current"])).trim(), "main");
+  });
+});
+test("local workspace modes retain initial-change acceptance and source occupancy checks", async t => {
+  for (const mode of ["new_branch", "current_branch"]) await t.test(mode, async t => {
+    const { root, options } = await fixture(t);
+    const selection = { ...dedicated(root), workspace_mode: mode, worktree_path: root,
+      target_branch: mode === "current_branch" ? "main" : "task" };
+    await writeFile(join(root, "base.txt"), "initial work");
+    await assert.rejects(prepareSelections([selection], options), /initial local changes require explicit acceptance/);
+    selection.carry_changes = true;
+    const checks = [];
+    let available = false;
+    const checked = { ...options, checkWorkspaceAvailable: async repository_path => {
+      checks.push(repository_path);
+      return { available, repository_path };
+    } };
+    await assert.rejects(prepareSelections([selection], checked), /claimed/);
+    available = true;
+    const receipt = await prepareSelections([selection], checked);
+    available = false;
+    await assert.rejects(provision(receipt.launch_id, checked), /claimed/);
+    assert.equal((await launchStatus(receipt.launch_id, options)).repositories[0].phase, "prepared");
+    assert.equal(String(await git(["-C", root, "branch", "--show-current"])).trim(), "main");
+    assert.equal(await git(["-C", root, "branch", "--list", "task"]), "");
+    available = true;
+    await provision(receipt.launch_id, checked);
+    assert.deepEqual(checks, [root, root, root, root]);
+    assert.equal((await scope(receipt.launch_id, options)).workspace_origin.mode, mode);
+    assert.equal(await readFile(join(root, "base.txt"), "utf8"), "initial work");
+  });
+});
 test("dedicated worktree preserves staged, unstaged and untracked content with its source intact", async t => {
   const { root, options } = await fixture(t);
   await writeFile(join(root, "base.txt"), "staged"); await git(["-C", root, "add", "base.txt"]);
@@ -65,6 +148,41 @@ test("dedicated worktree preserves staged, unstaged and untracked content with i
   assert.equal(await git(["-C", root, "status", "--porcelain=v2"]), before);
   assert.equal((await scope(receipt.launch_id, options)).workspace_origin.carry_changes, true);
 });
+test("snapshot rejects changed contents even when Git status is unchanged", async t => {
+  const { root, options } = await fixture(t);
+  await writeFile(join(root, "base.txt"), "staged\n"); await git(["-C", root, "add", "base.txt"]);
+  await writeFile(join(root, "base.txt"), "tracked-A\n"); await writeFile(join(root, "new.txt"), "untracked-A\n");
+  const before = await git(["-C", root, "status", "--porcelain=v2", "--untracked-files=all"]);
+  const index = await git(["-C", root, "write-tree"]);
+  const head = await git(["-C", root, "rev-parse", "HEAD"]);
+  const stash = await git(["-C", root, "stash", "list"]);
+  let captures = 0;
+  const runGit = async (args, opts) => {
+    const output = await git(args, opts);
+    if (args.includes("stash") && args.includes("create") && ++captures === 1) {
+      await writeFile(join(root, "base.txt"), "tracked-B\n");
+      await writeFile(join(root, "new.txt"), "untracked-B\n");
+      assert.equal(await git(["-C", root, "status", "--porcelain=v2", "--untracked-files=all"]), before);
+    }
+    return output;
+  };
+  const selection = dedicated(root, "primary", true);
+  await assert.rejects(prepareSelections([selection], { ...options, runGit }), /Source workspace changed while capturing/);
+  assert.equal(captures, 2);
+  const launchRoot = join((await paths(options.environment)).productRoot, "provisioning", "claude");
+  const [launchID] = await readdir(launchRoot);
+  const receipt = await launchStatus(launchID, options);
+  assert.equal(receipt.repositories[0].phase, "uncertain");
+  assert.equal(receipt.repositories[0].snapshot, null);
+  await assert.rejects(stat(selection.worktree_path), { code: "ENOENT" });
+  assert.equal(await git(["-C", root, "branch", "--list", selection.target_branch]), "");
+  assert.equal(await readFile(join(root, "base.txt"), "utf8"), "tracked-B\n");
+  assert.equal(await readFile(join(root, "new.txt"), "utf8"), "untracked-B\n");
+  assert.equal(await git(["-C", root, "write-tree"]), index);
+  assert.equal(await git(["-C", root, "rev-parse", "HEAD"]), head);
+  assert.equal(await git(["-C", root, "stash", "list"]), stash);
+});
+
 test("all repositories are required and replacement worktree instances are rejected", async t => {
   const one = await fixture(t), two = await fixture(t);
   const selected = [dedicated(one.root), dedicated(two.root, "secondary")];

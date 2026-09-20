@@ -207,6 +207,7 @@ Possible error for this request: Assume the retained Task and Action are current
 
 Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
 `internal/workflow/test_acceptance.go` — `validateKnownFailureAcceptance`;
+`internal/recovery/correction.go` — `ActionCorrectionPaths`;
 `internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
 
 <!-- error-case: {"operation":"remove","path":"node_result.known_failure_acceptance"} -->
@@ -228,12 +229,9 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
     ]
   },
   "recovery": {
-    "retry_safe": true,
-    "action": "correct_current_action",
-    "message": "Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails.",
-    "allowed_paths": [
-      "node_result.known_failure_acceptance"
-    ]
+    "retry_safe": false,
+    "action": "none",
+    "message": "Inspect the reported fields and current schema. This response does not authorize automatic resubmission."
   }
 }
 ```

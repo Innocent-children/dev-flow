@@ -9,4 +9,3 @@ PreToolUse matches Write, Edit and NotebookEdit. The Hook reads cwd and file_pat
 Read actual blocker paths and offer only Core's current resolutions. The user supplies allow-once, expanded-plan or restoration decisions. One-time authorization is tied to the exact prepared input. Bash and external writes remain subject to later Core observation and must not be used to bypass the gate.
 
 Carried staged/unstaged/untracked content belongs in the Task's plan and preservation checks; preservation alone does not verify its business behavior.
-

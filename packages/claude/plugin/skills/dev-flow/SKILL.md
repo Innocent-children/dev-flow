@@ -26,4 +26,3 @@ Follow [lifecycle](references/host-lifecycle.md) for installation, relocation, c
 Follow current user instructions and applicable CLAUDE.md/AGENTS.md. Code indexes are optional: use existing requested tools, otherwise ordinary file/text search; never install an index automatically.
 
 Implementation: packages/claude/lib/workspace.mjs, packages/claude/bin/dev-flow-claude.mjs, packages/claude/plugin/hooks/pre-tool-use.mjs; shared Core instructions are generated from skills/dev-flow/core/.
-

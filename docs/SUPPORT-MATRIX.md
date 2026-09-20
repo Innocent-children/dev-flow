@@ -42,7 +42,11 @@ npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接�
 | 平台 | 实现目标与构建 | 原生验证 | 未验证 |
 | --- | --- | --- | --- |
 | Windows x64 | 包含对应 Core 和 Claude Adapter | Claude CLI 插件安装、缓存核对、重复安装/移除；包内 Core 的独立 stdio 握手 | 已认证模型开发会话及从模型发起的完整工作流 |
-| macOS arm64 | 已生成对应 Core 二进制 | 未执行 | 原生插件安装、模型会话和完整工作流 |
+| macOS arm64 | 已生成包含两个平台 Core 的本地 Adapter 包 | Claude CLI 插件安装、缓存逐文件核对、重复安装/移除及包内独立 Core 握手；真实 Core/Git 的单仓库与多仓库创建、迁移、恢复 | 已认证模型开发会话及从模型发起的完整工作流 |
+
+Windows 原生记录对应 2026-09-14 产物；2026-09-19 的统一管理器维护改动在 macOS 上进行了 Windows 平台分支模拟，尚未进行原生 Windows 复验。macOS 原生检查使用 Claude Code 2.1.274，不涉及稳定包发布。
+
+2026-09-20 的职责与恢复修正完成源码定向检查；macOS 进程停止使用隔离测试进程，Windows 仍为命令模拟。该次检查未重新执行真实 Claude 安装或模型会话，不替代上表的产物验证；范围见[验证记录](PROJECT-STATUS.md)。
 
 Adapter 要求 Node.js `>=24` 和 Claude Code `>=2.1.270`。安装方法见 [Claude 指南](CLAUDE.md)，日期、检查入口及其他限制见[验证记录](PROJECT-STATUS.md)。独立 Core 握手不等于模型已经调用插件工具。
 

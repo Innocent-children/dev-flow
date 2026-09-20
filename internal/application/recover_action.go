@@ -159,18 +159,6 @@ func (s *Service) ResolveBlockerAction(ctx context.Context, request RecoverActio
 	if err != nil {
 		return ApplyActionResult{}, domain.ErrInternal
 	}
-	historyBlocker := task.Blocker.Cause == domain.BlockerCauseWorkspaceHistoryConflict
-	if fileScopeBlocker {
-		if !fileScopeResolutionRepositoryCurrent(task, fresh, comparison) {
-			return ApplyActionResult{}, repositoryDriftError(comparison)
-		}
-	} else if historyBlocker {
-		if !historyResolutionMatchesReviewedWorkspace(task, fresh, comparison) {
-			return ApplyActionResult{}, domain.ErrWorkspaceHistoryConflict
-		}
-	} else if comparison.Relation != recovery.RepositoryExact {
-		return ApplyActionResult{}, repositoryDriftError(comparison)
-	}
 	payload := domain.BlockerResolutionPayload{BlockerID: task.Blocker.BlockerID, Condition: task.Blocker.Condition, ObservedBindingDigest: comparison.ObservedDigest, FileScopeDecision: request.FileScopeDecision, HistoryResolution: request.HistoryResolution}
 	raw, err := json.Marshal(payload)
 	if err != nil {

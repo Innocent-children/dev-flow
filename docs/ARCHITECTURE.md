@@ -176,6 +176,11 @@ binding_digest
 提交成线性 commit 时摘要不变；内容变化才使 Test 与 Comprehension 失效。Action 绑定 issuance
 identity/history/content digests，Recovery 也使用这些事实。
 
+Repository 保留 index 与工作文件各自的原始摘要。路径未设置 `assume-unchanged` 或 `skip-worktree`，
+Git 判断文件没有未暂存差异、mode 相同，且工作文件
+仅将 CRLF 转成 LF 就与 index 一致时，有效内容沿用工作文件摘要；因此 Git 的换行转换不会让纯暂存或
+线性提交使验证失效。实际工作文件字节、mode 或暂存内容的其他变化仍进入摘要，观察过程不写 index。
+
 ## 工作树观察和 Blocker
 
 `dev_flow_open_task` 的显式 resume 与 `dev_flow_get_next_action` 在返回实际工作前观察所有 Task roots。
@@ -196,6 +201,10 @@ identity/history/content digests，Recovery 也使用这些事实。
 和 intent，`expand_scope` 回到 TASKS，reject/restore 要求实际恢复。Bash 或外部进程可能先写，Core 在
 下一次观察中用当前内容摘要建立同样的范围决定。两种目录形态都没有“外部改动可忽略”分支。
 
+DeepSeek 写入新目录前，从目标最近的现存父目录请求 Core 定位仓库，并将完整绝对目标路径交给范围
+检查；多仓 Workspace Root 下仍按目标所属目录定位。Core 定位失败时保留输入目录，以核对已有占用；
+超时、输出超限等观察失败不能按“没有活动 Task”放行。正常无 Task 的仓库和非 Git 目录仍允许普通写入。
+
 ## Action 提交
 
 八个普通节点提交工具只接收 Host 的语义结果、artifact、method result、合法 transition、summary 和
@@ -215,6 +224,11 @@ ExpectedPaths，再构造一次完整 `TaskMutation`。
 响应丢失时 Host 只保留 Task ID 与 Action ID，读取 Core retained operation 后按 `next_advice` 继续；不
 重新拼装 payload，也不从文件状态猜测提交是否成功。
 
+blocker 的普通提交和保存后恢复共用 `recovery.ValidateBlockerResolution`，检查文件范围决定、已确认历史
+及保存的观察是否仍匹配。Application 负责构造载荷与 mutation，Recovery 负责纯判断。单仓和多仓遵守
+同一规则；stage 已成功而 commit 未完成时重放原决定。再次漂移时保留已有 blocker 和待恢复操作，不创建
+以 BLOCKED 为恢复节点的新 blocker。Relocation 继续使用独立的目的地观察和迁移检查。
+
 ## 完成记录关联
 
 `internal/domain/completion.go` 校验计划、实现、验收和当前检查的记录关系；Application 在写入前返回具体的字段或转换错误，并在构造 mutation 时再次使用同一约束。持久化快照也校验这些关系。
@@ -224,6 +238,9 @@ IMPLEMENT→TEST、REFACTOR→TEST 要求 `completed_work_item_ids` 覆盖当前
 ## HTTP 与 MCP 的共同提交路径
 
 普通 Action 使用 `Service.SubmitAction`，blocker 使用 `Service.ResolveBlockerAction`；两者都由 Core 组装内部载荷，再经过 `StageActionOperation` 和 `CommitActionOperation`。HTTP 保留当前页面的 revision 检查。`workflow.ActionSubmissionSchema` 定义共享语义字段，MCP 适配 Host Schema 限制，WebUI 使用同一份语义结构生成表单。
+
+`recovery.ActionCorrectionPaths` 统一普通 Action 零写入错误的纠正资格与允许字段。MCP 和 HTTP 仅投影
+字段路径与恢复响应；HTTP 保留 `payload.` 前缀并返回 `allowed_paths`，不维护另一份可纠正规则白名单。
 
 任务详情返回 `pending_action_id`，表示 Core 已保存但尚未应用的操作。HTTP 恢复只接收 Action ID，由 `GetTask` 和 `RecoverAction` 读取保存载荷并决定下一步。浏览器网络异常先查询 Core，待恢复期间隐藏普通提交表单；刷新页面后仍从 Core 读取待恢复标识。浏览器不再组装内部 OperationProbe。
 
@@ -322,6 +339,13 @@ Store 只实现当前 SQLite Schema、严格 snapshot codec、Action operation�
 revision CAS。claim key 使用可直接
 观察的 worktree instance identity，使写前 hook 即使遇到非法 branch switch 仍能找到 Task。
 
+启动校验在同一个读事务中读取 Schema、Task、Action operation、relocation、claim 和 event。
+活跃数据库预检与普通只读连接都使用 SQLite `mode=ro`，不把仍会变化的数据库声明为 immutable。
+并发提交只会体现为一个完整版本，不会把先读到的旧 Task 与新 operation 或 claim 混在一起。
+不支持的 Schema 和不一致的记录仍直接报错，不增加回退或重试。
+只读预检不写 Task 或持久化数据库页；读取活跃 WAL 时，SQLite 的锁协调可能更新已有 `-shm` 的读者标记。
+对应检查分别核对数据库与 `-wal` 内容不变、sidecar 集合不变，不把共享内存读锁误报为 Task 写入。
+
 WebUI 是 loopback HTTP Adapter，只投影 WorkspaceOrigin、当前 observation/surface、blocker、relocation、
 verification plan、当前预算/消耗、调整原因和 cleanup choices。它展示三种工作区模式及对应的迁移、清理操作；创建仍从 Host 启动入口进行，
 也不执行 Git 或 Host handoff。
@@ -340,7 +364,7 @@ verification plan、当前预算/消耗、调整原因和 cleanup choices。它�
 
 `packages/claude/` 独立拥有 Claude 插件注册、MCP/Hook 传输、会话和启动记录。插件根是完整 package 根，缓存内包含 lib、bin、runtime 与 Skill；不得引用缓存外兄弟包。`packages/host-workspace/` 是 Git 观察、准备、快照的维护源，构建向各 Host 复制，不包含 Core 节点或 Claude/Codex 会话决策。
 
-Claude 的 Write/Edit/NotebookEdit 解析完整目标和原始输入摘要，再由 Core file_scope 判定。放行不覆盖 Host 权限。启动记录保存请求、来源、操作状态及 Claude 会话身份，不保存第二流程游标。独立工作树迁移保留部分操作结果，Core 最后核对全部新绑定。统一管理器由 `hosts/claude.mjs` 管理包和注册；runtime 读取 Claude 注册提供 WebUI/宠物使用的 Core。
+Claude 的 Write/Edit/NotebookEdit 解析完整目标和原始输入摘要，再由 Core file_scope 判定。放行不覆盖 Host 权限。启动记录保存请求、来源、操作状态及 Claude 会话身份，不保存第二流程游标。独立工作树迁移保留部分操作结果，Core 最后核对全部新绑定。统一管理器由 `hosts/claude.mjs` 管理包和注册，并读取 Claude 私有安装记录，向公共 runtime 提供 WebUI/宠物可用的 Core 候选。
 
 ## 版本、构建和源码导航
 
@@ -406,13 +430,13 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 
 ## 平台职责
 
-三个 Node 包在 `lib/platform.mjs` 选择平台实现；路径、权限、命令与清理分别位于 `lib/platform/windows/` 和 `lib/platform/macos/`。Core 共用平台中立的任务语义。Windows Git 进程隐藏控制台窗口；Codex 版本与状态预检使用所选平台的可执行文件策略，PowerShell 启动器使用 UTF-8。原生验证单独记录在[Windows 报告](WINDOWS-ADAPTATION.md)。
+各 Node 包在 `lib/platform.mjs` 选择平台实现；路径、权限、命令与清理分别位于 `lib/platform/windows/` 和 `lib/platform/macos/`。Core 共用平台中立的任务语义。Windows Git 进程隐藏控制台窗口；Codex 版本与状态预检使用所选平台的可执行文件策略，PowerShell 启动器使用 UTF-8。原生验证单独记录在[Windows 报告](WINDOWS-ADAPTATION.md)。
 
 Windows Codex 注册回读核对 marketplace 的 `name`、`root` 与 Plugin 身份，并在 Windows 实现中规范化 `\\?\` 路径前缀；macOS 使用自己的回读规则。
 
 ## Windows 桌面职责
 
-`packages/desktop-pet/windows/` 负责 Electron 窗口、托盘、渲染器、本地观察与素材处理，macOS 保留 Swift/AppKit。两者只读取 Core 状态。`scripts/build-desktop-pet-windows.mjs` 装配包含两个 Adapter 包的 Windows 桌面分发包。统一入口校验内置包摘要并管理程序替换，保留 `%LOCALAPPDATA%\dev-flow\pet` 中的设置和形象。
+`packages/desktop-pet/windows/` 负责 Electron 窗口、托盘、渲染器、本地观察与素材处理，macOS 保留 Swift/AppKit。两者只读取 Core 状态。`scripts/build-desktop-pet-windows.mjs` 装配包含 Codex、DeepSeek 和 Claude Adapter 包的 Windows 桌面分发包。统一入口校验内置包摘要并管理程序替换，保留 `%LOCALAPPDATA%\dev-flow\pet` 中的设置和形象。
 
 Windows 路径实现将已有 AppData 目录解析为实际路径，包括打包桌面 Host 提供的目录别名，同时拒绝符号链接。GUI 使用 `Start-Process` 和每次启动的确认记录，避免常驻桌面进程保留调用终端的输出句柄。平台维护通过完整可执行路径、命令和创建时间识别 Core 实例，再停止需要替换的实例。
 
@@ -422,7 +446,32 @@ Windows 路径实现将已有 AppData 目录解析为实际路径，包括打包
 
 ## 生命周期 CLI 职责
 
-`packages/dev-flow/lib/cli.mjs` 解析参数并组织交互菜单，`terminal.mjs` 保留同一次交互中的输入，`presentation.mjs` 展示计划、进度和结果。`plan.mjs` 生成维护动作与确认要求，`lifecycle.mjs` 先观察、解析目标版本、展示计划和取得确认，再执行并记录操作结果。`diagnostics.mjs` 汇总安装与用户配置检查。Host driver 分别核对 Codex/npm 与 DeepSeek Profile/Core，并执行已确认的 Adapter 操作。平台模块负责进程、路径、权限、清理及可复制命令的参数引用。重试重新观察实际安装；安装记录不决定 Core Task 的状态。
+`packages/dev-flow/lib/cli.mjs` 解析参数并组织交互菜单，`terminal.mjs` 保留同一次交互中的输入，`presentation.mjs` 展示计划、进度和结果。`plan.mjs` 生成维护动作与确认要求，`lifecycle.mjs` 先观察、解析目标版本、展示计划和取得确认，再执行并记录操作结果。它按明确选定的 Host/Profile 调用驱动，安装目录规范化后重新创建驱动，使后续操作使用同一组路径。`diagnostics.mjs` 汇总安装与用户配置检查。重试重新观察实际安装；安装记录不决定 Core Task 的状态。
+
+| 模块 | 职责 |
+| --- | --- |
+| `packages/dev-flow/lib/hosts/` | Codex、DeepSeek、Claude 驱动各自拥有包定位和私有安装记录，DeepSeek 同时负责 Profile 规则；各驱动执行已确认的 Adapter 操作。`runtimeCandidates()` 提供启动候选；`maintenanceTargets()` 提供已注册或安装中断后仍存在的包及 Core 位置。 |
+| `packages/dev-flow/lib/core-runtime.mjs` | 核对公共包内 runtime 布局、package 身份、规范路径、可执行文件和 Core 版本。 |
+| `packages/dev-flow/lib/core-maintenance.mjs` | 为 reset 协调已知 Core 服务位置，复用 WebUI status/stop 协议；进程检查和停止由平台实现负责。 |
+| `packages/dev-flow/lib/runtime.mjs` | 汇总各驱动的候选并调用公共校验，按 Core 版本及来源排序选择运行时，准备数据目录并转发启动参数和信号。 |
+| `packages/dev-flow/lib/platform/` | 接收已确定的包及 Core 可执行文件位置，处理系统路径、权限、进程停止、清理和命令参数引用。Windows 维护按实际可执行文件、命令和创建时间识别需要停止的进程。 |
+
+reset 的共享服务停止与可执行文件替换分别处理。确认后，管理器保留已管理 Adapter 的实际位置，停止
+宠物、WebUI 和可识别的 STDIO Core，卸载 Adapter，再在清理数据前复查。退出失败、进程身份变化或
+匹配 Core 重连时停止清理。该检查覆盖能确认归属的受管安装，不枚举其他位置手工启动的任意 Core。
+普通维护继续保留 Task 数据。
+已确认的 Core 路径保存在私有 reset 维护记录中，直到数据清理成功才移除。卸载后失败的独立重试仍检查
+这些路径；包已不存在的记录只用于阻止不安全清理，不能授权向未经当前核对的进程发送停止信号。
+
+计划按规范路径合并相同清理目标，并保留显式数据目录确认；展示、确认和执行使用同一组目标。
+DeepSeek Profile 的位置、格式和读写移除由 `hosts/deepseek-receipts.mjs` 负责；公共 ownership 模块
+只处理受管文件与权限，不解释这些 Host 字段。
+
+## 共享用户配置
+
+`internal/userconfig.Decode` 统一解释 Codex、DeepSeek 和 Claude 的配置字段及缺省值。Core 启动读取配置时直接复用它；只读 `config validate` 命令接受标准输入中的原始 JSON，供安装和诊断调用。命令限制为 16 KiB，不读取配置文件、Task 存储或 Git，结果与退出码见[命令参考](COMMANDS.md#配置校验)。
+
+Codex setup 先检查配置路径、文件类型和权限，再把已有文件的原始内容交给包内 Core 校验；合法文件保持原样。缺少配置时只写入 `{}`，默认偏好由 Core 解释。统一管理器的 factory-reset 同样以 `{}` 初始化配置；doctor 对已有文件复用选定 Core，找不到可用 Core 时明确报告无法完成配置语义校验。Node 安装和诊断代码不维护全产品字段白名单或 Host 默认值副本。
 
 ## 文件提交准备
 

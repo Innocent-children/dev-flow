@@ -4,8 +4,9 @@ import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { join } from "node:path";
 import { promisify } from "node:util";
+import { validateReleaseArtifacts } from "./artifacts.mjs";
 
 const execFile = promisify(execFileCallback);
 const registry = "https://registry.npmjs.org/";
@@ -16,7 +17,6 @@ const products = Object.freeze({
   codex: {
     packageName: "dev-flow-codex",
     tagPrefix: "codex-v",
-    tarballPrefix: "dev-flow-codex-",
     releaseName: "Dev Flow for Codex",
     guideName: "Codex guide",
     guidePath: "packages/codex/README.md",
@@ -25,7 +25,6 @@ const products = Object.freeze({
   deepseek: {
     packageName: "dev-flow-deepseek",
     tagPrefix: "deepseek-v",
-    tarballPrefix: "dev-flow-deepseek-",
     releaseName: "Dev Flow for DeepSeek Harness",
     guideName: "DeepSeek Harness guide",
     guidePath: "packages/deepseek/README.md",
@@ -34,7 +33,6 @@ const products = Object.freeze({
   "dev-flow": {
     packageName: "@imotong/dev-flow",
     tagPrefix: "dev-flow-v",
-    tarballPrefix: "imotong-dev-flow-",
     releaseName: "Dev Flow CLI",
     guideName: "lifecycle CLI guide",
     guidePath: "packages/dev-flow/README.md",
@@ -42,36 +40,21 @@ const products = Object.freeze({
   },
 });
 
-export async function publishRelease({ product, version, directory, sourceCommit, environment = process.env } = {}) {
+export async function publishRelease({ product, version, directory, sourceCommit, environment = process.env, runProcess = run } = {}) {
   const config = products[product];
-  if (!config) throw new Error("product must equal codex or deepseek");
-  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/u.test(version ?? "")) throw new Error("invalid release version");
-  if (!/^[0-9a-f]{40}$/u.test(sourceCommit ?? "")) throw new Error("invalid source commit");
-  const root = resolve(directory);
+  if (!config) throw new Error("product must equal codex, deepseek or dev-flow");
+  const prepared = await validateReleaseArtifacts({ product, version, directory, sourceCommit });
   const tag = `${config.tagPrefix}${version}`;
-  const tarball = join(root, `${config.tarballPrefix}${version}.tgz`);
-  const manifest = JSON.parse(await readFile(join(root, "release-manifest.json"), "utf8"));
-  if (manifest.release?.product !== product || manifest.release?.version !== version || manifest.release?.source_commit !== sourceCommit) {
-    throw new Error("release manifest identity mismatch");
-  }
-  const localSHA = await sha256(tarball);
-  const presentation = releasePresentation(product, version, manifest);
+  const presentation = releasePresentation(product, version, prepared.manifest);
 
-  await ensureTag(tag, sourceCommit, environment);
-  await ensureDraft(tag, sourceCommit, presentation, environment);
-  const existing = await npmVersion(config.packageName, version, environment);
-  if (!existing) await run("npm", ["publish", tarball, "--access", "public", `--registry=${registry}`, ...(version.includes("-beta.") ? ["--tag", "beta"] : [])], environment);
-  await verifyRegistryBytes(config.packageName, version, localSHA, environment);
-  await ensureAssets(tag, root, releaseAssetNames(tarball, manifest), environment);
-  await run("gh", ["release", "edit", tag, "--repo", repository, "--draft=false"], environment);
+  await ensureTag(tag, sourceCommit, environment, runProcess);
+  await ensureDraft(tag, sourceCommit, presentation, environment, runProcess);
+  const existing = await npmVersion(config.packageName, version, environment, runProcess);
+  if (!existing) await runProcess("npm", ["publish", prepared.tarball.path, "--access", "public", `--registry=${registry}`, ...(version.includes("-beta.") ? ["--tag", "beta"] : [])], environment);
+  await verifyRegistryBytes(config.packageName, version, prepared.tarball.sha256, environment, { runProcess });
+  await ensureAssets(tag, prepared.assets, environment, runProcess);
+  await runProcess("gh", ["release", "edit", tag, "--repo", repository, "--draft=false"], environment);
   return { product, version, tag, source_commit: sourceCommit, status: "complete" };
-}
-
-export function releaseAssetNames(tarball, manifest) {
-  const cores = (manifest?.artifacts ?? [])
-    .filter((item) => item.kind === "core_binary")
-    .map((item) => basename(item.relative_path));
-  return [basename(tarball), ...cores, "release-manifest.json", "SHA256SUMS"];
 }
 
 export function releasePresentation(product, version, manifest) {
@@ -116,28 +99,28 @@ export function releasePresentation(product, version, manifest) {
   };
 }
 
-async function ensureTag(tag, sourceCommit, environment) {
-  const observed = await allow("git", ["ls-remote", "--tags", "origin", `refs/tags/${tag}`], environment);
+async function ensureTag(tag, sourceCommit, environment, runProcess) {
+  const observed = await allow("git", ["ls-remote", "--tags", "origin", `refs/tags/${tag}`], environment, runProcess);
   if (observed.ok && observed.stdout) {
     if (observed.stdout.split(/\s+/u)[0] !== sourceCommit) throw new Error("existing Tag points to another commit");
     return;
   }
-  await run("git", ["tag", tag, sourceCommit], environment);
-  await run("git", ["push", "origin", `refs/tags/${tag}:refs/tags/${tag}`], environment);
+  await runProcess("git", ["tag", tag, sourceCommit], environment);
+  await runProcess("git", ["push", "origin", `refs/tags/${tag}:refs/tags/${tag}`], environment);
 }
 
-async function ensureDraft(tag, sourceCommit, presentation, environment) {
-  const observed = await allow("gh", ["release", "view", tag, "--repo", repository, "--json", "tagName,targetCommitish,isDraft"], environment);
+async function ensureDraft(tag, sourceCommit, presentation, environment, runProcess) {
+  const observed = await allow("gh", ["release", "view", tag, "--repo", repository, "--json", "tagName,targetCommitish,isDraft"], environment, runProcess);
   if (observed.ok) {
     const release = JSON.parse(observed.stdout);
     if (release.tagName !== tag || release.targetCommitish !== sourceCommit) throw new Error("existing GitHub Release identity mismatch");
     return;
   }
-  await run("gh", ["release", "create", tag, "--repo", repository, "--draft", "--title", presentation.title, "--notes", presentation.notes, "--target", sourceCommit], environment);
+  await runProcess("gh", ["release", "create", tag, "--repo", repository, "--draft", "--title", presentation.title, "--notes", presentation.notes, "--target", sourceCommit], environment);
 }
 
-async function npmVersion(packageName, version, environment) {
-  const observed = await allow("npm", ["view", `${packageName}@${version}`, "version", "--json", `--registry=${registry}`], environment);
+async function npmVersion(packageName, version, environment, runProcess) {
+  const observed = await allow("npm", ["view", `${packageName}@${version}`, "version", "--json", `--registry=${registry}`], environment, runProcess);
   if (!observed.ok) return false;
   return JSON.parse(observed.stdout) === version;
 }
@@ -175,18 +158,17 @@ function npmTarballPending(error) {
   );
 }
 
-async function ensureAssets(tag, directory, names, environment) {
-  if (names.some((name) => !name)) throw new Error("release asset inventory is incomplete");
-  const observed = JSON.parse(await run("gh", ["release", "view", tag, "--repo", repository, "--json", "assets,isDraft"], environment));
+async function ensureAssets(tag, assets, environment, runProcess) {
+  const observed = JSON.parse(await runProcess("gh", ["release", "view", tag, "--repo", repository, "--json", "assets,isDraft"], environment));
   const existing = new Set(observed.assets.map((asset) => asset.name));
-  for (const name of names) {
-    if (!existing.has(name)) await run("gh", ["release", "upload", tag, join(directory, name), "--repo", repository], environment);
+  for (const asset of assets) {
+    if (!existing.has(asset.name)) await runProcess("gh", ["release", "upload", tag, asset.path, "--repo", repository], environment);
   }
   const download = await mkdtemp(join(tmpdir(), "dev-flow-release-readback-"));
   try {
-    for (const name of names) {
-      await run("gh", ["release", "download", tag, "--repo", repository, "--pattern", name, "--dir", download], environment);
-      if (await sha256(join(download, name)) !== await sha256(join(directory, name))) throw new Error(`GitHub asset ${name} differs from local artifact`);
+    for (const asset of assets) {
+      await runProcess("gh", ["release", "download", tag, "--repo", repository, "--pattern", asset.name, "--dir", download], environment);
+      if (await sha256(join(download, asset.name)) !== asset.sha256) throw new Error(`GitHub asset ${asset.name} differs from prepared artifact`);
     }
   } finally {
     await rm(download, { recursive: true, force: true });
@@ -202,9 +184,9 @@ async function run(command, arguments_, environment) {
   return stdout.trim();
 }
 
-async function allow(command, arguments_, environment) {
+async function allow(command, arguments_, environment, runProcess) {
   try {
-    return { ok: true, stdout: await run(command, arguments_, environment) };
+    return { ok: true, stdout: await runProcess(command, arguments_, environment) };
   } catch (error) {
     return { ok: false, stdout: String(error.stdout ?? "").trim() };
   }

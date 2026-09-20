@@ -82,6 +82,13 @@ Core 缺失时，仅在没有 WebUI runtime receipt 的情况下继续清理；�
 
 `status` 保留未安装目标，返回 Host 可用性、Adapter/Core 版本及问题；`doctor` 另外列出安装与配置检查，检查失败返回非零退出码。选择全部 Host 时，已有健康 Adapter 的情况下，未安装的可选 Adapter 仅列为未安装，不算故障。Codex 自检失败时仍读取 npm 安装信息以支持修复；DeepSeek 同时检查 Profile contribution、受管记录与实际 Core。未受管的现有 DeepSeek contribution 必须通过 `--adopt` 明确接管。
 
+`doctor` 将已有用户配置交给选定 Core 的 `config validate` 校验；没有可用 Core 时报告无法完成配置语义校验，不按通过处理。配置文件缺失表示采用 Core 默认值。`factory-reset` 初始化配置时只写入 `{}`；普通维护保留已有合法配置。
+
+确认 reset 后，管理器先停止已管理 Adapter 的 WebUI、可识别的 STDIO Core 和桌面宠物，卸载后再检查
+是否仍有匹配进程，确认退出后才清理数据。无法确认退出或 Host 自动重连时，操作在清理前失败；关闭
+对应 Host 会话后按返回说明重试。显式 `DEV_FLOW_DATA_DIR` 与默认目录相同只清理一次，显式路径确认仍必需。
+卸载后失败的重试仍会检查先前确认的 Core 位置，直到关联进程退出才允许清理。
+
 失败结果包含 `error.code/message/detail`、`operation_id`、`failed_action`、`completed_actions` 和处理命令；文本模式展示同样的原因与完成步骤。再次执行会重新观察当前安装，不回放旧操作。处理命令在适用时固定本次目标版本；reset 再次生成当前状态的计划。安装成功结果保留 hook 审核/信任及 Profile 重启提示。
 
 生命周期退出码：`0` 成功或无需变更，`1` 检查/执行失败，`2` 参数错误，`3` 等待确认或取消确认，`4` 计划或清理授权不满足，`5` 部分执行或最终检查失败。菜单主动退出返回 `0`。WebUI 参数错误返回 `2`，launcher 在 `--json` 模式下的错误也返回 JSON。
@@ -109,7 +116,7 @@ dev-flow status --host all
 
 ## 桌面宠物（macOS arm64 与 Windows x64）
 
-安装 `@imotong/dev-flow@latest` 获取包内 macOS arm64 与 Windows 10/11 x64 应用，并配置至少一个 Codex 或 DeepSeek Adapter 提供 Core。`install`、`upgrade`、`repair`、`reinstall` 更新应用副本并保留设置和形象，即使 Adapter 已是目标版本也执行。详见[桌面宠物指南](DESKTOP-PETS.md)。
+安装 `@imotong/dev-flow@latest` 获取包内 macOS arm64 与 Windows 10/11 x64 应用，并配置至少一个 Codex、DeepSeek 或 Claude Adapter 提供 Core；Claude 的安装渠道见 [Host 指南](CLAUDE.md)。`install`、`upgrade`、`repair`、`reinstall` 更新应用副本并保留设置和形象，即使 Adapter 已是目标版本也执行。详见[桌面宠物指南](DESKTOP-PETS.md)。
 
 | 命令 | 行为 |
 | --- | --- |
@@ -140,8 +147,8 @@ dev-flow-codex --version
 
 npm 全局安装只把 `dev-flow-codex` launcher 放到 `PATH`。`setup` 是独立步骤，它验证平台、
 package、bundled Core 和 Codex 版本，然后注册本地 marketplace、Plugin 与 MCP 配置，并回读
-注册结果。配置缺失时，`setup` 在 macOS 创建 `$HOME/.dev-flow/config.json`，在 Windows 创建
-`%USERPROFILE%\.dev-flow\config.json`；成功后显示配置/receipt 的
+注册结果。`setup` 保留配置路径、文件类型和权限检查，并使用包内 Core 校验已有配置，合法内容不改写。配置缺失时，在 macOS 创建 `$HOME/.dev-flow/config.json`，在 Windows 创建
+`%USERPROFILE%\.dev-flow\config.json`，初始内容为 `{}`，默认偏好由 Core 解释；成功后显示配置/receipt 的
 实际文件变化和一个下一步。`--version` 同时报告 Host package 与 bundled Core 版本。
 
 在启动 Codex 前，将 `DEV_FLOW_DATA_DIR` 设为已存在的规范化绝对目录，MCP、hook 和文件准备命令使用同一数据目录。`dev-flow-codex artifacts <collect|prepare> --help` 返回 JSON 示例、字段说明、输出和下一步，查询时不启动 Core。 Plugin 通过 `env_vars` 只显式转发此变量；启动环境变化在新 Codex 会话中生效。
@@ -204,7 +211,7 @@ dev-flow-codex --version
 ```
 
 保留 Task 数据的卸载顺序是 `dev-flow-codex remove`，然后
-`npm uninstall -g dev-flow-codex`。只有在 Codex 和 DeepSeek Adapter 都已移除且不再需要任何
+`npm uninstall -g dev-flow-codex`。只有在 Codex、DeepSeek 和 Claude Adapter 都已移除且不再需要任何
 Task 时，才删除共享默认产品目录：macOS 为 `$HOME/.dev-flow`，Windows
 为 `%LOCALAPPDATA%\dev-flow`。
 
@@ -280,7 +287,7 @@ tarball 并重启 profile。对每个安装过 Dev Flow 的 profile 分别执行
 可另行执行 `npm uninstall -g @deepseek-ai/dsh`；macOS 的 `$HOME/.dsh` 或 Windows 的
 `%USERPROFILE%\.dsh` 中的 profile 数据会保留。
 
-彻底清除 Task 数据时，先移除两个 Host Adapter，再删除
+彻底清除 Task 数据时，先移除全部已安装的 Host Adapter，再删除
 macOS 的 `$HOME/.dev-flow` 或 Windows 的 `%LOCALAPPDATA%\dev-flow`。
 若设置过 `DEV_FLOW_DATA_DIR`，还需核对并单独删除该变量对应的绝对目录。删除 `.dsh` 用户目录会
 同时删除所有 DSH profile、会话和其他插件。
@@ -327,17 +334,17 @@ clean 和远端 task branch 后才使用非 force Git 命令。
 | `dev-flow-claude host-launch prepare` | request、assessment、user_choice、repositories、handoff；返回准备记录。 |
 | `dev-flow-claude host-launch provision` | launch_id；准备全部选定仓库。 |
 | `dev-flow-claude host-launch status` | launch_id；读取保留的启动记录。 |
-| `dev-flow-claude host-launch scope` | launch_id；核验工作区并返回 Core 创建范围。 |
+| `dev-flow-claude host-launch scope` | launch_id；核验工作区并返回 Core 创建范围，单仓库也包含 primary_repository_key。 |
 | `dev-flow-claude host-launch bind-task` | launch_id、成功 Core 响应中的 task_id。 |
 | `dev-flow-claude host-launch launch` | launch_id；返回会话启动描述，不启动交互进程。 |
 | `dev-flow-claude host-launch resume` | launch_id；返回已有会话的恢复描述。 |
 | `dev-flow-claude host-launch record-session` | launch_id、实际 session_id。 |
 | `dev-flow-claude host-launch retry-launch` | launch_id、previous_caller_stopped、session_not_started、reason；两个事实字段须为 true。 |
-| `dev-flow-claude host-launch relocate` | launch_id、relocation_id、destinations[{repository_key,repository_path}]、authorized。 |
+| `dev-flow-claude host-launch relocate` | 输入 launch_id、relocation_id、destinations[{repository_key,repository_path}]、authorized；返回可直接提交 Core 的 relocation_id 和 relocation_destinations[{key,repository_path}]。 |
 | `dev-flow-claude host-launch cleanup-worktree` | launch_id、repository_key、terminal、authorized。 |
 | `dev-flow-claude host-launch cleanup-branch` | launch_id、repository_key、terminal、authorized；独立于工作树清理授权。 |
 
-`prepare.repositories` 的每项均需提供 key、repository_path、workspace_mode、source_type、remote_name、base_branch、target_branch、carry_changes、worktree_path。mode 为 `new_branch`、`current_branch` 或 `dedicated_worktree`。assessment 保存原始 `inspect` 锚点、影响面、验证安排和已解决的未知项；user_choice 记录实际用户决定。Host 操作的具体前提和值来源见 [admission 引用](../packages/claude/plugin/skills/dev-flow/references/admission.md)及[生命周期引用](../packages/claude/plugin/skills/dev-flow/references/host-lifecycle.md)。
+`prepare.repositories` 的每项均需提供 key、repository_path、workspace_mode、source_type、remote_name、base_branch、target_branch、carry_changes、worktree_path。仓库 key 遵循 Core 的 `^[a-z0-9][a-z0-9._-]{0,127}$` 规则，在 Git 修改前校验，创建与迁移使用同一标识。mode 为 `new_branch`、`current_branch` 或 `dedicated_worktree`。assessment 保存原始 `inspect` 锚点、影响面、验证安排和已解决的未知项；user_choice 记录实际用户决定。Host 操作的具体前提和值来源见 [admission 引用](../packages/claude/plugin/skills/dev-flow/references/admission.md)及[生命周期引用](../packages/claude/plugin/skills/dev-flow/references/host-lifecycle.md)。
 
 `status`、`setup`、`remove` 无论是否带 `--json` 都输出 JSON。Host-launch 成功时直接输出操作结果；artifacts 保留 Core 的 `ok/result` 或 `ok/error` 结构；host-check 返回检查结果。`mcp` 使用 MCP 协议，不是一次性结果输出。普通 CLI 或输入错误退出 1，Hook 检查失败退出 2，转发的 Core 命令保留其错误输出与退出码。不能将所有结果都按 MCP envelope 读取。
 
@@ -355,9 +362,11 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 | `dev-flow -h` | `help` 的短选项形式。 |
 | `dev-flow --help` | `help` 的长选项形式。 |
 | `dev-flow version` | 输出 `dev-flow <core-version>`。 |
+| `dev-flow config validate` | 从 stdin 读取原始 UTF-8 配置 JSON，最多 16 KiB，输出配置校验结果。 |
+| `dev-flow config validate --help` | 显示配置校验帮助；不读取 stdin，不访问配置文件、Task 数据或 Git。 |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | 使用现有可用数据目录启动 local STDIO MCP。目录不存在或不是目录时启动失败。 |
 | `$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\data'; dev-flow.exe mcp --stdio` | Windows PowerShell 中使用现有可用数据目录启动 local STDIO MCP。 |
-| `dev-flow host-check pre-file-write` | **Host 受管命令。** 从 stdin 读取规范化的结构化写入目标，检查活动 Task 的跨仓库 ExpectedPaths，并输出 `allow` 或在写入前持久化 file-scope blocker 后输出 `deny`。Codex/DeepSeek Adapter 调用，普通用户不手工运行。 |
+| `dev-flow host-check pre-file-write` | **Host 受管命令。** 从 stdin 读取规范化的结构化写入目标，检查活动 Task 的跨仓库 ExpectedPaths，并输出 `allow` 或在写入前持久化 file-scope blocker 后输出 `deny`。Codex、DeepSeek 和 Claude Adapter 调用，普通用户不手工运行。 |
 | `dev-flow host-check workspace-available` | **内部 Host 命令。** stdin 接收 `{"repository_path":"<absolute root>"}`，只读检查同目录活动 Task；stdout 返回 `available`、规范化 `repository_path` 和可选 `task_id`。失败以非零退出，不创建数据库或预占目录。 |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | 启动或复用共享 loopback WebUI；默认打开浏览器。 |
 | `dev-flow webui open [--plain\|--json]` | 验证 receipt、进程身份和实时 Core 状态后打开同一 URL。 |
@@ -366,7 +375,29 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 
 `dev-flow host-check pre-file-write` 与 `dev-flow webui serve` 都是 Adapter/lifecycle 内部入口，不是 Host 用户命令。Core 不支持 remote
 transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。Codex 用户应通过
-`dev-flow-codex mcp` 的受管入口启动 Core；DeepSeek 用户由 DSH integration process 启动 Core。
+`dev-flow-codex mcp` 的受管入口启动 Core；DeepSeek 用户由 DSH integration process 启动 Core；Claude 插件通过 `dev-flow-claude mcp` 启动 Core。
+
+写前检查的 `repository_path` 用于定位已有仓库，`paths` 保留完整写入目标，目标父目录可以尚未创建。
+DeepSeek Adapter 会从目标最近的现存父目录定位；Core 的观察超时或输出超限等失败以非零退出，
+不能当作无活动 Task 放行。普通无 Task 仓库和非 Git 目录的写入仍允许。
+
+### 配置校验
+
+此处 `dev-flow` 指 Host 包内的 Go Core executable，不是全局生命周期管理器。`config validate` 接收一个 UTF-8 JSON 对象，必须关闭 stdin；不接受文件路径参数，不读取用户配置、Task 存储或 Git，也不写入任何数据。配置规则统一由 `internal/userconfig.Decode` 实现：拒绝重复字段、未知字段、非法 UTF-8、超出 16 KiB 的输入及不符合当前字段类型的内容。空对象 `{}` 使用全部 Host 的默认值。
+
+成功退出码为 `0`，stdout 返回三个 Host 的实际偏好；例如输入 `{}`：
+
+```json
+{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false}}}
+```
+
+无效配置退出码为 `1`，stdout 返回具体原因；例如输入 `{"other":true}`：
+
+```json
+{"ok":false,"error":{"code":"INVALID_CONFIGURATION","message":"unknown top-level field \"other\""}}
+```
+
+参数错误退出码为 `2`。`dev-flow config validate --help` 退出 `0`，仅显示帮助，不消费 stdin。此命令不需要 `DEV_FLOW_DATA_DIR`。
 
 ## MCP 工具
 
@@ -503,14 +534,15 @@ Task result 的 `verification` 同时返回 `plan`、`current_budget`、当前 T
 {
   "host_preferences": {
     "codex": { "codebase_memory": false },
-    "deepseek": { "codebase_memory": false }
+    "deepseek": { "codebase_memory": false },
+    "claude": { "codebase_memory": false }
   }
 }
 ```
 
 这些值来自只读用户配置的进程启动快照：macOS 为 `$HOME/.dev-flow/config.json`，Windows 为
 `%USERPROFILE%\.dev-flow\config.json`。它们仅表示偏好，不表示索引能力已经安装或可用。文件不存在时
-两者都为 false；Dev Flow 不创建或修改配置文件。
+三个 Host 都为 false；Core 仅解释配置，不创建或修改配置文件。Codex setup 和管理器初始化缺失配置时写入 `{}`，已有合法配置保持原样。
 
 Host 选择检索工具时，当前用户指令和适用的 `AGENTS.md` 优先于这些默认偏好。没有相应指令时，
 false 选择普通文件和文本搜索，true 可优先使用当前可用的代码索引。索引不可用或结果不完整时，

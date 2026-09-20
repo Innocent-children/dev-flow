@@ -15,4 +15,3 @@ test("Claude plugin paths stay inside the independently cached package", async (
   assert.ok(pkg.files.includes("lib/worktree-snapshot.mjs"));
   assert.ok(pkg.files.includes("plugin/skills/dev-flow/references/tool-results.md"));
 });
-

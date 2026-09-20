@@ -19,4 +19,3 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv.length !== 4 || process.argv[2] !== "--output") throw new Error("Usage: node scripts/build-claude-local.mjs --output ABSOLUTE_DIRECTORY");
   process.stdout.write(JSON.stringify(await buildClaude({ outputRoot: process.argv[3] })) + "\n");
 }
-

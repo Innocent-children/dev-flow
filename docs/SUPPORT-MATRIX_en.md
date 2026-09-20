@@ -45,7 +45,11 @@ independent release flow, downloading and checking registry package contents, an
 | Platform | Implementation target and build | Native verification | Unverified |
 | --- | --- | --- | --- |
 | Windows x64 | Corresponding Core and Claude Adapter included | Claude CLI plugin installation, cache comparison and repeatable setup/removal; independent stdio handshake with packaged Core | Authenticated model development sessions and complete model-driven workflows |
-| macOS arm64 | Corresponding Core binary built | Not executed | Native plugin installation, model sessions and complete workflows |
+| macOS arm64 | Local Adapter package built with Core for both platforms | Claude CLI plugin installation, byte-for-byte cache comparison, repeatable setup/removal and independent packaged Core handshake; single- and multi-repository creation, relocation and resume with real Core/Git | Authenticated model development sessions and complete model-driven workflows |
+
+The native Windows record describes the 2026-09-14 artifact. The 2026-09-19 manager maintenance changes were checked through Windows platform-branch simulation on macOS, without a new native Windows run. Native macOS checks used Claude Code 2.1.274 and did not publish a stable package.
+
+The 2026-09-20 responsibility and recovery changes passed targeted source checks. macOS termination used isolated test processes; Windows remained command simulation. That run did not repeat real Claude installation or model sessions and does not replace the artifact verification above; see the [verification record](PROJECT-STATUS_en.md).
 
 The Adapter requires Node.js `>=24` and Claude Code `>=2.1.270`. See the [Claude guide](CLAUDE_en.md) for installation and [verification records](PROJECT-STATUS_en.md) for dates, check entry points and other limits. An independent Core handshake does not establish that a model invoked plugin tools.
 

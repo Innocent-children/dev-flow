@@ -235,7 +235,7 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 	for _, record := range statusRecords {
 		changedKinds[record.path] = recordStatusKind(record)
 	}
-	layers, err := o.readEntryLayers(ctx, canonicalRoot, baseCommit, changedPaths, surfacePaths)
+	layers, err := o.readEntryLayers(ctx, canonicalRoot, baseCommit, worktreeKinds, changedPaths, surfacePaths)
 	if err != nil {
 		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, err
 	}
@@ -607,7 +607,7 @@ func (command gitReadCommand) arguments(repositoryPath, value string) ([]string,
 		if command == gitShowBaseEntries {
 			args = append(args, "ls-tree", "-z", base, "--")
 		} else {
-			args = append(args, "ls-files", "--stage", "-z", "--")
+			args = append(args, "ls-files", "--stage", "-v", "-z", "--")
 		}
 		return append(args, parts...), true
 	case gitIsAncestor:

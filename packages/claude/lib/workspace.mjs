@@ -5,7 +5,8 @@ import { inspectSourceRepository, preflightLocalBranchSelection, preflightWorktr
 import { captureWorkspaceChanges, applyWorkspaceChanges } from "./worktree-snapshot.mjs";
 import { paths, coreJSON } from "./runtime.mjs";
 const hash = value => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex");
-const identifier = value => { if (typeof value !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value)) throw new Error("Invalid launch/repository identity"); return value; };
+const identifier = value => { if (typeof value !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value)) throw new Error("Invalid launch, task or relocation identity"); return value; };
+const repositoryKey = value => { if (typeof value !== "string" || !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(value)) throw new Error("Repository key must use 1–128 lowercase ASCII letters, digits, dots, underscores or hyphens and begin with a letter or digit"); return value; };
 const exact = (v, keys) => { if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some(k => !keys.includes(k)) || keys.some(k => !(k in v))) throw new Error("Input does not match the closed contract: " + keys.join(", ")); };
 async function atomic(path, value) {
   const temp = path + "." + randomUUID() + ".tmp";
@@ -29,7 +30,7 @@ export async function inspect(input, { runGit = defaultRunGit } = {}) {
   if (!Array.isArray(input.repositories) || input.repositories.length < 1 || input.repositories.length > 8) throw new Error("One to eight repositories required");
   const repositories = [];
   for (const item of input.repositories) {
-    exact(item, ["key", "repository_path"]); identifier(item.key);
+    exact(item, ["key", "repository_path"]); repositoryKey(item.key);
     const observation = await inspectSourceRepository(item.repository_path, { runGit });
     if (repositories.some(r => r.key === item.key || r.repository_path === observation.canonical_root)) throw new Error("Duplicate repository");
     repositories.push({ key: item.key, repository_path: observation.canonical_root, head: observation.head, branch: observation.branch, status_digest: observation.status_digest, clean: observation.clean, source_identity: observation.source_repository_identity });
@@ -52,16 +53,15 @@ export async function prepare(input, options = {}) {
     const observed = anchor.repositories.find(r => r.key === selection.key);
     if (typeof selection.carry_changes !== "boolean") throw new Error("Explicit carry choice required");
     if (!isAbsolute(selection.worktree_path)) throw new Error("Worktree path must be absolute");
-    if (!selection.carry_changes && !observed.clean) throw new Error("Existing changes must be accepted before provisioning");
     if (selection.workspace_mode === "dedicated_worktree") {
       if (selection.source_type === "remote" && selection.carry_changes) throw new Error("Remote source cannot carry changes");
       await preflightWorktreeSelection({ repositoryPath: observed.repository_path, remoteName: selection.remote_name, sourceType: selection.source_type, baseBranch: selection.base_branch, targetBranch: selection.target_branch, runGit });
     } else {
       if (selection.source_type !== "local" || selection.remote_name !== "" || resolve(selection.worktree_path) !== observed.repository_path) throw new Error("Local work must retain its source directory");
       await preflightLocalBranchSelection({ repositoryPath: observed.repository_path, workspaceMode: selection.workspace_mode, baseBranch: selection.base_branch, targetBranch: selection.target_branch, carryChanges: selection.carry_changes, runGit });
+      const available = await (options.checkWorkspaceAvailable ?? (root => coreJSON(["host-check", "workspace-available"], { repository_path: root }, options)))(observed.repository_path);
+      if (available.available !== true) throw new Error("Repository is claimed by an active Core Task");
     }
-    const available = await (options.checkWorkspaceAvailable ?? (root => coreJSON(["host-check", "workspace-available"], { repository_path: root }, options)))(observed.repository_path);
-    if (available.available !== true) throw new Error("Repository is claimed by an active Core Task");
     if (repositories.some(r => resolve(r.worktree_path) === resolve(selection.worktree_path))) throw new Error("Duplicate destination");
     repositories.push({ ...selection, repository_path: observed.repository_path, source_identity: observed.source_identity, base_commit: null, snapshot: null, phase: "confirmed" });
   }
@@ -142,8 +142,10 @@ export async function provision(id, options = {}) {
     for (const repo of r.repositories) {
       if (repo.phase === "provisioned") continue;
       if (repo.phase !== "prepared") throw new Error("Provisioning is incomplete or uncertain; inspect retained state");
-      const available = await (options.checkWorkspaceAvailable ?? (root => coreJSON(["host-check", "workspace-available"], { repository_path: root }, options)))(repo.repository_path);
-      if (available.available !== true) throw new Error("Workspace is already claimed");
+      if (repo.workspace_mode !== "dedicated_worktree") {
+        const available = await (options.checkWorkspaceAvailable ?? (root => coreJSON(["host-check", "workspace-available"], { repository_path: root }, options)))(repo.repository_path);
+        if (available.available !== true) throw new Error("Workspace is already claimed");
+      }
       repo.phase = "provisioning"; await save();
       try {
         const args = { repositoryPath: repo.repository_path, workspaceMode: repo.workspace_mode, baseBranch: repo.base_branch, targetBranch: repo.target_branch, baseCommit: repo.base_commit, sourceRepositoryIdentity: repo.source_identity, carryChanges: repo.carry_changes, runGit };
@@ -169,8 +171,8 @@ export async function scope(id, options = {}) {
     const actual = await inspectSourceRepository(repo.worktree_path, options);
     if (actual.source_repository_identity !== repo.source_identity || actual.branch !== repo.target_branch || await workspaceIdentity(actual) !== repo.worktree_identity) throw new Error("Workspace identity or branch changed");
   }
-  return { repository_path: primary.worktree_path, workspace_origin: origin(r, primary),
-    ...(additional.length ? { primary_repository_key: primary.key, additional_repositories: additional.map(repo => ({ key: repo.key, repository_path: repo.worktree_path, workspace_origin: origin(r, repo) })) } : {}) };
+  return { repository_path: primary.worktree_path, primary_repository_key: primary.key, workspace_origin: origin(r, primary),
+    ...(additional.length ? { additional_repositories: additional.map(repo => ({ key: repo.key, repository_path: repo.worktree_path, workspace_origin: origin(r, repo) })) } : {}) };
 }
 export async function session(id, operation, input, options = {}) {
   if (operation === "retry-launch") {
@@ -255,6 +257,6 @@ export async function relocate(id, input, options = {}) {
       r.relocation.moved.push(repo.key); await save();
     }
     r.relocation.phase = "moved"; await save();
-    return { relocation_id: r.relocation.id, relocation_destinations: r.repositories.map(repo => ({ repository_key: repo.key, repository_path: repo.worktree_path })), core_resolution_required: true };
+    return { relocation_id: r.relocation.id, relocation_destinations: r.repositories.map(repo => ({ key: repo.key, repository_path: repo.worktree_path })), core_resolution_required: true };
   });
 }

@@ -14,7 +14,7 @@ When retained call logs prove no Claude session started and the prior caller has
 
 ## Relocation
 
-For workspace relocation first obtain dev_flow_prepare_task_relocation and the actual relocation_id from Core. Then obtain user authorization and provide host-launch relocate with launch_id, relocation_id, destinations (all repository_key/repository_path pairs), authorized=true. Only all-dedicated provisioned workspaces can move. It records each move; uncertain/partial moves remain for inspection. Submit the returned exact destinations to Core's relocation blocker resolution. Until Core verifies them, its original binding remains authoritative.
+For workspace relocation first obtain dev_flow_prepare_task_relocation and the actual relocation_id from Core. Then obtain user authorization and provide host-launch relocate with launch_id, relocation_id, destinations (all repository_key/repository_path pairs), authorized=true. Only all-dedicated provisioned workspaces can move. It records each move; uncertain/partial moves remain for inspection. Pass the returned relocation_id and relocation_destinations unchanged to Core's relocation blocker resolution; each returned destination uses Core's key/repository_path fields. Until Core verifies them, its original binding remains authoritative.
 
 ## Terminal operations and cleanup
 

@@ -17,4 +17,3 @@ test("malformed matching tools cannot become allowed writes", async () => {
   assert.equal(preparedWriteFromHook(event).path_parse_complete, false);
   await assert.rejects(runHook(event, async () => ({ ok: true })), /Invalid Core/);
 });
-

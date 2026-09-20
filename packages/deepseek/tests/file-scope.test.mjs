@@ -1,21 +1,50 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { dirname, resolve } from "node:path";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import { preparedWrite, registerFileScopeGate } from "../lib/file-scope.mjs";
 
-test("DeepSeek structured write paths and intent digests are stable", () => {
-  const workspaceRoot = resolve("/workspace");
+test("DeepSeek structured write paths and intent digests are stable", (t) => {
+  const workspaceRoot = workspaceDirectory(t);
+  mkdirSync(join(workspaceRoot, "docs"));
   const execution = { name: "edit", arguments: { file_path: "docs/guide.md", old_string: "a", new_string: "b" } };
   const first = preparedWrite(execution, workspaceRoot);
   const reordered = preparedWrite({ name: "edit", arguments: { new_string: "b", old_string: "a", file_path: "docs/guide.md" } }, workspaceRoot);
   const expectedPath = resolve(workspaceRoot, "docs", "guide.md");
   assert.deepEqual(first.paths, [expectedPath]);
-  assert.equal(first.repository_path, dirname(expectedPath));
+  assert.equal(first.repository_path, join(workspaceRoot, "docs"));
   assert.equal(first.path_parse_complete, true);
   assert.equal(first.intent_digest, reordered.intent_digest);
+});
+
+test("DeepSeek new-file lookup stays in the target repository under a shared Workspace Root", (t) => {
+  const workspaceRoot = workspaceDirectory(t);
+  for (const name of ["api", "web"]) {
+    const repositoryRoot = join(workspaceRoot, name);
+    mkdirSync(repositoryRoot);
+    const request = preparedWrite({ name: "write", arguments: { file_path: `${name}/new/nested/file.txt`, content: "new" } }, workspaceRoot);
+    assert.equal(request.repository_path, repositoryRoot);
+    assert.deepEqual(request.paths, [join(repositoryRoot, "new", "nested", "file.txt")]);
+    assert.equal(request.path_parse_complete, true);
+  }
+});
+
+test("DeepSeek stops invalid parent paths before dispatch or Core lookup", async (t) => {
+  const workspaceRoot = workspaceDirectory(t);
+  writeFileSync(join(workspaceRoot, "file"), "not a directory");
+  let listener;
+  let spawns = 0;
+  let dispatched = 0;
+  const ctx = { on: (_event, callback) => { listener = callback; return () => undefined; } };
+  registerFileScopeGate(ctx, { runtimePath: "/runtime/dev-flow", dataDirectory: "/data", workspaceRoot, spawnImpl: () => { spawns += 1; } });
+  const result = await listener(selectedExecution("write", { file_path: "file/new/target.txt", content: "x" }), async () => { dispatched += 1; });
+  assert.equal(result.kind, "deny");
+  assert.equal(spawns, 0);
+  assert.equal(dispatched, 0);
 });
 
 test("DeepSeek pre-execute gate blocks a selected Dev Flow write before dispatch", async () => {
@@ -57,6 +86,12 @@ function selectedExecution(name, argumentsValue, text = "/dev-flow continue") {
 
 function ordinaryExecution(name, argumentsValue) {
   return selectedExecution(name, argumentsValue, "ordinary turn");
+}
+
+function workspaceDirectory(t) {
+  const directory = mkdtempSync(join(tmpdir(), "deepseek-file-scope-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  return directory;
 }
 
 function fakeSpawn(result) {

@@ -9,4 +9,3 @@ Keep the entire MCP result (including structured content/text envelope). Inspect
 Use dev-flow-claude artifacts collect/prepare with a closed JSON object on stdin and retain complete stdout. These commands return ok/result or ok/error and a process exit code. host-launch commands instead return their direct result and exit nonzero on rejection. Never confuse those wrappers.
 
 A missing/untrusted MCP server or Hook is a real capability gap. Diagnose using status; do not fabricate success or switch Host identity to codex. DEV_FLOW_DATA_DIR must be the same canonical existing directory for MCP, Hook and helpers.
-

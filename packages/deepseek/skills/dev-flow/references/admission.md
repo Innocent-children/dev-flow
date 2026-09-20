@@ -78,6 +78,13 @@ is the user's explicit choice. For remote sources carry_changes is false and rem
 are explicit. Show staged/unstaged/non-ignored untracked paths. Ignored content is excluded; carrying
 preserves source contents and staged state, and an application conflict stops provisioning.
 
+The shared snapshot helper compares HEAD and the index, working-file, and untracked Git trees from
+two reads before returning the captured contents. A difference stops preparation even when status
+is unchanged, without an automatic retry. Inspect the source and retained receipt before continuing.
+Keep one writer during preparation; this check does not provide an atomic snapshot under arbitrary
+concurrent writes. A read-only status observation alone does not prove already dirty contents are
+unchanged; reassess known requirement or code changes while waiting for a choice.
+
 Implementation: `packages/deepseek/lib/workspace-coordinator.mjs` — `workspaceConfirmationText`, `authorizeWorkspaceExecution`.
 
 ## provision

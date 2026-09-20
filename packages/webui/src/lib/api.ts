@@ -226,7 +226,7 @@ export interface FailureResponse {
   recovery: RecoveryAdvice;
 }
 
-export interface RecoveryAdvice { action: RecoveryAction; retry_safe: boolean; message: string }
+export interface RecoveryAdvice { action: RecoveryAction; retry_safe: boolean; message: string; allowed_paths?: string[] }
 export type RecoveryAction = "none" | "correct_current_action" | "retry_current_action" | "submit_recovery_apply" | "read_next_action" | "resolve_blocker" | "stop_for_repository_drift";
 
 

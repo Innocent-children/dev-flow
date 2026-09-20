@@ -33,6 +33,7 @@ const helpText = `dev-flow exposes the governed Core over local STDIO MCP and a 
 Usage:
   dev-flow [help|-h|--help]
   dev-flow version
+  dev-flow config validate
   dev-flow mcp --stdio
   dev-flow host-check pre-file-write
   dev-flow host-check workspace-available
@@ -85,6 +86,13 @@ func run(
 
 	if len(args) == 2 && args[0] == "mcp" && args[1] == "--stdio" {
 		return runMCP(stdin, stdout, stderr, getenv, serve)
+	}
+	if len(args) == 3 && args[0] == "config" && args[1] == "validate" && isHelp(args[2]) {
+		_, _ = io.WriteString(stdout, configValidationHelp)
+		return 0
+	}
+	if len(args) == 2 && args[0] == "config" && args[1] == "validate" {
+		return runConfigValidation(stdin, stdout)
 	}
 	if len(args) == 2 && args[0] == "host-check" && args[1] == "pre-file-write" {
 		return runPreFileWriteCheck(stdin, stdout, stderr, getenv)

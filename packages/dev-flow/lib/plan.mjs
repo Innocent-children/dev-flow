@@ -16,6 +16,7 @@ export function createLifecyclePlan(request, observed, {
     throw planConflict("factory reset requires --host all because Task data is shared");
   }
   const targets = selectTargets(request, observed);
+  const cleanupTargets = request.operation === "factory-reset" ? resetCleanupTargets(observed.resources) : [];
   const actions = [];
   let downgrade = false;
 
@@ -81,7 +82,9 @@ export function createLifecyclePlan(request, observed, {
     actions,
     impacts: impactsFor(request, targets, observed, actions, recoverableCleanupDescription),
     restartRequirements: actions.filter(action => action.owner === "deepseek" && action.operation !== "uninstall").map(action => `Restart DeepSeek Profile ${action.profile}`),
-    resources: Object.values(observed.resources).filter(resource => resource?.exists).map(({ label, path }) => ({ label, path })),
+    resources: (request.operation === "factory-reset" ? cleanupTargets : Object.values(observed.resources).filter(resource => resource?.exists))
+      .map(({ label, path }) => ({ label, path })),
+    cleanupTargets,
     confirmationClass,
     observedDigest,
   };
@@ -93,6 +96,19 @@ export function createLifecyclePlan(request, observed, {
     permanentToken,
     downgradeToken,
   });
+}
+
+function resetCleanupTargets(resources) {
+  const targets = new Map();
+  for (const resource of [resources.configuration, resources.defaultData, resources.pet, resources.explicitData]) {
+    if (!resource?.exists) continue;
+    const existing = targets.get(resource.path);
+    if (existing) {
+      if (existing.identity !== resource.identity || existing.kind !== resource.kind) throw planConflict("cleanup target changed during observation");
+      existing.requiresExplicitConfirmation ||= resource.label === "explicit-data";
+    } else targets.set(resource.path, { ...resource, requiresExplicitConfirmation: resource.label === "explicit-data" });
+  }
+  return [...targets.values()];
 }
 
 function selectTargets(request, observed) {

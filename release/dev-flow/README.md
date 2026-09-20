@@ -17,6 +17,19 @@ uploads the tarball and checksums, and then finalizes the Release. Rerun with th
 Registry tarball read-back retries only propagation responses such as `ETARGET` and `E404` for up to
 ten minutes; authentication failures and byte mismatches stop immediately.
 
+Before any remote command, the shared publisher checks exactly three regular non-symbolic-link
+files: `imotong-dev-flow-<VERSION>.tgz`, `release-manifest.json`, and `SHA256SUMS`. Product, version and
+source must match the selection, and the tarball bytes must match the saved manifest digest and its
+sole checksum entry. This product's current checksum format does not include the manifest. Missing,
+extra, duplicated, linked, or out-of-directory entries stop publication. Initial and resumed calls
+use the same check; later npm and GitHub read-back retain its expectations instead of deriving new
+ones from local files that may have changed.
+
+共享 publisher 在任何远端命令前核对这三个普通、非链接文件。产品、版本、源码身份须与选择一致，
+tarball 必须同时匹配保存的 manifest 摘要和 SHA256SUMS 中唯一的条目；当前产品格式不将 manifest
+列入 SHA256SUMS。文件缺失、多余、重复、链接或路径越界都会停止发布。首次与恢复发布使用同一
+检查，之后的 npm/GitHub 回读沿用预检保存的期望摘要，不改用本地文件后来变化后的摘要。
+
 ## Desktop package preparation / 桌面包制备
 
 ```bash

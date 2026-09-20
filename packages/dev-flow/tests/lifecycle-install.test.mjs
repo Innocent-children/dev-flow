@@ -44,6 +44,7 @@ async function lifecycleFixture(t) {
 
 function fakeDriver(host, states, profile) {
   return {
+    maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     knownProfiles: async () => [],
     resolveTargetVersion: async () => "0.8.0",
     observe: async () => ({ host, profile, hostAvailable: true, hostVersion: "1.0.0", state: states[host], packageVersion: states[host] === "ready" ? "0.8.0" : null, coreVersion: host === "codex" && states[host] === "ready" ? "0.6.0" : null, receipt: states[host] === "ready" ? {} : null }),

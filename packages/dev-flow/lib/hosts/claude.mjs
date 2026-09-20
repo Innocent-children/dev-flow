@@ -1,3 +1,4 @@
+import { adapterCoreRuntimePath, installedCoreRuntime, readRuntimeJSON } from "../core-runtime.mjs";
 import { execPortableCommand } from "../command.mjs";
 import { lstat, readFile, unlink } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
@@ -18,6 +19,56 @@ export function createClaudeDriver({ environment = process.env, run = defaultRun
     } catch (error) { if (error.code === "ENOENT") return null; throw error; }
   };
   return {
+    async runtimeCandidates() {
+      const receipt = await readRuntimeJSON(join(paths.productRoot, "registrations", "claude.json"), "Claude receipt");
+      if (receipt === null) return [];
+      const product = exactObject(receipt.product, ["name", "version", "core_version"], "Claude receipt product");
+      const host = exactObject(receipt.host, ["surface", "version", "os", "arch"], "Claude receipt host");
+      const recorded = exactObject(receipt.paths, ["package_root", "runtime_path", "data_dir", "receipt_path", "config_root"], "Claude receipt paths");
+      if (product.name !== "dev-flow-claude" || host.surface !== "claude-cli" || `${host.os}-${host.arch}` !== paths.runtimeKey) {
+        throw new Error("Claude receipt identity is invalid");
+      }
+      stable(product.version);
+      stable(product.core_version);
+      if (resolve(recorded.runtime_path) !== resolve(adapterCoreRuntimePath(recorded.package_root, paths))) {
+        throw new Error("Claude runtime differs from its package layout");
+      }
+      return [{ source: "claude", packageName: "dev-flow-claude", packageVersion: product.version,
+        expectedCoreVersion: product.core_version, packageRoot: recorded.package_root, runtimePath: recorded.runtime_path }];
+    },
+    async maintenanceTargets({ observed, operation }) {
+      const receipt = await readRuntimeJSON(join(paths.productRoot, "registrations", "claude.json"), "Claude receipt").catch(() => null);
+      const recorded = receipt?.paths?.runtime_path;
+      let installedRuntime = null;
+      if (observed.packageInstalled) {
+        const root = (await call("npm", ["root", "--global"])).stdout.trim();
+        if (!root) throw new Error("npm did not return its global package directory");
+        installedRuntime = await installedCoreRuntime(join(root, "dev-flow-claude"), paths,
+          { host: "claude", profile: null, packageName: "dev-flow-claude" });
+      }
+      const registeredCorePaths = typeof recorded === "string" && recorded !== "" ? [recorded] : [];
+      if (operation === "factory-reset" && (observed.packageInstalled || observed.receipt)) {
+        const [marketResult, pluginResult] = await Promise.all([
+          call("claude", ["plugin", "marketplace", "list", "--json"]),
+          call("claude", ["plugin", "list", "--json"]),
+        ]);
+        const markets = JSON.parse(marketResult.stdout), plugins = JSON.parse(pluginResult.stdout);
+        if (!Array.isArray(markets) || !Array.isArray(plugins)) throw new Error("Invalid Claude registration listing");
+        const matchingMarkets = markets.filter(entry => entry.name === "dev-flow-claude-local");
+        const expectedRoot = receipt?.paths?.package_root ?? installedRuntime?.packageRoot;
+        if (matchingMarkets.length > 1 || matchingMarkets.some(entry => entry.source !== "directory" || !isAbsolute(entry.path ?? "") ||
+            !isAbsolute(expectedRoot ?? "") || resolve(entry.path) !== resolve(expectedRoot))) throw new Error("Claude marketplace source ownership changed");
+        const matchingPlugins = plugins.filter(entry => entry.id === "dev-flow-claude@dev-flow-claude-local" && entry.scope === "user");
+        if (plugins.some(entry => entry.id?.endsWith("@dev-flow-claude-local") &&
+            (entry.id !== "dev-flow-claude@dev-flow-claude-local" || entry.scope !== "user"))) throw new Error("Other plugin scopes still use the Claude marketplace");
+        if (matchingPlugins.length > 1 || matchingPlugins.length && matchingMarkets.length !== 1) throw new Error("Cannot establish Claude cached plugin ownership");
+        for (const plugin of matchingPlugins) {
+          if (!isAbsolute(plugin.installPath ?? "")) throw new Error("Claude cached plugin path is unavailable");
+          registeredCorePaths.push(adapterCoreRuntimePath(plugin.installPath, paths));
+        }
+      }
+      return { registeredCorePaths: [...new Set(registeredCorePaths)], installedRuntime };
+    },
     async observe() {
       const issues = []; let hostAvailable = false, hostVersion = null, value = null, packageVersion = null;
       try { hostVersion = (await call("claude", ["--version"])).stdout.trim(); hostAvailable = true; }
@@ -40,6 +91,9 @@ export function createClaudeDriver({ environment = process.env, run = defaultRun
         catch (error) { issues.push({ code: "registration_check_failed", message: error.message, command: "dev-flow doctor --host claude" }); }
       }
       if (orphanedRegistration) issues.push({ code: "orphaned_registration", message: "Claude registration remains after package removal", command: "dev-flow uninstall --host claude --yes" });
+      if (!packageVersion && !orphanedRegistration && !issues.length) {
+        issues.push({ code: "adapter_missing", message: "Dev Flow Claude Adapter is not installed.", command: "dev-flow install --host claude --yes" });
+      }
       const state = value?.status === "ready" && hostAvailable ? "ready" : packageVersion || orphanedRegistration || issues.some(v => ["package_check_failed", "registration_check_failed"].includes(v.code)) ? "partial" : "absent";
       return { host: "claude", profile: null, hostAvailable, hostVersion, state, packageInstalled: Boolean(packageVersion), packageVersion, coreVersion: value?.core_version ?? null, receipt: orphanedRegistration || value?.registration?.receipt === true, orphanedRegistration, issues };
     },
@@ -82,7 +136,14 @@ export function createClaudeDriver({ environment = process.env, run = defaultRun
           if (result.status !== "ready" || result.package_version !== targetVersion) throw new Error("Claude installation readback failed");
         }
         return { changed: true, completedSteps, nextSteps: operation === "uninstall" ? [] : ["Reload Claude plugins or start a new Claude Code session."] };
-      } catch (error) { error.completedSteps = completedSteps; error.nextStep = "dev-flow repair --host claude --yes"; throw error; }
+      } catch (error) { error.completedSteps = completedSteps; error.nextStep = operation === "uninstall" ? "dev-flow uninstall --host claude --yes" : "dev-flow repair --host claude --yes"; throw error; }
     }
   };
+}
+
+function exactObject(value, keys, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort())) {
+    throw new Error(`${label} fields are invalid`);
+  }
+  return value;
 }

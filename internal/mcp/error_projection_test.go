@@ -181,6 +181,9 @@ func TestApplyErrorDetailRejectsUnsafePathsAndRules(t *testing.T) {
 	if len(envelope.Error.Details) != 1 || envelope.Error.Details[0].Path != "node_result.changed_paths" {
 		t.Fatalf("details=%#v", envelope.Error.Details)
 	}
+	if envelope.Recovery.RetrySafe || len(envelope.Recovery.AllowedPaths) != 0 {
+		t.Fatal("filtering an unsafe or unknown detail must not authorize correction")
+	}
 	text := string(EncodeError("request-unsafe", ToolSubmitTest, failure).JSON)
 	for _, forbidden := range []string{"/Users/", "secret.db", "invented_rule"} {
 		if strings.Contains(text, forbidden) {

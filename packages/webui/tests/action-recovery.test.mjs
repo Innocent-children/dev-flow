@@ -13,7 +13,7 @@ const jsx = { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({
 test("an artifact rejection displays omitted files separately from editable fields", async () => {
   const hooks = scheduler();
   class APIError extends Error {
-    failure = { workflow_write_state: "not_committed", error: { message: "Missing artifacts", field_paths: ["artifacts.other_process"], guard_id: null, repository_paths: ["openspec/config.yaml"] } };
+    failure = { workflow_write_state: "not_committed", error: { message: "Missing artifacts", field_paths: ["payload.artifacts.other_process"], guard_id: null, repository_paths: ["openspec/config.yaml"] }, recovery: { action: "correct_current_action", retry_safe: true, allowed_paths: ["payload.artifacts.other_process"] } };
   }
   const module = await load("components/ActionPanel.tsx", {
     react: hooks.react, "react/jsx-runtime": jsx, "../lib/i18n": i18n,
@@ -25,7 +25,7 @@ test("an artifact rejection displays omitted files separately from editable fiel
   find(tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
   await tick(); tree = hooks.render(module.ActionPanel, props);
   assert.ok(find(tree, (node) => node.type === "code" && node.props.children === "openspec/config.yaml"));
-  assert.deepEqual([...find(tree, (node) => node.type === "schema").props.errors], ["artifacts.other_process"]);
+  assert.deepEqual([...find(tree, (node) => node.type === "schema").props.errors], ["payload.artifacts.other_process"]);
   assert.equal(find(tree, (node) => node.type === "recovery"), undefined);
 });
 

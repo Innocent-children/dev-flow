@@ -138,31 +138,6 @@ func scopeHasHistoryConflict(fresh recovery.RepositoryScopeObservation) bool {
 	return false
 }
 
-func scopeAtRetainedBranch(task domain.ProcessTask, fresh recovery.RepositoryScopeObservation) bool {
-	match := func(origin domain.WorkspaceOrigin, binding domain.RepositoryBinding) bool {
-		return !binding.Detached && binding.CurrentBranch != nil && *binding.CurrentBranch == origin.TaskBranch && binding.BaseCommitAncestor
-	}
-	if !match(task.WorkspaceOrigin, fresh.Primary) {
-		return false
-	}
-	for i, entry := range task.AdditionalRepositories {
-		if !match(entry.Origin, fresh.Additional[i].Binding) {
-			return false
-		}
-	}
-	return true
-}
-
-func historyResolutionMatchesReviewedWorkspace(task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, comparison recovery.RepositoryScopeComparison) bool {
-	if task.Blocker == nil || task.Blocker.Cause != domain.BlockerCauseWorkspaceHistoryConflict ||
-		scopeHasUnavailableWorkspace(task, fresh) || !scopeAtRetainedBranch(task, fresh) {
-		return false
-	}
-	return comparison.ObservedDigest == task.Blocker.ObservedBindingDigest ||
-		comparison.ObservedDigest == task.Blocker.Condition.ExpectedBindingDigest ||
-		!scopeHasHistoryConflict(fresh)
-}
-
 func contentDiffersFromCurrentAuthority(task domain.ProcessTask, fresh recovery.RepositoryScopeObservation) bool {
 	digests, err := scopeWorkspaceDigests(task, fresh)
 	if err != nil {

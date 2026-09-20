@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { execFile, spawn } from "node:child_process";
@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 const run = promisify(execFile);
 const [packageDirectory, claudeExecutable] = process.argv.slice(2);
 if (!packageDirectory || !claudeExecutable) throw new Error("Usage: node verify-package.mjs ABSOLUTE_EXTRACTED_PACKAGE ABSOLUTE_CLAUDE_EXECUTABLE");
-const root = resolve(packageDirectory), isolated = await mkdtemp(join(tmpdir(), "dev-flow-claude-acceptance-"));
+const root = await realpath(resolve(packageDirectory)), isolated = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-claude-acceptance-")));
 const config = join(isolated, "config"), data = join(isolated, "data");
 await mkdir(config); await mkdir(data);
 const environment = { ...process.env, HOME: isolated, USERPROFILE: isolated, LOCALAPPDATA: join(isolated, "appdata"), CLAUDE_CONFIG_DIR: config, DEV_FLOW_DATA_DIR: data, PATH: dirname(claudeExecutable) + (process.platform === "win32" ? ";" : ":") + process.env.PATH };
@@ -52,4 +52,3 @@ report.checks.push("native plugin removal, unrelated data retention and repeated
 report.model_session = "not checked by this harness";
 const reportPath = join(isolated,"report.json"); await writeFile(reportPath,JSON.stringify(report,null,2)+"\n");
 process.stdout.write(JSON.stringify({...report,report_path:reportPath},null,2)+"\n");
-

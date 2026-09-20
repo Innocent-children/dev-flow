@@ -5,10 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { resolveManagerPaths, writeProfileReceipt } from "../lib/ownership.mjs";
-import { listAdapterCoreRuntimes, resolveCoreRuntime, runDevFlow } from "../lib/runtime.mjs";
+import { createHostDrivers } from "../lib/hosts/index.mjs";
+import { resolveManagerPaths } from "../lib/ownership.mjs";
+import { writeProfileReceipt } from "../lib/hosts/deepseek-receipts.mjs";
+import { resolveCoreRuntime, runDevFlow } from "../lib/runtime.mjs";
 
-test("public launcher selects the newest compatible Core from Codex or DeepSeek receipts", async (t) => {
+test("public launcher selects the newest compatible Core from all three Host receipts", async (t) => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-runtime-selection-")));
   const home = join(root, "home");
   const dshHome = join(root, "dsh");
@@ -38,18 +40,37 @@ test("public launcher selects the newest compatible Core from Codex or DeepSeek 
     dsh_version: "0.1.0-rc.8", created_at: "2026-08-28T00:00:00Z", updated_at: "2026-08-28T00:00:00Z",
   });
 
+  const claudeRoot = join(root, "claude");
+  const claudeRuntime = await packageFixture(claudeRoot, "dev-flow-claude", "0.1.0", "0.6.4");
+  const claudeReceiptPath = join(paths.productRoot, "registrations", "claude.json");
+  await writeFile(claudeReceiptPath, JSON.stringify({
+    product: { name: "dev-flow-claude", version: "0.1.0", core_version: "0.6.4" },
+    host: { surface: "claude-cli", version: "2.1.270", os: platform, arch },
+    paths: { package_root: claudeRoot, runtime_path: claudeRuntime, data_dir: paths.defaultDataDirectory,
+      receipt_path: claudeReceiptPath, config_root: join(home, ".claude") },
+  }));
+
   const selected = await resolveCoreRuntime({
     homeDirectory: home,
     environment,
     platform,
     arch,
-    exec: async (runtimePath) => ({ stdout: `dev-flow ${runtimePath === codexRuntime ? "0.6.2" : "0.6.3"}\n` }),
+    exec: async (runtimePath) => ({ stdout: `dev-flow ${runtimePath === codexRuntime ? "0.6.2" : runtimePath === claudeRuntime ? "0.6.4" : "0.6.3"}\n` }),
     initializeDefaultData: true,
   });
-  assert.equal(selected.source, "deepseek/web");
-  assert.equal(selected.version, "0.6.3");
+  assert.equal(selected.source, "claude");
+  assert.equal(selected.version, "0.6.4");
   assert.equal(selected.dataDirectory, paths.defaultDataDirectory);
   if (process.platform !== "win32") assert.equal((await stat(paths.defaultDataDirectory)).mode & 0o777, 0o700);
+  await writeFile(join(paths.productRoot, "registrations", "codex.json"), "invalid unrelated receipt");
+  const selectedOnly = { host: "claude", homeDirectory: home, environment, platform, arch, requireData: false,
+    exec: async executable => {
+      assert.equal(executable, claudeRuntime);
+      return { stdout: "dev-flow 0.6.4\n" };
+    } };
+  assert.equal((await resolveCoreRuntime(selectedOnly)).source, "claude");
+  await assert.rejects(resolveCoreRuntime({ ...selectedOnly, host: "all" }), /Codex receipt is invalid/);
+
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 
@@ -94,7 +115,7 @@ test("non-start WebUI commands never initialize the default data directory", asy
   assert.equal(selectionOptions.initializeDefaultData, false);
 });
 
-test("Adapter maintenance names the recorded Core runtimes without executing anything", async (t) => {
+test("Host drivers name only their own recorded Core without executing Core", async (t) => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-runtime-maintenance-")));
   const home = join(root, "home");
   const dshHome = join(root, "dsh");
@@ -115,21 +136,17 @@ test("Adapter maintenance names the recorded Core runtimes without executing any
     dsh_version: "0.1.0-rc.8", created_at: "2026-08-28T00:00:00Z", updated_at: "2026-08-28T00:00:00Z",
   });
 
-  assert.deepEqual(await listAdapterCoreRuntimes({ paths, environment }), [
-    { host: "codex", profile: null, runtimePath: codexRuntime },
-    { host: "deepseek", profile: "web", runtimePath: deepseekRuntime },
-  ]);
+  const drivers = createHostDrivers({ paths, environment });
+  const codexTargets = () => drivers.codex.maintenanceTargets({ observed: { packageInstalled: false } });
+  assert.deepEqual((await codexTargets()).registeredCorePaths, [codexRuntime]);
+  assert.deepEqual((await drivers.deepseek.maintenanceTargets({ profile: "web", observed: { receipt: true } })).registeredCorePaths, [deepseekRuntime]);
 
-  // An Adapter whose record is gone or unreadable names no Core, so maintenance
-  // of another Adapter cannot stop a pet that record could never have started.
   await unlink(registration);
-  assert.deepEqual(await listAdapterCoreRuntimes({ paths, environment }), [
-    { host: "deepseek", profile: "web", runtimePath: deepseekRuntime },
-  ]);
+  assert.deepEqual((await codexTargets()).registeredCorePaths, []);
   await writeFile(registration, "not-json\n");
-  assert.deepEqual(await listAdapterCoreRuntimes({ paths, environment }), [
-    { host: "deepseek", profile: "web", runtimePath: deepseekRuntime },
-  ]);
+  assert.deepEqual((await codexTargets()).registeredCorePaths, []);
+  await assert.rejects(drivers.codex.runtimeCandidates(), /Codex receipt is invalid/);
+  assert.deepEqual((await drivers.deepseek.maintenanceTargets({ profile: "web", observed: { receipt: true } })).registeredCorePaths, [deepseekRuntime]);
   t.after(async () => { const { rm } = await import("node:fs/promises"); await rm(root, { recursive: true, force: true }); });
 });
 

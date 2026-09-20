@@ -98,7 +98,7 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		result.Message = "The artifact manifest omits observed repository changes."
 	}
 	recoveryResult := &RecoveryGuidance{RetrySafe: false, Action: action, Message: guidance}
-	if paths := boundedCorrectionPaths(tool, typed, result); len(paths) != 0 {
+	if paths := boundedCorrectionPaths(tool, typed); len(paths) != 0 {
 		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: boundedCorrectionMessage, AllowedPaths: paths}
 	} else if paths := requestCorrectionPaths(tool, typed, result); len(paths) != 0 {
 		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctRequest, Message: requestCorrectionMessage, AllowedPaths: paths}
@@ -173,74 +173,15 @@ func retainedViolations(violations []domain.ContractViolation) []domain.Contract
 // already established, and a second failed submission stops the attempt.
 const boundedCorrectionMessage = "Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails."
 
-// boundedCorrectionPaths returns the members one bounded submission correction
-// may change for a proven zero-write failure. Every rule in the failure must be
-// bounded-correction eligible, so a failure that mixes one ineligible rule
-// offers no correction at all.
-func boundedCorrectionPaths(tool string, typed *domain.Error, result *ErrorResult) []string {
-	if typed == nil || !typed.ZeroWrite {
+func boundedCorrectionPaths(tool string, failure *domain.Error) []string {
+	if _, ordinary := submissionKindForTool(tool); !ordinary {
 		return nil
 	}
-	if typed.Code != domain.ErrorInvalidArgument && typed.Code != domain.ErrorTransitionNotAllowed {
-		return nil
-	}
-	_, submissionTool := submissionKindForTool(tool)
-	if !submissionTool {
-		return nil
-	}
-	entries := append([]domain.ContractViolation(nil), result.Details...)
-	if result.Guard != nil {
-		entries = append(entries, result.Guard.Failures...)
-	}
-	if len(entries) == 0 {
-		return nil
-	}
-	seen := make(map[string]bool, len(entries))
-	paths := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.Rule == domain.RuleArtifactManifestIncomplete && len(result.RepositoryPaths) == 0 {
-			return nil
-		}
-		if !boundedCorrectionRule(entry.Rule, submissionTool) {
-			return nil
-		}
-		if seen[entry.Path] {
-			continue
-		}
-		seen[entry.Path] = true
-		paths = append(paths, entry.Path)
+	paths := recovery.ActionCorrectionPaths(failure)
+	for index, path := range paths {
+		paths[index] = strings.TrimPrefix(path, "payload.")
 	}
 	return paths
-}
-
-// boundedCorrectionRule decides whether one closed failure rule may be answered
-// by one bounded submission correction. A required member missing from a node
-// submission is zero-write and its value is the caller's own current fact, so a
-// node submission tool may correct it once; the same rule outside a submission
-// tool keeps non-retryable guidance.
-func boundedCorrectionRule(rule domain.ViolationRule, submissionTool bool) bool {
-	if rule == domain.RuleRequiredMemberMissing || rule == domain.RuleArtifactManifestIncomplete || rule == domain.RuleBudgetChecksRequired {
-		return submissionTool
-	}
-	switch rule {
-	case domain.RuleNonAutomatedCommandCountZero,
-		domain.RuleNonAutomatedFullSuiteFalse,
-		domain.RuleUnknownMember,
-		domain.RuleCurrentValueRequired,
-		domain.RuleCurrentSetRequired,
-		domain.RuleAcceptanceSetCurrent:
-		return true
-	default:
-		switch domain.GuardRule(rule) {
-		case domain.GuardForwardFindingsEmpty,
-			domain.GuardCurrentValueRequired,
-			domain.GuardCurrentSetRequired,
-			domain.GuardAcceptanceSetCurrent:
-			return true
-		default:
-			return false
-		}
-	}
 }
 
 func validRepositoryDriftMessage(message string) bool {

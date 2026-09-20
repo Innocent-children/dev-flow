@@ -40,12 +40,14 @@ func Classify(facts ClassificationFacts) (RecoveryDecision, error) {
 		classification, directive = domain.RecoveryConflicting, conflictDirective(facts)
 	case !facts.SourceCurrent:
 		classification, directive = domain.RecoveryConflicting, conflictDirective(facts)
+	case facts.CurrentNode == domain.NodeBlocked && facts.ExistingBlocker != nil && facts.Operation.SourceCursor == domain.NodeBlocked && facts.PayloadRetained && facts.OperationEvidence == OperationEvidenceComplete:
+		classification, directive = domain.RecoveryCompletedButUnrecorded, DirectiveCommitRecoveredTransition
 	case facts.OperationEvidence == OperationEvidenceContradictory || facts.RepositoryRelation == RepositoryForbiddenChange:
-		classification, directive = domain.RecoveryConflicting, DirectiveCreateBlocker
+		classification, directive = domain.RecoveryConflicting, conflictDirective(facts)
 	case facts.OperationEvidence == OperationEvidencePartial:
-		classification, directive = domain.RecoveryPartiallyCompleted, DirectiveCreateBlocker
+		classification, directive = domain.RecoveryPartiallyCompleted, conflictDirective(facts)
 	case facts.OperationEvidence == OperationEvidenceNone && facts.RepositoryRelation == RepositoryWorktreeOnlyChanged && facts.MayHavePartialRepositoryWork:
-		classification, directive = domain.RecoveryPartiallyCompleted, DirectiveCreateBlocker
+		classification, directive = domain.RecoveryPartiallyCompleted, conflictDirective(facts)
 	case facts.OperationEvidence == OperationEvidenceComplete:
 		classification, directive = domain.RecoveryCompletedButUnrecorded, DirectiveCommitRecoveredTransition
 	case facts.OperationEvidence == OperationEvidenceNone && facts.RepositoryRelation == RepositoryExact:
@@ -137,6 +139,9 @@ func adviceFor(classification domain.RecoveryClassification, facts Classificatio
 	case domain.RecoveryCompletedButUnrecorded, domain.RecoveryPartiallyCompleted:
 		return AdviceSubmitRecoveryApply
 	case domain.RecoveryConflicting:
+		if facts.SourceCurrent && facts.CurrentNode == domain.NodeBlocked && facts.PayloadRetained {
+			return AdviceStopForRepositoryDrift
+		}
 		if facts.SourceCurrent && facts.CurrentNode != domain.NodeBlocked {
 			return AdviceSubmitRecoveryApply
 		}

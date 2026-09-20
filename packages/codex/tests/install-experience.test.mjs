@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { chmod, lstat, mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { chmod, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { after, before } from "node:test";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import {
   DEFAULT_USER_CONFIGURATION,
@@ -13,6 +16,16 @@ import {
   resolveSetupLanguage,
   selectSetupPresentationMode,
 } from "../lib/install-experience.mjs";
+
+let coreDirectory, runtimePath;
+before(async () => {
+  coreDirectory = await mkdtemp(join(tmpdir(), "dev-flow-configuration-core-"));
+  runtimePath = join(coreDirectory, process.platform === "win32" ? "dev-flow.exe" : "dev-flow");
+  await promisify(execFile)("go", ["build", "-o", runtimePath, "./cmd/dev-flow"], {
+    cwd: fileURLToPath(new URL("../../..", import.meta.url)), timeout: 120000,
+  });
+});
+after(async () => { if (coreDirectory) await rm(coreDirectory, { recursive: true, force: true }); });
 
 test("creates one closed default user configuration with private modes", async () => {
   const paths = await fixturePaths();
@@ -27,7 +40,7 @@ test("creates one closed default user configuration with private modes", async (
 
 test("preserves valid existing configuration and adjacent files byte for byte", async () => {
   const paths = await fixturePaths();
-  const existing = '{"codex":{"codebase_memory":true}}\n';
+  const existing = '{"claude":{"codebase_memory":true},"deepseek":{},"codex":{"codebase_memory":true}}\n';
   const adjacent = join(paths.configurationDirectory, "notes.txt");
   await mkdir(paths.configurationDirectory, { recursive: true, mode: 0o700 });
   await writeFile(paths.configurationPath, existing, { mode: 0o600 });
@@ -41,7 +54,7 @@ test("preserves valid existing configuration and adjacent files byte for byte", 
 test("rejects invalid, duplicate, unknown, nonboolean, oversized, and unsafe existing files", async (t) => {
   const cases = [
     ["invalid", "{", /invalid JSON/],
-    ["duplicate", '{"codex":{},"codex":{}}', /invalid JSON/],
+    ["duplicate", '{"codex":{},"codex":{}}', /duplicate field/],
     ["unknown", '{"other":{}}', /unknown top-level/],
     ["nonboolean", '{"codex":{"codebase_memory":"yes"}}', /must be a boolean/],
     ["oversized", `{"codex":{}}${" ".repeat(16 * 1024)}`, /exceeds 16 KiB/],
@@ -145,5 +158,6 @@ async function fixturePaths() {
     platform: process.platform,
     configurationDirectory,
     configurationPath: join(configurationDirectory, "config.json"),
+    runtimePath,
   };
 }

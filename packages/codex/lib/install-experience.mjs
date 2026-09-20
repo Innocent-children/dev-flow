@@ -1,16 +1,12 @@
 import { chmod, lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 
-import { assertNoDuplicateJSONMembers } from "./json.mjs";
+import { execPortableCommand } from "./command.mjs";
 
-export const DEFAULT_USER_CONFIGURATION = `${JSON.stringify({
-  codex: { codebase_memory: false },
-  deepseek: { codebase_memory: false },
-}, null, 2)}\n`;
+export const DEFAULT_USER_CONFIGURATION = "{}\n";
 
-const MAX_CONFIGURATION_BYTES = 16 * 1024;
 export const SETUP_NEXT_STEP = "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description> to assess the request";
 
-export async function ensureUserConfiguration(paths) {
+export async function ensureUserConfiguration(paths, { environment = process.env } = {}) {
   const { configurationDirectory, configurationPath, enforcePrivateModes = true } = paths ?? {};
   if (typeof configurationDirectory !== "string" || typeof configurationPath !== "string") {
     throw new Error("user configuration path is unavailable");
@@ -34,7 +30,7 @@ export async function ensureUserConfiguration(paths) {
     }
   }
 
-  await validateExistingConfiguration(configurationPath, enforcePrivateModes);
+  await validateExistingConfiguration(configurationPath, enforcePrivateModes, paths.runtimePath, environment);
   return Object.freeze({ configurationPath, fileChange: null });
 }
 
@@ -124,7 +120,7 @@ async function ensureConfigurationDirectory(path, enforcePrivateModes) {
   if (enforcePrivateModes) await chmod(path, 0o700);
 }
 
-async function validateExistingConfiguration(path, enforcePrivateModes) {
+async function validateExistingConfiguration(path, enforcePrivateModes, runtimePath, environment) {
   let info;
   try {
     info = await lstat(path);
@@ -143,45 +139,25 @@ async function validateExistingConfiguration(path, enforcePrivateModes) {
   } catch (error) {
     throw new Error(`user configuration ${JSON.stringify(path)}: read failed`, { cause: error });
   }
-  if (raw.length > MAX_CONFIGURATION_BYTES) {
-    throw new Error(`user configuration ${JSON.stringify(path)}: exceeds 16 KiB`);
-  }
-  let text;
+  let result;
   try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(raw);
+    result = await execPortableCommand(runtimePath, ["config", "validate"], {
+      env: environment, input: raw, encoding: "utf8", timeout: 10000, maxBuffer: 64 * 1024, windowsHide: true,
+    });
   } catch (error) {
-    throw new Error(`user configuration ${JSON.stringify(path)}: invalid UTF-8`, { cause: error });
+    if (!error.stdout) throw new Error(`user configuration ${JSON.stringify(path)}: Core validation unavailable`, { cause: error });
+    result = error;
   }
-  let value;
+  let report;
   try {
-    assertNoDuplicateJSONMembers(text);
-    value = JSON.parse(text);
+    report = JSON.parse(result.stdout);
   } catch (error) {
-    throw new Error(`user configuration ${JSON.stringify(path)}: invalid JSON`, { cause: error });
+    throw new Error(`user configuration ${JSON.stringify(path)}: invalid Core validation response`, { cause: error });
   }
-  assertClosedConfiguration(value, path);
-}
-
-function assertClosedConfiguration(value, path) {
-  if (!isObject(value)) throw new Error(`user configuration ${JSON.stringify(path)}: top level must be an object`);
-  for (const [host, preferences] of Object.entries(value)) {
-    if (!new Set(["codex", "deepseek"]).has(host)) {
-      throw new Error(`user configuration ${JSON.stringify(path)}: unknown top-level field ${JSON.stringify(host)}`);
-    }
-    if (!isObject(preferences)) {
-      throw new Error(`user configuration ${JSON.stringify(path)}: field ${JSON.stringify(host)} must be an object`);
-    }
-    for (const [field, setting] of Object.entries(preferences)) {
-      if (field !== "codebase_memory") {
-        throw new Error(`user configuration ${JSON.stringify(path)}: unknown field ${JSON.stringify(`${host}.${field}`)}`);
-      }
-      if (typeof setting !== "boolean") {
-        throw new Error(`user configuration ${JSON.stringify(path)}: field ${JSON.stringify(`${host}.codebase_memory`)} must be a boolean`);
-      }
-    }
+  if (report?.ok === false && typeof report.error?.message === "string") {
+    throw new Error(`user configuration ${JSON.stringify(path)}: ${report.error.message}`);
   }
-}
-
-function isObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+  if (result instanceof Error || report?.ok !== true || report.result === null || typeof report.result !== "object" || Array.isArray(report.result)) {
+    throw new Error(`user configuration ${JSON.stringify(path)}: invalid Core validation response`);
+  }
 }

@@ -19,4 +19,3 @@ export async function runHook(event, check = input => coreJSON(["host-check", "p
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny",
     permissionDecisionReason: result.reason || "Dev Flow stopped this write." } };
 }
-

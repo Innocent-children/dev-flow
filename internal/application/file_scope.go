@@ -36,7 +36,11 @@ func (s *Service) PrepareFileChange(ctx context.Context, request PrepareFileChan
 	instance := domain.Digest("")
 	identifyErr := error(nil)
 	if identifier, ok := s.repositoryObserver.(repository.WorktreeIdentifier); ok {
-		root, instance, identifyErr = identifier.IdentifyWorkspace(ctx, request.RepositoryPath)
+		var identifiedRoot string
+		identifiedRoot, instance, identifyErr = identifier.IdentifyWorkspace(ctx, request.RepositoryPath)
+		if identifiedRoot != "" {
+			root = identifiedRoot
+		}
 	} else {
 		binding, observeErr := s.repositoryObserver.Observe(ctx, request.RepositoryPath)
 		if observeErr != nil {
@@ -59,6 +63,9 @@ func (s *Service) PrepareFileChange(ctx context.Context, request PrepareFileChan
 		}
 	}
 	if errors.Is(err, store.ErrTaskNotFound) {
+		if identifyErr != nil && !errors.Is(identifyErr, repository.ErrNotGitRepository) {
+			return PrepareFileChangeResult{}, domain.ErrWorkspaceUnavailable
+		}
 		return PrepareFileChangeResult{Decision: FileChangeAllow}, nil
 	}
 	if err != nil {
@@ -460,25 +467,6 @@ func CurrentFileScopeStatus(task domain.ProcessTask) FileScopeStatus {
 		UnexplainedPaths: unexplainedTaskPaths(task, task.Repository, task.AdditionalRepositories), Records: append([]domain.FileScopeRecord(nil), task.FileScopeRecords...),
 		CoveredHostTools: covered, FinalCheckEnabled: task.TaskPlan != nil,
 	}
-}
-
-func fileScopeResolutionRepositoryCurrent(task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, comparison recovery.RepositoryScopeComparison) bool {
-	if comparison.Relation == recovery.RepositoryForbiddenChange {
-		return false
-	}
-	unexplained := unexplainedTaskPaths(task, fresh.Primary, fresh.Additional)
-	if len(unexplained) == 0 {
-		return true
-	}
-	if task.Blocker == nil {
-		return false
-	}
-	for _, record := range task.FileScopeRecords {
-		if record.RequestID == task.Blocker.Condition.ScopeRequestID {
-			return containsAll(record.Paths, unexplained)
-		}
-	}
-	return false
 }
 
 func observedTaskDeltaPaths(task domain.ProcessTask, fresh recovery.RepositoryScopeObservation) []string {
