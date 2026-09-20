@@ -23,7 +23,7 @@ completed code.
 
 A useful bug report includes:
 
-- the product and version, such as Core, `dev-flow-codex`, `dev-flow-deepseek`, or `dev-flow-claude`;
+- the product and version, such as Core, `dev-flow-codex`, `dev-flow-deepseek`, `dev-flow-claude`, or `dev-flow-zcode`;
 - operating system, CPU, Node.js version, and host version;
 - minimal reproduction steps;
 - expected and actual results;
@@ -79,7 +79,7 @@ Before implementation, a proposal must answer clearly:
 2. Is it based on Task, Action, repository observation, or retained records rather than only the
    agent's narrative?
 3. Does it reduce the user's effort to judge current state and next step?
-4. Can we repeat the full workflow in an actual Codex, DeepSeek or Claude Code session?
+4. Can we repeat the full workflow in an actual Codex, DeepSeek, Claude Code or ZCode session?
 5. Does it retain one Core Task state?
 6. Does it add unnecessary process steps?
 7. Does it solve a task problem, or only add another platform, Host, or interface?
@@ -173,7 +173,7 @@ pnpm run validate
 ```
 
 Each complete-suite run needs a reason tied to the change. Report simulations, static checks, and
-user-performed checks separately from automated tests of the final package in actual Codex, DeepSeek or Claude Code.
+user-performed checks separately from automated tests of the final package in actual Codex, DeepSeek, Claude Code or ZCode.
 
 ## Pull request requirements
 

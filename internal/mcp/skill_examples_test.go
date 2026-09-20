@@ -29,6 +29,9 @@ func readSkillExamples(t *testing.T, host string) []skillExample {
 	if host == "deepseek" {
 		root = filepath.Join("..", "..", "packages", "deepseek", "skills", "dev-flow")
 	}
+	if host == "zcode" {
+		root = filepath.Join("..", "..", "packages", "zcode", "skills", "dev-flow")
+	}
 	pattern := regexp.MustCompile("(?s)<!-- example:([a-z-]+) ([a-z_-]+) ([a-z_-]+) -->\\n```json\\n(.*?)\\n```")
 	var examples []skillExample
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
@@ -73,7 +76,7 @@ func validateSkillSchema(t *testing.T, rawSchema, rawValue []byte) {
 }
 
 func TestSkillMCPExamplesMatchCurrentContracts(t *testing.T) {
-	for _, host := range []string{"codex", "deepseek", "claude"} {
+	for _, host := range []string{"codex", "deepseek", "claude", "zcode"} {
 		t.Run(host, func(t *testing.T) { validateSkillMCPExamples(t, host) })
 	}
 }

@@ -12,7 +12,7 @@
 
 ## Dev Flow 能幫你做什麼
 
-Dev Flow 幫助你在 Codex、DeepSeek 或 Claude Code 中管理長時間執行的 AI 程式開發任務。它在本機保存已確定的
+Dev Flow 幫助你在 Codex、DeepSeek、Claude Code 或 ZCode 中管理長時間執行的 AI 程式開發任務。它在本機保存已確定的
 需求、檔案範圍、驗證計畫、進度與結果，方便會話中斷後繼續工作。
 
 - **明確修改範圍：** 記錄預計修改的檔案，並依計畫檢查實際修改。
@@ -21,7 +21,7 @@ Dev Flow 幫助你在 Codex、DeepSeek 或 Claude Code 中管理長時間執行�
 - **查看結果：** 查看目前進度、檢查結果，以及任務需要處理的問題。
 
 適合跨會話、需要明確檔案範圍和測試投入的儲存庫任務。一次性問答、程式說明與不需保存進度的
-小型修改，直接使用 Codex、DeepSeek 或 Claude Code 通常更簡單。
+小型修改，直接使用 Codex、DeepSeek、Claude Code 或 ZCode 通常更簡單。
 
 ## 快速開始
 
@@ -31,12 +31,16 @@ Dev Flow 幫助你在 Codex、DeepSeek 或 Claude Code 中管理長時間執行�
 
 下方公開安裝入口適用於已發布的 Codex、DeepSeek 整合。Claude Code 請依[原始碼安裝指南](docs/CLAUDE_en.md)操作；舊版公開 CLI 不會安裝僅於原始碼提供的 Adapter。
 
+ZCode 同樣使用[原始碼安裝指南](docs/ZCODE_en.md)。本機套件以 Windows x64 與 macOS arm64 為目標，macOS 的 ZCode 實機驗證將於後續完成。
+
 ```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
 在所用安裝入口中選擇對應 Host。Codex 安裝後在 `/hooks` 檢查並信任 Dev Flow hook；DeepSeek 重新啟動所選 Profile；Claude Code 重新載入外掛或開始新會話，並依提示審閱權限。
+
+ZCode 需在 Settings → Plugins 完成外掛安裝與啟用，再開始新會話讓 Hook 生效。本機套件準備完成不代表 ZCode 已載入外掛。
 
 ### 2. 啟動任務
 
@@ -58,6 +62,14 @@ $dev-flow-codex:dev-flow 加入登入失敗限流。只修改驗證相關檔案�
 
 ```text
 /dev-flow-claude:dev-flow 加入登入失敗限流。只修改驗證相關檔案，最多執行 4 項定向檢查。
+```
+
+**ZCode**
+
+在輸入框的 `/` → Skills 選擇 `dev-flow`，再描述任務。
+
+```text
+使用 Dev Flow 加入登入失敗限流。只修改驗證相關檔案，最多執行 4 項定向檢查。
 ```
 
 這些訊息傳送到對話中，不在終端機執行。請盡量寫清楚目標、驗收條件、檔案範圍與測試上限。
@@ -83,6 +95,8 @@ $dev-flow-codex:dev-flow 加入登入失敗限流。只修改驗證相關檔案�
 
 Claude 使用者應回到原工作目錄與會話，使用 `/dev-flow-claude:dev-flow` 明確繼續已儲存的任務。
 
+ZCode 使用者應重新開啟原工作目錄，選擇 Dev Flow Skill 並要求繼續已儲存的任務；準備新目錄時依回傳的工作區開啟說明接續。
+
 下列命令使用已安裝的全域管理器；原始碼體驗請使用指南中的對應入口。
 
 ```bash
@@ -97,7 +111,7 @@ dev-flow webui start
 
 ## 桌面寵物
 
-寵物需要已設定的 Adapter 與已安裝的桌面應用程式。只安裝 Claude Adapter 不會安裝桌面應用程式。
+寵物需要已設定的 Adapter 與已安裝的桌面應用程式。 只安裝 Adapter 不會安裝桌面應用程式。
 
 桌面寵物透過堆疊氣泡顯示多個任務，並可分別開啟對應 WebUI。它優先顯示受阻任務，目前任務完成後會自動關注其他未完成任務，也支援固定關注。你可以自訂外觀、控制動畫、調整大小，以及獨立啟動或停止寵物。
 
@@ -117,7 +131,7 @@ dev-flow pet stop
 
 ## 文件
 
-- **使用說明：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [Claude Code](docs/CLAUDE_en.md) · [命令參考](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)
+- **使用說明：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [Claude Code](docs/CLAUDE_en.md) · [ZCode](docs/ZCODE_en.md) · [命令參考](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)
 - **專案資料：** [產品定義](docs/PRODUCT.md) · [支援矩陣](docs/SUPPORT-MATRIX.md) · [安全政策](SECURITY.md)
 - **開發與貢獻：** [文件目錄](MANIFEST.md) · [貢獻指南](CONTRIBUTING_zh-CN.md)
 

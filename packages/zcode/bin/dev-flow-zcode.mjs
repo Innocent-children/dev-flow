@@ -1,0 +1,105 @@
+#!/usr/bin/env node
+import { readSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+import { core } from "../lib/runtime.mjs";
+import * as lifecycle from "../lib/lifecycle.mjs";
+import * as workspace from "../lib/workspace.mjs";
+import { runHook } from "../hooks/pre-tool-use.mjs";
+import { assertNoDuplicateJSONMembers } from "../lib/json.mjs";
+
+export const operations = Object.freeze([
+  "inspect", "prepare", "provision", "status", "scope", "bind-task", "open", "resume", "relocate", "cleanup-worktree", "cleanup-branch",
+]);
+
+function input() {
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const chunk = Buffer.alloc(65536);
+    const count = readSync(0, chunk, 0, chunk.length, null);
+    if (!count) break;
+    size += count;
+    if (size > 1024 * 1024) throw new Error("Input exceeds 1 MiB");
+    chunks.push(chunk.subarray(0, count));
+  }
+  const raw = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
+  assertNoDuplicateJSONMembers(raw);
+  const value = JSON.parse(raw);
+  if (!value || Array.isArray(value) || typeof value !== "object") throw new Error("One closed JSON object required");
+  return value;
+}
+
+function lifecycleOptions(args) {
+  if (!["status", "setup", "remove"].includes(args[0])) return null;
+  const flags = args.slice(1);
+  if (new Set(flags).size !== flags.length || flags.some(flag => flag !== "--json" && !(args[0] === "remove" && flag === "--confirm-host-removed"))) {
+    throw new Error("Invalid lifecycle flags; use --help");
+  }
+  return { hostRemoved: flags.includes("--confirm-host-removed") };
+}
+
+export async function runCLI(args) {
+  if (args.length === 0 || args.length === 1 && args[0] === "--help") {
+    process.stdout.write("dev-flow-zcode status|setup|remove [--json]\n" +
+      "dev-flow-zcode remove --confirm-host-removed [--json]\n" +
+      "dev-flow-zcode --version\ndev-flow-zcode mcp\n" +
+      "dev-flow-zcode artifacts collect|prepare\n" +
+      "dev-flow-zcode host-check pre-file-write|workspace-available\n" +
+      "dev-flow-zcode hook pre-tool-use\n" +
+      `dev-flow-zcode host-launch ${operations.join("|")}\n` +
+      "Host-launch accepts one closed JSON object on stdin. inspect: {request,repositories:[{key,repository_path}]}; prepare: {request,assessment,user_choice,repositories:[{key,repository_path,workspace_mode,source_type,remote_name,base_branch,target_branch,carry_changes,worktree_path}],handoff}. Other operations: {launch_id,...operation inputs}. Read the Skill for exact contracts.\n" +
+      "open/resume return UI guidance only. --confirm-host-removed records the user's confirmation that the plugin/marketplace were removed in ZCode and affected sessions were closed; it does not check ZCode automatically.\n");
+    return 0;
+  }
+  if (args.length === 1 && args[0] === "--version") {
+    process.stdout.write((await core(["version"])).stdout); return 0;
+  }
+  if (args.length === 1 && args[0] === "mcp") { await core(["mcp", "--stdio"], { stream: true }); return 0; }
+  const settings = lifecycleOptions(args);
+  if (settings) { process.stdout.write(JSON.stringify(await lifecycle[args[0]](settings)) + "\n"); return 0; }
+  if (args.length === 2 && args[0] === "hook" && args[1] === "pre-tool-use") {
+    try {
+      const result = await runHook(input());
+      if (result) process.stdout.write(JSON.stringify(result) + "\n");
+      return 0;
+    } catch (error) {
+      process.stderr.write(`Dev Flow write check failed: ${error.message}\n`);
+      return 2;
+    }
+  }
+  if (args.length === 2 && (args[0] === "artifacts" && ["collect", "prepare"].includes(args[1]) ||
+      args[0] === "host-check" && ["pre-file-write", "workspace-available"].includes(args[1]))) {
+    try { process.stdout.write((await core(args, { input: input() })).stdout); return 0; }
+    catch (error) {
+      if (error.stdout) { process.stdout.write(error.stdout); return error.code || 1; }
+      throw error;
+    }
+  }
+  if (args.length === 2 && args[0] === "host-launch" && operations.includes(args[1])) {
+    const value = input(), operation = args[1];
+    let result;
+    if (["inspect", "prepare"].includes(operation)) result = await workspace[operation](value);
+    else {
+      const { launch_id, ...rest } = value;
+      if (["status", "scope", "provision", "open", "resume"].includes(operation)) {
+        if (Object.keys(rest).length) throw new Error("Unknown operation fields");
+        result = ["open", "resume"].includes(operation)
+          ? await workspace.session(launch_id, operation) : await workspace[operation](launch_id);
+      } else if (operation === "bind-task") result = await workspace.bindTask(launch_id, rest);
+      else if (operation === "relocate") result = await workspace.relocate(launch_id, rest);
+      else result = await workspace.cleanup(launch_id, operation, rest);
+    }
+    process.stdout.write(JSON.stringify(result) + "\n"); return 0;
+  }
+  throw new Error("Invalid command; use --help");
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCLI(process.argv.slice(2)).then(code => { process.exitCode = code; }, error => {
+    process.stderr.write(`dev-flow-zcode: ${error.message}\n`);
+    if (error.launch_id && error.receipt_path) {
+      process.stderr.write(`Saved launch_id: ${error.launch_id}\nReceipt: ${error.receipt_path}\n`);
+    }
+    process.exitCode = 1;
+  });
+}

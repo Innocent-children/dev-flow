@@ -97,7 +97,7 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
     await mkdir(join(packageRoot, "local-packages"));
     const devFlowLocalPackages = {};
     const coreArtifacts = new Map(Object.values(runtimes.runtimes).map(runtime => [runtime.relativePath, runtime]));
-    for (const product of ["codex", "deepseek", "claude"]) {
+    for (const product of ["codex", "deepseek", "claude", "zcode"]) {
       const artifact = await stageAndPack(product, {
         root,
         stageRoot: join(work, "adapter-stages"),
@@ -119,7 +119,7 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
     await writeFile(
       join(packageRoot, "package.json"),
       JSON.stringify(
-        { ...manifest, devFlowLocalPackages, files: [...manifest.files, "local-packages/codex.tgz", "local-packages/deepseek.tgz", "local-packages/claude.tgz"] },
+        { ...manifest, devFlowLocalPackages, files: [...manifest.files, "local-packages/codex.tgz", "local-packages/deepseek.tgz", "local-packages/claude.tgz", "local-packages/zcode.tgz"] },
         null,
         2,
       ) + "\n",

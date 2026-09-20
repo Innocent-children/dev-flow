@@ -10,7 +10,7 @@ import { resolveManagerPaths } from "../lib/ownership.mjs";
 import { writeProfileReceipt } from "../lib/hosts/deepseek-receipts.mjs";
 import { resolveCoreRuntime, runDevFlow } from "../lib/runtime.mjs";
 
-test("public launcher selects the newest compatible Core from all three Host receipts", async (t) => {
+test("public launcher selects the newest compatible Core from all four Host receipts", async (t) => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-runtime-selection-")));
   const home = join(root, "home");
   const dshHome = join(root, "dsh");
@@ -50,16 +50,27 @@ test("public launcher selects the newest compatible Core from all three Host rec
       receipt_path: claudeReceiptPath, config_root: join(home, ".claude") },
   }));
 
+  const zcodeRoot = join(root, "zcode");
+  const zcodeRuntime = await packageFixture(zcodeRoot, "dev-flow-zcode", "0.1.0", "0.6.5");
+  const zcodeReceiptPath = join(paths.productRoot, "registrations", "zcode.json");
+  await writeFile(zcodeReceiptPath, JSON.stringify({
+    product: { name: "dev-flow-zcode", version: "0.1.0", core_version: "0.6.5" },
+    host: { surface: "zcode-ui", os: platform, arch },
+    phase: "prepared", package_digest: "a".repeat(64),
+    paths: { package_root: zcodeRoot, runtime_path: zcodeRuntime, data_dir: paths.defaultDataDirectory,
+      receipt_path: zcodeReceiptPath, marketplace_path: join(zcodeRoot, "marketplace.json") },
+  }));
+
   const selected = await resolveCoreRuntime({
     homeDirectory: home,
     environment,
     platform,
     arch,
-    exec: async (runtimePath) => ({ stdout: `dev-flow ${runtimePath === codexRuntime ? "0.6.2" : runtimePath === claudeRuntime ? "0.6.4" : "0.6.3"}\n` }),
+    exec: async (runtimePath) => ({ stdout: `dev-flow ${runtimePath === codexRuntime ? "0.6.2" : runtimePath === claudeRuntime ? "0.6.4" : runtimePath === zcodeRuntime ? "0.6.5" : "0.6.3"}\n` }),
     initializeDefaultData: true,
   });
-  assert.equal(selected.source, "claude");
-  assert.equal(selected.version, "0.6.4");
+  assert.equal(selected.source, "zcode");
+  assert.equal(selected.version, "0.6.5");
   assert.equal(selected.dataDirectory, paths.defaultDataDirectory);
   if (process.platform !== "win32") assert.equal((await stat(paths.defaultDataDirectory)).mode & 0o777, 0o700);
   await writeFile(join(paths.productRoot, "registrations", "codex.json"), "invalid unrelated receipt");

@@ -12,7 +12,7 @@
 
 ## O que você pode fazer com o Dev Flow
 
-O Dev Flow ajuda a gerenciar tarefas longas de programação com IA no Codex, DeepSeek ou Claude Code. Ele salva
+O Dev Flow ajuda a gerenciar tarefas longas de programação com IA no Codex, DeepSeek, Claude Code ou ZCode. Ele salva
 localmente os requisitos acordados, o escopo de arquivos, o plano de verificação, o progresso e os
 resultados para você continuar depois que a sessão terminar.
 
@@ -23,7 +23,7 @@ resultados para você continuar depois que a sessão terminar.
 
 É útil para trabalhos em repositórios que atravessam sessões ou precisam de limites claros de
 arquivos e testes. Para perguntas pontuais, explicações de código e pequenas alterações que não
-precisam salvar o progresso, usar Codex, DeepSeek ou Claude Code diretamente costuma ser mais simples.
+precisam salvar o progresso, usar Codex, DeepSeek, Claude Code ou ZCode diretamente costuma ser mais simples.
 
 ## Início rápido
 
@@ -33,12 +33,16 @@ precisam salvar o progresso, usar Codex, DeepSeek ou Claude Code diretamente cos
 
 A instalação pública abaixo atende às integrações publicadas do Codex e do DeepSeek. Para Claude Code, siga o [guia de instalação pelo código-fonte](docs/CLAUDE_en.md); a CLI pública anterior não instala um Adapter disponível apenas no código-fonte.
 
+O ZCode também usa o [guia de instalação pelo código-fonte](docs/ZCODE_en.md). Os pacotes locais têm como alvo Windows x64 e macOS arm64; a validação do ZCode em um Mac ainda está pendente.
+
 ```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
 Escolha seu Host entre as opções do instalador utilizado. No Codex, revise e autorize o hook do Dev Flow em `/hooks`; no DeepSeek, reinicie o Profile selecionado. No Claude Code, recarregue os plugins ou abra uma nova conversa e revise as permissões solicitadas.
+
+No ZCode, instale e ative o plugin em Settings → Plugins e abra uma nova conversa para ativar os hooks. Preparar o pacote local não confirma que o ZCode o carregou.
 
 ### 2. Inicie uma tarefa
 
@@ -60,6 +64,14 @@ $dev-flow-codex:dev-flow Adicione limite de frequência para falhas de login. Al
 
 ```text
 /dev-flow-claude:dev-flow Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
+```
+
+**ZCode**
+
+Selecione `dev-flow` no menu `/` → Skills do campo de entrada e descreva a tarefa.
+
+```text
+Use Dev Flow para limitar falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
 ```
 
 Envie essas mensagens na conversa, não no terminal. Descreva o objetivo, os critérios de aceite,
@@ -91,6 +103,8 @@ No DeepSeek Harness, inclua `/dev-flow` na mensagem que pede para retomar a tare
 
 No Claude, volte ao diretório e à conversa originais e peça explicitamente para continuar a tarefa salva com `/dev-flow-claude:dev-flow`.
 
+No ZCode, reabra o diretório original, selecione a Skill Dev Flow e peça para continuar a tarefa salva. Se outro diretório for preparado, siga as instruções retornadas para abrir esse espaço de trabalho.
+
 Estes comandos usam o gerenciador global instalado. Para instalações pelo código-fonte, use a entrada correspondente do guia.
 
 ```bash
@@ -106,7 +120,7 @@ consulte a [referência de comandos](docs/COMMANDS_en.md).
 
 ## Mascote de desktop
 
-O mascote exige um Adapter configurado e o aplicativo de desktop instalado. Instalar apenas o Adapter do Claude não instala esse aplicativo.
+O mascote exige um Adapter configurado e o aplicativo de desktop instalado. Instalar apenas um Adapter não instala o aplicativo de desktop.
 
 O mascote mostra várias tarefas em balões sobrepostos e abre a WebUI de cada uma. Ele prioriza tarefas bloqueadas e passa automaticamente para outra tarefa pendente quando a atual termina; você também pode fixar uma tarefa. É possível personalizar a aparência, controlar animações, ajustar o tamanho e iniciar ou parar o mascote de forma independente.
 
@@ -129,7 +143,7 @@ operações exigem sua autorização separada.
 
 ## Documentação
 
-- **Uso:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [Comandos](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Uso:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [ZCode](docs/ZCODE_en.md) · [Comandos](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **Projeto:** [Definição do produto](docs/PRODUCT_en.md) · [Matriz de suporte](docs/SUPPORT-MATRIX_en.md) · [Segurança](SECURITY.md)
 - **Desenvolvimento e contribuições:** [Índice de documentação](MANIFEST_en.md) · [Guia de contribuição](CONTRIBUTING.md)
 

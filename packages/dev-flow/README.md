@@ -15,7 +15,7 @@ npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
-Check the [support matrix](https://github.com/Innocent-children/dev-flow/blob/main/docs/SUPPORT-MATRIX_en.md) for released Host and platform coverage. The current source also includes Claude Code. Follow its [source installation guide](https://github.com/Innocent-children/dev-flow/blob/main/docs/CLAUDE_en.md) or use a complete local development distribution that includes the current manager. An older public CLI does not acquire new Host options simply because a newer Adapter is installed.
+Check the [support matrix](https://github.com/Innocent-children/dev-flow/blob/main/docs/SUPPORT-MATRIX_en.md) for released Host and platform coverage. The current source also includes Claude Code and ZCode. Follow the [Claude](https://github.com/Innocent-children/dev-flow/blob/main/docs/CLAUDE_en.md) or [ZCode](https://github.com/Innocent-children/dev-flow/blob/main/docs/ZCODE_en.md) source installation guide, or use a complete local development distribution that includes the current manager. An older public CLI does not acquire new Host options simply because a newer Adapter is installed.
 
 The manager targets macOS arm64 and Windows 10/11 desktop x64. Other OS/CPU combinations are rejected by its runtime selection. Source setup and build requirements are documented separately from public installation.
 
@@ -29,7 +29,7 @@ dev-flow doctor --host codex
 dev-flow repair --host codex --yes
 ```
 
-The current source accepts `codex`, `deepseek`, `claude` and `all`. DeepSeek uses a Profile, defaulting to `web`; Profile options do not apply to Claude or Codex.
+The current source accepts `codex`, `deepseek`, `claude`, `zcode` and `all`. DeepSeek uses a Profile, defaulting to `web`; Profile options do not apply to Claude, Codex or ZCode.
 
 | Operation | Result |
 | --- | --- |
@@ -53,9 +53,11 @@ The menu supports back, exit and retrying invalid input. `--json` never prompts;
 
 ## Activation and failures
 
-After installation, review/trust the Dev Flow hook in Codex, restart the selected DeepSeek Profile, or reload Claude plugins/start a new Claude session. Follow the actual prompts for the installed Host.
+After installation, review/trust the Dev Flow hook in Codex, restart the selected DeepSeek Profile, or reload Claude plugins/start a new Claude session. For ZCode, follow the returned Settings → Plugins installation/enablement steps and start a new session. Local preparation reports `action_required`; it cannot verify that ZCode loaded the plugin. Follow the actual prompts for the installed Host.
 
 An absent optional Host is informational in an all-Host diagnostic when another integration is healthy. Installation problems retain available package and registration information for repair. Codex and Claude removal can handle their owned registration after the Adapter package has disappeared; unknown ownership is not permission to remove another installation. Existing unmanaged DeepSeek contributions require explicit `--adopt`.
+
+ZCode removal takes two steps: ordinary uninstall retains the Adapter while you remove its plugin and marketplace in ZCode and close affected sessions. Run `dev-flow-zcode remove --confirm-host-removed` to record that completed action, then repeat manager uninstall to remove the package. Shared-data reset is blocked while the ZCode package or record remains, because cached Host processes cannot be verified automatically.
 
 Doctor checks existing user configuration through an installed Core. If no usable Core is available, it reports that configuration validation could not be completed. A missing configuration file uses Core defaults.
 

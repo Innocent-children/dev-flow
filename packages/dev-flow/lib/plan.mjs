@@ -36,7 +36,7 @@ export function createLifecyclePlan(request, observed, {
       const targetVersion = targetVersions[targetKey(target)];
       if (!targetVersion) throw new Error(`target version is missing for ${targetKey(target)}`);
       if (target.packageVersion && compareVersions(target.packageVersion, targetVersion) > 0) downgrade = true;
-      const alreadyReady = target.state === "ready" && target.packageVersion === targetVersion;
+      const alreadyReady = (target.state === "ready" || target.state === "action_required" && target.localReady === true) && target.packageVersion === targetVersion;
       if (replaceLocalPackages || request.operation === "reinstall" || request.adopt || !alreadyReady) actions.push(actionFor(target, request.operation, targetVersion));
     }
   } else if (request.operation === "uninstall") {
@@ -127,6 +127,10 @@ function selectTargets(request, observed) {
   if (request.host === "claude" || request.host === "all") {
     if (!observed.claude && request.host === "claude") throw new Error("Claude Host was not observed");
     if (observed.claude) targets.push(observed.claude);
+  }
+  if (request.host === "zcode" || request.host === "all") {
+    if (!observed.zcode && request.host === "zcode") throw new Error("ZCode Host was not observed");
+    if (observed.zcode) targets.push(observed.zcode);
   }
   return targets;
 }

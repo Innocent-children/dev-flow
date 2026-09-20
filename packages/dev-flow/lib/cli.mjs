@@ -13,7 +13,7 @@ export const OPERATIONS = Object.freeze([
   "uninstall",
   "factory-reset",
 ]);
-export const HOSTS = Object.freeze(["codex", "deepseek", "claude", "all"]);
+export const HOSTS = Object.freeze(["codex", "deepseek", "claude", "zcode", "all"]);
 
 const booleanOptions = new Map([
   ["--all-known-profiles", "allKnownProfiles"],
@@ -100,7 +100,7 @@ export function parseArguments(arguments_, {
   if ((parsed.host === "deepseek" || parsed.host === "all") && parsed.profiles.length === 0 && !parsed.allKnownProfiles) {
     parsed.profiles = ["web"];
   }
-  if (["codex", "claude"].includes(parsed.host) && (parsed.profiles.length > 0 || parsed.allKnownProfiles || parsed.adopt)) {
+  if (["codex", "claude", "zcode"].includes(parsed.host) && (parsed.profiles.length > 0 || parsed.allKnownProfiles || parsed.adopt)) {
     throw new CLIError("DeepSeek Profile options require --host deepseek or all");
   }
   if (parsed.targetVersion !== null && parsed.targetVersion !== "latest" && !semverPattern.test(parsed.targetVersion)) {
@@ -158,6 +158,7 @@ export async function promptForRequest({
         { label: messages.installCodex, host: "codex" },
         { label: messages.installDeepSeek, host: "deepseek" },
         { label: language === "zh-CN" ? "安装 Claude Code Adapter" : "Install Claude Code Adapter", host: "claude" },
+        { label: language === "zh-CN" ? "安装 ZCode Adapter" : "Install ZCode Adapter", host: "zcode" },
         { label: messages.installAll, host: "all" },
         { label: messages.manage, host: null },
         ...(supportsDesktopPet(platform, arch) ? [
@@ -224,7 +225,7 @@ export function renderHelp(operation = null, language = "en") {
   return ["Dev Flow", "", ...operations.map(value => `  dev-flow ${value} — ${operationDescription(value, language)}`),
     "", "  dev-flow webui start|open|status|stop [--plain|--json]", "  dev-flow pet start|stop", "  dev-flow version", "",
     zh ? "生命周期参数：" : "Lifecycle options:",
-    "  --host codex|deepseek|claude|all", "  --profile <name>  --all-known-profiles",
+    "  --host codex|deepseek|claude|zcode|all", "  --profile <name>  --all-known-profiles",
     "  --version latest|<x.y.z>  --confirm-downgrade <token>",
     "  --yes  --plain  --json  --help", "  --adopt (install/repair, DeepSeek)",
     "  factory-reset: --confirm-reset <token> [--reinstall]",

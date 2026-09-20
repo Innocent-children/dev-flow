@@ -18,9 +18,12 @@ const (
 	HostCodex    Host = "codex"
 	HostDeepSeek Host = "deepseek"
 	HostClaude   Host = "claude"
+	HostZCode    Host = "zcode"
 )
 
-func (h Host) IsValid() bool { return h == HostCodex || h == HostDeepSeek || h == HostClaude }
+func (h Host) IsValid() bool {
+	return h == HostCodex || h == HostDeepSeek || h == HostClaude || h == HostZCode
+}
 
 type ActionKind string
 

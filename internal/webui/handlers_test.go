@@ -185,6 +185,38 @@ func TestActionErrorShowsCheckExplanationAndBudgetDetails(t *testing.T) {
 	}
 }
 
+func TestZCodeHostFilterAndResumeRetainOriginIdentity(t *testing.T) {
+	reader := &hostFilterReader{}
+	mutator := &stubControlCenterMutator{}
+	api, err := NewAPI(reader, mutator, func() SystemStatusResponse { return SystemStatusResponse{Readiness: ReadinessReady} })
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	api.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/tasks?host=zcode", nil))
+	var listed TaskListResponse
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &listed) != nil || !listed.OK || reader.host != domain.HostZCode || len(listed.Items) != 1 || listed.Items[0].OriginHost != "zcode" || listed.Items[0].ExecutionHost != "zcode" {
+		t.Fatalf("filter host=%s response=%s", reader.host, response.Body.String())
+	}
+	response = httptest.NewRecorder()
+	api.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/tasks/resume", strings.NewReader(`{"request_id":"resume-zcode","execution_host":"zcode","repository_path":"/worktrees/zcode","csrf":"`+strings.Repeat("s", 32)+`"}`)))
+	if response.Code != http.StatusOK || mutator.lastOpen.Host != domain.HostZCode || mutator.lastOpen.RepositoryPath != "/worktrees/zcode" || mutator.lastOpen.NewTask != nil {
+		t.Fatalf("resume=%+v response=%s", mutator.lastOpen, response.Body.String())
+	}
+}
+
+type hostFilterReader struct {
+	stubControlCenterReader
+	host domain.Host
+}
+
+func (r *hostFilterReader) ListTasks(_ context.Context, request application.ListControlCenterTasksRequest) (application.ControlCenterTaskList, error) {
+	r.host = request.Filter.Host
+	return application.ControlCenterTaskList{Page: 1, Items: []application.ControlCenterTaskSummary{{
+		TaskID: "zcode-task", OriginHost: domain.HostZCode, ExecutionHost: domain.HostZCode,
+	}}}, nil
+}
+
 func TestLifecycleHandlersCP2(t *testing.T) {
 	mutator := &stubControlCenterMutator{}
 	api, err := NewAPI(&stubControlCenterReader{}, mutator, func() SystemStatusResponse { return SystemStatusResponse{Readiness: ReadinessReady} })
@@ -391,12 +423,14 @@ func TestVerificationProjectionShowsPlanUsageAndAdjustmentReason(t *testing.T) {
 
 type stubControlCenterMutator struct {
 	lastCall  string
+	lastOpen  application.OpenTaskRequest
 	stale     bool
 	actionErr error
 }
 
-func (s *stubControlCenterMutator) OpenOrResumeTask(context.Context, application.OpenTaskRequest) (application.ControlCenterMutationResult, error) {
+func (s *stubControlCenterMutator) OpenOrResumeTask(_ context.Context, request application.OpenTaskRequest) (application.ControlCenterMutationResult, error) {
 	s.lastCall = "open"
+	s.lastOpen = request
 	return mutationTask(), nil
 }
 

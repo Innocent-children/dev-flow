@@ -46,7 +46,7 @@ test("Windows maintenance simulation installs and repairs only the selected Clau
     const failOtherHost = async () => { throw new Error("must not invoke another Host"); };
     const result = await runLifecycle(request(initiallyInstalled ? "repair" : "install"), {
       homeDirectory: home, environment, platform: "win32", arch: "x64", runClaudeChild,
-      runCodexChild: failOtherHost, runDeepSeekChild: failOtherHost,
+      runCodexChild: failOtherHost, runDeepSeekChild: failOtherHost, runZCodeChild: failOtherHost,
       confirmPlan: async () => true,
       stopPetForCore: async () => { throw new Error("no registered Core exists"); },
       createHostDrivers: options => { driverPaths.push(options.paths); return createHostDrivers(options); },

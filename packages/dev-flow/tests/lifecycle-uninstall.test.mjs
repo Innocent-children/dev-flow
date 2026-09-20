@@ -16,11 +16,11 @@ test("ordinary all-Host uninstall removes Adapters and retains shared user data"
   await mkdir(paths.defaultDataDirectory, { recursive: true });
   await writeFile(paths.configurationPath, "preserve-config\n");
   await writeFile(join(paths.defaultDataDirectory, "dev-flow.db"), "preserve-task\n");
-  const states = { codex: "ready", deepseek: "ready", claude: "ready" };
+  const states = { codex: "ready", deepseek: "ready", claude: "ready", zcode: "absent" };
   const codexDriver = driver("codex", null, states);
   const deepseekDriver = driver("deepseek", "web", states);
   deepseekDriver.knownProfiles = async () => ["web"];
-  const result = await runLifecycle(request(), { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver, claudeDriver: driver("claude", null, states), confirmPlan: async () => true });
+  const result = await runLifecycle(request(), { homeDirectory: home, environment: {}, platform: "darwin", arch: "arm64", codexDriver, deepseekDriver, claudeDriver: driver("claude", null, states), zcodeDriver: driver("zcode", null, states), confirmPlan: async () => true });
   assert.equal(result.result.status, "absent");
   assert.equal(await readFile(paths.configurationPath, "utf8"), "preserve-config\n");
   assert.equal(await readFile(join(paths.defaultDataDirectory, "dev-flow.db"), "utf8"), "preserve-task\n");

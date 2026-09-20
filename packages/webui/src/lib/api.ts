@@ -247,7 +247,7 @@ export interface MutationResponse {
 }
 
 export interface ResumeTaskInput {
-  execution_host: "codex" | "deepseek" | "claude";
+  execution_host: "codex" | "deepseek" | "claude" | "zcode";
   repository_path: string;
 }
 

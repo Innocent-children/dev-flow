@@ -3,7 +3,7 @@
 [中文](README.md) | [English](README_en.md)
 
 `internal/` contains the Host-independent Dev Flow Go Core. It manages Tasks, the state graph, MCP,
-SQLite, Recovery, and read-only Git observation. Codex and DeepSeek packages use the same Core to
+SQLite, Recovery, and read-only Git observation. Codex, DeepSeek, Claude Code and ZCode packages use the same Core to
 provide consistent process behavior.
 
 ## Package ownership

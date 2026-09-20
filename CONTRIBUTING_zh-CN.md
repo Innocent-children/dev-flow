@@ -22,7 +22,7 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终安装包验证�
 
 缺陷报告请尽量包含：
 
-- 使用的产品与版本，例如 Core、`dev-flow-codex`、`dev-flow-deepseek` 或 `dev-flow-claude`；
+- 使用的产品与版本，例如 Core、`dev-flow-codex`、`dev-flow-deepseek` `dev-flow-claude` 或 `dev-flow-zcode`；
 - 操作系统、CPU、Node.js 与 Host 版本；
 - 最小复现步骤；
 - 预期结果与实际结果；
@@ -75,7 +75,7 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终安装包验证�
 1. 是否帮助长时间运行的任务从正确状态继续？
 2. 是否基于 Task、Action、仓库观察或已有记录，而不是只依赖 Agent 自述？
 3. 是否减少用户判断当前状态和下一步的成本？
-4. 能否在实际 Codex、DeepSeek 或 Claude Code 会话中重复验证完整操作流程？
+4. 能否在实际 Codex、DeepSeek、Claude Code 或 ZCode 会话中重复验证完整操作流程？
 5. 是否保持一个 Core Task 状态？
 6. 是否增加了不必要的流程步骤？
 7. 是否解决了任务中的实际问题，还是仅增加一个平台、Host 或界面？
@@ -152,7 +152,7 @@ pnpm run validate
 ```
 
 每次完整测试都应有与改动相关的理由。模拟测试、静态检查和用户手工验证的结果，必须与实际
-Codex / DeepSeek / Claude Code 中对最终安装包的自动化测试结果分别说明。
+Codex / DeepSeek / Claude Code / ZCode 中对最终安装包的自动化测试结果分别说明。
 
 ## Pull Request 要求
 
@@ -177,7 +177,7 @@ Pull Request 应保持可独立审查。文档重写、产品行为变化、无�
 
 ## 发布边界
 
-合并产品工作不等于立即发布。Core、Codex、DeepSeek 和 Claude Code 独立版本化；维护者在变更合并后填写产品、
+合并产品工作不等于立即发布。Core、Codex、DeepSeek、Claude Code 和 ZCode 独立版本化；维护者在变更合并后填写产品、
 channel 和精确版本，再执行固定检查、版本对齐、构建、回读、Tag、npm 和 GitHub Release。
 
 提交 Pull Request 即表示你同意你的贡献按照本仓库的

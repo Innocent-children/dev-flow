@@ -21,6 +21,10 @@ const chinese = {
       "codex.uninstall_package": "卸载 Codex Adapter package",
       "codex.setup_registration": "配置 Codex marketplace、Plugin 和 MCP 注册",
       "codex.verify_ready": "回读并确认 Codex Adapter 已就绪",
+      "zcode.install_package": "安装 ZCode Adapter 本地包",
+      "zcode.setup_registration": "准备 ZCode 插件来源并校验本地运行时",
+      "zcode.remove_registration": "记录待在 ZCode 中移除的插件",
+      "zcode.uninstall_package": "卸载 ZCode Adapter package",
       "deepseek.verify_artifact": "下载并校验 DeepSeek Adapter 制品",
       "deepseek.verify_ready": "确认 DeepSeek Core 可用",
       "deepseek.remove": "移除 DeepSeek Profile 中的旧 Adapter",
@@ -39,7 +43,7 @@ const chinese = {
     uninstall: "卸载",
     "factory-reset": "恢复出厂设置",
   },
-  hosts: { codex: "Codex", deepseek: "DeepSeek", claude: "Claude Code", all: "全部" },
+  hosts: { codex: "Codex", deepseek: "DeepSeek", claude: "Claude Code", zcode: "ZCode", all: "全部" },
   statuses: {
     ready: "就绪",
     absent: "未安装",
@@ -48,6 +52,7 @@ const chinese = {
     conflicted: "冲突",
     unknown: "未知",
     restart_required: "需要重启",
+    action_required: "需要在 Host 中操作",
     confirmation_required: "等待确认",
     failed: "失败",
   },
@@ -61,7 +66,7 @@ const chinese = {
     invalidArguments: "参数无效；受支持的形式是 dev-flow pet start 和 dev-flow pet stop",
     unsupportedPlatform: "桌面宠物支持 Apple silicon macOS 与 Windows 10/11 x64",
     applicationUnavailable: "当前统一入口包内没有可用的桌面宠物应用",
-    installAdapterFirst: "未找到已安装的 Codex 或 DeepSeek Adapter；先运行 dev-flow install",
+    installAdapterFirst: "未找到可提供 Core 的 Adapter；先运行 dev-flow install",
     coreCommandFailed: "Core 命令执行失败",
     serviceUnavailable: "本地 Control Center 服务不可用；运行 dev-flow webui start 后重试",
     serviceStartFailed: "本地 Control Center 服务启动失败",
@@ -94,6 +99,10 @@ const english = {
       "codex.uninstall_package": "Uninstall the Codex Adapter package",
       "codex.setup_registration": "Configure the Codex marketplace, Plugin, and MCP registration",
       "codex.verify_ready": "Read back and verify that the Codex Adapter is ready",
+      "zcode.install_package": "Install the ZCode Adapter package",
+      "zcode.setup_registration": "Prepare the ZCode plugin source and verify its local runtime",
+      "zcode.remove_registration": "Record the plugin that needs removal in ZCode",
+      "zcode.uninstall_package": "Uninstall the ZCode Adapter package",
       "deepseek.verify_artifact": "Download and verify the DeepSeek Adapter artifact",
       "deepseek.verify_ready": "Verify the DeepSeek Core runtime",
       "deepseek.remove": "Remove the previous Adapter from the DeepSeek Profile",
@@ -105,10 +114,10 @@ const english = {
   operations: Object.fromEntries([
     "status", "doctor", "install", "upgrade", "repair", "reinstall", "uninstall", "factory-reset",
   ].map((operation) => [operation, operation])),
-  hosts: { codex: "codex", deepseek: "deepseek", claude: "Claude Code", all: "all" },
+  hosts: { codex: "codex", deepseek: "deepseek", claude: "Claude Code", zcode: "ZCode", all: "all" },
   statuses: Object.fromEntries([
     "ready", "absent", "partial", "incompatible", "conflicted", "unknown", "restart_required",
-    "confirmation_required", "failed",
+    "confirmation_required", "action_required", "failed",
   ].map((status) => [status, status])),
   pet: {
     install: "Update desktop pet application",
@@ -248,7 +257,7 @@ function translateImpact(impact, language, messages) {
     "Preserve Dev Flow user configuration and Task data": "保留 Dev Flow 用户配置和 Task 数据",
   };
   if (fixed[impact]) return fixed[impact];
-  const target = /^(status|doctor|install|upgrade|repair|reinstall|uninstall|factory-reset) (codex|deepseek|claude)(?: Profile (.+)| Adapter)$/u.exec(impact);
+  const target = /^(status|doctor|install|upgrade|repair|reinstall|uninstall|factory-reset) (codex|deepseek|claude|zcode)(?: Profile (.+)| Adapter)$/u.exec(impact);
   if (!target) return impact;
   const [, operation, host, profile] = target;
   return `${messages.operations[operation]} ${messages.hosts[host]}${profile ? ` Profile ${profile}` : " Adapter"}`;

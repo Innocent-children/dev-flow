@@ -16,7 +16,7 @@ keeps paired English and Simplified Chinese files, including:
 - `docs/PRODUCT*`, `docs/DEMO*`, `docs/ROADMAP*`, and `docs/PROJECT-STATUS*`;
 - `docs/CORE-RESPONSES*`, `docs/ARCHITECTURE*`, `docs/COMMANDS*`, `docs/WEBUI*`, and `docs/SUPPORT-MATRIX*`;
 - `MANIFEST*`, `CONTRIBUTING*`, and this I18n policy;
-- the Chinese and English Codex, DeepSeek and Claude Code Host guides; Claude uses `docs/CLAUDE.md` and `docs/CLAUDE_en.md`.
+- the Chinese and English Codex, DeepSeek, Claude Code and ZCode Host guides; Claude uses `docs/CLAUDE.md` and `docs/CLAUDE_en.md`, and ZCode uses `docs/ZCODE.md` and `docs/ZCODE_en.md`.
 
 Paired English and Simplified Chinese documents preserve the same meaning within each document
 family's subject matter.
@@ -70,7 +70,7 @@ dev-flow-codex@latest
 dev-flow-deepseek@latest
 ```
 
-Exact Core, Codex, DeepSeek, and Dev Flow CLI product versions remain only in machine-readable version
+Exact Core, Codex, DeepSeek, Claude, ZCode, and Dev Flow CLI product versions remain only in machine-readable version
 files, package metadata, Release Tags, artifact digests, and release records. Human-readable documents
 do not contain exact product versions.
 
@@ -78,6 +78,7 @@ Command documentation must be checked against implementation:
 
 - package names, `bin` entries, and platform constraints come from the relevant `package.json`;
 - Codex commands come from `packages/codex/bin/dev-flow-codex.mjs`;
+- ZCode commands come from `packages/zcode/bin/dev-flow-zcode.mjs`;
 - unified lifecycle commands come from `packages/dev-flow/lib/cli.mjs`;
 - DeepSeek installation and removal forms come from DSH lifecycle tests;
 - packaged Core commands come from `cmd/dev-flow/main.go`;

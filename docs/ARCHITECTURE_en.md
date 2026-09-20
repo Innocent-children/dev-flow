@@ -9,13 +9,13 @@
 ## Core rule
 
 Dev Flow stores business state once. Go Core owns the Task, node, legal transitions, scope,
-verification, Recovery, blockers, claims, and outcome. Codex, DeepSeek, Claude Code, and WebUI are Host Adapters.
+verification, Recovery, blockers, claims, and outcome. Codex, DeepSeek, Claude Code, ZCode, and WebUI are Host Adapters.
 Core observes Git read-only; only a Host may perform developer-confirmed fetch, branch, worktree,
 relaunch, handoff, and cleanup operations.
 
 ```mermaid
 flowchart TB
-    U[Developer] --> H[Codex / DeepSeek / Claude Code Adapter]
+    U[Developer] --> H[Codex / DeepSeek / Claude Code / ZCode Adapter]
     H --> A[Read-only change assessment]
     A --> C{Choose Dev Flow?}
     C -->|No| D[Direct work · no Core Task]
@@ -414,9 +414,19 @@ no longer creates a Task from an arbitrary checkout and performs no Git mutation
 
 Claude Write/Edit/NotebookEdit inputs supply complete targets and original-input digests to Core file_scope. Allowing a path does not override Host permissions. Launch records retain requests, origins, operation status and Claude session identity, without a second workflow cursor. Dedicated-worktree relocation retains partial effects until Core verifies every new binding. The unified manager uses `hosts/claude.mjs` for package/registration operations and Claude-specific installation records; that driver supplies Core candidates to the common runtime for WebUI/pet selection.
 
+### ZCode
+
+`packages/zcode/` owns the native ZCode plugin, MCP/Hook transport, local preparation records and workspace continuation guidance. The distinct `zcode` identity participates in Core, MCP schemas, configuration preferences and Task ownership checks. It does not reuse another Host identity or change the SQLite layout, process definition, nodes or edges.
+
+The package root contains `.zcode-plugin/plugin.json`, `marketplace.json`, `.mcp.json`, `skills/dev-flow/`, `hooks/hooks.json`, CLI and both Core runtimes as one self-contained artifact. ZCode's process executor uses separate command/args and `ZCODE_PLUGIN_ROOT`; hooks are discovered in the standard directory. Write/Edit provide the complete `tool_input.file_path` and original-input digest to Core. Parse or check failures exit 2 to reject the protected operation. Shell and external writes remain subject to later observation.
+
+The Adapter validates local files and Core before saving preparation records. The manager's `hosts/zcode.mjs` owns package discovery, lifecycle and Core candidates. These records establish only the local source, without observing UI installation, cache or enablement, so the result is `action_required`. Actual Host loading and model-session checks are recorded separately. Ordinary uninstall retains the Adapter and `removal_required` record; after UI removal and session closure, `remove --confirm-host-removed` clears the record before package removal. A remaining package or record blocks shared-data reset because source-package process checks cannot establish that all cached Core processes stopped.
+
+Git workspace operations reuse `packages/host-workspace/`, and command invocation reuses `packages/host-command/`; generated copies depend only on their own package. `open`/`resume` return directories and a continuation prompt for the actual ZCode UI to open and authorize. They generate no fabricated session identity or second workflow cursor. Platform directories own path and process differences, while Core Task semantics remain free of OS decisions.
+
 ## Versions, distribution, and source map
 
-Core, Codex, DeepSeek, Claude, and the unified lifecycle package have independent versions. `CORE_VERSION` is
+Core, Codex, DeepSeek, Claude, ZCode, and the unified lifecycle package have independent versions. `CORE_VERSION` is
 the machine-readable Core version file; npm versions remain in each `package.json`, and ordinary product
 work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 `win32-x64/dev-flow.exe` runtime pairs.
@@ -430,9 +440,9 @@ work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
 | `internal/store/` | current-only SQLite, codec, operations, events, claims |
 | `internal/mcp/` | seventeen tools, field restrictions, tool annotations, and the common response structure |
 | `internal/webui/`, `packages/webui/` | loopback Adapter and embedded interface |
-| `packages/codex/`, `packages/deepseek/`, `packages/claude/` | request assessment, worktree creation, session restart/handoff, and packaging |
+| `packages/codex/`, `packages/deepseek/`, `packages/claude/`, `packages/zcode/` | request assessment, worktree creation, session continuation/handoff, and packaging |
 | `packages/host-workspace/` | Maintained Git observation, preparation and snapshot helpers; copied into consuming Host packages at build time |
-| `packages/host-command/` | Maintained command execution shared by Codex and Claude; generated into each package and assembled directly at build time |
+| `packages/host-command/` | Maintained command execution shared by Codex, Claude and ZCode; generated into each package and assembled directly at build time |
 | `protocol/fixtures/`, `tests/` | public contracts, fault injection, Host end-to-end tests |
 
 Source, machine-readable schemas, package manifests, CLI parsers, and executable tests define current behavior.
@@ -487,9 +497,9 @@ See the [desktop pet guide](DESKTOP-PETS_en.md) for usage, artwork, and trigger 
 
 ## Platform responsibilities
 
-The three Host Adapters and unified manager select their platform policies at `lib/platform.mjs`, with system implementations in `lib/platform/windows/` and `lib/platform/macos/`. Each Adapter maintains its policies in `policies.mjs` under the corresponding system directory. Claude's `platformPolicy()` retains its own small interface; each Adapter continues to own Host registration, lifecycle and session rules. Go Core keeps platform mechanisms in platform-specific files within the responsible package and keeps task semantics platform-neutral.
+The four Host Adapters and unified manager select their platform policies at `lib/platform.mjs`, with system implementations in `lib/platform/windows/` and `lib/platform/macos/`. Each Adapter maintains its policies in `policies.mjs` under the corresponding system directory. Claude and ZCode each retain their own small `platformPolicy()` interface; each Adapter continues to own Host registration, lifecycle and session rules. Go Core keeps platform mechanisms in platform-specific files within the responsible package and keeps task semantics platform-neutral.
 
-`packages/host-command/` maintains command execution shared by Codex and Claude. `command.mjs` provides the common entry point and selects the platform command implementation; `platform/windows/command.mjs` and `platform/macos/command.mjs` each handle command discovery, launcher identity and invocation arguments. `scripts/sync-host-commands.mjs` generates copies at the same paths under each Host's `lib/`, with headers identifying the source. Builds also assemble directly from the shared source, so installed packages depend only on their own files. The unified manager and DeepSeek retain their respective command interfaces. See [script maintenance](../scripts/README_en.md#shared-host-commands) for generation and consistency checks.
+`packages/host-command/` maintains command execution shared by Codex, Claude and ZCode. `command.mjs` provides the common entry point and selects the platform command implementation; `platform/windows/command.mjs` and `platform/macos/command.mjs` each handle command discovery, launcher identity and invocation arguments. `scripts/sync-host-commands.mjs` generates copies at the same paths under each Host's `lib/`, with headers identifying the source. Builds also assemble directly from the shared source, so installed packages depend only on their own files. The unified manager and DeepSeek retain their respective command interfaces. See [script maintenance](../scripts/README_en.md#shared-host-commands) for generation and consistency checks.
 
 Windows Git processes hide console windows; Codex version/status preflight uses the selected executable policy, and PowerShell launchers use UTF-8. Native validation is recorded separately in the [Windows report](WINDOWS-ADAPTATION_en.md).
 
@@ -497,7 +507,7 @@ Windows Codex registration validates marketplace `name` and `root` together with
 
 ## Windows desktop responsibilities
 
-`packages/desktop-pet/windows/` owns the Electron window, tray, renderer, local observation and artwork handling; macOS retains Swift/AppKit. Both read Core state. `scripts/build-desktop-pet-windows.mjs` assembles the Windows desktop distribution with the Codex, DeepSeek and Claude Adapter packages. The launcher verifies bundled hashes and manages application replacement while preserving settings and artwork in `%LOCALAPPDATA%\dev-flow\pet`.
+`packages/desktop-pet/windows/` owns the Electron window, tray, renderer, local observation and artwork handling; macOS retains Swift/AppKit. Both read Core state. `scripts/build-desktop-pet-windows.mjs` assembles the Windows desktop distribution with the Codex, DeepSeek, Claude and ZCode Adapter packages. The launcher verifies bundled hashes and manages application replacement while preserving settings and artwork in `%LOCALAPPDATA%\dev-flow\pet`.
 
 The Windows path implementation resolves existing AppData directories to actual paths, including aliases supplied by packaged desktop hosts, while rejecting symbolic links. GUI launch uses `Start-Process` and a per-launch acknowledgment, so the persistent desktop process does not retain the invoking terminal’s output handles. Platform maintenance identifies Core by full executable path, command and creation time before stopping instances for replacement.
 
@@ -513,7 +523,7 @@ The workspace command runner, `runClosedCommand()`, returns complete results aft
 
 | Module | Responsibility |
 | --- | --- |
-| `packages/dev-flow/lib/hosts/` | Codex, DeepSeek and Claude drivers each own package discovery and private installation records; DeepSeek also owns Profile rules. Each driver executes confirmed Adapter operations. `runtimeCandidates()` supplies startup candidates; `maintenanceTargets()` supplies package and Core locations for registered installations and packages left by interrupted installation. |
+| `packages/dev-flow/lib/hosts/` | Codex, DeepSeek, Claude and ZCode drivers each own package discovery and private installation records; DeepSeek also owns Profile rules. Each driver executes confirmed Adapter operations. `runtimeCandidates()` supplies startup candidates; `maintenanceTargets()` supplies package and Core locations for registered installations and packages left by interrupted installation. |
 | `packages/dev-flow/lib/core-runtime.mjs` | Check the common packaged runtime layout, package identity, canonical paths, executable file and Core version. |
 | `packages/dev-flow/lib/core-maintenance.mjs` | Coordinate the known Core service locations for reset and use the existing WebUI status/stop protocol; platform implementations own process inspection and termination. |
 | `packages/dev-flow/lib/runtime.mjs` | Collect driver candidates and call shared validation, select by Core version and source, prepare the data directory, and forward startup arguments and signals. |
@@ -535,7 +545,7 @@ managed files and permissions without interpreting those Host fields.
 
 ## Shared user configuration
 
-`internal/userconfig.Decode` owns configuration fields and defaults for Codex, DeepSeek and Claude. Core uses it when loading configuration at startup; the read-only `config validate` command accepts raw JSON on stdin for installation and diagnostics. The command enforces a 16 KiB limit and reads no configuration file, Task store or Git state. Results and exit codes are specified in the [command reference](COMMANDS_en.md#configuration-validation).
+`internal/userconfig.Decode` owns configuration fields and defaults for Codex, DeepSeek, Claude and ZCode. Core uses it when loading configuration at startup; the read-only `config validate` command accepts raw JSON on stdin for installation and diagnostics. The command enforces a 16 KiB limit and reads no configuration file, Task store or Git state. Results and exit codes are specified in the [command reference](COMMANDS_en.md#configuration-validation).
 
 Codex setup checks configuration paths, file types and permissions before passing existing file bytes to its packaged Core for validation; valid files remain unchanged. A missing configuration file is initialized with `{}`, leaving defaults to Core. The unified manager also initializes configuration with `{}` during factory-reset. Doctor validates existing files through the selected Core and explicitly reports that semantic validation is unavailable when no usable Core exists. Node installation and diagnostic code maintain no separate product-wide field allowlist or Host-default values.
 
@@ -588,4 +598,4 @@ COMPREHENSION_REVIEW and DELIVERY require a current completed Test satisfying or
 
 The current persisted Schema changes without historical readers or migration. MCP, CLI and WebUI expose the same record and transitions. Errors follow the [Core response contract](CORE-RESPONSES_en.md).
 
-Acceptance uses targeted Core and storage integration checks: ordinary passing, accepted known failures, missing comparison/decision, omitted new failures, stale acceptance, restart then delivery, actual limits, completed user checks, permission restrictions, and zero-write correction of missing check explanations. Shared Skill examples cover all three Hosts. One transition and attached record preserve truthful results and allow delivery; no additional node, second cursor, automatic log parser, generic waiver or release workflow is introduced. Scope covers workflow/domain/application/store, direct MCP/WebUI consumers, docs and Skills.
+Acceptance uses targeted Core and storage integration checks: ordinary passing, accepted known failures, missing comparison/decision, omitted new failures, stale acceptance, restart then delivery, actual limits, completed user checks, permission restrictions, and zero-write correction of missing check explanations. Shared Skill examples cover all four Hosts. One transition and attached record preserve truthful results and allow delivery; no additional node, second cursor, automatic log parser, generic waiver or release workflow is introduced. Scope covers workflow/domain/application/store, direct MCP/WebUI consumers, docs and Skills.

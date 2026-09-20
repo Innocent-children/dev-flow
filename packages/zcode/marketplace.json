@@ -1,0 +1,12 @@
+{
+  "name": "dev-flow-zcode-local",
+  "description": "Local Dev Flow integration for ZCode",
+  "plugins": [
+    {
+      "name": "dev-flow-zcode",
+      "version": "0.1.0",
+      "description": "Persistent Dev Flow development tasks for ZCode.",
+      "source": "./"
+    }
+  ]
+}

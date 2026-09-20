@@ -60,7 +60,9 @@ test("clean reinstall creates fresh active data after reset and never restores o
     now: () => new Date("2026-08-25T00:00:00Z"),
     random: () => "fixture-reinstall",
   });
-  assert.equal(result.result.status, "ready");
+  assert.equal(result.result.status, "action_required");
+  assert.equal(result.code, 0);
+  assert.equal(fixture.states.zcode, "action_required");
   assert.deepEqual(JSON.parse(await readFile(fixture.paths.configurationPath, "utf8")), {});
   await assert.rejects(readFile(join(fixture.paths.defaultDataDirectory, "dev-flow.db")), { code: "ENOENT" });
   assert.equal(fixture.states.codex, "ready");
@@ -118,6 +120,7 @@ test("factory reset uninstalls a Codex package after its registration is already
     codexDriver,
     deepseekDriver,
     claudeDriver: { observe: async () => ({ host: "claude", profile: null, hostAvailable: true, state: "absent", packageVersion: null, receipt: null }) },
+    zcodeDriver: { observe: async () => ({ host: "zcode", profile: null, hostAvailable: null, state: "absent", packageInstalled: false, packageVersion: null, receipt: false }) },
     confirmPlan: async () => true,
   });
 
@@ -147,7 +150,7 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
   await writeFile(join(paths.defaultDataDirectory, "dev-flow.db"), "old-task\n");
   await writeFile(join(paths.petDirectory, "preferences.json"), "pet-preferences\n");
   if (explicit) await writeFile(join(explicitData, "dev-flow.db"), "explicit-task\n");
-  const states = { codex: "ready", deepseek: "ready", claude: "ready" };
+  const states = { codex: "ready", deepseek: "ready", claude: "ready", zcode: "absent" };
   const events = [];
   const codexDriver = driver("codex", null, states, events);
   const deepseekDriver = driver("deepseek", "web", states, events);
@@ -165,6 +168,7 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
       codexDriver,
       deepseekDriver,
       claudeDriver: driver("claude", null, states, events),
+      zcodeDriver: driver("zcode", null, states, events),
       stopPetForCore: stopPet ?? (async (options) => {
         events.push(`pet.stop:${options.corePath}`);
         return { stopped: true, reason: null };
@@ -177,10 +181,10 @@ function driver(host, profile, states, events) {
   return {
     maintenanceTargets: async () => ({ registeredCorePaths: [], installedRuntime: null }),
     knownProfiles: async () => [], resolveTargetVersion: async () => "0.8.0",
-    observe: async () => ({ host, profile, hostAvailable: true, hostVersion: "1.0.0", state: states[host], packageVersion: states[host] === "ready" ? "0.8.0" : null, coreVersion: null, receipt: states[host] === "ready" ? {} : null }),
+    observe: async () => ({ host, profile, hostAvailable: true, hostVersion: "1.0.0", state: states[host], packageVersion: states[host] !== "absent" ? "0.8.0" : null, localReady: states[host] === "action_required", coreVersion: null, receipt: states[host] !== "absent" ? {} : null }),
     execute: async (operation) => {
       events.push(`${host}.${operation}`);
-      states[host] = operation === "uninstall" ? "absent" : "ready";
+      states[host] = operation === "uninstall" ? "absent" : host === "zcode" ? "action_required" : "ready";
       return { changed: true, completedSteps: [`${host}.${operation}`] };
     },
   };

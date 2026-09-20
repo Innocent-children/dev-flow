@@ -29,7 +29,7 @@ type skillErrorCase struct {
 }
 
 func TestEverySkillMCPRequestHasAnAccurateAdjacentError(t *testing.T) {
-	for _, host := range []string{"codex", "deepseek", "claude"} {
+	for _, host := range []string{"codex", "deepseek", "claude", "zcode"} {
 		t.Run(host, func(t *testing.T) {
 			server := missingTaskSkillServer(t)
 			for _, request := range readSkillExamples(t, host) {
@@ -60,7 +60,7 @@ func TestEverySkillMCPRequestHasAnAccurateAdjacentError(t *testing.T) {
 }
 
 func TestDocumentedErrorsSurviveMCPTransport(t *testing.T) {
-	for _, host := range []string{"codex", "deepseek", "claude"} {
+	for _, host := range []string{"codex", "deepseek", "claude", "zcode"} {
 		for _, request := range readSkillExamples(t, host) {
 			if request.Kind != "mcp" || !(request.Tool == ToolServerInfo || request.Tool == ToolGetTask || request.Tool == ToolSubmitRequirements) {
 				continue
@@ -113,7 +113,7 @@ func TestDocumentedErrorsSurviveMCPTransport(t *testing.T) {
 }
 
 func TestSharedStandaloneSkillErrorsMatchCoreEncoder(t *testing.T) {
-	for _, host := range []string{"codex", "deepseek", "claude"} {
+	for _, host := range []string{"codex", "deepseek", "claude", "zcode"} {
 		for _, example := range readSkillExamples(t, host) {
 			if example.Kind != "mcp-output" || strings.HasSuffix(example.Name, "-error") {
 				continue

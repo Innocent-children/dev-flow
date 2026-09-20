@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 
 const execFile = promisify(execFileCallback);
 const workflow = (await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8")).replaceAll("\r\n", "\n");
-const packages = ["codex", "deepseek", "dev-flow"];
+const packages = ["codex", "deepseek", "dev-flow", "zcode"];
 const windowsStart = workflow.indexOf("  windows-x64:\n");
 assert.notEqual(windowsStart, -1, "Windows CI job is required");
 const remaining = workflow.slice(windowsStart + "  windows-x64:\n".length);

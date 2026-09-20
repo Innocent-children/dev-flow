@@ -6,11 +6,11 @@
 
 Dev Flow 帮助开发者判断一个请求是否需要完整开发流程，并让长时 AI 编程任务的需求、改动范围、验证投入和当前进度在会话中断后仍可继续。
 
-Codex、DeepSeek 或 Claude Code 负责理解代码、修改文件和执行命令。Go Core 保存唯一 Task 状态，观察实际工作树，核对当前结果并决定合法下一步。Task 是一项持久保存的开发任务；Action 是 Core 为当前阶段签发的操作。
+Codex、DeepSeek、Claude Code 或 ZCode 负责理解代码、修改文件和执行命令。Go Core 保存唯一 Task 状态，观察实际工作树，核对当前结果并决定合法下一步。Task 是一项持久保存的开发任务；Action 是 Core 为当前阶段签发的操作。
 
 ## 目标用户与使用场景
 
-产品面向使用 Codex、DeepSeek 或 Claude Code 处理真实代码库、任务可能跨会话或持续多天的开发者。适合涉及公开接口、持久化、多个组件或复杂恢复，以及需要明确文件范围和验证投入的工作。
+产品面向使用 Codex、DeepSeek、Claude Code 或 ZCode 处理真实代码库、任务可能跨会话或持续多天的开发者。适合涉及公开接口、持久化、多个组件或复杂恢复，以及需要明确文件范围和验证投入的工作。
 
 共享工作区中的其他修改会干扰任务归属；只靠聊天记录难以确认测试是否仍有效、操作是否已经成功，以及中断后还剩什么。Dev Flow 默认在当前目录新建任务分支，也支持当前分支或独立工作树，并保存需求、计划、检查结果、阻塞原因和恢复信息。
 
@@ -82,7 +82,7 @@ DONE 或 CANCELLED 结束任务并释放仓库占用，不自动提交代码、�
 
 | 组件 | 用户用途 |
 | --- | --- |
-| Codex / DeepSeek / Claude Code | 评估请求、执行已确认的开发与 Host 操作，并从同一 Core Task 恢复工作 |
+| Codex / DeepSeek / Claude Code / ZCode | 评估请求、执行已确认的开发与 Host 操作，并从同一 Core Task 恢复工作 |
 | 统一 lifecycle CLI | 安装、诊断、维护和移除 Adapter，保留普通维护中的 Task 数据与用户配置 |
 | 本机 WebUI | 查看任务、结果、阻塞与恢复信息，并通过 Core 提交支持的操作 |
 | 桌面宠物 | 以叠加气泡显示多个 Task 的保存状态并分别打开 WebUI；受阻优先、完成后自动关注未完成任务，支持固定关注、自定义形象、动画控制、大小调整与独立启停 |
@@ -110,7 +110,9 @@ DONE 或 CANCELLED 结束任务并释放仓库占用，不自动提交代码、�
 
 ## Host 交互说明
 
-Host 将开发者的请求接入共同的任务流程。不同 Host 的权限和会话操作不同，任务状态、完成条件与恢复决定仍由 Core 统一管理。具体操作见 [Codex 指南](../packages/codex/README.md)、[DeepSeek 指南](../packages/deepseek/README.md)和 [Claude 指南](CLAUDE.md)。
+Host 将开发者的请求接入共同的任务流程。不同 Host 的权限和会话操作不同，任务状态、完成条件与恢复决定仍由 Core 统一管理。具体操作见 [Codex 指南](../packages/codex/README.md)、[DeepSeek 指南](../packages/deepseek/README.md)、[Claude 指南](CLAUDE.md)和 [ZCode 指南](ZCODE.md)。
+
+ZCode 的本地包准备和界面插件加载分开完成。安装、更新与移除返回实际所需的 UI 操作；本地准备完成不能替代 Host 会话验证。Windows 与 macOS 的验收分别记录，未执行的实机检查保留待办。
 
 ## 保留既有失败的验收
 

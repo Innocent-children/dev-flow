@@ -12,11 +12,11 @@ export async function readLocalPackages(packageRoot = installedPackageRoot) {
   const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   if (!Object.hasOwn(manifest, "devFlowLocalPackages")) return null;
   const entries = manifest.devFlowLocalPackages;
-  if (!entries || JSON.stringify(Object.keys(entries).sort()) !== JSON.stringify(["claude", "codex", "deepseek"])) {
-    throw new Error("local package metadata must declare Claude, Codex and DeepSeek artifacts");
+  if (!entries || JSON.stringify(Object.keys(entries).sort()) !== JSON.stringify(["claude", "codex", "deepseek", "zcode"])) {
+    throw new Error("local package metadata must declare Claude, Codex, DeepSeek and ZCode artifacts");
   }
   const result = {};
-  for (const product of ["claude", "codex", "deepseek"]) {
+  for (const product of ["claude", "codex", "deepseek", "zcode"]) {
     const entry = entries[product];
     if (!entry || JSON.stringify(Object.keys(entry).sort()) !== JSON.stringify(["path", "sha256", "version"]) ||
         entry.path !== `local-packages/${product}.tgz` || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(entry.version) ||

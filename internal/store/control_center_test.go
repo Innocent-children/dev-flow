@@ -22,7 +22,7 @@ func TestControlCenterReadsCP1(t *testing.T) {
 	defer opened.Close()
 	first := controlCenterTestTask(t, "task-a", domain.HostCodex, "alpha", "Build alpha dashboard", time.Date(2026, 8, 26, 8, 0, 0, 0, time.UTC))
 	second := controlCenterTestTask(t, "task-b", domain.HostDeepSeek, "beta", "Inspect beta workflow", first.UpdatedAt.Add(time.Minute))
-	third := controlCenterTestTask(t, "task-c", domain.HostCodex, "gamma", "Ship gamma", first.UpdatedAt.Add(2*time.Minute))
+	third := controlCenterTestTask(t, "task-c", domain.HostZCode, "gamma", "Ship gamma", first.UpdatedAt.Add(2*time.Minute))
 	for _, task := range []domain.ProcessTask{first, second, third} {
 		if err := opened.CommitTask(ctx, controlCenterOpenMutation(task)); err != nil {
 			t.Fatal(err)
@@ -51,6 +51,7 @@ func TestControlCenterReadsCP1(t *testing.T) {
 	}{
 		{"text", TaskListQuery{Text: "beta", Page: 1, PageSize: 10}, "task-b"},
 		{"host", TaskListQuery{Host: domain.HostDeepSeek, Page: 1, PageSize: 10}, "task-b"},
+		{"ZCode host", TaskListQuery{Host: domain.HostZCode, Page: 1, PageSize: 10}, "task-c"},
 		{"repository", TaskListQuery{Repository: testPath("repo", "alpha"), Page: 1, PageSize: 10}, "task-a"},
 		{"node", TaskListQuery{Node: domain.NodeCancelled, Page: 1, PageSize: 10}, "task-b"},
 		{"lifecycle", TaskListQuery{Lifecycle: "cancelled", Page: 1, PageSize: 10}, "task-b"},

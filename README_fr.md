@@ -12,7 +12,7 @@
 
 ## Ce que Dev Flow vous permet de faire
 
-Dev Flow vous aide à gérer de longues tâches de programmation avec IA dans Codex, DeepSeek ou Claude Code.
+Dev Flow vous aide à gérer de longues tâches de programmation avec IA dans Codex, DeepSeek, Claude Code ou ZCode.
 Il enregistre localement les exigences convenues, le périmètre des fichiers, le plan de vérification,
 l’avancement et les résultats pour poursuivre le travail après la fin d’une session.
 
@@ -23,7 +23,7 @@ l’avancement et les résultats pour poursuivre le travail après la fin d’un
 
 Il convient aux travaux sur un dépôt qui s’étendent sur plusieurs sessions ou nécessitent des limites
 claires de fichiers et de tests. Pour les questions ponctuelles, les explications de code et les petites
-modifications sans suivi persistant, utiliser directement Codex, DeepSeek ou Claude Code est généralement plus simple.
+modifications sans suivi persistant, utiliser directement Codex, DeepSeek, Claude Code ou ZCode est généralement plus simple.
 
 ## Démarrage rapide
 
@@ -33,12 +33,16 @@ modifications sans suivi persistant, utiliser directement Codex, DeepSeek ou Cla
 
 L’installation publique ci-dessous concerne les intégrations publiées de Codex et DeepSeek. Pour Claude Code, suivez le [guide d’installation depuis les sources](docs/CLAUDE_en.md) ; l’ancienne CLI publique n’installe pas un Adapter disponible uniquement dans les sources.
 
+ZCode utilise également le [guide d’installation depuis les sources](docs/ZCODE_en.md). Les paquets locaux ciblent Windows x64 et macOS arm64 ; la validation de ZCode sur un Mac reste à effectuer.
+
 ```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
 Choisissez votre Host parmi les options de l’installateur utilisé. Dans Codex, examinez et autorisez le hook Dev Flow dans `/hooks` ; dans DeepSeek, redémarrez le Profile sélectionné. Dans Claude Code, rechargez les plugins ou ouvrez une nouvelle conversation, puis examinez les permissions demandées.
+
+Dans ZCode, installez et activez le plugin dans Settings → Plugins, puis ouvrez une nouvelle conversation pour activer les hooks. La préparation locale du paquet ne confirme pas son chargement par ZCode.
 
 ### 2. Démarrer une tâche
 
@@ -60,6 +64,14 @@ $dev-flow-codex:dev-flow Ajoutez une limitation de fréquence aux échecs de con
 
 ```text
 /dev-flow-claude:dev-flow Ajoutez une limitation de fréquence aux échecs de connexion. Modifiez uniquement les fichiers d'authentification et exécutez au plus 4 contrôles ciblés.
+```
+
+**ZCode**
+
+Sélectionnez `dev-flow` dans le menu `/` → Skills du champ de saisie, puis décrivez la tâche.
+
+```text
+Utilisez Dev Flow pour limiter les échecs de connexion. Modifiez uniquement les fichiers d’authentification et exécutez au plus 4 contrôles ciblés.
 ```
 
 Envoyez ces messages dans la conversation, pas dans un terminal. Précisez l’objectif, les critères
@@ -92,6 +104,8 @@ Dans DeepSeek Harness, incluez `/dev-flow` dans le message demandant de reprendr
 
 Dans Claude, rouvrez le répertoire et la conversation d’origine, puis demandez explicitement la reprise de la tâche enregistrée avec `/dev-flow-claude:dev-flow`.
 
+Dans ZCode, rouvrez le répertoire d’origine, sélectionnez la Skill Dev Flow et demandez la reprise de la tâche enregistrée. Si un nouveau répertoire est préparé, suivez les instructions fournies pour ouvrir cet espace de travail.
+
 Ces commandes utilisent le gestionnaire global installé. Pour une installation depuis les sources, utilisez l’entrée correspondante du guide.
 
 ```bash
@@ -107,7 +121,7 @@ et la suppression, consultez la [référence des commandes](docs/COMMANDS_en.md)
 
 ## Mascotte de bureau
 
-La mascotte nécessite un Adapter configuré et l’application de bureau installée. L’installation du seul Adapter Claude n’installe pas cette application.
+La mascotte nécessite un Adapter configuré et l’application de bureau installée. L’installation d’un Adapter seul n’installe pas l’application de bureau.
 
 La mascotte affiche plusieurs tâches dans des bulles superposées et ouvre la WebUI de chacune. Elle donne la priorité aux tâches bloquées et passe automatiquement à une tâche inachevée lorsque la tâche actuelle se termine ; vous pouvez aussi épingler une tâche. Vous pouvez personnaliser son apparence, contrôler les animations, modifier sa taille et la démarrer ou l’arrêter indépendamment.
 
@@ -130,7 +144,7 @@ son worktree. Ces opérations nécessitent une autorisation distincte de votre p
 
 ## Documentation
 
-- **Utilisation :** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [Commandes](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Utilisation :** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [ZCode](docs/ZCODE_en.md) · [Commandes](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **Projet :** [Définition du produit](docs/PRODUCT_en.md) · [Matrice de support](docs/SUPPORT-MATRIX_en.md) · [Sécurité](SECURITY.md)
 - **Développement et contributions :** [Index de documentation](MANIFEST_en.md) · [Guide de contribution](CONTRIBUTING.md)
 
