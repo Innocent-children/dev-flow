@@ -21,12 +21,15 @@
 `validate-repository.sh` 检查工具链、按锁定版本安装依赖、版本文件、空白字符、Go 格式、安装包
 约定、Host Adapter、可重复的完整流程测试和发布工具约定。该脚本不执行实际发布。
 
+Windows CI 将 Codex、DeepSeek 和统一管理器的包测试分别放在独立 PowerShell 步骤中，并显式返回各自的退出码。任一套件失败都会使对应步骤失败，阻止后续默认步骤继续执行。
+
 ## 平台定向检查
 
 测试按实际依赖的运行环境分开：
 
 | 检查 | 环境与预期结果 |
 | --- | --- |
+| `node --test tests/ci_workflow.test.mjs` | 所有平台检查包测试步骤独立且不可忽略失败；Windows 额外读取实际工作流脚本，以真实 PowerShell 和替代的包命令注入退出码 7/0，检查三个套件分别失败或成功。该回归不代表远端 GitHub Actions 已执行。 |
 | `node --test packages/deepseek/tests/macos-paths.test.mjs` | 仅 macOS arm64：临时包包含两套平台模块，macOS shell 样例通过预检，POSIX 权限和符号链接规则通过；其他平台跳过。 |
 | `node --test packages/deepseek/tests/windows-support.test.mjs` | 仅 Windows x64，须设置 `DEV_FLOW_WINDOWS_CORE` 为实际构建的 Core：移出源码目录的包能加载模块并运行 `.exe` 预检；环境不满足时跳过。 |
 | `node --test packages/deepseek/tests/paths.test.mjs packages/dev-flow/tests/local-packages.test.mjs` | 跨平台：检查包路径选择与本地包摘要；路径比较使用实际路径，不执行其他平台的程序。 |

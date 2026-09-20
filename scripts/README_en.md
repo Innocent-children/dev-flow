@@ -23,12 +23,15 @@ install real Host products or create npm, Tag, or GitHub Release state.
 whitespace, Go formatting, package contracts, Host Adapter tests, deterministic end-to-end tests, and
 release-tooling contracts. It does not invoke a real release entrypoint.
 
+Windows CI runs the Codex, DeepSeek, and lifecycle manager package suites in separate PowerShell steps, each explicitly returning its own exit code. A failed suite fails its step and prevents later default steps from running.
+
 ## Platform-targeted checks
 
 Tests are separated by the environment they actually require:
 
 | Check | Environment and expected result |
 | --- | --- |
+| `node --test tests/ci_workflow.test.mjs` | All platforms check that package suites have independent steps and cannot ignore failure. Windows also executes the actual workflow scripts in real PowerShell with a substituted package command returning 7 or 0, checking failure and success for all three suites. This regression does not represent a remote GitHub Actions run. |
 | `node --test packages/deepseek/tests/macos-paths.test.mjs` | macOS arm64 only: the detached package includes both platform modules, the macOS shell fixture passes preflight, and POSIX permissions and symlink rules pass; skipped elsewhere. |
 | `node --test packages/deepseek/tests/windows-support.test.mjs` | Windows x64 only, with `DEV_FLOW_WINDOWS_CORE` pointing to a built Core: the detached package loads its modules and runs the `.exe` preflight; skipped when prerequisites are absent. |
 | `node --test packages/deepseek/tests/paths.test.mjs packages/dev-flow/tests/local-packages.test.mjs` | Cross-platform package-path selection and local artifact hashes; comparisons use canonical paths and execute no foreign-platform programs. |
