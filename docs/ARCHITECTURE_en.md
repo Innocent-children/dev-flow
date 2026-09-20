@@ -505,6 +505,8 @@ The Windows path implementation resolves existing AppData directories to actual 
 
 The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
 
+The workspace command runner, `runClosedCommand()`, returns complete results after the child process exits and stdout/stderr close, so incomplete Git output cannot determine repository identity or content. Timeout, cancellation, or output overflow stops collection and rejects success, with bounded completion even when descendants retain output pipes after the parent exits. Mutating commands that have started report an uncertain outcome in these cases so the Host can preserve resources and recover.
+
 ## Lifecycle CLI responsibilities
 
 `packages/dev-flow/lib/cli.mjs` parses arguments and organizes menus; `terminal.mjs` retains input across one interactive session, and `presentation.mjs` renders plans, progress and results. `plan.mjs` creates maintenance actions and confirmation requirements. `lifecycle.mjs` observes state, resolves target versions, presents the plan and obtains confirmation before executing and recording results. It calls drivers for the explicitly selected Host/Profile and recreates them after installation paths are canonicalized, so subsequent operations use the same paths. `diagnostics.mjs` collects installation and user-configuration checks. Retries observe actual installation state; installation records do not determine Core Task state.

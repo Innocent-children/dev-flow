@@ -449,6 +449,8 @@ Windows 路径实现将已有 AppData 目录解析为实际路径，包括打包
 
 当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
 
+工作区命令执行器 `runClosedCommand()` 在子进程退出且 stdout/stderr 关闭后返回完整结果，避免使用尚未收齐的 Git 输出判断仓库身份或内容。超时、取消或输出超限会停止收集并拒绝返回成功，即使父进程已退出而后代仍持有输出管道也保持有界；已经启动的修改命令在这些情况下标记结果不确定，供 Host 保留现场并恢复。
+
 ## 生命周期 CLI 职责
 
 `packages/dev-flow/lib/cli.mjs` 解析参数并组织交互菜单，`terminal.mjs` 保留同一次交互中的输入，`presentation.mjs` 展示计划、进度和结果。`plan.mjs` 生成维护动作与确认要求，`lifecycle.mjs` 先观察、解析目标版本、展示计划和取得确认，再执行并记录操作结果。它按明确选定的 Host/Profile 调用驱动，安装目录规范化后重新创建驱动，使后续操作使用同一组路径。`diagnostics.mjs` 汇总安装与用户配置检查。重试重新观察实际安装；安装记录不决定 Core Task 的状态。

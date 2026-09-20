@@ -385,7 +385,8 @@ run_step "DeepSeek package and adapter contracts" \
     packages/deepseek/tests/file-scope.test.mjs \
     packages/deepseek/tests/mcp-result-gate.test.mjs \
     packages/deepseek/tests/skill-contract.test.mjs \
-    packages/deepseek/tests/workspace-coordinator.test.mjs
+    packages/deepseek/tests/workspace-coordinator.test.mjs \
+    packages/deepseek/tests/workspace-command.test.mjs
 run_step "DeepSeek simulated graph journey" \
   node --test tests/journeys/deepseek/simulated-graph-journey.test.mjs
 run_step "Shared and Codex worktree-first simulated journeys" \
