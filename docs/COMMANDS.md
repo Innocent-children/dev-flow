@@ -382,7 +382,7 @@ Host-launch 接受 stdin 中的一个封闭 JSON 对象，最多 1 MiB；`prepar
 
 统一安装、维护或移除的本地步骤成功时可以退出 0 并返回 `action_required`，须继续查看 `next_steps`。统一 `doctor` 在未达到 `ready` 时退出 1；ZCode 的 `action_required` 表示 Host UI 状态尚未核验，不等于本地准备失败。
 
-Host-launch 成功直接输出操作结果；artifacts 保留 Core 成功或错误结构；host-check 输出检查结果；MCP 使用协议传输。普通输入或 CLI 错误退出 1，Hook 检查失败退出 2，Core 转发保留其输出及退出码。Hook 的拒绝不得当作无 Task 放行；Shell 或外部写入仍由后续观察检查。
+Host-launch 成功直接输出操作结果；artifacts 保留 Core 成功或错误结构；host-check 输出检查结果；MCP 使用协议传输。普通输入或 CLI 错误退出 1，Core 转发保留其输出及退出码。Hook 收到 Core 的明确拒绝时输出 `permissionDecision=deny` 并退出 0；事件解析或检查调用异常时退出 2。不能仅凭退出 0 判定写入获准，也不能将拒绝当作无 Task 放行；Shell 或外部写入仍由后续观察检查。
 
 插件通过 `ZCODE_PLUGIN_ROOT` 定位包内 MCP 和 Hook 入口。`DEV_FLOW_DATA_DIR` 指定已有的规范绝对数据目录，须在 Host、MCP 和助手间一致。ZCode 的 `open` 与 `resume` 只给出 UI 接续描述，不声明存在未核实的会话 CLI 或会话 ID。
 

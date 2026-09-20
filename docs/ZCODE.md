@@ -77,7 +77,7 @@ node packages/dev-flow/bin/dev-flow.mjs uninstall --host zcode --yes
 
 只有 Adapter 包时，先运行 `dev-flow-zcode remove --json`。普通移除返回 `action_required`；统一管理器此时也保留 Adapter 包和待移除记录，以便后续确认。它不能替你确认 ZCode 缓存已经删除。必须在 ZCode UI 中卸载插件、移除对应 marketplace，并关闭相关会话。
 
-如果需要清除已完成移除的记录，在上述界面操作确实完成后、全局包仍存在时执行：
+上述界面操作确实完成后，在全局包仍存在时执行以下命令，确认 Host 移除并卸载 Adapter 包：
 
 ```sh
 dev-flow-zcode remove --confirm-host-removed --json

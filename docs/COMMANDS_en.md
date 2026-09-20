@@ -408,7 +408,7 @@ Lifecycle commands always output JSON. Complete validation and saved preparation
 
 Successful local installation, maintenance or removal steps may exit 0 with `action_required`; follow `next_steps`. Unified `doctor` exits 1 until the result is `ready`; ZCode's `action_required` means Host UI state remains unverified, rather than failed local preparation.
 
-Successful Host-launch commands directly output operation results; artifacts preserve Core success/error structures; host-check outputs check results; MCP uses protocol transport. Ordinary input or CLI errors exit 1, Hook check errors exit 2, and forwarded Core commands preserve their output and exit code. A failed Hook check cannot be treated as having no Task. Shell or external writes remain subject to later observation.
+Successful Host-launch commands directly output operation results; artifacts preserve Core success/error structures; host-check outputs check results; MCP uses protocol transport. Ordinary input or CLI errors exit 1, and forwarded Core commands preserve their output and exit code. Explicit Core denial makes the Hook output `permissionDecision=deny` and exit 0; event parsing or check execution errors exit 2. Exit 0 alone does not establish write permission, and a denial cannot be treated as having no Task. Shell or external writes remain subject to later observation.
 
 The plugin uses `ZCODE_PLUGIN_ROOT` for packaged MCP and Hook entrypoints. `DEV_FLOW_DATA_DIR` selects an existing canonical absolute data directory and must match across the Host, MCP and helpers. ZCode `open` and `resume` only describe UI continuation; they do not claim an unverified session CLI or session ID.
 

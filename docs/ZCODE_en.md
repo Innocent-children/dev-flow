@@ -77,7 +77,7 @@ node packages/dev-flow/bin/dev-flow.mjs uninstall --host zcode --yes
 
 With only the Adapter package, first run `dev-flow-zcode remove --json`. Ordinary removal returns `action_required`; the unified manager also retains the Adapter package and removal record so the confirmation command remains available. It cannot confirm deletion of ZCode's cache. Uninstall the plugin and remove its marketplace in the ZCode UI, then close the relevant sessions.
 
-To clear the completed removal record, run these commands only after those UI actions have actually finished, while the global package is still present:
+After those UI actions have actually finished, run these commands while the global package is still present to confirm Host removal and uninstall the Adapter package:
 
 ```sh
 dev-flow-zcode remove --confirm-host-removed --json

@@ -370,7 +370,7 @@ Claude 的 Write/Edit/NotebookEdit 解析完整目标和原始输入摘要，再
 
 `packages/zcode/` 拥有 ZCode 原生插件、MCP/Hook 传输、本地准备记录和工作区接续说明。独立 `zcode` 身份参与 Core、MCP Schema、配置偏好和 Task 所有权校验；它不复用其他 Host 身份，也不改变 SQLite 布局、流程定义、节点或边。
 
-包根内的 `.zcode-plugin/plugin.json`、`marketplace.json`、`.mcp.json`、`skills/dev-flow/`、`hooks/hooks.json`、CLI 和两个 Core runtime 构成自包含产物。ZCode process executor 使用独立 command/args 和 `ZCODE_PLUGIN_ROOT`，Hook 由标准目录发现。Write/Edit 提取完整 `tool_input.file_path` 与原始输入摘要，交给 Core 判定；解析或检查失败以退出码 2 拒绝受保护操作。Shell 与外部写入仍依赖后续观察。
+包根内的 `.zcode-plugin/plugin.json`、`marketplace.json`、`.mcp.json`、`skills/dev-flow/`、`hooks/hooks.json`、CLI 和两个 Core runtime 构成自包含产物。ZCode process executor 使用独立 command/args 和 `ZCODE_PLUGIN_ROOT`，Hook 由标准目录发现。Write/Edit 提取完整 `tool_input.file_path` 与原始输入摘要，交给 Core 判定。Core 明确拒绝时，Hook 输出 `permissionDecision=deny` 并退出 0；事件解析或检查调用异常时退出 2，拒绝受保护操作。退出 0 本身不代表写入获准。Shell 与外部写入仍依赖后续观察。
 
 Adapter 校验本地文件和 Core 后保存准备记录，统一管理器的 `hosts/zcode.mjs` 负责包发现、生命周期与 Core 候选。记录只证明本地来源，无法观察 UI 安装、缓存或启用，因此返回 `action_required`；真实 Host 加载与模型会话验证另行记录。普通卸载保留 Adapter 和 `removal_required` 记录，用户在 UI 移除插件并关闭会话后通过 `remove --confirm-host-removed` 清除记录，再卸载包。存在包或记录时拒绝共享数据 reset，避免将源包进程检查误当作全部缓存进程已停止。
 
