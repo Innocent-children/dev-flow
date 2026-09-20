@@ -713,9 +713,9 @@ test("snapshot rejects changed contents even when Git status is unchanged", asyn
 });
 
 test("snapshot helpers in all Host packages match their shared source", async () => {
-  const source = await readFile(new URL("../../host-workspace/worktree-snapshot.mjs", import.meta.url), "utf8");
+  const source = (await readFile(new URL("../../host-workspace/worktree-snapshot.mjs", import.meta.url), "utf8")).replaceAll("\r\n", "\n");
   for (const host of ["codex", "claude", "deepseek"]) {
-    const generated = await readFile(new URL(`../../${host}/lib/worktree-snapshot.mjs`, import.meta.url), "utf8");
+    const generated = (await readFile(new URL(`../../${host}/lib/worktree-snapshot.mjs`, import.meta.url), "utf8")).replaceAll("\r\n", "\n");
     assert.equal(generated, "// Generated from packages/host-workspace/worktree-snapshot.mjs; edit the shared source.\n" + source, host);
   }
 });

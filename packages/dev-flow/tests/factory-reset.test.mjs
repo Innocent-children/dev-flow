@@ -113,8 +113,8 @@ test("factory reset uninstalls a Codex package after its registration is already
   const result = await runLifecycle(request({ reinstallAfterReset: false }), {
     homeDirectory: home,
     environment: {},
-    platform: "darwin",
-    arch: "arm64",
+    platform: process.platform,
+    arch: process.arch,
     codexDriver,
     deepseekDriver,
     claudeDriver: { observe: async () => ({ host: "claude", profile: null, hostAvailable: true, state: "absent", packageVersion: null, receipt: null }) },
@@ -130,7 +130,7 @@ test("factory reset uninstalls a Codex package after its registration is already
 });
 
 async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-reset-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-reset-")));
   const home = join(root, "home");
   let explicitData = join(root, "explicit-data");
   await mkdir(home);
@@ -139,7 +139,7 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
     explicitData = await realpath(explicitData);
   }
   const environment = explicit ? { DEV_FLOW_DATA_DIR: explicitData } : {};
-  const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform: "darwin", arch: "arm64" });
+  const paths = await resolveManagerPaths({ homeDirectory: home, environment, platform: process.platform, arch: process.arch });
   await mkdir(paths.configurationDirectory);
   await mkdir(paths.defaultDataDirectory, { recursive: true });
   await mkdir(paths.petDirectory, { recursive: true });
@@ -160,8 +160,8 @@ async function resetFixture(t, { explicit = false, stopPet = null } = {}) {
     dependencies: {
       homeDirectory: home,
       environment,
-      platform: "darwin",
-      arch: "arm64",
+      platform: process.platform,
+      arch: process.arch,
       codexDriver,
       deepseekDriver,
       claudeDriver: driver("claude", null, states, events),
@@ -283,8 +283,8 @@ test("independent reset retries retain a reconnected Core after Adapter records 
   fixture.states.codex = "absent";
   fixture.states.deepseek = "absent";
   const packageRoot = join(fixture.paths.homeDirectory, "isolated-claude");
-  const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
-  await mkdir(join(packageRoot, "runtime", "darwin-arm64"), { recursive: true });
+  const runtimePath = join(packageRoot, "runtime", fixture.paths.runtimeDirectory, fixture.paths.runtimeExecutable);
+  await mkdir(join(packageRoot, "runtime", fixture.paths.runtimeDirectory), { recursive: true });
   await writeFile(join(packageRoot, "package.json"), '{"name":"dev-flow-claude"}');
   await writeFile(runtimePath, "isolated fixture, never executed");
   await chmod(runtimePath, 0o755);

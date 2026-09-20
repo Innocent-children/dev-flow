@@ -16,6 +16,7 @@ import {
   resolveSetupLanguage,
   selectSetupPresentationMode,
 } from "../lib/install-experience.mjs";
+import { permissionPolicy } from "../lib/platform.mjs";
 
 let coreDirectory, runtimePath;
 before(async () => {
@@ -27,12 +28,12 @@ before(async () => {
 });
 after(async () => { if (coreDirectory) await rm(coreDirectory, { recursive: true, force: true }); });
 
-test("creates one closed default user configuration with private modes", async () => {
+test("creates one closed default user configuration with the platform permission policy", async () => {
   const paths = await fixturePaths();
   const result = await ensureUserConfiguration(paths);
   assert.deepEqual(result.fileChange, { path: paths.configurationPath, change: "created" });
   assert.equal(await readFile(paths.configurationPath, "utf8"), DEFAULT_USER_CONFIGURATION);
-  if (process.platform !== "win32") {
+  if (paths.enforcePrivateModes) {
     assert.equal((await lstat(paths.configurationDirectory)).mode & 0o777, 0o700);
     assert.equal((await lstat(paths.configurationPath)).mode & 0o777, 0o600);
   }
@@ -51,7 +52,7 @@ test("preserves valid existing configuration and adjacent files byte for byte", 
   assert.equal(await readFile(adjacent, "utf8"), "keep\n");
 });
 
-test("rejects invalid, duplicate, unknown, nonboolean, oversized, and unsafe existing files", async (t) => {
+test("rejects invalid, duplicate, unknown, nonboolean, and oversized existing files", async (t) => {
   const cases = [
     ["invalid", "{", /invalid JSON/],
     ["duplicate", '{"codex":{},"codex":{}}', /duplicate field/],
@@ -68,12 +69,15 @@ test("rejects invalid, duplicate, unknown, nonboolean, oversized, and unsafe exi
       assert.equal(await readFile(paths.configurationPath, "utf8"), contents);
     });
   }
+});
 
+test("rejects unsafe existing file permissions on POSIX", {
+  skip: process.platform === "win32" ? "Windows does not enforce POSIX private mode bits" : false,
+}, async () => {
   const unsafe = await fixturePaths();
   await mkdir(unsafe.configurationDirectory, { recursive: true, mode: 0o700 });
   await writeFile(unsafe.configurationPath, "{}\n", { mode: 0o644 });
   await chmod(unsafe.configurationPath, 0o644);
-  unsafe.platform = "darwin";
   await assert.rejects(ensureUserConfiguration(unsafe), /permissions are unsafe/);
 });
 
@@ -156,6 +160,7 @@ async function fixturePaths() {
   return {
     homeDirectory,
     platform: process.platform,
+    enforcePrivateModes: permissionPolicy(process.platform, process.arch).enforcePrivateModes,
     configurationDirectory,
     configurationPath: join(configurationDirectory, "config.json"),
     runtimePath,

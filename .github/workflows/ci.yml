@@ -86,10 +86,14 @@ jobs:
         uses: pnpm/action-setup@v6
         with:
           version: 11
+          standalone: true
 
       - name: Install frozen workspace dependencies
         shell: pwsh
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: |
+          node --input-type=module -e "import { execPortableCommand } from './packages/dev-flow/lib/command.mjs'; const result = await execPortableCommand('pnpm', ['--version'], { encoding: 'utf8' }); process.stdout.write(result.stdout);"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build native Windows x64 Core
         shell: pwsh

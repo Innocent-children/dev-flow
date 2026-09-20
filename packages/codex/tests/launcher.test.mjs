@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdir, readFile, readdir, stat, symlink, unlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, readdir, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,7 @@ import {
 import { CODEX_MCP_INSTRUCTIONS } from "../lib/lifecycle.mjs";
 import { HOST_LAUNCH_OPERATIONS } from "../lib/host-launch-contract.mjs";
 import { resolveProductPaths } from "../lib/paths.mjs";
+import { permissionPolicy, runtimeDescriptor, signalPolicy } from "../lib/platform.mjs";
 
 const execFile = promisify(execFileCallback);
 const launcherPath = fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url));
@@ -293,7 +294,7 @@ test("hook dispatches the package-owned PreToolUse implementation without resolv
   assert.equal(resolved, false);
 });
 
-test("launcher fails before spawn for unsupported platforms and non-executable runtimes", async (t) => {
+test("launcher fails before spawn for unsupported platforms and non-file runtimes", async (t) => {
   const stdout = captureStream();
   const stderr = captureStream();
   let spawned = false;
@@ -311,7 +312,9 @@ test("launcher fails before spawn for unsupported platforms and non-executable r
   assert.equal(spawned, false);
   assert.match(stderr.text, /unsupported platform linux-x64/);
 
-  const paths = await makePaths(t, { executable: false });
+  const paths = await makePaths(t);
+  await unlink(paths.runtimePath);
+  await mkdir(paths.runtimePath);
   const secondError = captureStream();
   assert.deepEqual(
     await runCLI(["mcp"], {
@@ -327,6 +330,22 @@ test("launcher fails before spawn for unsupported platforms and non-executable r
   );
   assert.match(secondError.text, /packaged Core.*executable/);
   assert.equal(spawned, false);
+});
+
+test("launcher rejects a packaged Core without POSIX execute permission", {
+  skip: process.platform === "win32" ? "Windows does not enforce POSIX execute mode bits" : false,
+}, async (t) => {
+  const paths = await makePaths(t);
+  await chmod(paths.runtimePath, 0o600);
+  const stderr = captureStream();
+  const result = await runCLI(["mcp"], {
+    stdout: captureStream(), stderr,
+    resolvePaths: async () => paths,
+    spawnImpl: () => assert.fail("non-executable Core must not spawn"),
+    signalSource: new EventEmitter(),
+  });
+  assert.deepEqual(result, { code: 1, signal: null });
+  assert.match(stderr.text, /packaged Core.*executable/);
 });
 
 test("unsupported setup stops before every host, repository, data, receipt, and Core mutation", async (t) => {
@@ -788,24 +807,28 @@ test("installed bin symlinks still execute the launcher entry point", {
   );
 });
 
-async function makePaths(t, { usesDefaultDataDirectory = false, executable = true } = {}) {
+async function makePaths(t, { usesDefaultDataDirectory = false } = {}) {
   const { mkdtemp } = await import("node:fs/promises");
   const root = await mkdtemp(join(tmpdir(), "dev-flow-codex-launcher-"));
-  const runtimePath = join(root, "runtime", "darwin-arm64", "dev-flow");
+  const runtime = runtimeDescriptor(process.platform, process.arch);
+  const permissions = permissionPolicy(process.platform, process.arch);
+  const signals = signalPolicy(process.platform, process.arch);
+  const runtimePath = join(root, "runtime", runtime.runtimeDirectory, runtime.runtimeExecutable);
   const dataDirectory = join(root, "data");
   const homeDirectory = join(root, "home");
   const configurationDirectory = join(homeDirectory, ".dev-flow");
   await mkdir(join(runtimePath, ".."), { recursive: true });
   await mkdir(dataDirectory, { recursive: true });
   await mkdir(homeDirectory, { recursive: true });
-  await writeFile(runtimePath, "fixture\n", { mode: executable ? 0o700 : 0o600 });
+  await writeFile(runtimePath, "fixture\n", { mode: 0o700 });
   assert.equal((await stat(runtimePath)).isFile(), true);
   return {
     packageRoot: root,
-    platform: executable ? process.platform : "darwin",
-    requireExecutableMode: true,
-    enforcePrivateModes: true,
-    forwardedSignals: ["SIGINT", "SIGTERM", "SIGHUP"],
+    platform: runtime.platform,
+    arch: runtime.arch,
+    requireExecutableMode: permissions.requireExecutableMode,
+    enforcePrivateModes: permissions.enforcePrivateModes,
+    forwardedSignals: signals.forwardedSignals,
     runtimePath,
     dataDirectory,
     usesDefaultDataDirectory,

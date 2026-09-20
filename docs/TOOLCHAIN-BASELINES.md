@@ -22,6 +22,8 @@ Node.js 承担包工具和 Host 适配，Go Core 承担共享任务运行时。�
 
 macOS 与 Windows 的原生检查分别执行。交叉编译证明产物可构建，不代表目标系统或实际 Host 已完成运行验证；Windows CI runner 也不构成 Windows Server 支持声明。检查入口见[脚本说明](../scripts/README.md)，正式发布要求见[发布说明](../release/README.md)。
 
+Windows CI 使用 `pnpm/action-setup` 的 `standalone` 模式提供原生 `pnpm.exe`，并在安装依赖前通过仓库命令执行入口检查版本，确保后续 Node 构建能使用同一工具。pnpm 主版本范围保持不变；配置见 [CI 工作流](../.github/workflows/ci.yml)。
+
 ## Core 依赖
 
 | 依赖 | 兼容范围与用途 |

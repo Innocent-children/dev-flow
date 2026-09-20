@@ -257,6 +257,7 @@ for (const carry of [false, true]) test(`local coordinator works without a remot
   const data = join(root, "data");
   await mkdir(data);
   await execFile("git", ["init", "--initial-branch=main", source]);
+  await git(source, ["config", "core.autocrlf", "false"]);
   await git(source, ["config", "user.name", "Test"]);
   await git(source, ["config", "user.email", "test@localhost"]);
   await writeFile(join(source, "file.txt"), "base\n");
