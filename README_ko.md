@@ -12,7 +12,7 @@
 
 ## Dev Flow로 할 수 있는 일
 
-Dev Flow는 Codex, DeepSeek 또는 Claude Code에서 오래 이어지는 AI 코딩 작업을 관리하도록 돕습니다. 합의한 요구사항,
+Dev Flow는 Codex, DeepSeek, Claude Code 또는 ZCode에서 오래 이어지는 AI 코딩 작업을 관리하도록 돕습니다. 합의한 요구사항,
 파일 범위, 검증 계획, 진행 상황과 결과를 로컬에 저장해 세션이 끝난 뒤에도 작업을 이어갈 수 있습니다.
 
 - **변경 범위 확인:** 수정할 파일을 기록하고 실제 변경 사항을 계획과 비교합니다.
@@ -21,7 +21,7 @@ Dev Flow는 Codex, DeepSeek 또는 Claude Code에서 오래 이어지는 AI 코�
 - **결과 확인:** 진행 상황, 검사 결과, 처리가 필요한 문제를 확인합니다.
 
 여러 세션에 걸치거나 파일 범위와 테스트 작업량을 명확히 정해야 하는 저장소 작업에 적합합니다.
-일회성 질문, 코드 설명, 진행 상황을 저장할 필요가 없는 작은 수정은 Codex, DeepSeek 또는 Claude Code를 직접 쓰는 편이 간단합니다.
+일회성 질문, 코드 설명, 진행 상황을 저장할 필요가 없는 작은 수정은 Codex, DeepSeek, Claude Code 또는 ZCode를 직접 쓰는 편이 간단합니다.
 
 ## 빠른 시작
 
@@ -31,12 +31,16 @@ Dev Flow는 Codex, DeepSeek 또는 Claude Code에서 오래 이어지는 AI 코�
 
 아래 공개 패키지는 배포된 Codex와 DeepSeek 연동을 위한 것입니다. Claude Code는 [소스 설치 안내](docs/CLAUDE_en.md)를 따르세요. 기존 공개 CLI는 소스로만 제공되는 Adapter를 설치하지 않습니다.
 
+ZCode도 [소스 설치 안내](docs/ZCODE_en.md)를 따릅니다. 로컬 패키지는 Windows x64와 macOS arm64를 대상으로 하며, macOS의 실제 ZCode 검증은 추후 진행합니다.
+
 ```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
 사용하는 설치 메뉴에서 해당 Host를 선택하세요. Codex는 `/hooks`에서 Dev Flow hook을 검토하고 신뢰하며, DeepSeek는 선택한 Profile을 다시 시작합니다. Claude Code는 플러그인을 다시 불러오거나 새 대화를 열고 권한 안내를 확인하세요.
+
+ZCode에서는 Settings → Plugins에서 플러그인을 설치하고 활성화한 뒤 새 대화를 시작해야 Hook이 적용됩니다. 로컬 패키지가 준비되었다고 해서 ZCode에서 로드되었다는 뜻은 아닙니다.
 
 ### 2. 작업 시작
 
@@ -58,6 +62,14 @@ $dev-flow-codex:dev-flow 로그인 실패 속도 제한을 추가하세요. 인�
 
 ```text
 /dev-flow-claude:dev-flow 로그인 실패 속도 제한을 추가하세요. 인증 관련 파일만 변경하고 대상 확인을 최대 4개 실행하세요.
+```
+
+**ZCode**
+
+입력창의 `/` → Skills에서 `dev-flow`를 선택한 뒤 작업을 설명하세요.
+
+```text
+Dev Flow를 사용해 로그인 실패 속도 제한을 추가하세요. 인증 관련 파일만 변경하고 대상 확인을 최대 4개 실행하세요.
 ```
 
 이 메시지는 터미널이 아닌 대화창에 입력합니다. 목표, 인수 조건, 파일 범위와 테스트 한도를 구체적으로 적으세요.
@@ -87,6 +99,8 @@ DeepSeek Harness에서는 재개를 요청하는 메시지에도 `/dev-flow`를 
 
 Claude에서는 원래 작업 디렉터리와 대화로 돌아가 `/dev-flow-claude:dev-flow`로 저장된 작업을 계속한다고 명시하세요.
 
+ZCode에서는 원래 작업 디렉터리를 열고 Dev Flow Skill을 선택한 뒤 저장된 작업을 계속해 달라고 요청하세요. 새 디렉터리를 준비했다면 반환된 작업 공간 열기 안내를 따르세요.
+
 아래 명령은 설치된 전역 관리자를 사용합니다. 소스 설치에서는 안내서의 해당 실행 경로를 사용하세요.
 
 ```bash
@@ -102,7 +116,7 @@ dev-flow webui start
 
 ## 데스크톱 펫
 
-펫을 사용하려면 설정된 Adapter와 설치된 데스크톱 앱이 모두 필요합니다. Claude Adapter만 설치하면 데스크톱 앱은 설치되지 않습니다.
+펫을 사용하려면 설정된 Adapter와 설치된 데스크톱 앱이 모두 필요합니다. Adapter만 설치하면 데스크톱 앱은 설치되지 않습니다.
 
 데스크톱 펫은 여러 작업을 겹친 말풍선으로 표시하고 각 작업의 WebUI를 엽니다. 차단된 작업을 우선 표시하며, 작업이 완료되면 다른 미완료 작업으로 자동 전환합니다. 특정 작업을 고정할 수도 있습니다. 외형 변경, 애니메이션 제어, 크기 조절, 개별 시작과 중지를 지원합니다.
 
@@ -122,7 +136,7 @@ dev-flow pet stop
 
 ## 문서
 
-- **사용 방법:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [명령어](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **사용 방법:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [ZCode](docs/ZCODE_en.md) · [명령어](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **프로젝트:** [제품 정의](docs/PRODUCT_en.md) · [지원 범위](docs/SUPPORT-MATRIX_en.md) · [보안](SECURITY.md)
 - **개발 및 기여:** [문서 목록](MANIFEST_en.md) · [기여 안내](CONTRIBUTING.md)
 

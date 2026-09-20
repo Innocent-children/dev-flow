@@ -12,7 +12,7 @@
 
 ## Dev Flow でできること
 
-Dev Flow は、Codex、DeepSeek、Claude Code で長時間の AI コーディング作業を管理するためのツールです。
+Dev Flow は、Codex、DeepSeek、Claude Code、ZCode で長時間の AI コーディング作業を管理するためのツールです。
 合意した要件、ファイル範囲、検証計画、進捗、結果をローカルに保存し、セッションが終わっても作業を続けられます。
 
 - **変更範囲を明確にする：** 変更予定のファイルを記録し、実際の変更を計画と照合します。
@@ -21,7 +21,7 @@ Dev Flow は、Codex、DeepSeek、Claude Code で長時間の AI コーディン
 - **結果を確認する：** 進捗、検証結果、対応が必要な問題を確認できます。
 
 複数のセッションにまたがる作業や、ファイル範囲とテスト量を明確にしたいリポジトリ作業に向いています。
-一度きりの質問、コードの説明、進捗保存が不要な小さな変更は、Codex、DeepSeek、Claude Code を直接使う方が簡単です。
+一度きりの質問、コードの説明、進捗保存が不要な小さな変更は、Codex、DeepSeek、Claude Code、ZCode を直接使う方が簡単です。
 
 ## クイックスタート
 
@@ -31,12 +31,16 @@ Dev Flow は、Codex、DeepSeek、Claude Code で長時間の AI コーディン
 
 以下の公開パッケージは、公開済みの Codex と DeepSeek の連携用です。Claude Code は[ソースからのインストール手順](docs/CLAUDE_en.md)を利用してください。従来の公開 CLI では、ソース版のみの Adapter はインストールされません。
 
+ZCode も[ソースからのインストール手順](docs/ZCODE_en.md)を利用します。対象は Windows x64 と macOS arm64 で、macOS 上の ZCode の実機検証は今後行います。
+
 ```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
 利用するインストーラーの選択肢から対応する Host を選びます。Codex は `/hooks` で Dev Flow hook を確認して信頼し、DeepSeek は選択した Profile を再起動します。Claude Code はプラグインを再読み込みするか新しい会話を開始し、権限の案内を確認してください。
+
+ZCode では Settings → Plugins でプラグインをインストールして有効にし、新しい会話を開始して Hook を反映させます。ローカルの準備完了だけでは、ZCode がプラグインを読み込んだことは確認できません。
 
 ### 2. 作業を開始する
 
@@ -58,6 +62,14 @@ $dev-flow-codex:dev-flow ログイン失敗のレート制限を追加してく�
 
 ```text
 /dev-flow-claude:dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
+```
+
+**ZCode**
+
+入力欄の `/` → Skills から `dev-flow` を選択し、タスクを説明してください。
+
+```text
+Dev Flow を使ってログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
 ```
 
 これらはターミナルではなく会話に送信します。目標、受け入れ条件、ファイル範囲、テスト上限を具体的に記載してください。
@@ -86,6 +98,8 @@ DeepSeek Harness では、再開を依頼するメッセージにも `/dev-flow`
 
 Claude では元の作業ディレクトリと会話を開き、`/dev-flow-claude:dev-flow` で保存済みタスクの再開を明示してください。
 
+ZCode では元の作業ディレクトリを開き、Dev Flow Skill を選択して保存済みタスクの再開を依頼します。新しいディレクトリを準備した場合は、返されたワークスペースの開き方に従ってください。
+
 以下はインストール済みのグローバル管理コマンドです。ソース版では、ガイドに記載された対応する入口を使ってください。
 
 ```bash
@@ -101,7 +115,7 @@ dev-flow webui start
 
 ## デスクトップペット
 
-ペットには、設定済みの Adapter とインストール済みのデスクトップアプリが必要です。Claude Adapter だけをインストールしても、デスクトップアプリは入りません。
+ペットには、設定済みの Adapter とインストール済みのデスクトップアプリが必要です。Adapter だけをインストールしても、デスクトップアプリは入りません。
 
 デスクトップペットは複数のタスクを重ねた吹き出しで表示し、それぞれの WebUI を開けます。ブロック中のタスクを優先し、完了後は別の未完了タスクに自動で切り替わります。特定のタスクを固定することもできます。外観の変更、アニメーションの制御、サイズ変更、個別の起動と停止に対応しています。
 
@@ -121,7 +135,7 @@ dev-flow pet stop
 
 ## ドキュメント
 
-- **使い方：** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [コマンド](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **使い方：** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [ZCode](docs/ZCODE_en.md) · [コマンド](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **プロジェクト：** [製品定義](docs/PRODUCT_en.md) · [サポート一覧](docs/SUPPORT-MATRIX_en.md) · [セキュリティ](SECURITY.md)
 - **開発と貢献：** [ドキュメント一覧](MANIFEST_en.md) · [貢献ガイド](CONTRIBUTING.md)
 

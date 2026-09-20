@@ -83,7 +83,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	case ToolServerInfo:
 		d := workflow.StandardProcess()
 		process := SupportedProcessResult{ProcessID: d.Reference.ID, DefinitionDigest: d.Reference.DefinitionDigest, NewTaskSupported: true}
-		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek", "claude"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames(), HostPreferences: s.hostPreferences})
+		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek", "claude", "zcode"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames(), HostPreferences: s.hostPreferences})
 	case ToolOpenTask:
 		var w openWire
 		_ = decodeClosed(raw, &w)

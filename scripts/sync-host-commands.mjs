@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = resolve(dirname(scriptPath), "..");
-const hosts = ["codex", "claude"];
+const hosts = ["codex", "claude", "zcode"];
 export const hostCommandFiles = Object.freeze([
   "command.mjs",
   "platform/windows/command.mjs",

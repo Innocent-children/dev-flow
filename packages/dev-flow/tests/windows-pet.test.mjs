@@ -17,8 +17,8 @@ test("Windows x64 menu exposes both pet commands and rejects other Windows archi
     "win32-x64",
   );
   for (const [input, expected] of [
-    ["6\n", "start"],
-    ["7\n", "stop"],
+    ["7\n", "start"],
+    ["8\n", "stop"],
   ]) {
     let text = "";
     const request = await promptForRequest({
@@ -33,8 +33,8 @@ test("Windows x64 menu exposes both pet commands and rejects other Windows archi
       arch: "x64",
     });
     assert.deepEqual(request, { pet: expected });
-    assert.match(text, /Start the desktop pet/u);
-    assert.match(text, /Stop the desktop pet/u);
+    assert.match(text, /7\. Start the desktop pet/u);
+    assert.match(text, /8\. Stop the desktop pet/u);
   }
 });
 test("Windows pet installation preserves an existing app, settings and appearances", async (t) => {

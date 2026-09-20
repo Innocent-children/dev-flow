@@ -8,7 +8,7 @@
 
 ## 环境与交付方式
 
-桌面组件面向 macOS arm64（Apple Silicon）与 Windows 10/11 x64，运行时需要至少一个已安装并配置的 Codex、DeepSeek 或 Claude Code Adapter 提供 Core。
+桌面组件面向 macOS arm64（Apple Silicon）与 Windows 10/11 x64，运行时需要至少一个已安装并配置的 Codex、DeepSeek、Claude Code 或 ZCode Adapter 提供 Core。
 Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实际运行、Developer ID 签名和 Apple 公证尚未完成正式分发验证。
 具体已验证范围见[支持矩阵](SUPPORT-MATRIX.md#桌面宠物功能检查)。
 
@@ -66,7 +66,9 @@ dev-flow pet start
 dev-flow pet stop
 ~~~
 
-将 `<local-package>.tgz` 替换为 desktop-pet-build.json 中 tarball 对应的文件名。该构建装配 Windows 桌面应用，并通过既有构建目标表生成三个 Adapter 的完整 Core 文件和安装包，绑定路径、版本与 SHA256；复制默认九类动作、312 帧并验证解包后的素材和可执行文件。Mac Core 仅交叉编译，不执行 Mac 程序或测试，不执行发布。Windows 采用系统托盘代替 macOS 菜单栏，素材格式、任务语义和六档缩放一致。
+将 `<local-package>.tgz` 替换为 desktop-pet-build.json 中 tarball 对应的文件名。该构建装配 Windows 桌面应用，并通过既有构建目标表生成四个 Adapter 的完整 Core 文件和安装包，绑定路径、版本与 SHA256；复制默认九类动作、312 帧并验证解包后的素材和可执行文件。Mac Core 仅交叉编译，不执行 Mac 程序或测试，不执行发布。Windows 采用系统托盘代替 macOS 菜单栏，素材格式、任务语义和六档缩放一致。
+
+本地分发包的 `--host all` 包含 ZCode；其 `action_required` 提示仍需在 ZCode UI 完成插件安装和启用，见 [ZCode 指南](ZCODE.md)。宠物能够读取 Core 不代表 ZCode 模型会话已经可用。
 
 productRoot 默认是 %LOCALAPPDATA%\dev-flow。已安装桌面目录为 productRoot/pet/DevFlowPet，入口为 DevFlowPet.exe；优先使用此目录，其次使用包内 runtime/win32-x64/DevFlowPet。settings.json、appearances/ 与程序目录分开保存。统一入口通过 dev-flow install、upgrade、repair、reinstall 更新程序副本；统一入口先停止需要维护的实例，再暂存并替换程序目录，保留 settings.json 与 appearances/。单独 pet start 不重装已有程序。普通退出和卸载保留这些数据，确认的 factory-reset 才按既有规则清理整个宠物目录。
 

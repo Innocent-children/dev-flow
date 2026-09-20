@@ -5,7 +5,7 @@
 > 普通用户通常只需要安装统一入口、运行 `dev-flow`，并在 Host 中使用对应 selector。其余命令
 > 主要用于诊断、恢复和集成开发。
 
-本文件列出当前命令入口。统一 lifecycle 由 `packages/dev-flow/bin/dev-flow.mjs` 和 `lib/cli.mjs` 定义，Codex 与 Claude 分别由各自 package 的 bin 定义，DeepSeek 命令由 DSH lifecycle 测试核对。Core 命令来自 `cmd/dev-flow/main.go`，MCP 工具来自 `internal/mcp/`。
+本文件列出当前命令入口。统一 lifecycle 由 `packages/dev-flow/bin/dev-flow.mjs` 和 `lib/cli.mjs` 定义，Codex、Claude 与 ZCode 分别由各自 package 的 bin 定义，DeepSeek 命令由 DSH lifecycle 测试核对。Core 命令来自 `cmd/dev-flow/main.go`，MCP 工具来自 `internal/mcp/`。
 
 公开安装示例使用 npm 的 `latest` dist-tag，以便安装当前最新稳定包；支持矩阵、Release 链接和
 安装包验证结果仍使用精确版本号，不应替换为 `latest`。
@@ -22,7 +22,7 @@ dev-flow
 ```
 
 安装后，Codex 使用 `$dev-flow-codex:dev-flow <任务描述>`，DeepSeek Harness 使用
-`/dev-flow <任务描述>`，Claude Code 使用 `/dev-flow-claude:dev-flow <任务描述>`。这些是 Host 对话 selector，不是 shell 命令。
+`/dev-flow <任务描述>`，Claude Code 使用 `/dev-flow-claude:dev-flow <任务描述>`。这些是 Host 对话 selector，不是 shell 命令。ZCode 在输入框的 `/` → Skills 中选择 `dev-flow` 后描述任务，见 [ZCode 指南](ZCODE.md)。
 
 ## 统一 Adapter 生命周期
 
@@ -34,7 +34,7 @@ dev-flow
 ```
 
 支持的子命令为 `status`、`doctor`、`install`、`upgrade`、`repair`、`reinstall`、`uninstall` 和
-`factory-reset`。Host 选择为 `codex|deepseek|claude|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
+`factory-reset`。Host 选择为 `codex|deepseek|claude|zcode|all`；DeepSeek Profile 默认 `web`。普通卸载、升级、
 修复和重装保留用户配置与 Task 数据；`factory-reset` 要求绑定当前计划的 token，`--yes` 不能单独
 授权数据清理。默认清理在 macOS 移动到用户 Trash，在 Windows 移动到
 `%LOCALAPPDATA%\dev-flow\trash` 的可恢复隔离目录；Windows 目标不是系统回收站。永久删除还需
@@ -51,7 +51,7 @@ Core 缺失时，仅在没有 WebUI runtime receipt 的情况下继续清理；�
 | --- | --- |
 | `npm install -g @imotong/dev-flow@latest` | 全局安装公共 `dev-flow` 命令。 |
 | `dev-flow` | 打开交互式 lifecycle 菜单。 |
-| `dev-flow status\|doctor --host codex\|deepseek\|claude\|all` | 只读检查或诊断。 |
+| `dev-flow status\|doctor --host codex\|deepseek\|claude\|zcode\|all` | 只读检查或诊断。 |
 | `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | 执行普通维护并保留配置与 Task 数据。 |
 | `dev-flow install\|repair --host deepseek\|all --adopt ...` | 接管已经存在且身份可验证的 DeepSeek Profile contribution；其他操作和纯 Codex 目标不接受 `--adopt`。 |
 | `dev-flow install\|upgrade\|repair\|reinstall ... --confirm-downgrade <token>` | 当目标版本低于已安装版本时，使用当前计划给出的 token 明确确认降级。 |
@@ -116,7 +116,7 @@ dev-flow status --host all
 
 ## 桌面宠物（macOS arm64 与 Windows x64）
 
-安装 `@imotong/dev-flow@latest` 获取包内 macOS arm64 与 Windows 10/11 x64 应用，并配置至少一个 Codex、DeepSeek 或 Claude Adapter 提供 Core；Claude 的安装渠道见 [Host 指南](CLAUDE.md)。`install`、`upgrade`、`repair`、`reinstall` 更新应用副本并保留设置和形象，即使 Adapter 已是目标版本也执行。详见[桌面宠物指南](DESKTOP-PETS.md)。
+安装 `@imotong/dev-flow@latest` 获取包内 macOS arm64 与 Windows 10/11 x64 应用，并配置至少一个 Codex、DeepSeek、Claude 或 ZCode Adapter 提供 Core；Claude 的安装渠道见 [Host 指南](CLAUDE.md)。`install`、`upgrade`、`repair`、`reinstall` 更新应用副本并保留设置和形象，即使 Adapter 已是目标版本也执行。详见[桌面宠物指南](DESKTOP-PETS.md)。
 
 | 命令 | 行为 |
 | --- | --- |
@@ -211,7 +211,7 @@ dev-flow-codex --version
 ```
 
 保留 Task 数据的卸载顺序是 `dev-flow-codex remove`，然后
-`npm uninstall -g dev-flow-codex`。只有在 Codex、DeepSeek 和 Claude Adapter 都已移除且不再需要任何
+`npm uninstall -g dev-flow-codex`。只有在 Codex、DeepSeek、Claude 和 ZCode Adapter 都已移除且不再需要任何
 Task 时，才删除共享默认产品目录：macOS 为 `$HOME/.dev-flow`，Windows
 为 `%LOCALAPPDATA%\dev-flow`。
 
@@ -350,6 +350,42 @@ clean 和远端 task branch 后才使用非 force Git 命令。
 
 对话触发方式为 `/dev-flow-claude:dev-flow <任务描述>`。`CLAUDE_CONFIG_DIR` 指定 Claude 设置目录；`DEV_FLOW_DATA_DIR` 指定已有的规范绝对任务数据目录，在 Host、MCP 和助手中须一致。
 
+## ZCode
+
+本节由源码或本地 `dev-flow-zcode` 包提供，尚无稳定 npm 安装入口。源码安装使用 `pnpm dev-flow:local -- install --host zcode --yes`；旧版全局管理器不提供新的 Host 选项。实现来自 `packages/zcode/bin/dev-flow-zcode.mjs`、`lib/lifecycle.mjs`、`lib/workspace.mjs` 和 `hooks/pre-tool-use.mjs`。用户操作见 [ZCode 指南](ZCODE.md)。
+
+| 命令 | 输入与结果 |
+| --- | --- |
+| `dev-flow-zcode status [--json]` | 无 stdin；检查本地包、Core 和准备记录，不检测 ZCode 插件加载。 |
+| `dev-flow-zcode setup [--json]` | 无 stdin；校验并保存本地来源，返回 ZCode UI 安装/启用步骤。 |
+| `dev-flow-zcode remove [--json]` | 无 stdin；保留待 UI 移除记录，不删除 Task 数据。 |
+| `dev-flow-zcode remove --confirm-host-removed [--json]` | 用户已在 UI 移除插件和 marketplace 并关闭相关会话后，清除归属明确的记录；人工确认不等于自动检测。 |
+| `dev-flow-zcode --version` | 输出包内 Core 版本。 |
+| `dev-flow-zcode mcp` | 启动 stdio MCP。 |
+| `dev-flow-zcode artifacts collect\|prepare` | stdin 为对应 Core 文件收集或准备请求。 |
+| `dev-flow-zcode host-check workspace-available` | stdin 为 repository_path。 |
+| `dev-flow-zcode host-check pre-file-write` | stdin 为 host、repository_path、tool_name、paths、intent_digest、path_parse_complete。 |
+| `dev-flow-zcode hook pre-tool-use` | stdin 为原始 ZCode PreToolUse 事件；Write/Edit 读取 tool_input.file_path。 |
+| `dev-flow-zcode host-launch inspect` | request、repositories[{key,repository_path}]；返回评估锚点。 |
+| `dev-flow-zcode host-launch prepare` | request、assessment、user_choice、repositories、handoff；保存准备记录。 |
+| `dev-flow-zcode host-launch provision` | launch_id；准备全部仓库。 |
+| `dev-flow-zcode host-launch status` | launch_id；读取保留的启动记录。 |
+| `dev-flow-zcode host-launch scope` | launch_id；核验并返回 Core 创建范围。 |
+| `dev-flow-zcode host-launch bind-task` | launch_id、task_id；绑定实际 Core 成功结果。 |
+| `dev-flow-zcode host-launch open\|resume` | launch_id；返回 UI 操作说明、工作目录和完整接续提示，不自动启动会话。 |
+| `dev-flow-zcode host-launch relocate` | launch_id、relocation_id、destinations[{repository_key,repository_path}]、authorized=true、core_preparation；core_preparation 必须为实际 `dev_flow_prepare_task_relocation` 成功响应的完整 result，含 relocation_id/task；返回供 Core 核验的目标。 |
+| `dev-flow-zcode host-launch cleanup-worktree\|cleanup-branch` | launch_id、repository_key、terminal、authorized；工作树和分支分别授权。 |
+
+Host-launch 接受 stdin 中的一个封闭 JSON 对象，最多 1 MiB；`prepare.repositories` 各项必需 key、repository_path、workspace_mode、source_type、remote_name、base_branch、target_branch、carry_changes、worktree_path。模式为 `new_branch`、`current_branch`、`dedicated_worktree`；key 使用 Core 的 `^[a-z0-9][a-z0-9._-]{0,127}$` 规则。迁移核对准备结果中的已绑定 ZCode Task、当前迁移 blocker 和全部源工作区；不能只凭迁移 ID 移动目录。同一 ID 已移动时，只核验目标身份并回读；结果不确定时拒绝重复移动。Core 完成前次迁移后，新的准备结果和 ID 可以开始下一次迁移。评估、授权和迁移前提见包内 [admission](../packages/zcode/skills/dev-flow/references/admission.md) 和 [生命周期说明](../packages/zcode/skills/dev-flow/references/host-lifecycle.md)。
+
+生命周期命令始终输出 JSON。校验完整且保存准备记录时，`status=action_required`、`registration.host=unverified`，`next_steps` 指示 UI 安装、启用或缓存更新；准备不完整为 `partial`。普通 `remove` 保存 `phase=removal_required`；明确确认已移除后返回 `absent`、`registration.host=user_confirmed_removed`。这些字段描述本地准备与实际用户声明，不是自动 Host 就绪检查。统一管理器同样保留 `action_required`，不将准备成功显示为 `ready`。首轮统一 `uninstall` 保留包供确认命令使用；完成 UI 移除、关闭会话并运行确认命令后，再次统一 `uninstall` 才移除包。ZCode 包或记录仍存在时，`factory-reset` 拒绝清理共享数据。
+
+统一安装、维护或移除的本地步骤成功时可以退出 0 并返回 `action_required`，须继续查看 `next_steps`。统一 `doctor` 在未达到 `ready` 时退出 1；ZCode 的 `action_required` 表示 Host UI 状态尚未核验，不等于本地准备失败。
+
+Host-launch 成功直接输出操作结果；artifacts 保留 Core 成功或错误结构；host-check 输出检查结果；MCP 使用协议传输。普通输入或 CLI 错误退出 1，Core 转发保留其输出及退出码。Hook 收到 Core 的明确拒绝时输出 `permissionDecision=deny` 并退出 0；事件解析或检查调用异常时退出 2。不能仅凭退出 0 判定写入获准，也不能将拒绝当作无 Task 放行；Shell 或外部写入仍由后续观察检查。
+
+插件通过 `ZCODE_PLUGIN_ROOT` 定位包内 MCP 和 Hook 入口。`DEV_FLOW_DATA_DIR` 指定已有的规范绝对数据目录，须在 Host、MCP 和助手间一致。ZCode 的 `open` 与 `resume` 只给出 UI 接续描述，不声明存在未核实的会话 CLI 或会话 ID。
+
 ## Packaged Core
 
 Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以下是 Core executable 实际接受的
@@ -366,7 +402,7 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 | `dev-flow config validate --help` | 显示配置校验帮助；不读取 stdin，不访问配置文件、Task 数据或 Git。 |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | 使用现有可用数据目录启动 local STDIO MCP。目录不存在或不是目录时启动失败。 |
 | `$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\data'; dev-flow.exe mcp --stdio` | Windows PowerShell 中使用现有可用数据目录启动 local STDIO MCP。 |
-| `dev-flow host-check pre-file-write` | **Host 受管命令。** 从 stdin 读取规范化的结构化写入目标，检查活动 Task 的跨仓库 ExpectedPaths，并输出 `allow` 或在写入前持久化 file-scope blocker 后输出 `deny`。Codex、DeepSeek 和 Claude Adapter 调用，普通用户不手工运行。 |
+| `dev-flow host-check pre-file-write` | **Host 受管命令。** 从 stdin 读取规范化的结构化写入目标，检查活动 Task 的跨仓库 ExpectedPaths，并输出 `allow` 或在写入前持久化 file-scope blocker 后输出 `deny`。Codex、DeepSeek、Claude 和 ZCode Adapter 调用，普通用户不手工运行。 |
 | `dev-flow host-check workspace-available` | **内部 Host 命令。** stdin 接收 `{"repository_path":"<absolute root>"}`，只读检查同目录活动 Task；stdout 返回 `available`、规范化 `repository_path` 和可选 `task_id`。失败以非零退出，不创建数据库或预占目录。 |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | 启动或复用共享 loopback WebUI；默认打开浏览器。 |
 | `dev-flow webui open [--plain\|--json]` | 验证 receipt、进程身份和实时 Core 状态后打开同一 URL。 |
@@ -375,7 +411,7 @@ Host package 内含的 Go Core 不作为普通用户的全局 CLI 安装。以�
 
 `dev-flow host-check pre-file-write` 与 `dev-flow webui serve` 都是 Adapter/lifecycle 内部入口，不是 Host 用户命令。Core 不支持 remote
 transport、通用 HTTP/SSE transport、通用 shell 或 Git mutation 命令。Codex 用户应通过
-`dev-flow-codex mcp` 的受管入口启动 Core；DeepSeek 用户由 DSH integration process 启动 Core；Claude 插件通过 `dev-flow-claude mcp` 启动 Core。
+`dev-flow-codex mcp` 的受管入口启动 Core；DeepSeek 用户由 DSH integration process 启动 Core；Claude 插件通过 `dev-flow-claude mcp` 启动 Core，ZCode 插件通过 `dev-flow-zcode mcp` 启动。
 
 写前检查的 `repository_path` 用于定位已有仓库，`paths` 保留完整写入目标，目标父目录可以尚未创建。
 DeepSeek Adapter 会从目标最近的现存父目录定位；Core 的观察超时或输出超限等失败以非零退出，
@@ -385,10 +421,10 @@ DeepSeek Adapter 会从目标最近的现存父目录定位；Core 的观察超�
 
 此处 `dev-flow` 指 Host 包内的 Go Core executable，不是全局生命周期管理器。`config validate` 接收一个 UTF-8 JSON 对象，必须关闭 stdin；不接受文件路径参数，不读取用户配置、Task 存储或 Git，也不写入任何数据。配置规则统一由 `internal/userconfig.Decode` 实现：拒绝重复字段、未知字段、非法 UTF-8、超出 16 KiB 的输入及不符合当前字段类型的内容。空对象 `{}` 使用全部 Host 的默认值。
 
-成功退出码为 `0`，stdout 返回三个 Host 的实际偏好；例如输入 `{}`：
+成功退出码为 `0`，stdout 返回四个 Host 的实际偏好；例如输入 `{}`：
 
 ```json
-{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false}}}
+{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false},"zcode":{"codebase_memory":false}}}
 ```
 
 无效配置退出码为 `1`，stdout 返回具体原因；例如输入 `{"other":true}`：
@@ -535,14 +571,15 @@ Task result 的 `verification` 同时返回 `plan`、`current_budget`、当前 T
   "host_preferences": {
     "codex": { "codebase_memory": false },
     "deepseek": { "codebase_memory": false },
-    "claude": { "codebase_memory": false }
+    "claude": { "codebase_memory": false },
+    "zcode": { "codebase_memory": false }
   }
 }
 ```
 
 这些值来自只读用户配置的进程启动快照：macOS 为 `$HOME/.dev-flow/config.json`，Windows 为
 `%USERPROFILE%\.dev-flow\config.json`。它们仅表示偏好，不表示索引能力已经安装或可用。文件不存在时
-三个 Host 都为 false；Core 仅解释配置，不创建或修改配置文件。Codex setup 和管理器初始化缺失配置时写入 `{}`，已有合法配置保持原样。
+四个 Host 都为 false；Core 仅解释配置，不创建或修改配置文件。Codex setup 和管理器初始化缺失配置时写入 `{}`，已有合法配置保持原样。
 
 Host 选择检索工具时，当前用户指令和适用的 `AGENTS.md` 优先于这些默认偏好。没有相应指令时，
 false 选择普通文件和文本搜索，true 可优先使用当前可用的代码索引。索引不可用或结果不完整时，
@@ -625,9 +662,9 @@ node release/dev-flow/prepare.mjs --output "/absolute/pet-release"
 
 ## Host 调用示例
 
-Codex 与 DeepSeek 的 Core 交互说明和完整示例统一维护于 `skills/dev-flow/core/`，由构建脚本生成各包内的引用文件。各 Host 的授权、工作树准备和工具调用分别说明；实际执行使用当前 Action、已安装接口和真实用户决定。节点提交、返回处理、阻塞恢复与验证规则使用相同内容，并对两边生成的示例运行同一套 Core 校验。
+Codex、DeepSeek、Claude Code 与 ZCode 的 Core 交互说明和完整示例统一维护于 `skills/dev-flow/core/`，由构建脚本生成各包内的引用文件。各 Host 的授权、工作树准备和工具调用分别说明；实际执行使用当前 Action、已安装接口和真实用户决定。节点提交、返回处理、阻塞恢复与验证规则使用相同内容，并对四个 Host 生成的示例运行同一套 Core 校验。
 
-[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
+[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md) · [Claude Skill](../packages/claude/plugin/skills/dev-flow/SKILL.md) · [ZCode Skill](../packages/zcode/skills/dev-flow/SKILL.md)
 
 DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill 目录>/scripts/artifacts.mjs collect` 或 `prepare` 调用同一套 Core 只读文件准备命令。输入与返回结构与本文相同，`host` 使用 `deepseek`；脚本复用 Adapter 的运行时和数据目录解析，不创建存储。通过实际 DSH Skill 的 `resourceBase` 取得脚本路径。`--help` 不读取 stdin 或解析运行时。该脚本不是独立的 `dev-flow-deepseek` CLI，也不增加 `workspace_coordinator` 操作。
 
@@ -639,4 +676,4 @@ DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill �
 
 `allow_manual_handoff` 仅限制待办人工检查；已完成用户检查和独立验收可如实记录。仅调整权限时 additional_automatic_commands 可以为 0，additional_checks 仍需说明涉及的检查。恢复探针复制保存的完整操作；其工具 Schema 压缩部分必填声明以保留字段结构，Core 仍核对全部身份和 payload，不能用省略字段重建操作。
 
-MCP 参数纠错分为 `correct_current_action`（普通节点提交）和 `correct_request`（握手、读取、创建及生命周期请求）。二者均要求 Core 确认零写入，并用 allowed_paths 限定本次纠正。`correct_request` 保留原请求身份和已有授权，不要求先取得一个尚不存在的 Action。两端 Skill 为每个请求提供完整成功响应的链接，以及经过代码比对的具体错误响应与实现位置。历史恢复分别在 `history_resolution.choice` 和 `history_resolution.reason` 上报告枚举错误和文本错误。
+MCP 参数纠错分为 `correct_current_action`（普通节点提交）和 `correct_request`（握手、读取、创建及生命周期请求）。二者均要求 Core 确认零写入，并用 allowed_paths 限定本次纠正。`correct_request` 保留原请求身份和已有授权，不要求先取得一个尚不存在的 Action。四个 Host Skill 为每个请求提供完整成功响应的链接，以及经过代码比对的具体错误响应与实现位置。历史恢复分别在 `history_resolution.choice` 和 `history_resolution.reason` 上报告枚举错误和文本错误。

@@ -7,10 +7,11 @@ Core      -> CORE_VERSION
 Codex     -> packages/codex/package.json.version
 DeepSeek  -> packages/deepseek/package.json.version
 Claude    -> packages/claude/package.json.version
+ZCode     -> packages/zcode/package.json.version
 CLI       -> packages/dev-flow/package.json.version
 ```
 
-Each Codex/Claude plugin manifest copies its corresponding package version; it does not define a separate version. Root
+Each Codex/Claude/ZCode plugin manifest copies its corresponding package version; it does not define a separate version. Root
 `package.json` is private monorepo tooling and has no version.
 
 Products evolve independently. Releasing one product changes only its version file and
@@ -28,4 +29,4 @@ runtime behavior define the supported interfaces and rules.
 The existing public release entry points use `core-vX.Y.Z`, `codex-vX.Y.Z`, or `deepseek-vX.Y.Z`. Historical unprefixed Tags
 remain frozen and are not used to determine current product versions.
 
-Claude local package metadata identifies the Adapter version. It does not establish a public release channel; publication requires its own approved release contract.
+Claude and ZCode local package metadata identify their Adapter versions. Neither establishes a public release channel; each publication requires its own approved release contract.

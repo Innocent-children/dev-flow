@@ -12,7 +12,7 @@
 
 ## Was du mit Dev Flow tun kannst
 
-Dev Flow hilft dir, lange KI-Programmieraufgaben in Codex, DeepSeek oder Claude Code zu verwalten. Es speichert
+Dev Flow hilft dir, lange KI-Programmieraufgaben in Codex, DeepSeek, Claude Code oder ZCode zu verwalten. Es speichert
 die vereinbarten Anforderungen, den Dateiumfang, den Prüfplan, den Fortschritt und die Ergebnisse
 lokal, damit du nach dem Ende einer Sitzung weiterarbeiten kannst.
 
@@ -23,7 +23,7 @@ lokal, damit du nach dem Ende einer Sitzung weiterarbeiten kannst.
 
 Das eignet sich für Arbeiten an einem Repository, die mehrere Sitzungen dauern oder klare Grenzen
 für Dateien und Tests benötigen. Für einzelne Fragen, Code-Erklärungen und kleine Änderungen ohne
-gespeicherten Fortschritt ist die direkte Nutzung von Codex, DeepSeek oder Claude Code meist einfacher.
+gespeicherten Fortschritt ist die direkte Nutzung von Codex, DeepSeek, Claude Code oder ZCode meist einfacher.
 
 ## Schnellstart
 
@@ -33,12 +33,16 @@ gespeicherten Fortschritt ist die direkte Nutzung von Codex, DeepSeek oder Claud
 
 Die folgende öffentliche Installation gilt für die veröffentlichten Codex- und DeepSeek-Integrationen. Für Claude Code gilt die [Installationsanleitung aus dem Quellcode](docs/CLAUDE_en.md); die bisherige öffentliche CLI installiert keinen Adapter, der nur im Quellcode vorliegt.
 
+Auch ZCode verwendet eine [Installationsanleitung aus dem Quellcode](docs/ZCODE_en.md). Die lokalen Pakete sind für Windows x64 und macOS arm64 ausgelegt; die Prüfung von ZCode auf einem Mac steht noch aus.
+
 ```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
 Wähle deinen Host aus den Optionen des verwendeten Installers. Prüfe und bestätige in Codex den Dev-Flow-Hook unter `/hooks`; starte in DeepSeek das gewählte Profile neu. Lade in Claude Code die Plugins neu oder beginne eine neue Unterhaltung und prüfe die angeforderten Berechtigungen.
+
+Installiere und aktiviere das Plugin in ZCode unter Settings → Plugins und starte eine neue Unterhaltung, damit die Hooks wirksam werden. Ein lokal vorbereitetes Paket bestätigt noch nicht, dass ZCode es geladen hat.
 
 ### 2. Eine Aufgabe starten
 
@@ -60,6 +64,14 @@ $dev-flow-codex:dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeld
 
 ```text
 /dev-flow-claude:dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
+```
+
+**ZCode**
+
+Wähle im Eingabefeld unter `/` → Skills den Eintrag `dev-flow` und beschreibe die Aufgabe.
+
+```text
+Nutze Dev Flow, um fehlgeschlagene Anmeldungen zu begrenzen. Ändere nur Authentifizierungsdateien und führe höchstens 4 gezielte Prüfungen aus.
 ```
 
 Sende diese Nachrichten im Gespräch, nicht im Terminal. Beschreibe Ziel, Abnahmekriterien,
@@ -92,6 +104,8 @@ Füge in DeepSeek Harness auch der Nachricht zum Fortsetzen `/dev-flow` hinzu.
 
 Öffne in Claude das ursprüngliche Arbeitsverzeichnis und die ursprüngliche Unterhaltung und fordere mit `/dev-flow-claude:dev-flow` ausdrücklich die Fortsetzung der gespeicherten Aufgabe an.
 
+Öffne in ZCode das ursprüngliche Arbeitsverzeichnis, wähle die Dev Flow Skill und bitte um Fortsetzung der gespeicherten Aufgabe. Wird ein neues Verzeichnis vorbereitet, folge den zurückgegebenen Anweisungen zum Öffnen des Arbeitsbereichs.
+
 Diese Befehle verwenden den installierten globalen Manager. Bei einer Quellinstallation gilt der entsprechende Einstieg aus der Anleitung.
 
 ```bash
@@ -107,7 +121,7 @@ die [Befehlsreferenz](docs/COMMANDS_en.md).
 
 ## Desktop-Maskottchen
 
-Das Maskottchen benötigt einen eingerichteten Adapter und die installierte Desktop-Anwendung. Die alleinige Installation des Claude-Adapters installiert diese Anwendung nicht.
+Das Maskottchen benötigt einen eingerichteten Adapter und die installierte Desktop-Anwendung. Die Installation eines Adapters allein installiert die Desktop-Anwendung nicht.
 
 Das Desktop-Maskottchen zeigt mehrere Aufgaben in gestapelten Sprechblasen und öffnet die jeweilige WebUI. Blockierte Aufgaben haben Vorrang. Nach Abschluss einer Aufgabe wechselt es automatisch zu einer noch offenen Aufgabe; du kannst auch eine Aufgabe anheften. Du kannst das Aussehen anpassen, Animationen steuern, die Größe ändern und das Maskottchen unabhängig starten oder stoppen.
 
@@ -130,7 +144,7 @@ keinen Worktree. Diese Vorgänge erfordern deine gesonderte Zustimmung.
 
 ## Dokumentation
 
-- **Nutzung:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [Befehle](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Nutzung:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [ZCode](docs/ZCODE_en.md) · [Befehle](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **Projekt:** [Produktbeschreibung](docs/PRODUCT_en.md) · [Support-Matrix](docs/SUPPORT-MATRIX_en.md) · [Sicherheit](SECURITY.md)
 - **Entwicklung und Beiträge:** [Dokumentationsübersicht](MANIFEST_en.md) · [Beitragsleitfaden](CONTRIBUTING.md)
 

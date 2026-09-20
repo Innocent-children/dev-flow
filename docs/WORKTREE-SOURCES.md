@@ -70,7 +70,7 @@ Host 负责 Git 创建和内容复制；Core 只读核对工作树身份、来�
 快照准备拒绝尚未解决的冲突和子模块修改。Git 忽略的文件不复制。DeepSeek 自动辅助清理继续保留
 本地来源分支，供用户单独检查处理；不为本地创建过程增加远端访问。
 
-三个 Host 使用同一份共享快照实现。返回快照前连续读取两次 HEAD、暂存内容树、工作文件内容树和
+四个 Host 使用同一份共享快照实现。返回快照前连续读取两次 HEAD、暂存内容树、工作文件内容树和
 未跟踪内容树；任一项不同就停止准备，不返回快照、不自动重试。已修改文件继续变化时，即使 Git
 status 相同也会按内容树判断。失败保留源文件、暂存状态和启动记录，检查源目录后再决定如何继续。
 准备期间仍应只有一个写入者；该检查不提供任意外部并发下的原子快照，也不保证发现内容改变后又恢复的时序。
@@ -98,15 +98,16 @@ Host 启动记录保存 `workspace_mode`、`source_type`、`carry_changes`、`sn
 - Codex `task-launch.test.mjs`：临时 Git 仓库验证远端创建、本地离线两种携带选择、暂存分离、未跟踪文件、
   忽略文件排除、源内容保留、快照冻结、不同起始分支、managed bootstrap 及冲突保留。
 - DeepSeek `workspace-coordinator.test.mjs`：验证明确选择、本地离线创建、二进制新增文件及重启后 consume。
-- 三个 Host 的定向快照回归在首次采集 tracked 内容后修改已有 dirty tracked/untracked 文件，确认
-  status 不变时仍停止准备，保留源文件、暂存树、HEAD 和 stash；Codex 测试同时逐字核对三个生成副本与共享源。
+- 四个 Host 的定向快照回归在首次采集 tracked 内容后修改已有 dirty tracked/untracked 文件，确认
+  status 不变时仍停止准备，保留源文件、暂存树、HEAD 和 stash；生成副本检查另行逐字核对包内文件与共享源。
+- ZCode `workspace.test.mjs` 使用临时 Git 仓库检查三种工作区模式、内容携带、部分准备失败、实例替换、迁移和分别授权的清理；`open`/`resume` 只返回 UI 接续说明。
 - Core `workspace_observer_test.go`：验证本地来源无需 remote、初始修改须明确携带、远端拒绝携带、实际修改面保存。
 - Core `workspace_check_test.go`：真实 Git 和 SQLite 验证本地创建、接受初始修改、唯一占用、相同内容提交、恢复、切分支阻塞、拒绝迁移及取消后保留文件；只读占用检查不创建缺失的数据库。
 - 本地 Host 测试验证两种分支模式、暂存及 ignored 文件保留、原会话 ready 结果、活动 Task 拒绝及 provisioned 重读不修改 Git。
 - 包清单、CLI/MCP 输入及存储检查确认新字段和快照模块完整进入当前约定。
 
 以上测试使用本机临时仓库和 Host helper。managed dispatch 使用模拟 Host 创建结果；不代表已完成实际
-Codex 桌面或 DSH 新会话的端到端操作，也不扩大其他平台的支持声明。
+Codex、DSH、Claude Code 或 ZCode 新会话的端到端操作，也不扩大其他平台的支持声明。
 
 ## 非目标
 

@@ -8,12 +8,12 @@
 ## 核心原则
 
 Dev Flow 只保存一份业务状态。Go Core 管理 Task、节点、合法流转、范围、验证、Recovery、Blocker、
-claims 和 outcome；Codex、DeepSeek、Claude Code 与 WebUI 是 Host Adapter。Core 只读观察 Git，Host 才能在用户
+claims 和 outcome；Codex、DeepSeek、Claude Code、ZCode 与 WebUI 是 Host Adapter。Core 只读观察 Git，Host 才能在用户
 确认后执行 fetch、branch、worktree、relaunch、handoff 和 cleanup。
 
 ```mermaid
 flowchart TB
-    U[Developer] --> H[Codex / DeepSeek / Claude Code Adapter]
+    U[Developer] --> H[Codex / DeepSeek / Claude Code / ZCode Adapter]
     H --> A[只读改动量评估]
     A --> C{选择 Dev Flow?}
     C -->|否| D[直接开发 · 无 Core Task]
@@ -366,9 +366,19 @@ verification plan、当前预算/消耗、调整原因和 cleanup choices。它�
 
 Claude 的 Write/Edit/NotebookEdit 解析完整目标和原始输入摘要，再由 Core file_scope 判定。放行不覆盖 Host 权限。启动记录保存请求、来源、操作状态及 Claude 会话身份，不保存第二流程游标。独立工作树迁移保留部分操作结果，Core 最后核对全部新绑定。统一管理器由 `hosts/claude.mjs` 管理包和注册，并读取 Claude 私有安装记录，向公共 runtime 提供 WebUI/宠物可用的 Core 候选。
 
+### ZCode
+
+`packages/zcode/` 拥有 ZCode 原生插件、MCP/Hook 传输、本地准备记录和工作区接续说明。独立 `zcode` 身份参与 Core、MCP Schema、配置偏好和 Task 所有权校验；它不复用其他 Host 身份，也不改变 SQLite 布局、流程定义、节点或边。
+
+包根内的 `.zcode-plugin/plugin.json`、`marketplace.json`、`.mcp.json`、`skills/dev-flow/`、`hooks/hooks.json`、CLI 和两个 Core runtime 构成自包含产物。ZCode process executor 使用独立 command/args 和 `ZCODE_PLUGIN_ROOT`，Hook 由标准目录发现。Write/Edit 提取完整 `tool_input.file_path` 与原始输入摘要，交给 Core 判定。Core 明确拒绝时，Hook 输出 `permissionDecision=deny` 并退出 0；事件解析或检查调用异常时退出 2，拒绝受保护操作。退出 0 本身不代表写入获准。Shell 与外部写入仍依赖后续观察。
+
+Adapter 校验本地文件和 Core 后保存准备记录，统一管理器的 `hosts/zcode.mjs` 负责包发现、生命周期与 Core 候选。记录只证明本地来源，无法观察 UI 安装、缓存或启用，因此返回 `action_required`；真实 Host 加载与模型会话验证另行记录。普通卸载保留 Adapter 和 `removal_required` 记录，用户在 UI 移除插件并关闭会话后通过 `remove --confirm-host-removed` 清除记录，再卸载包。存在包或记录时拒绝共享数据 reset，避免将源包进程检查误当作全部缓存进程已停止。
+
+工作区 Git 操作复用 `packages/host-workspace/`，命令调用复用 `packages/host-command/`；生成副本只依赖当前包。`open`/`resume` 返回目录与接续提示，由实际 ZCode UI 完成打开和授权；不生成虚构会话身份或维护第二流程游标。平台目录负责路径和进程差异，Core Task 语义不分支判断操作系统。
+
 ## 版本、构建和源码导航
 
-Core、Codex、DeepSeek、Claude 和统一 lifecycle package 独立版本。Core 的机器可读版本文件是 `CORE_VERSION`；npm
+Core、Codex、DeepSeek、Claude、ZCode 和统一 lifecycle package 独立版本。Core 的机器可读版本文件是 `CORE_VERSION`；npm
 版本由各自 `package.json` 管理，普通产品改造不执行发布。Host package 按精确 runtime pair 携带
 `darwin-arm64/dev-flow` 与 `win32-x64/dev-flow.exe`。
 
@@ -381,9 +391,9 @@ Core、Codex、DeepSeek、Claude 和统一 lifecycle package 独立版本。Core
 | `internal/store/` | current-only SQLite、codec、operations、events、claims |
 | `internal/mcp/` | 十七个工具、字段限制、工具属性和统一返回结构 |
 | `internal/webui/`, `packages/webui/` | loopback Adapter 与内嵌界面 |
-| `packages/codex/`, `packages/deepseek/`, `packages/claude/` | 新请求评估、工作树创建、会话重启/交接和安装包 |
+| `packages/codex/`, `packages/deepseek/`, `packages/claude/`, `packages/zcode/` | 新请求评估、工作树创建、会话接续/交接和安装包 |
 | `packages/host-workspace/` | Git 观察、准备和快照助手的维护源；构建时复制到使用它的 Host 包 |
-| `packages/host-command/` | Codex、Claude 共用的命令执行维护源；生成到各自包内并在构建时直接装配 |
+| `packages/host-command/` | Codex、Claude、ZCode 共用的命令执行维护源；生成到各自包内并在构建时直接装配 |
 | `protocol/fixtures/`, `tests/` | 公开接口规范、故障注入和宿主完整流程测试 |
 
 源码、机器可读 Schema、package manifest、CLI parser 和可执行测试是判断当前行为的依据。
@@ -431,9 +441,9 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 
 ## 平台职责
 
-三个 Host Adapter 和统一管理器在 `lib/platform.mjs` 选择各自的平台策略，具体系统实现位于 `lib/platform/windows/` 和 `lib/platform/macos/`。三个 Adapter 的平台策略分别维护在对应系统目录的 `policies.mjs`；Claude 的 `platformPolicy()` 保留自己的小接口，Host 注册、生命周期和会话规则继续由各 Adapter 负责。Go Core 的平台机制使用所在职责包内的平台专用文件，任务语义保持平台中立。
+四个 Host Adapter 和统一管理器在 `lib/platform.mjs` 选择各自的平台策略，具体系统实现位于 `lib/platform/windows/` 和 `lib/platform/macos/`。各 Adapter 的平台策略分别维护在对应系统目录的 `policies.mjs`；Claude 与 ZCode 的 `platformPolicy()` 保留各自的小接口，Host 注册、生命周期和会话规则继续由各 Adapter 负责。Go Core 的平台机制使用所在职责包内的平台专用文件，任务语义保持平台中立。
 
-`packages/host-command/` 是 Codex、Claude 共用的命令执行维护源。`command.mjs` 提供共同入口并选择平台命令实现，`platform/windows/command.mjs` 和 `platform/macos/command.mjs` 各自处理命令发现、启动器身份和调用参数。`scripts/sync-host-commands.mjs` 在两个 Host 的 `lib/` 下生成同路径副本并标注来源；构建也直接从共享源装配，安装后只依赖包内文件。统一管理器与 DeepSeek 的命令接口仍由各自模块维护。生成与一致性检查见[脚本维护说明](../scripts/README.md#共享-host-命令)。
+`packages/host-command/` 是 Codex、Claude、ZCode 共用的命令执行维护源。`command.mjs` 提供共同入口并选择平台命令实现，`platform/windows/command.mjs` 和 `platform/macos/command.mjs` 各自处理命令发现、启动器身份和调用参数。`scripts/sync-host-commands.mjs` 在三个 Host 的 `lib/` 下生成同路径副本并标注来源；构建也直接从共享源装配，安装后只依赖包内文件。统一管理器与 DeepSeek 的命令接口仍由各自模块维护。生成与一致性检查见[脚本维护说明](../scripts/README.md#共享-host-命令)。
 
 Windows Git 进程隐藏控制台窗口；Codex 版本与状态预检使用所选平台的可执行文件策略，PowerShell 启动器使用 UTF-8。原生验证单独记录在[Windows 报告](WINDOWS-ADAPTATION.md)。
 
@@ -441,7 +451,7 @@ Windows Codex 注册回读核对 marketplace 的 `name`、`root` 与 Plugin 身�
 
 ## Windows 桌面职责
 
-`packages/desktop-pet/windows/` 负责 Electron 窗口、托盘、渲染器、本地观察与素材处理，macOS 保留 Swift/AppKit。两者只读取 Core 状态。`scripts/build-desktop-pet-windows.mjs` 装配包含 Codex、DeepSeek 和 Claude Adapter 包的 Windows 桌面分发包。统一入口校验内置包摘要并管理程序替换，保留 `%LOCALAPPDATA%\dev-flow\pet` 中的设置和形象。
+`packages/desktop-pet/windows/` 负责 Electron 窗口、托盘、渲染器、本地观察与素材处理，macOS 保留 Swift/AppKit。两者只读取 Core 状态。`scripts/build-desktop-pet-windows.mjs` 装配包含 Codex、DeepSeek、Claude 和 ZCode Adapter 包的 Windows 桌面分发包。统一入口校验内置包摘要并管理程序替换，保留 `%LOCALAPPDATA%\dev-flow\pet` 中的设置和形象。
 
 Windows 路径实现将已有 AppData 目录解析为实际路径，包括打包桌面 Host 提供的目录别名，同时拒绝符号链接。GUI 使用 `Start-Process` 和每次启动的确认记录，避免常驻桌面进程保留调用终端的输出句柄。平台维护通过完整可执行路径、命令和创建时间识别 Core 实例，再停止需要替换的实例。
 
@@ -457,7 +467,7 @@ Windows 路径实现将已有 AppData 目录解析为实际路径，包括打包
 
 | 模块 | 职责 |
 | --- | --- |
-| `packages/dev-flow/lib/hosts/` | Codex、DeepSeek、Claude 驱动各自拥有包定位和私有安装记录，DeepSeek 同时负责 Profile 规则；各驱动执行已确认的 Adapter 操作。`runtimeCandidates()` 提供启动候选；`maintenanceTargets()` 提供已注册或安装中断后仍存在的包及 Core 位置。 |
+| `packages/dev-flow/lib/hosts/` | Codex、DeepSeek、Claude、ZCode 驱动各自拥有包定位和私有安装记录，DeepSeek 同时负责 Profile 规则；各驱动执行已确认的 Adapter 操作。`runtimeCandidates()` 提供启动候选；`maintenanceTargets()` 提供已注册或安装中断后仍存在的包及 Core 位置。 |
 | `packages/dev-flow/lib/core-runtime.mjs` | 核对公共包内 runtime 布局、package 身份、规范路径、可执行文件和 Core 版本。 |
 | `packages/dev-flow/lib/core-maintenance.mjs` | 为 reset 协调已知 Core 服务位置，复用 WebUI status/stop 协议；进程检查和停止由平台实现负责。 |
 | `packages/dev-flow/lib/runtime.mjs` | 汇总各驱动的候选并调用公共校验，按 Core 版本及来源排序选择运行时，准备数据目录并转发启动参数和信号。 |
@@ -476,7 +486,7 @@ DeepSeek Profile 的位置、格式和读写移除由 `hosts/deepseek-receipts.m
 
 ## 共享用户配置
 
-`internal/userconfig.Decode` 统一解释 Codex、DeepSeek 和 Claude 的配置字段及缺省值。Core 启动读取配置时直接复用它；只读 `config validate` 命令接受标准输入中的原始 JSON，供安装和诊断调用。命令限制为 16 KiB，不读取配置文件、Task 存储或 Git，结果与退出码见[命令参考](COMMANDS.md#配置校验)。
+`internal/userconfig.Decode` 统一解释 Codex、DeepSeek、Claude 和 ZCode 的配置字段及缺省值。Core 启动读取配置时直接复用它；只读 `config validate` 命令接受标准输入中的原始 JSON，供安装和诊断调用。命令限制为 16 KiB，不读取配置文件、Task 存储或 Git，结果与退出码见[命令参考](COMMANDS.md#配置校验)。
 
 Codex setup 先检查配置路径、文件类型和权限，再把已有文件的原始内容交给包内 Core 校验；合法文件保持原样。缺少配置时只写入 `{}`，默认偏好由 Core 解释。统一管理器的 factory-reset 同样以 `{}` 初始化配置；doctor 对已有文件复用选定 Core，找不到可用 Core 时明确报告无法完成配置语义校验。Node 安装和诊断代码不维护全产品字段白名单或 Host 默认值副本。
 
@@ -529,4 +539,4 @@ COMPREHENSION_REVIEW 和 DELIVERY 的进入条件改为当前测试已完成并�
 
 保存布局同步提升当前 Schema；不读取历史布局或增加迁移。MCP、CLI 和 WebUI 返回相同记录和转换，错误遵守 [Core 响应规范](CORE-RESPONSES.md)。
 
-验收使用 Core 单元和保存边界集成测试：全通过、已有失败且明确验收、缺少比较/确认、新失败遗漏、确认过期、重启后交付、真实数量超限、已完成用户检查、权限限制及检查说明为空后的零写入纠正。共享 Skill 示例验证三个 Host。该方案增加一个明确转换和附属记录，收益是保持失败事实并正常交付；不增加节点、第二套状态、自动测试日志解析、通用豁免或发布流程。实现范围是 workflow/domain/application/store、MCP/WebUI 直接消费者及维护文档和 Skills。
+验收使用 Core 单元和保存边界集成测试：全通过、已有失败且明确验收、缺少比较/确认、新失败遗漏、确认过期、重启后交付、真实数量超限、已完成用户检查、权限限制及检查说明为空后的零写入纠正。共享 Skill 示例验证四个 Host。该方案增加一个明确转换和附属记录，收益是保持失败事实并正常交付；不增加节点、第二套状态、自动测试日志解析、通用豁免或发布流程。实现范围是 workflow/domain/application/store、MCP/WebUI 直接消费者及维护文档和 Skills。

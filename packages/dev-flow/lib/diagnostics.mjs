@@ -5,10 +5,10 @@ import { validateConfigurationFile } from "./configuration.mjs";
  */
 export async function diagnoseInstallation(observed, { host, paths, environment, validateConfiguration = validateConfigurationFile } = {}) {
   const checks = [];
-  const hasReadyAdapter = [observed.codex, ...observed.deepseek, observed.claude].some(target => target?.state === "ready");
-  for (const target of [observed.codex, ...observed.deepseek, observed.claude].filter(Boolean)) {
+  const hasReadyAdapter = [observed.codex, ...observed.deepseek, observed.claude, observed.zcode].some(target => ["ready", "action_required"].includes(target?.state));
+  for (const target of [observed.codex, ...observed.deepseek, observed.claude, observed.zcode].filter(Boolean)) {
     const name = `${target.host}${target.profile ? `/${target.profile}` : ""}`;
-    checks.push({ name, status: target.state === "ready" ? "passed" : host === "all" && hasReadyAdapter && target.state === "absent" ? "not_installed" : "failed",
+    checks.push({ name, status: target.state === "ready" ? "passed" : target.state === "action_required" ? "action_required" : host === "all" && hasReadyAdapter && target.state === "absent" ? "not_installed" : "failed",
       message: target.state === "ready" ? `Adapter ${target.packageVersion}, Core ${target.coreVersion ?? "unknown"}`
         : target.issues?.map(issue => issue.message).join("; ") || target.state });
   }

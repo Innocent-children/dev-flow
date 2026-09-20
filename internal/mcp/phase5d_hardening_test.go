@@ -80,10 +80,11 @@ func TestServerInfoProjectsHostPreferenceSnapshot(t *testing.T) {
 		hostPreferences: userconfig.Preferences{
 			Codex:    userconfig.HostPreferences{CodebaseMemory: true},
 			DeepSeek: userconfig.HostPreferences{CodebaseMemory: false},
+			ZCode:    userconfig.HostPreferences{CodebaseMemory: true},
 		},
 	}
 	encoded := server.dispatch(context.Background(), ToolServerInfo, "server-info-preferences", []byte(`{}`))
-	if encoded.IsError || !bytes.Contains(encoded.JSON, []byte(`"host_preferences":{"codex":{"codebase_memory":true},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false}}`)) {
+	if encoded.IsError || !bytes.Contains(encoded.JSON, []byte(`"host_preferences":{"codex":{"codebase_memory":true},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false},"zcode":{"codebase_memory":true}}`)) {
 		t.Fatal(string(encoded.JSON))
 	}
 	for _, forbidden := range []string{"installed", "healthy", "available"} {

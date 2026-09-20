@@ -133,6 +133,13 @@ jobs:
           pnpm --dir packages/dev-flow test
           exit $LASTEXITCODE
 
+      - name: Run Windows ZCode package suite
+        shell: pwsh
+        run: |
+          $env:DEV_FLOW_ZCODE_TEST_CORE = $env:DEV_FLOW_WINDOWS_CORE
+          pnpm --dir packages/zcode test
+          exit $LASTEXITCODE
+
       - name: Build the dual-runtime local packages on Windows
         shell: pwsh
         run: node scripts/dev-flow-local.mjs help

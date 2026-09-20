@@ -8,7 +8,7 @@
 This document lists every currently supported public or managed Dev Flow command entrypoint. The
 command surface is derived from implementation: unified lifecycle commands from
 `packages/dev-flow/package.json` and its CLI, Codex commands from `packages/codex/package.json`
-and `packages/codex/bin/dev-flow-codex.mjs`, Claude commands from `packages/claude/bin/dev-flow-claude.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
+and `packages/codex/bin/dev-flow-codex.mjs`, Claude commands from `packages/claude/bin/dev-flow-claude.mjs`, ZCode commands from `packages/zcode/bin/dev-flow-zcode.mjs`, DeepSeek lifecycle commands from the DSH CLI used by the
 DSH lifecycle tests, Core commands from `cmd/dev-flow/main.go`, and MCP tools from the closed
 catalog under `internal/mcp/`.
 
@@ -28,7 +28,7 @@ dev-flow
 ```
 
 After installation, Codex uses `$dev-flow-codex:dev-flow <task description>` and DeepSeek Harness
-uses `/dev-flow <task description>`; Claude Code uses `/dev-flow-claude:dev-flow <task description>`. These are conversational Host selectors, not shell commands.
+uses `/dev-flow <task description>`; Claude Code uses `/dev-flow-claude:dev-flow <task description>`. These are conversational Host selectors, not shell commands. In ZCode, select `dev-flow` from the input’s `/` → Skills menu before describing the task; see the [ZCode guide](ZCODE_en.md).
 
 ## Unified Adapter lifecycle
 
@@ -40,7 +40,7 @@ dev-flow
 ```
 
 The supported operations are `status`, `doctor`, `install`, `upgrade`, `repair`, `reinstall`, `uninstall`, and
-`factory-reset`. Host is `codex|deepseek|claude|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
+`factory-reset`. Host is `codex|deepseek|claude|zcode|all`; the default DeepSeek Profile is `web`. Ordinary uninstall, upgrade,
 repair, and reinstall preserve configuration and Task data. Factory reset requires the token bound to the current
 plan; `--yes` alone has no data-cleanup authority. Default cleanup moves data to the user's Trash on macOS and to the
 recoverable `%LOCALAPPDATA%\dev-flow\trash` quarantine on Windows; the Windows target is not the system
@@ -59,7 +59,7 @@ artifact, and readiness step; `--json` omits these progress lines.
 | --- | --- |
 | `npm install -g @imotong/dev-flow@latest` | Install the public `dev-flow` command globally. |
 | `dev-flow` | Open the interactive lifecycle menu. |
-| `dev-flow status\|doctor --host codex\|deepseek\|claude\|all` | Inspect or diagnose without mutation. |
+| `dev-flow status\|doctor --host codex\|deepseek\|claude\|zcode\|all` | Inspect or diagnose without mutation. |
 | `dev-flow install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
 | `dev-flow install\|repair --host deepseek\|all --adopt ...` | Adopt an existing identity-verified DeepSeek Profile contribution; other operations and Codex-only targets reject `--adopt`. |
 | `dev-flow install\|upgrade\|repair\|reinstall ... --confirm-downgrade <token>` | Explicitly confirm a downgrade with the token from the current plan when the target is older than the installed version. |
@@ -68,7 +68,7 @@ artifact, and readiness step; `--json` omits these progress lines.
 | `dev-flow factory-reset ... --confirm-reset <token> [--reinstall]` | Move confirmed data to Trash and optionally perform a clean reinstall. |
 | `dev-flow factory-reset ... --confirm-explicit-data <absolute-path>` | Confirm one explicit `DEV_FLOW_DATA_DIR` listed by the plan; repeat the option for multiple directories. |
 | `dev-flow factory-reset ... --permanent --confirm-reset <token> --confirm-permanent <token>` | Permanently remove the plan's exact targets; both the reset token and a separate permanent-removal token are required. |
-| `dev-flow webui start\|open\|status\|stop` | Select and verify Core from either installed Adapter, then manage the shared local Control Center; `start` may create a missing default data directory with mode `0700` on macOS or inherited user-profile/LocalAppData ACLs on Windows. The other commands create nothing. |
+| `dev-flow webui start\|open\|status\|stop` | Select and verify Core from an installed Adapter, then manage the shared local Control Center; `start` may create a missing default data directory with mode `0700` on macOS or inherited user-profile/LocalAppData ACLs on Windows. The other commands create nothing. |
 | `--json` / `--plain` | Select one JSON object or ANSI-free plain output. |
 
 ### Lifecycle command behavior
@@ -127,7 +127,7 @@ Native Host commands remain available for diagnostic recovery.
 
 ## Desktop pet (macOS arm64 and Windows x64)
 
-Install `@imotong/dev-flow@latest` for the bundled macOS arm64 and Windows 10/11 x64 desktop apps. Configure at least one Codex, DeepSeek or Claude Adapter to provide Core; see the [Host guide](CLAUDE_en.md) for Claude installation channels. `install`, `upgrade`, `repair` and `reinstall` refresh the application copy while preserving settings and appearances, even when the Adapter is already current. See the [desktop pet guide](DESKTOP-PETS_en.md).
+Install `@imotong/dev-flow@latest` for the bundled macOS arm64 and Windows 10/11 x64 desktop apps. Configure at least one Codex, DeepSeek, Claude or ZCode Adapter to provide Core; see the [Host guide](CLAUDE_en.md) for Claude installation channels. `install`, `upgrade`, `repair` and `reinstall` refresh the application copy while preserving settings and appearances, even when the Adapter is already current. See the [desktop pet guide](DESKTOP-PETS_en.md).
 
 | Command | Behavior |
 | --- | --- |
@@ -232,7 +232,7 @@ dev-flow-codex --version
 To uninstall while retaining Task data, run `dev-flow-codex remove` and then
 `npm uninstall -g dev-flow-codex`. Delete the shared default data directory at
 `$HOME/.dev-flow` on macOS or `%LOCALAPPDATA%\dev-flow` on Windows only
-after the Codex, DeepSeek and Claude Adapters are removed and no Task is needed.
+after the Codex, DeepSeek, Claude and ZCode Adapters are removed and no Task is needed.
 
 ### Codex smart activation and explicit selector
 
@@ -376,6 +376,42 @@ Except for the first five entries, commands consume one UTF-8 JSON object on clo
 
 The selector is `/dev-flow-claude:dev-flow <task>`. `CLAUDE_CONFIG_DIR` selects Claude settings. `DEV_FLOW_DATA_DIR` selects an existing canonical absolute task data directory and must match across the Host, MCP and helpers.
 
+## ZCode
+
+These entries come from the source or local `dev-flow-zcode` package; there is no stable npm installation entry yet. Install from source with `pnpm dev-flow:local -- install --host zcode --yes`; an older global manager does not provide the new Host option. Implementations are `packages/zcode/bin/dev-flow-zcode.mjs`, `lib/lifecycle.mjs`, `lib/workspace.mjs` and `hooks/pre-tool-use.mjs`. See the [ZCode guide](ZCODE_en.md) for user operations.
+
+| Command | Input and result |
+| --- | --- |
+| `dev-flow-zcode status [--json]` | No stdin; inspect local package, Core and preparation record, without observing ZCode plugin loading. |
+| `dev-flow-zcode setup [--json]` | No stdin; verify and save the local source, returning UI installation/enablement steps. |
+| `dev-flow-zcode remove [--json]` | No stdin; retain a pending UI-removal record and preserve Task data. |
+| `dev-flow-zcode remove --confirm-host-removed [--json]` | Clear verified owned records after the user has removed the plugin and marketplace in the UI and closed affected sessions; this is not automatic observation. |
+| `dev-flow-zcode --version` | Print the packaged Core version. |
+| `dev-flow-zcode mcp` | Start stdio MCP. |
+| `dev-flow-zcode artifacts collect\|prepare` | Corresponding Core artifact collection or preparation request on stdin. |
+| `dev-flow-zcode host-check workspace-available` | repository_path on stdin. |
+| `dev-flow-zcode host-check pre-file-write` | host, repository_path, tool_name, paths, intent_digest, path_parse_complete on stdin. |
+| `dev-flow-zcode hook pre-tool-use` | Original ZCode PreToolUse event on stdin; Write/Edit read tool_input.file_path. |
+| `dev-flow-zcode host-launch inspect` | request, repositories[{key,repository_path}]; return an assessment anchor. |
+| `dev-flow-zcode host-launch prepare` | request, assessment, user_choice, repositories, handoff; retain preparation records. |
+| `dev-flow-zcode host-launch provision` | launch_id; prepare every repository. |
+| `dev-flow-zcode host-launch status` | launch_id; read retained launch records. |
+| `dev-flow-zcode host-launch scope` | launch_id; verify and return Core creation scope. |
+| `dev-flow-zcode host-launch bind-task` | launch_id, task_id; bind the actual successful Core result. |
+| `dev-flow-zcode host-launch open\|resume` | launch_id; return UI guidance, workspace paths and a complete continuation prompt, without launching a session. |
+| `dev-flow-zcode host-launch relocate` | launch_id, relocation_id, destinations[{repository_key,repository_path}], authorized=true, core_preparation; core_preparation must be the actual complete result from a successful `dev_flow_prepare_task_relocation` response, including relocation_id/task; return destinations for Core verification. |
+| `dev-flow-zcode host-launch cleanup-worktree\|cleanup-branch` | launch_id, repository_key, terminal, authorized; worktree and branch cleanup require separate authorization. |
+
+Host-launch accepts one closed JSON object on stdin, up to 1 MiB. Each `prepare.repositories` entry requires key, repository_path, workspace_mode, source_type, remote_name, base_branch, target_branch, carry_changes and worktree_path. Modes are `new_branch`, `current_branch` and `dedicated_worktree`; keys follow Core's `^[a-z0-9][a-z0-9._-]{0,127}$` rule. Relocation checks the bound ZCode Task, current relocation blocker and all source workspaces in the preparation result; a relocation ID alone cannot authorize directory moves. An already moved ID only verifies destination identity and reads back the result; uncertain outcomes reject repeated moves. After Core completes a relocation, a new preparation result and ID can start another. See the packaged [admission](../packages/zcode/skills/dev-flow/references/admission.md) and [lifecycle](../packages/zcode/skills/dev-flow/references/host-lifecycle.md) references for assessment, authorization and relocation prerequisites.
+
+Lifecycle commands always output JSON. Complete validation and saved preparation return `status=action_required`, `registration.host=unverified` and `next_steps` for UI installation, enablement or cache refresh; incomplete preparation returns `partial`. Ordinary `remove` saves `phase=removal_required`; confirmed removal returns `absent` and `registration.host=user_confirmed_removed`. These fields describe local preparation and the user's statement, not automatic Host readiness. The unified manager likewise retains `action_required` instead of reporting `ready`. The first unified `uninstall` retains the package for confirmation; after UI removal, session closure and the confirmation command, repeat unified `uninstall` to remove the package. `factory-reset` rejects shared-data cleanup while a ZCode package or record remains.
+
+Successful local installation, maintenance or removal steps may exit 0 with `action_required`; follow `next_steps`. Unified `doctor` exits 1 until the result is `ready`; ZCode's `action_required` means Host UI state remains unverified, rather than failed local preparation.
+
+Successful Host-launch commands directly output operation results; artifacts preserve Core success/error structures; host-check outputs check results; MCP uses protocol transport. Ordinary input or CLI errors exit 1, and forwarded Core commands preserve their output and exit code. Explicit Core denial makes the Hook output `permissionDecision=deny` and exit 0; event parsing or check execution errors exit 2. Exit 0 alone does not establish write permission, and a denial cannot be treated as having no Task. Shell or external writes remain subject to later observation.
+
+The plugin uses `ZCODE_PLUGIN_ROOT` for packaged MCP and Hook entrypoints. `DEV_FLOW_DATA_DIR` selects an existing canonical absolute data directory and must match across the Host, MCP and helpers. ZCode `open` and `resume` only describe UI continuation; they do not claim an unverified session CLI or session ID.
+
 ## Packaged Core
 
 The Go Core bundled in host packages is not installed as a normal global user CLI. Its complete
@@ -392,7 +428,7 @@ accepted command surface is primarily for host integration, development, and dia
 | `dev-flow config validate --help` | Show configuration-validation help without reading stdin, configuration files, Task data or Git. |
 | `DEV_FLOW_DATA_DIR=/absolute/path dev-flow mcp --stdio` | Start local STDIO MCP with an existing usable data directory. Startup fails when the path is missing or not a directory. |
 | `$env:DEV_FLOW_DATA_DIR = 'C:\absolute\existing\data'; dev-flow.exe mcp --stdio` | Start local STDIO MCP with an existing usable data directory from Windows PowerShell. |
-| `dev-flow host-check pre-file-write` | **Managed Host command.** Read normalized structured-write targets from stdin, compare them with the active Task's cross-repository ExpectedPaths, and return `allow` or persist a file-scope blocker before returning `deny`. Codex, DeepSeek and Claude Adapters call it; ordinary users do not. |
+| `dev-flow host-check pre-file-write` | **Managed Host command.** Read normalized structured-write targets from stdin, compare them with the active Task's cross-repository ExpectedPaths, and return `allow` or persist a file-scope blocker before returning `deny`. Codex, DeepSeek, Claude and ZCode Adapters call it; ordinary users do not. |
 | `dev-flow host-check workspace-available` | **Internal Host command.** Reads `{"repository_path":"<absolute root>"}` from stdin and checks active directory claims read-only. Writes `available`, canonical `repository_path` and optional `task_id`; errors exit nonzero. It neither creates a database nor reserves the directory. |
 | `dev-flow webui start [--no-open] [--plain\|--json]` | Start or reuse the shared loopback WebUI; open the browser by default. |
 | `dev-flow webui open [--plain\|--json]` | Validate the receipt, process identity, and live Core status, then open the same URL. |
@@ -402,7 +438,7 @@ accepted command surface is primarily for host integration, development, and dia
 `dev-flow host-check pre-file-write` and `dev-flow webui serve` are internal Adapter/lifecycle entrypoints, not Host user commands. Core
 has no remote transport, generic HTTP/SSE transport, generic shell, or Git-mutation commands. Codex users start it
 through the managed `dev-flow-codex mcp` entrypoint; DeepSeek users start it through the DSH
-integration process; the Claude plugin starts it through `dev-flow-claude mcp`.
+integration process; the Claude plugin starts it through `dev-flow-claude mcp`, and ZCode uses `dev-flow-zcode mcp`.
 
 For pre-write checks, `repository_path` locates the existing repository and `paths` retains the full
 write targets, whose parent directories may not exist yet. The DeepSeek Adapter starts from the target's
@@ -414,10 +450,10 @@ directories remain allowed.
 
 Here, `dev-flow` means the Go Core executable inside a Host package, not the global lifecycle manager. `config validate` accepts one UTF-8 JSON object on closed stdin. It takes no file-path argument, reads no user configuration, Task store or Git state, and writes no data. `internal/userconfig.Decode` defines configuration semantics: duplicate or unknown fields, invalid UTF-8, input exceeding 16 KiB and incorrect field types are rejected. An empty object `{}` uses defaults for every Host.
 
-Success exits `0` and writes the resolved preferences for all three Hosts to stdout. For example, `{}` produces:
+Success exits `0` and writes the resolved preferences for all four Hosts to stdout. For example, `{}` produces:
 
 ```json
-{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false}}}
+{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false},"zcode":{"codebase_memory":false}}}
 ```
 
 Invalid configuration exits `1` and writes the specific reason to stdout. For example, `{"other":true}` produces:
@@ -578,14 +614,15 @@ The `dev_flow_server_info({})` result includes:
   "host_preferences": {
     "codex": { "codebase_memory": false },
     "deepseek": { "codebase_memory": false },
-    "claude": { "codebase_memory": false }
+    "claude": { "codebase_memory": false },
+    "zcode": { "codebase_memory": false }
   }
 }
 ```
 
 These values come from the process-start snapshot of the read-only user configuration:
 `$HOME/.dev-flow/config.json` on macOS or `%USERPROFILE%\.dev-flow\config.json` on Windows. They
-express preference, not installed or available index capability. All three Hosts default to false when the file is
+express preference, not installed or available index capability. All four Hosts default to false when the file is
 absent. Core only interprets configuration and does not create or modify the file. Codex setup and manager initialization write `{}` when configuration is missing and preserve valid existing content.
 
 Current user instructions and applicable `AGENTS.md` take precedence over these defaults when the
@@ -675,9 +712,9 @@ Run on macOS arm64 with the repository toolchain and Swift >=6.0. This builds bo
 
 ## Host call examples
 
-Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
+Core interaction instructions and complete examples for Codex, DeepSeek, Claude Code and ZCode are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and all four rendered example sets pass through the same Core validation.
 
-[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md)
+[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md) · [DeepSeek Skill](../packages/deepseek/skills/dev-flow/SKILL.md) · [Claude Skill](../packages/claude/plugin/skills/dev-flow/SKILL.md) · [ZCode Skill](../packages/zcode/skills/dev-flow/SKILL.md)
 
 The DeepSeek Skill packages `scripts/artifacts.mjs`. Invoke the same read-only Core preparation commands with `node <actual Skill directory>/scripts/artifacts.mjs collect` or `prepare`. Inputs and results use the shapes in this document with `host="deepseek"`. The script reuses the Adapter runtime/data-directory resolution and creates no store. Resolve its path from the actual DSH Skill resourceBase. `--help` reads no stdin and resolves no runtime. It is not a standalone dev-flow-deepseek CLI or an additional workspace_coordinator operation.
 

@@ -12,7 +12,7 @@
 
 ## Qué puedes hacer con Dev Flow
 
-Dev Flow te ayuda a gestionar tareas largas de programación con IA en Codex, DeepSeek o Claude Code. Guarda
+Dev Flow te ayuda a gestionar tareas largas de programación con IA en Codex, DeepSeek, Claude Code o ZCode. Guarda
 localmente los requisitos acordados, el alcance de archivos, el plan de verificación, el progreso y
 los resultados para que puedas continuar después de cerrar una sesión.
 
@@ -23,7 +23,7 @@ los resultados para que puedas continuar después de cerrar una sesión.
 
 Resulta útil para trabajo de repositorio que abarca varias sesiones o necesita límites claros de
 archivos y pruebas. Para preguntas puntuales, explicaciones de código y pequeños cambios que no
-necesitan guardar el progreso, suele ser más sencillo usar Codex, DeepSeek o Claude Code directamente.
+necesitan guardar el progreso, suele ser más sencillo usar Codex, DeepSeek, Claude Code o ZCode directamente.
 
 ## Inicio rápido
 
@@ -33,12 +33,16 @@ necesitan guardar el progreso, suele ser más sencillo usar Codex, DeepSeek o Cl
 
 La instalación pública siguiente corresponde a las integraciones publicadas de Codex y DeepSeek. Para Claude Code, sigue la [guía de instalación desde el código fuente](docs/CLAUDE_en.md); la CLI pública anterior no instala un Adapter disponible solo en el código fuente.
 
+ZCode también utiliza la [guía de instalación desde el código fuente](docs/ZCODE_en.md). Los paquetes locales están destinados a Windows x64 y macOS arm64; la validación de ZCode en un Mac real queda pendiente.
+
 ```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
 Elige tu Host entre las opciones del instalador que estés utilizando. En Codex, revisa y autoriza el hook de Dev Flow en `/hooks`; en DeepSeek, reinicia el Profile seleccionado. En Claude Code, recarga los plugins o inicia una conversación nueva y revisa los permisos solicitados.
+
+En ZCode, instala y activa el plugin en Settings → Plugins y abre una conversación nueva para activar los hooks. Preparar el paquete local no confirma que ZCode lo haya cargado.
 
 ### 2. Inicia una tarea
 
@@ -60,6 +64,14 @@ $dev-flow-codex:dev-flow Añade un límite de frecuencia para los inicios de ses
 
 ```text
 /dev-flow-claude:dev-flow Añade un límite de frecuencia para los inicios de sesión fallidos. Modifica solo archivos de autenticación y ejecuta como máximo 4 comprobaciones dirigidas.
+```
+
+**ZCode**
+
+Selecciona `dev-flow` en el menú `/` → Skills del cuadro de entrada y describe la tarea.
+
+```text
+Usa Dev Flow para limitar los inicios de sesión fallidos. Modifica solo archivos de autenticación y ejecuta como máximo 4 comprobaciones dirigidas.
 ```
 
 Envía estos mensajes en la conversación, no en una terminal. Describe el objetivo, los criterios de
@@ -91,6 +103,8 @@ En DeepSeek Harness, incluye `/dev-flow` en el mensaje que solicita retomar la t
 
 En Claude, vuelve al directorio y a la conversación originales e indica con `/dev-flow-claude:dev-flow` que deseas continuar la tarea guardada.
 
+En ZCode, abre el directorio original, selecciona la Skill Dev Flow y pide continuar la tarea guardada. Si se prepara otro directorio, sigue las instrucciones recibidas para abrir ese espacio de trabajo.
+
 Estos comandos usan el gestor global instalado. Para instalaciones desde el código fuente, utiliza la entrada correspondiente de la guía.
 
 ```bash
@@ -106,7 +120,7 @@ eliminación, consulta la [referencia de comandos](docs/COMMANDS_en.md).
 
 ## Mascota de escritorio
 
-La mascota requiere un Adapter configurado y la aplicación de escritorio instalada. Instalar solo el Adapter de Claude no instala dicha aplicación.
+La mascota requiere un Adapter configurado y la aplicación de escritorio instalada. Instalar solo un Adapter no instala la aplicación de escritorio.
 
 La mascota muestra varias tareas en burbujas superpuestas y abre la WebUI de cada una. Prioriza las tareas bloqueadas y pasa automáticamente a otra tarea pendiente cuando termina la actual; también puedes fijar una tarea. Puedes personalizar su apariencia, controlar animaciones, cambiar su tamaño e iniciarla o detenerla por separado.
 
@@ -129,7 +143,7 @@ operaciones requieren tu autorización por separado.
 
 ## Documentación
 
-- **Uso:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [Comandos](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
+- **Uso:** [Codex](docs/CODEX_en.md) · [DeepSeek](docs/DEEPSEEK_en.md) · [Claude Code](docs/CLAUDE_en.md) · [ZCode](docs/ZCODE_en.md) · [Comandos](docs/COMMANDS_en.md) · [Control Center](docs/WEBUI_en.md)
 - **Proyecto:** [Definición del producto](docs/PRODUCT_en.md) · [Matriz de soporte](docs/SUPPORT-MATRIX_en.md) · [Seguridad](SECURITY.md)
 - **Desarrollo y contribuciones:** [Índice de documentación](MANIFEST_en.md) · [Guía de contribución](CONTRIBUTING.md)
 

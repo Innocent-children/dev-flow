@@ -30,7 +30,7 @@ npm `@latest` 当前选择以下稳定 package：
 | 新请求评估 | Host 先做只读 `small|standard|large|uncertain` 评估并等待用户选择；显式 selector 也不能跳过 |
 | 工作位置选择 | 默认在当前目录新建分支，另可选当前分支或独立工作树；检查目录占用并明确初始修改，全部仓库准备后创建 Task。本地 Host helper 与真实 Core/Git/SQLite 已做定向验证，实际 Host 会话端到端范围仍见下文 |
 | 持久 Task | 本地保存请求、范围、当前阶段、分析后形成的验证计划、当前预算/消耗、调整原因、记录、阻塞和结果 |
-| 中断后继续 | Codex、DeepSeek 和 Claude Code 从同一 Task 恢复当前阶段与下一步 |
+| 中断后继续 | Codex、DeepSeek、Claude Code 和 ZCode 从同一 Task 恢复当前阶段与下一步 |
 | 范围与验证限制 | TASKS 保存初始验证计划；Core 按当前 Task Plan revision 统计消耗，允许 TEST 用具体原因增加，并继续执行 ExpectedPaths 和记录失效规则 |
 | 按改动范围测试与复核 | Host 对每次命令、完整套件、测试文件修改和修改后复核判断当前相关性；修复后只做相关定向复核 |
 | 自动刹车 | 保存最近三次测试尝试；相同失败、相同结果或相同修改与失败循环第三次精确重复后暂停 |
@@ -39,12 +39,33 @@ npm `@latest` 当前选择以下稳定 package：
 | 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop` |
 | 当前源码平台 | 精确支持 `darwin-arm64` 与 `win32-x64` runtime；Windows 范围是 Windows 10/11 桌面版 x64 |
 | 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；全部 roots 都必须先隔离和授权；同机 relocation 原子替换 bindings 与 claims |
-| Host 生命周期 | 统一 `dev-flow` 入口管理 Codex、DeepSeek 与 Claude Code 的安装、诊断、维护和移除 |
+| Host 生命周期 | 统一 `dev-flow` 入口管理 Codex、DeepSeek、Claude Code 与 ZCode 的安装、诊断、维护和移除；ZCode 保留实际所需的 UI 操作 |
 
 多仓库与 worktree 是高级能力，不代表 Dev Flow 的主要用户场景。它们的源码存在也不表示已有对应
 稳定最终安装包的完整流程测试。
 
+## ZCode 验收范围
+
+ZCode 是当前源码提供的独立 Host Adapter，Windows x64 与 macOS arm64 为实现目标。源码与本地包不构成稳定 npm 发布。自动检查应分别记录 Core 身份与跨 Host 拒绝、工作区准备与恢复、统一生命周期、最终包、MCP 和 Write/Edit Hook；包级检查不能记为真实 ZCode 会话检查。
+
+Windows 真实 Host 验收仍须完成插件 UI 安装与启用、新会话加载 Skill/MCP/Hook、计划内与计划外 Write/Edit、任务创建与恢复，以及 UI 移除后的关闭会话和确认清理。缺少客户端、认证或界面操作能力时，记录具体未执行步骤，不用独立 Core 握手替代。
+
+macOS 实机验证留待后续：在 arm64 Mac 安装最终包，核验 executable 权限与路径，重复上述 UI、Hook 和任务流程，再检查维护、两阶段移除以及保留无关配置和 Task 数据。Windows 检查、交叉编译和 macOS 平台分支模拟均不能完成这份清单。操作入口见 [ZCode 指南](ZCODE.md)。
+
 ## 验证记录
+
+### 2026-09-20：ZCode Windows 本地包
+
+环境：Windows x64、Node.js 24.18.0、Go 1.27.0；检查当前源码和包含 Core 0.18.0 的最终本地 tarball，未发布 npm 包。
+
+| 检查 | 实际结果与范围 |
+| --- | --- |
+| Core 与协议 | Host 身份、跨 Host 拒绝、协议和四个 Host 的完整成功/错误示例定向检查通过；`internal/mcp` 与 `cmd/dev-flow` 包完整检查通过 |
+| 最终 ZCode 包 | 最终 tarball 解包后，本地 setup 幂等、原生 stdio MCP、Task 创建与同目录恢复、跨 Host 拒绝通过；fixture 确认计划后，计划内 Edit 放行、越界 Write 拒绝，拒绝范围请求后取消 Task 并释放占用，普通移除保留数据 |
+| 管理器 | 73 项定向检查通过；菜单回归修复后 2 项定向检查通过。完整管理器套件仍有 3 项既有文件符号链接用例因本机 `EPERM` 权限限制无法完成，不计为通过 |
+| 构建与界面 | Windows x64、macOS arm64 两个 Core 目标编译及 WebUI 构建通过；macOS 产物未原生执行 |
+
+代表性入口为 `go test ./internal/mcp ./cmd/dev-flow`、`node tests/zcode/verify-package.mjs <解包后的绝对包目录>` 和 `pnpm --dir packages/dev-flow test`。最终包检查使用隔离数据、临时 Git 仓库和预设输入，实际执行包内 Core、CLI 与 Hook；它没有操作真实 ZCode UI，也没有运行已认证模型会话。管理器的符号链接限制不构成被测行为通过，以上结果不代表全仓库或 GitHub CI 最终通过。真实 Host 与 macOS 后续检查仍按上方清单保留。
 
 ### 2026-09-20：职责边界与失败恢复
 

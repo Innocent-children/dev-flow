@@ -32,7 +32,7 @@ The following capabilities exist in the current source; some may be beta-only or
 | New-request assessment | The Host performs a read-only `small|standard|large|uncertain` assessment and waits for a choice; an exact selector cannot skip it |
 | Workspace selection | Default new branch in the current directory, with current-branch and dedicated-worktree alternatives; check claims, accept initial content and prepare all roots before Task creation. Targeted checks cover local Host helpers and real Core/Git/SQLite; actual Host-session end-to-end coverage remains as stated below |
 | Durable Task | Locally retain request, scope, current stage, the post-analysis verification plan, current budget/usage, increase reasons, records, blockers, and outcome |
-| Continue after interruption | Codex, DeepSeek and Claude Code resume the current stage and next step from the same Task |
+| Continue after interruption | Codex, DeepSeek, Claude Code and ZCode resume the current stage and next step from the same Task |
 | Scope and verification limits | TASKS retains the initial verification plan; Core counts the current Task Plan revision, accepts concretely justified TEST increases, and applies ExpectedPaths plus record invalidation |
 | Testing and review scoped to the change | The Host checks current relevance before commands, full suites, test-code changes, and post-change review; a review fix receives only related targeted rechecks |
 | Automatic verification brake | Retain the three most recent test attempts and pause after the third exact repetition of the same failure, same result, or same changed-path and failure loop |
@@ -41,12 +41,33 @@ The following capabilities exist in the current source; some may be beta-only or
 | Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop` |
 | Current-source platforms | Exact `darwin-arm64` and `win32-x64` runtimes; Windows scope is Windows 10/11 desktop x64 |
 | Advanced repository capability | One primary plus up to seven explicit additional repositories; every root must first be isolated and authorized; same-machine relocation atomically replaces bindings and claims |
-| Host lifecycle | Unified `dev-flow` entry for Codex, DeepSeek and Claude Code installation, diagnosis, maintenance, and removal |
+| Host lifecycle | Unified `dev-flow` entry for Codex, DeepSeek, Claude Code and ZCode installation, diagnosis, maintenance, and removal; ZCode retains required UI actions |
 
 Multi-repository and worktree behavior is advanced capability, not the primary user scenario. Source
 presence also does not imply a corresponding end-to-end test of a stable package.
 
+## ZCode acceptance scope
+
+ZCode is a distinct Host Adapter in the current source, targeting Windows x64 and macOS arm64. Source and local packages do not establish a stable npm release. Automated records should distinguish Core identity and cross-Host rejection, workspace preparation and resume, unified lifecycle, final packages, MCP and Write/Edit Hook checks. Package checks are not actual ZCode-session checks.
+
+Windows Host acceptance still requires UI plugin installation and enablement, Skill/MCP/Hook loading in a new session, planned and unplanned Write/Edit operations, Task creation and resume, and UI removal followed by session closure and confirmed cleanup. Where the client, authentication or UI operation is unavailable, record the exact unexecuted steps; an independent Core handshake is not a substitute.
+
+Native macOS validation remains deferred: install the final package on an arm64 Mac, verify executable permissions and paths, repeat those UI, Hook and Task workflows, then check maintenance, two-stage removal and retention of unrelated configuration and Task data. Windows checks, cross-compilation and simulated macOS platform branches cannot complete this checklist. See the [ZCode guide](ZCODE_en.md) for entrypoints.
+
 ## Verification records
+
+### 2026-09-20: Local ZCode package on Windows
+
+Environment: Windows x64, Node.js 24.18.0 and Go 1.27.0. Checks used current source and the final local tarball containing Core 0.18.0; no npm package was published.
+
+| Check | Actual result and scope |
+| --- | --- |
+| Core and protocols | Targeted Host identity, cross-Host rejection, protocol and complete four-Host success/error examples passed; the complete `internal/mcp` and `cmd/dev-flow` package checks passed |
+| Final ZCode package | After extracting the final tarball, idempotent local setup, native stdio MCP, Task creation and same-directory resume, and cross-Host rejection passed. After fixture confirmation of a plan, an in-scope Edit was allowed and an out-of-scope Write was denied; cancellation after the rejected scope request released claims, and ordinary removal retained data |
+| Manager | 73 targeted checks passed; 2 targeted menu checks passed after the regression fix. In the complete manager suite, 3 existing file-symlink cases could not complete because of local `EPERM` permission restrictions and are not counted as passing |
+| Builds and interface | Both Windows x64 and macOS arm64 Core targets compiled and WebUI built successfully; macOS artifacts were not executed natively |
+
+Representative entrypoints are `go test ./internal/mcp ./cmd/dev-flow`, `node tests/zcode/verify-package.mjs <absolute-extracted-package-directory>` and `pnpm --dir packages/dev-flow test`. The final-package harness used isolated data, temporary Git repositories and fixture inputs while actually executing packaged Core, CLI and Hook code. It did not operate the real ZCode UI or run an authenticated model session. The manager's symlink restriction does not establish passing behavior, and these results are not a complete-repository or final GitHub CI pass. Actual Host and native macOS checks remain on the checklist above.
 
 ### 2026-09-20: Responsibility boundaries and failure recovery
 

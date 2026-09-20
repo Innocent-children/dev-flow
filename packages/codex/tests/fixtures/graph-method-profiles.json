@@ -3,13 +3,14 @@
   "evidence_class": "simulated_static_adapter_journey",
   "server_info": {
     "product": "dev-flow",
-    "version": "0.17.1",
+    "version": "0.18.0",
     "transport": "stdio",
     "health": "ready",
     "supported_hosts": [
       "codex",
       "deepseek",
-      "claude"
+      "claude",
+      "zcode"
     ],
     "supported_processes": [
       {
@@ -31,6 +32,9 @@
         "codebase_memory": true
       },
       "claude": {
+        "codebase_memory": false
+      },
+      "zcode": {
         "codebase_memory": false
       }
     },

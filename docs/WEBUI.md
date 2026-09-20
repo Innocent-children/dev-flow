@@ -4,10 +4,10 @@
 
 > Dev Flow 持久 Task、工作目录和恢复状态的本地可视化与诊断入口。
 
-Control Center 嵌入 Go Core，读取与 Codex、DeepSeek、Claude Code 相同的 SQLite Task。浏览器不保存第二份流程
+Control Center 嵌入 Go Core，读取与 Codex、DeepSeek、Claude Code、ZCode 相同的 SQLite Task。浏览器不保存第二份流程
 状态，也不执行 fetch、branch、worktree、handoff 或清理。
 
-任务列表可按 Codex、DeepSeek 或 Claude Code 筛选。选择 Host 后打开已有任务；创建新的开发任务仍需从对应 Host 对话开始。
+任务列表可按 Codex、DeepSeek、Claude Code 或 ZCode 筛选。选择 Host 后打开已有任务；创建新的开发任务仍需从对应 Host 对话开始。
 
 ## 可查看的信息
 
@@ -30,7 +30,7 @@ Control Center 嵌入 Go Core，读取与 Codex、DeepSeek、Claude Code 相同�
 工作区卡片显示原目录新分支、当前分支或独立工作树。本地模式说明共享目录的修改都会被观察，
 结束后保留目录和分支；只在全部仓库均为独立工作树时展示工作区迁移操作。
 
-新 Task 由 Codex、DeepSeek 或 Claude Code 完成只读评估、用户确认、工作位置选择及准备，再从执行 Host 创建；页面负责展示和处理已有任务。
+新 Task 由 Codex、DeepSeek、Claude Code 或 ZCode 完成只读评估、用户确认、工作位置选择及准备，再从执行 Host 创建；页面负责展示和处理已有任务。
 
 页面可以使用 Core 当前返回的任务和操作标识，提交以下操作：
 
@@ -90,7 +90,7 @@ runtime receipt 绑定 PID、进程启动身份、data-root digest 和 loopback 
 
 `status` 返回 `ready`、`read_only`、`incompatible` 或 `unavailable`。默认 Task 数据在 macOS 位于
 `$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。
-Codex、DeepSeek 与 Claude Code 共用这份数据。
+Codex、DeepSeek、Claude Code 与 ZCode 共用这份数据。
 
 React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，运行时不需要 Node server、CDN、
 外部字体或独立 WebUI package。完整命令见[命令参考](COMMANDS.md)，协议见

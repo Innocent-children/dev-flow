@@ -22,7 +22,7 @@ async function fixture(t) {
 
 test("configuration diagnostics forward exact bytes to the selected Core without Host rules", async t => {
   const { root, path, content, paths } = await fixture(t);
-  const preferences = { codex: { codebase_memory: false }, deepseek: { codebase_memory: false }, claude: { codebase_memory: true } };
+  const preferences = { codex: { codebase_memory: false }, deepseek: { codebase_memory: false }, claude: { codebase_memory: true }, zcode: { codebase_memory: false } };
   const environment = { HOME: root };
   const result = await validateConfigurationFile(path, {
     environment, host: "claude", paths,
@@ -95,6 +95,7 @@ test("configuration diagnostics validate through a native Core subprocess", { ti
   const result = await validateConfigurationFile(path, options);
   assert.equal(result.claude.codebase_memory, true);
   assert.equal(result.codex.codebase_memory, false);
+  assert.equal(result.zcode.codebase_memory, false);
   await writeFile(path, '{"claude":{},"claude":{}}');
   await assert.rejects(validateConfigurationFile(path, options), /duplicate field "claude"/);
 });
@@ -103,7 +104,7 @@ test("doctor delegates existing configuration and skips Core when no file exists
   let calls = 0;
   const paths = Object.freeze({ platform: "win32", arch: "x64", enforcePrivateModes: false });
   const environment = {};
-  const observed = { codex: null, deepseek: [], claude: null, resources: { configuration: { path: "/config.json", exists: true }, defaultData: { path: "/data", exists: false, label: "data" } } };
+  const observed = { codex: null, deepseek: [], claude: null, zcode: null, resources: { configuration: { path: "/config.json", exists: true }, defaultData: { path: "/data", exists: false, label: "data" } } };
   const checks = await diagnoseInstallation(observed, { host: "claude", paths, environment, validateConfiguration: async (path, options) => {
     calls++;
     assert.equal(path, observed.resources.configuration.path);

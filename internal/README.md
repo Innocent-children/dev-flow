@@ -3,7 +3,7 @@
 [中文](README.md) | [English](README_en.md)
 
 `internal/` 是不依赖具体编程工具的 Go Core。它管理任务、流程图、MCP、SQLite、异常恢复和 Git
-只读查询。Codex 与 DeepSeek 都使用这个 Core，因此遵循同一套任务规则。
+只读查询。Codex、DeepSeek、Claude Code 与 ZCode 都使用这个 Core，因此遵循同一套任务规则。
 
 ## 包职责
 

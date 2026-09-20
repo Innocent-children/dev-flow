@@ -83,7 +83,7 @@ export async function runLifecycle(request, dependencies = {}) {
   const packagedLocalPackages = usesArtifacts ? await readLocalPackages(packageRoot) : null;
   const localPackages = dependencies.localPackages ?? packagedLocalPackages;
   if (localPackages && request.targetVersion && request.targetVersion !== "latest" && ["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
-    const products = request.host === "all" ? ["codex", "deepseek", "claude"] : [request.host];
+    const products = request.host === "all" ? ["codex", "deepseek", "claude", "zcode"] : [request.host];
     if (products.some(product => localPackages[product].version !== request.targetVersion)) {
       throw new Error("the selected version is not contained in this local development package");
     }
@@ -99,7 +99,7 @@ export async function runLifecycle(request, dependencies = {}) {
   dependencies.onProgress?.({ type: "phase", message: (dependencies.language ?? resolveLanguage(environment)) === "zh-CN" ? "检查 Host、Adapter 与本地资源" : "Checking Hosts, Adapters and local resources" });
   const observed = await observeLifecycle(request, { paths, drivers });
   if (["install", "upgrade", "repair", "reinstall"].includes(request.operation)) {
-    const missing = [observed.codex, ...observed.deepseek, observed.claude].filter(target => target?.hostAvailable === false);
+    const missing = [observed.codex, ...observed.deepseek, observed.claude, observed.zcode].filter(target => target?.hostAvailable === false);
     if (missing.length) {
       const error = new Error(`Required Host unavailable: ${missing.map(target => target.host).join(", ")}`);
       error.nextStep = missing[0].issues?.find(issue => issue.code === "host_missing")?.command ?? `dev-flow doctor --host ${missing[0].host}`;
@@ -274,14 +274,15 @@ export async function runLifecycle(request, dependencies = {}) {
     trashRoot,
   });
   result.next_steps = [...new Set([...result.next_steps, ...nextSteps, ...plan.restartRequirements])];
-  const verified = request.operation === "factory-reset" && !request.reinstallAfterReset || request.operation === "uninstall"
-    ? result.status === "absent" : result.status === "ready" || result.status === "restart_required";
+  const actionRequired = result.status === "action_required";
+  const verified = actionRequired || (request.operation === "factory-reset" && !request.reinstallAfterReset || request.operation === "uninstall"
+    ? result.status === "absent" : result.status === "ready" || result.status === "restart_required");
   if (!verified) { result.failed_action = "verify_installation"; result.next_step = "dev-flow doctor --host all"; }
   await (dependencies.recordRun ?? recordRun)(paths, run, {
     completed_action_ids: [...new Set(completedActions)],
     failed_action_id: verified ? null : "verify_installation",
     trash_root: trashRoot,
-    next_step: verified ? "complete" : "dev-flow doctor --host all",
+    next_step: actionRequired ? "Complete the ZCode UI steps listed in next_steps" : verified ? "complete" : "dev-flow doctor --host all",
   }, { now: dependencies.now }).catch(() => {});
   if (request.operation === "factory-reset") {
     await (dependencies.clearRunRecords ?? clearRunRecords)(paths, {
@@ -293,7 +294,7 @@ export async function runLifecycle(request, dependencies = {}) {
 }
 
 export async function observeLifecycle(request, { paths, drivers }) {
-  const { codex, deepseek, claude } = drivers;
+  const { codex, deepseek, claude, zcode } = drivers;
   const knownDeepSeekProfiles = !["deepseek", "all"].includes(request.host) ? [] : await deepseek.knownProfiles();
   let profiles = !["deepseek", "all"].includes(request.host) ? [] : request.allKnownProfiles
     ? [...new Set([...knownDeepSeekProfiles, ...request.profiles])]
@@ -310,6 +311,7 @@ export async function observeLifecycle(request, { paths, drivers }) {
   return Object.freeze({
     codex: codexState,
     claude: ["claude", "all"].includes(request.host) ? await claude.observe() : null,
+    zcode: ["zcode", "all"].includes(request.host) ? await zcode.observe() : null,
     deepseek: deepseekStates,
     knownDeepSeekProfiles,
     resources: { configuration, defaultData, pet, explicitData },
@@ -319,7 +321,7 @@ export async function observeLifecycle(request, { paths, drivers }) {
 async function resolveTargetVersions(request, observed, { drivers, localPackages }) {
   const result = {};
   if (!["install", "upgrade", "repair", "reinstall"].includes(request.operation) && !request.reinstallAfterReset) return result;
-  const targets = [observed.codex, ...observed.deepseek, observed.claude].filter(Boolean);
+  const targets = [observed.codex, ...observed.deepseek, observed.claude, observed.zcode].filter(Boolean);
   for (const target of targets) {
     const driver = drivers[target.host];
     const requested = request.targetVersion ?? (request.operation === "upgrade" || request.reinstallAfterReset ? "latest" : target.packageVersion ?? "latest");
@@ -424,13 +426,14 @@ function resultFromObservation(operation, observed, {
   dataPolicy = "preserve",
   trashRoot = null,
 } = {}) {
-  const targets = [observed.codex, ...observed.deepseek, observed.claude]
+  const targets = [observed.codex, ...observed.deepseek, observed.claude, observed.zcode]
     .filter(Boolean)
     .map((target) => ({ host: target.host, profile: target.profile, package_version: target.packageVersion, core_version: target.coreVersion ?? null, state: target.state, host_available: target.hostAvailable ?? null, issues: target.issues ?? [] }));
   const states = targets.map((target) => target.state);
   const status = states.some((state) => ["partial", "incompatible", "conflicted", "unknown"].includes(state)) ? "partial"
     : states.length === 0 || states.every((state) => state === "absent") ? "absent"
-      : states.some((state) => state === "restart_required") ? "restart_required" : "ready";
+      : states.some((state) => state === "action_required") ? "action_required"
+        : states.some((state) => state === "restart_required") ? "restart_required" : "ready";
   return {
     operation_id: operationId,
     operation,
@@ -447,7 +450,10 @@ function resultFromObservation(operation, observed, {
     },
     completed_actions: completedActions,
     failed_action: null,
-    next_steps: ["install", "repair", "upgrade", "reinstall"].includes(operation) && targets.some(target => target.host === "codex" && target.state === "ready") ? [CODEX_ACTIVATION_STEP] : [],
+    next_steps: [...new Set([
+      ...(["install", "repair", "upgrade", "reinstall"].includes(operation) && targets.some(target => target.host === "codex" && target.state === "ready") ? [CODEX_ACTIVATION_STEP] : []),
+      ...(observed.zcode?.nextSteps ?? []),
+    ])],
     restart_requirements: restartRequirements,
     confirmation: null,
     next_step: (["uninstall", "factory-reset"].includes(operation) && status === "absent" ? null : targets.filter(target => status === "absent" || target.state !== "absent").flatMap(target => target.issues).find(issue => issue.command)?.command) ??

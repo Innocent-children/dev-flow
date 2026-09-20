@@ -86,7 +86,7 @@ export async function resolveCoreRuntime({
   }
 
   if (candidates.length === 0) throw new NoRuntimeError(host === "all"
-    ? "no installed Codex, DeepSeek or Claude Adapter provides a Core runtime"
+    ? "no installed Codex, DeepSeek, Claude or ZCode Adapter provides a Core runtime"
     : `no installed ${host} Adapter provides a Core runtime`);
   if (requireData) {
     if (initializeDefaultData && paths.explicitDataDirectory === null) await ensureDefaultDataDirectory(paths);

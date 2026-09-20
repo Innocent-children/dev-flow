@@ -118,6 +118,8 @@ async function maintenanceFixture(t) {
       arch: "arm64",
       codexDriver,
       deepseekDriver,
+      claudeDriver: { observe: async () => ({ host: "claude", profile: null, hostAvailable: false, state: "absent", packageInstalled: false, packageVersion: null }) },
+      zcodeDriver: { observe: async () => ({ host: "zcode", profile: null, hostAvailable: null, state: "absent", packageInstalled: false, packageVersion: null }) },
       confirmPlan: async () => true,
       stopPetForCore: async (options) => {
         events.push(`pet.stop:${options.corePath}`);
@@ -248,7 +250,7 @@ test("one interactive session can inspect state and return to the menu", async t
   const fixture = await maintenanceFixture(t);
   let text = '';
   const output = { write: value => { text += value; } };
-  const result = await runMain([], { ...fixture.dependencies, input: Readable.from(['5\n1\n1\n0\n']), output, errorOutput: output, isTTY: true });
+  const result = await runMain([], { ...fixture.dependencies, input: Readable.from(['6\n1\n1\n0\n']), output, errorOutput: output, isTTY: true });
   assert.equal(result.code, 0);
   assert.equal(fixture.events.length, 0);
   assert.equal(text.split('Dev Flow Lifecycle Manager').length >= 3, true);

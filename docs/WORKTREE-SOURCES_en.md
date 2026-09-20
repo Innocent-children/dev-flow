@@ -89,7 +89,7 @@ Snapshot preparation rejects unresolved conflicts and submodule changes. Ignored
 DeepSeek assisted cleanup retains local-source branches for separate user inspection and handling;
 local creation does not gain a remote dependency.
 
-All three Hosts use the same shared snapshot implementation. Before returning a snapshot, it reads
+All four Hosts use the same shared snapshot implementation. Before returning a snapshot, it reads
 HEAD, the index tree, the working-file tree, and the untracked tree twice in succession. A difference
 stops preparation without returning a snapshot or retrying automatically. Further edits to already
 modified files are compared through their content trees even when Git status stays the same. Failure
@@ -126,10 +126,11 @@ counts toward the Task surface; it is not completed work or a passed verificatio
   frozen snapshots, different base branches, managed bootstrap and conflict retention.
 - DeepSeek `workspace-coordinator.test.mjs`: explicit choices, offline creation, binary untracked content
   and consume after relaunch.
-- Targeted snapshot regressions for all three Hosts edit already dirty tracked/untracked files after
+- Targeted snapshot regressions for all four Hosts edit already dirty tracked/untracked files after
   the first tracked-content capture. They check that unchanged status still stops preparation and
-  preserves source files, the index tree, HEAD, and stash. The Codex tests also compare all three
-  generated copies with the shared source byte for byte.
+  preserves source files, the index tree, HEAD, and stash. Generated-copy checks separately compare
+  packaged files with the shared source byte for byte.
+- ZCode `workspace.test.mjs` uses temporary Git repositories for all three workspace modes, carried contents, partial preparation failures, replaced instances, relocation and separately authorized cleanup; `open`/`resume` only return UI continuation guidance.
 - Core `workspace_observer_test.go`: local admission without a remote, required carry authorization for
   initial changes, rejection of remote carry, and retained actual Task surface.
 - Core `workspace_check_test.go`: real Git and SQLite cover local creation, accepted initial changes, unique claims, same-content commits, resume, branch-switch blocking, relocation rejection and cancellation without deleting local files. The availability check creates no database when none exists.
@@ -137,7 +138,7 @@ counts toward the Task surface; it is not completed work or a passed verificatio
 - Package, CLI/MCP input and storage checks cover the new fields and packaged snapshot modules.
 
 These checks use native temporary repositories and Host helpers. Managed dispatch uses simulated Host
-creation results; they do not establish an actual Codex desktop or DSH session end-to-end run and do
+creation results; they do not establish an actual Codex, DSH, Claude Code or ZCode session end-to-end run and do
 not extend support claims for other platforms.
 
 ## Non-goals

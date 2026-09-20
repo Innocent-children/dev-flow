@@ -8,7 +8,7 @@ updating the program and artwork, animation rules, pack creation, and troublesho
 
 ## Environment and delivery
 
-The desktop component targets macOS arm64 (Apple Silicon) and Windows 10/11 x64 and requires at least one installed and configured Codex, DeepSeek or Claude Code Adapter to provide Core.
+The desktop component targets macOS arm64 (Apple Silicon) and Windows 10/11 x64 and requires at least one installed and configured Codex, DeepSeek, Claude Code or ZCode Adapter to provide Core.
 The Swift Package and app metadata target macOS 14; actual minimum-system operation, Developer ID signing, and Apple notarization have not completed
 formal distribution verification. See the [support matrix](SUPPORT-MATRIX_en.md#desktop-pet-functional-checks) for the verified scope.
 
@@ -67,6 +67,8 @@ dev-flow pet stop
 ~~~
 
 Replace `<local-package>.tgz` with the filename identified by tarball in desktop-pet-build.json. This build assembles the Windows desktop and complete Adapter packages using the existing Core target catalog, binding artifact paths, versions and SHA256 hashes. It copies nine default actions and 312 frames and verifies extracted artwork and executable bytes. Mac Core is cross-compiled only; no Mac program, Mac test or publication is run. Windows uses the system tray in place of the macOS menu bar; artwork formats, task semantics and six scale choices align.
+
+The local distribution's `--host all` includes ZCode. Its `action_required` result still requires plugin installation and enablement in the ZCode UI; see the [ZCode guide](ZCODE_en.md). The pet reading Core does not establish an available ZCode model session.
 
 productRoot defaults to %LOCALAPPDATA%\dev-flow. The installed app directory is productRoot/pet/DevFlowPet, with DevFlowPet.exe as its entry; it takes precedence over runtime/win32-x64/DevFlowPet in the package. settings.json and appearances/ are stored separately. The unified entry refreshes the app copy through dev-flow install, upgrade, repair or reinstall. The launcher stops maintained instances, stages the replacement, and retains settings.json and appearances/. Running pet start alone does not reinstall an existing app. Ordinary quit and uninstall preserve these files; confirmed factory-reset clears the whole pet directory under the existing rules.
 

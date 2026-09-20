@@ -39,6 +39,7 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		"packages/codex/lib/platform.mjs",
 		"packages/deepseek/lib/platform.mjs",
 		"packages/claude/lib/platform.mjs",
+		"packages/zcode/lib/platform.mjs",
 		"packages/dev-flow/lib/platform.mjs",
 	} {
 		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
@@ -57,6 +58,7 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		"packages/host-command/command.mjs",
 		"packages/codex/lib/command.mjs",
 		"packages/claude/lib/command.mjs",
+		"packages/zcode/lib/command.mjs",
 	} {
 		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 		if err != nil {
@@ -84,6 +86,11 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		"packages/claude/lib/workspace.mjs",
 		"packages/claude/bin/dev-flow-claude.mjs",
 		"packages/claude/plugin/hooks/pre-tool-use.mjs",
+		"packages/zcode/lib/runtime.mjs",
+		"packages/zcode/lib/lifecycle.mjs",
+		"packages/zcode/lib/workspace.mjs",
+		"packages/zcode/bin/dev-flow-zcode.mjs",
+		"packages/zcode/hooks/pre-tool-use.mjs",
 		"packages/dev-flow/lib/configuration.mjs",
 		"packages/dev-flow/lib/lifecycle.mjs",
 		"packages/dev-flow/lib/ownership.mjs",
@@ -109,6 +116,7 @@ func TestHostPlatformImplementationsRemainSeparate(t *testing.T) {
 		{"packages/codex/lib/platform", "policies.mjs"},
 		{"packages/deepseek/lib/platform", "policies.mjs"},
 		{"packages/claude/lib/platform", "policies.mjs"},
+		{"packages/zcode/lib/platform", "policies.mjs"},
 		{"packages/dev-flow/lib/platform", "policies.mjs"},
 		{"packages/host-command/platform", "command.mjs"},
 	} {

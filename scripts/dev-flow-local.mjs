@@ -49,6 +49,7 @@ export async function runLocalDevFlow(arguments_, dependencies = {}) {
           codex: { path: artifacts.codex.path, version: artifacts.codex.version },
           deepseek: { path: artifacts.deepseek.path, version: artifacts.deepseek.version },
           claude: { path: artifacts.claude.path, version: artifacts.claude.version },
+          zcode: { path: artifacts.zcode.path, version: artifacts.zcode.version },
         },
       });
     return result.code;
@@ -75,8 +76,9 @@ async function buildPackages({ root, temporaryRoot, run }) {
   const codex = await stageAndPack("codex", { root, stageRoot, outputRoot, coreArtifacts, run });
   const deepseek = await stageAndPack("deepseek", { root, stageRoot, outputRoot, coreArtifacts, run });
   const claude = await stageAndPack("claude", { root, stageRoot, outputRoot, coreArtifacts, run });
+  const zcode = await stageAndPack("zcode", { root, stageRoot, outputRoot, coreArtifacts, run });
   const manager = await stageAndPack("dev-flow", { root, stageRoot, outputRoot, coreArtifacts: null, run });
-  return { codex, deepseek, claude, manager };
+  return { codex, deepseek, claude, zcode, manager };
 }
 
 export async function stageAndPack(product, { root, stageRoot, outputRoot, coreArtifacts, run }) {
@@ -97,19 +99,19 @@ export async function stageAndPack(product, { root, stageRoot, outputRoot, coreA
         requireExecutableMode: runtime.requireExecutableMode,
       });
     }
-    else if (["codex", "deepseek", "claude"].includes(product) && workspaceFiles.some(name => relativePath === `lib/${name}`)) {
+    else if (["codex", "deepseek", "claude", "zcode"].includes(product) && workspaceFiles.some(name => relativePath === `lib/${name}`)) {
       await syncWorkspaceFiles(root, product, join(destination, "lib"));
     }
-    else if (["codex", "claude"].includes(product) && hostCommandFiles.some(name => relativePath === `lib/${name}`)) {
+    else if (["codex", "claude", "zcode"].includes(product) && hostCommandFiles.some(name => relativePath === `lib/${name}`)) {
       continue;
     }
     else await copyFile(join(packageRoot, relativePath), target);
   }
-  if (["codex", "claude"].includes(product)) {
+  if (["codex", "claude", "zcode"].includes(product)) {
     await writeHostCommands({ root, destination: join(destination, "lib") });
   }
-  if (["codex", "deepseek", "claude"].includes(product)) {
-    const skillPath = product === "deepseek" ? "skills/dev-flow" : "plugin/skills/dev-flow";
+  if (["codex", "deepseek", "claude", "zcode"].includes(product)) {
+    const skillPath = ["deepseek", "zcode"].includes(product) ? "skills/dev-flow" : "plugin/skills/dev-flow";
     await writeSharedSkillReferences({ root, host: product, destination: join(destination, skillPath) });
   }
   let artifactPath;

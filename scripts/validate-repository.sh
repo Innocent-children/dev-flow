@@ -304,6 +304,7 @@ const expectedByProfile = {
     "lib/hosts/deepseek-receipts.mjs",
     "lib/hosts/deepseek.mjs",
     "lib/hosts/index.mjs",
+    "lib/hosts/zcode.mjs",
     "lib/journal.mjs",
     "lib/lifecycle.mjs",
     "lib/local-packages.mjs",
@@ -403,6 +404,7 @@ run_step "pnpm workspace inventory" pnpm --recursive list --depth -1
 run_step "Codex package dry-pack" validate_package_pack packages/codex dev-flow-codex codex-source
 run_step "DeepSeek package dry-pack" validate_package_pack packages/deepseek dev-flow-deepseek deepseek-source
 run_step "Claude Adapter tests" node --test packages/claude/tests/*.test.mjs
+run_step "ZCode Adapter tests" node --test packages/zcode/tests/*.test.mjs
 run_step "Dev Flow manager and public launcher tests" node --test packages/dev-flow/tests/*.test.mjs
 run_step "Dev Flow manager dry-pack" validate_package_pack packages/dev-flow @imotong/dev-flow dev-flow-source
 

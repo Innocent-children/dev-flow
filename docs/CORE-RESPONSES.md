@@ -60,7 +60,7 @@ Core 负责描述实际结果、具体失败条件和允许的下一步；Host �
 
 MCP 测试对真实成功/失败响应执行输出 Schema 校验，并覆盖结果路径、非法混合结构、错误字段、
 数量与权限区分、零写入纠错及结果不确定的停止条件。共享 Skill 示例必须对同一接口执行校验，
-Codex、DeepSeek 和 Claude Code 使用相同语义。新增或修改错误时同步更新实现、Schema、本规范及受影响示例。
+Codex、DeepSeek、Claude Code 和 ZCode 使用相同语义。新增或修改错误时同步更新实现、Schema、本规范及受影响示例。
 
 ## WebUI HTTP 映射
 
@@ -78,7 +78,7 @@ HTTP 的 `correct_current_action` 同样返回非空 `recovery.allowed_paths`，
 
 ## 请求与完整响应示例
 
-三个 Host Skill 的每个完整 MCP 请求都链接对应的完整成功响应，并紧跟错误响应，逐项说明触发条件、校验函数和响应编码函数。成功示例包含用当前 Task 值替换占位符后的完整请求；测试实际执行请求并比较完整返回。仓库观察使用固定测试数据，生成的身份、时间和操作摘要使用稳定示例值。Codex Host helper 与 DeepSeek workspace 请求同样配对完整返回，由临时 Git 仓库中的实际适配器操作校验；Host 会话和 Core 终态读取使用标注的模拟结果。
+四个 Host Skill 的每个完整 MCP 请求都链接对应的完整成功响应，并紧跟错误响应，逐项说明触发条件、校验函数和响应编码函数。成功示例包含用当前 Task 值替换占位符后的完整请求；测试实际执行请求并比较完整返回。仓库观察使用固定测试数据，生成的身份、时间和操作摘要使用稳定示例值。Codex Host helper 与 DeepSeek workspace 请求同样配对完整返回，由临时 Git 仓库中的实际适配器操作校验；Host 会话和 Core 终态读取使用标注的模拟结果。
 测试从前一个正确请求构造说明中的失败输入，对完整响应进行比较，包括 message、details、guard
 和 recovery。示例说明确定的失败情况，不穷举所有运行条件；已有公共错误示例也与当前编码结果一致。
 

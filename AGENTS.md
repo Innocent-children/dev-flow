@@ -36,7 +36,7 @@ to them from user guides when needed.
 | --- | --- |
 | `AGENTS.md` | Repository AI agents: instruction priority, scope, architecture constraints, implementation, review, validation, documentation maintenance, and release boundaries. |
 | Root `README*.md` | End users: what Dev Flow does, suitable tasks, prerequisites, installation, starting and resuming work, common operations, necessary usage limits, and links to further help. |
-| `packages/*/README.md`, `docs/CODEX_en.md`, `docs/DEEPSEEK_en.md`, `docs/CLAUDE*` | Users of that package or Host: setup, supported operations, troubleshooting, maintenance, removal, and Host-specific limitations. |
+| `packages/*/README.md`, `docs/CODEX_en.md`, `docs/DEEPSEEK_en.md`, `docs/CLAUDE*`, `docs/ZCODE*` | Users of that package or Host: setup, supported operations, troubleshooting, maintenance, removal, and Host-specific limitations. |
 | `docs/PRODUCT*` | Product readers: target users, problems, business functionality, user workflows, product scope, and non-goals. |
 | `docs/DEMO*`, `docs/WEBUI*`, `docs/DESKTOP-PETS*` | Users following a walkthrough or operating a specific interface; detailed interface and artwork guidance stays here. |
 | `docs/ARCHITECTURE*`, `docs/ARTIFACTS*`, `docs/WORKTREE-SOURCES*`, `docs/THREAT-MODEL*` | Developers and integrators: component responsibilities, protocols, state and data rules, implementation design, and trust boundaries. |
@@ -104,7 +104,7 @@ translations, untranslated sections, or whole-section English fallbacks. Incompl
 translations mean the change is not ready to merge.
 
 Public npm installation examples use `@imotong/dev-flow@latest`, `dev-flow-codex@latest`, or
-`dev-flow-deepseek@latest` as appropriate. Exact Core, Codex, DeepSeek, and Dev Flow CLI release
+`dev-flow-deepseek@latest` as appropriate. Exact Core, Codex, DeepSeek, Claude, ZCode, and Dev Flow CLI release
 versions belong in machine-readable version files, package metadata, Release Tags, artifact digests,
 and release records. A version-only release updates those records rather than README prose.
 
@@ -114,6 +114,7 @@ Check documented commands against their executable implementation:
 - unified lifecycle commands: `packages/dev-flow/lib/cli.mjs` and `packages/dev-flow/bin/dev-flow.mjs`;
 - Codex commands: `packages/codex/bin/dev-flow-codex.mjs`;
 - Claude commands: `packages/claude/bin/dev-flow-claude.mjs`;
+- ZCode commands: `packages/zcode/bin/dev-flow-zcode.mjs`;
 - DeepSeek installation, inspection, and removal: lifecycle and final-artifact end-to-end tests;
 - packaged Core commands: `cmd/dev-flow/main.go`;
 - MCP tools: the fixed tool list under `internal/mcp/`.
@@ -159,7 +160,7 @@ Before choosing an implementation pattern, assign every affected behavior to exa
 responsibilities:
 
 - Core owns platform-neutral product semantics, the state graph, current data rules, and decisions.
-- Host adapters translate Codex, DeepSeek, Claude Code, CLI, MCP, and WebUI interactions without becoming workflow
+- Host adapters translate Codex, DeepSeek, Claude Code, ZCode, CLI, MCP, and WebUI interactions without becoming workflow
   authorities.
 - Platform implementations own operating-system-specific paths, permissions, processes, signals,
   executable handling, file identity, and deletion behavior.
@@ -204,16 +205,17 @@ Host-specific instructions and helpers are maintained in:
 
 - Codex: `packages/codex/plugin/skills/dev-flow/`;
 - DeepSeek: `packages/deepseek/skills/dev-flow/`;
-- Claude Code: `packages/claude/plugin/skills/dev-flow/`.
+- Claude Code: `packages/claude/plugin/skills/dev-flow/`;
+- ZCode: `packages/zcode/skills/dev-flow/`.
 
-The three Host directories each contain an authored `SKILL.md` entrypoint, Host-specific references
+The four Host directories each contain an authored `SKILL.md` entrypoint, Host-specific references
 and helpers, and generated Core reference copies. Files marked `Generated from skills/dev-flow/core/`
 are generated copies; edit their shared source instead of editing any generated package copy by hand.
 Keep shared Core semantics in the shared source and actual Host authorization, workspace operations,
 tool invocation and response transport in the corresponding adapter instructions. Every interaction
 rule and example must be grounded in the current implementation; document Host limitations accurately.
 
-After changing shared content, regenerate all three package copies from the repository root:
+After changing shared content, regenerate all four package copies from the repository root:
 
 ```bash
 node scripts/sync-skill-references.mjs
@@ -224,7 +226,7 @@ Include the shared-source changes and all generated outputs in the same change. 
 moving or removing references or helpers, update their links, package manifests, staging lists and
 affected checks together. Verify that all installed Host packages contain their complete references
 without depending on the repository's shared directory. Validate shared examples against the current
-Core contracts for all three Hosts, and Host-specific examples against their actual adapter interfaces.
+Core contracts for all four Hosts, and Host-specific examples against their actual adapter interfaces.
 
 ## Product Feature Proposals
 
@@ -247,7 +249,7 @@ Only the Go Core owns:
 - blocker and recovery classification;
 - terminal outcome.
 
-Codex, DeepSeek, Claude Code, method tools, CLI, MCP, and package scripts are adapters or execution aids. They must
+Codex, DeepSeek, Claude Code, ZCode, method tools, CLI, MCP, and package scripts are adapters or execution aids. They must
 not persist a second process cursor, add a transition, skip a node, infer completion, or reinterpret a
 Core result.
 

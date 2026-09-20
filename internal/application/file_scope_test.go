@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -93,6 +94,51 @@ func TestClaudeWriteGateUsesCorePlan(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestZCodeWriteGateUsesCorePlan(t *testing.T) {
+	now := time.Date(2026, 9, 20, 1, 0, 0, 0, time.UTC)
+	for _, tool := range []string{"Write", "Edit"} {
+		t.Run(tool, func(t *testing.T) {
+			task := fileScopeTask(t, now, []string{"src/**"})
+			task.OriginHost = domain.HostZCode
+			service, taskStore := fileScopeService(t, now, task)
+			request := PrepareFileChangeRequest{Host: domain.HostZCode, RepositoryPath: testPath("repo"), ToolName: tool, Paths: []string{testPath("repo", "src", "file.go")}, IntentDigest: testDigest('c'), PathParseComplete: true}
+			result, err := service.PrepareFileChange(context.Background(), request)
+			if err != nil || result.Decision != FileChangeAllow || taskStore.commits != 0 {
+				t.Fatalf("planned result=%#v err=%v commits=%d", result, err, taskStore.commits)
+			}
+			request.Host = domain.HostClaude
+			result, err = service.PrepareFileChange(context.Background(), request)
+			if err != nil || result.Decision != FileChangeDeny || taskStore.commits != 0 {
+				t.Fatalf("wrong Host result=%#v err=%v commits=%d", result, err, taskStore.commits)
+			}
+			request.Host = domain.HostZCode
+			request.Paths = []string{testPath("repo", "outside.go")}
+			result, err = service.PrepareFileChange(context.Background(), request)
+			if err != nil || result.Decision != FileChangeDeny || taskStore.commits != 1 || taskStore.task.CurrentNode != domain.NodeBlocked {
+				t.Fatalf("outside result=%#v err=%v commits=%d", result, err, taskStore.commits)
+			}
+		})
+	}
+	t.Run("unparsed path cannot pass", func(t *testing.T) {
+		task := fileScopeTask(t, now, []string{"src/**"})
+		task.OriginHost = domain.HostZCode
+		service, _ := fileScopeService(t, now, task)
+		result, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostZCode, RepositoryPath: testPath("repo"), ToolName: "Write", IntentDigest: testDigest('d')})
+		if err != nil || result.Decision != FileChangeDeny {
+			t.Fatalf("unparsed result=%#v err=%v", result, err)
+		}
+	})
+	t.Run("unsupported Claude tool is not a ZCode gate", func(t *testing.T) {
+		task := fileScopeTask(t, now, []string{"src/**"})
+		task.OriginHost = domain.HostZCode
+		service, taskStore := fileScopeService(t, now, task)
+		_, err := service.PrepareFileChange(context.Background(), PrepareFileChangeRequest{Host: domain.HostZCode, RepositoryPath: testPath("repo"), ToolName: "NotebookEdit", Paths: []string{testPath("repo", "src", "file.ipynb")}, IntentDigest: testDigest('e'), PathParseComplete: true})
+		if !errors.Is(err, domain.ErrInvalidArgument) || taskStore.commits != 0 {
+			t.Fatalf("unsupported tool err=%v commits=%d", err, taskStore.commits)
+		}
+	})
 }
 
 func TestPrepareFileChangeUsesAllDeclaredRepositories(t *testing.T) {

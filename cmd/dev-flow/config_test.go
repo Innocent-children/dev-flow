@@ -14,9 +14,11 @@ func TestConfigValidationUsesCoreRulesWithoutRuntimeState(t *testing.T) {
 		name, input, expected string
 		code                  int
 	}{
-		{"defaults", `{}`, `{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false}}}`, 0},
-		{"all hosts", `{"claude":{"codebase_memory":true},"codex":{},"deepseek":{"codebase_memory":true}}`, `{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":true},"claude":{"codebase_memory":true}}}`, 0},
+		{"defaults", `{}`, `{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false},"zcode":{"codebase_memory":false}}}`, 0},
+		{"all hosts", `{"claude":{"codebase_memory":true},"codex":{},"deepseek":{"codebase_memory":true}}`, `{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":true},"claude":{"codebase_memory":true},"zcode":{"codebase_memory":false}}}`, 0},
 		{"duplicate host", `{"claude":{},"claude":{}}`, configErrorJSON(`duplicate field "claude"`), 1},
+		{"ZCode enabled", `{"zcode":{"codebase_memory":true}}`, `{"ok":true,"result":{"codex":{"codebase_memory":false},"deepseek":{"codebase_memory":false},"claude":{"codebase_memory":false},"zcode":{"codebase_memory":true}}}`, 0},
+		{"invalid ZCode preference", `{"zcode":{"codebase_memory":null}}`, configErrorJSON(`field "zcode.codebase_memory" must be a boolean`), 1},
 		{"unknown host", `{"other":{}}`, configErrorJSON(`unknown top-level field "other"`), 1},
 		{"invalid preference", `{"claude":{"codebase_memory":null}}`, configErrorJSON(`field "claude.codebase_memory" must be a boolean`), 1},
 		{"invalid UTF8", "\xff", configErrorJSON("invalid UTF-8"), 1},

@@ -20,6 +20,7 @@ type Preferences struct {
 	Codex    HostPreferences `json:"codex"`
 	DeepSeek HostPreferences `json:"deepseek"`
 	Claude   HostPreferences `json:"claude"`
+	ZCode    HostPreferences `json:"zcode"`
 }
 
 func Load(homeDirectory string) (Preferences, error) {
@@ -83,6 +84,8 @@ func Decode(raw []byte) (Preferences, error) {
 			destination = &preferences.DeepSeek
 		case "claude":
 			destination = &preferences.Claude
+		case "zcode":
+			destination = &preferences.ZCode
 		default:
 			return Preferences{}, fmt.Errorf("unknown top-level field %q", name)
 		}

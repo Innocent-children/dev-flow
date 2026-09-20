@@ -8,9 +8,15 @@ import (
 )
 
 func TestLoadMissingAndValidConfiguration(t *testing.T) {
+	t.Run("ZCode preference remains independent", func(t *testing.T) {
+		preferences, err := Load(writeConfig(t, `{"zcode":{"codebase_memory":true}}`))
+		if err != nil || !preferences.ZCode.CodebaseMemory || preferences.Codex.CodebaseMemory || preferences.DeepSeek.CodebaseMemory || preferences.Claude.CodebaseMemory {
+			t.Fatalf("preferences=%#v err=%v", preferences, err)
+		}
+	})
 	t.Run("Claude preference remains independent", func(t *testing.T) {
 		preferences, err := Load(writeConfig(t, `{"claude":{"codebase_memory":true}}`))
-		if err != nil || !preferences.Claude.CodebaseMemory || preferences.Codex.CodebaseMemory || preferences.DeepSeek.CodebaseMemory {
+		if err != nil || !preferences.Claude.CodebaseMemory || preferences.Codex.CodebaseMemory || preferences.DeepSeek.CodebaseMemory || preferences.ZCode.CodebaseMemory {
 			t.Fatalf("preferences=%#v err=%v", preferences, err)
 		}
 	})

@@ -10,7 +10,15 @@ import (
 )
 
 func TestStrictCodecAndRestart(t *testing.T) {
+	for _, host := range []domain.Host{domain.HostCodex, domain.HostZCode} {
+		t.Run(string(host), func(t *testing.T) { testStrictCodecAndRestart(t, host) })
+	}
+}
+
+func testStrictCodecAndRestart(t *testing.T, host domain.Host) {
+	t.Helper()
 	task := multiRepositoryGraphTask(t)
+	task.OriginHost = host
 	task.Requirements = &domain.RequirementsBaseline{Revision: 1, Digest: task.Process.DefinitionDigest, Goal: "Graph storage", AcceptanceCriteria: []string{"Restart exactly"}, CreatedAt: task.CreatedAt}
 	raw, err := encodeTask(task)
 	if err != nil {
@@ -57,6 +65,10 @@ func TestStrictCodecAndRestart(t *testing.T) {
 	}
 	if !reflect.DeepEqual(mutation.Task, reopened) {
 		t.Fatal("restart changed task/action")
+	}
+	claimed, err := store.LoadActiveTask(context.Background(), task.Repository.WorktreeInstanceDigest)
+	if err != nil || claimed.TaskID != task.TaskID || claimed.OriginHost != host {
+		t.Fatalf("restart lost the original Host claim: task=%+v err=%v", claimed, err)
 	}
 	beforeDigest, err := mutation.Task.EffectiveRepositoryBindingDigest()
 	if err != nil {

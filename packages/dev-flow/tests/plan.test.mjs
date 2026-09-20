@@ -91,6 +91,8 @@ function observed({ codexState = "absent", codexVersion = null, codexPackageInst
   return {
     codex: { host: "codex", profile: null, state: codexState, packageInstalled: codexPackageInstalled, packageVersion: codexVersion, receipt: codexState !== "absent" },
     deepseek: [{ host: "deepseek", profile: "web", state: deepseekState, packageVersion: deepseekState === "ready" ? "1.2.3" : null, receipt: deepseekState !== "absent" ? {} : null }],
+    claude: { host: "claude", profile: null, state: "absent", packageInstalled: false, packageVersion: null, receipt: false },
+    zcode: { host: "zcode", profile: null, state: "absent", packageInstalled: false, packageVersion: null, receipt: false },
     knownDeepSeekProfiles: known,
     resources: {
       configuration: { label: "configuration", path: "/tmp/config", exists: false, identity: null },

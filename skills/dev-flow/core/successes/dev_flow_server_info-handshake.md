@@ -33,6 +33,9 @@ Complete response:
       },
       "claude": {
         "codebase_memory": false
+      },
+      "zcode": {
+        "codebase_memory": false
       }
     },
     "method_profiles": [
@@ -44,7 +47,8 @@ Complete response:
     "supported_hosts": [
       "codex",
       "deepseek",
-      "claude"
+      "claude",
+      "zcode"
     ],
     "supported_processes": [
       {
@@ -73,7 +77,7 @@ Complete response:
       "dev_flow_abandon_task"
     ],
     "transport": "stdio",
-    "version": "0.17.1"
+    "version": "0.18.0"
   },
   "tool": "dev_flow_server_info"
 }

@@ -53,6 +53,17 @@ The 2026-09-20 responsibility and recovery changes passed targeted source checks
 
 The Adapter requires Node.js `>=24` and Claude Code `>=2.1.270`. See the [Claude guide](CLAUDE_en.md) for installation and [verification records](PROJECT-STATUS_en.md) for dates, check entry points and other limits. An independent Core handshake does not establish that a model invoked plugin tools.
 
+### ZCode
+
+The ZCode Adapter is available through source or local development packages and is absent from the current stable release list. It requires Node.js `>=24`, Git and ZCode with native plugins, Skills, MCP and Hooks.
+
+| Platform | Current implementation target | Verification boundary |
+| --- | --- | --- |
+| Windows x64 | Self-contained plugin, packaged Core, unified lifecycle, Write/Edit Hook and workspace operations | Automated package checks, actual ZCode UI and authenticated model sessions are recorded separately and cannot substitute for one another |
+| macOS arm64 | The same plugin with the corresponding Core and macOS path/process implementations | Native macOS validation was not performed for this adaptation; cross-builds and static checks do not establish native acceptance |
+
+Successful local preparation still returns `action_required`. Follow the returned steps for ZCode installation, enablement, cache refresh and removal; there is no automatic Host-readiness claim. See the [ZCode guide](ZCODE_en.md) for installation and two-stage removal, and [project status](PROJECT-STATUS_en.md) for actual results and the remaining native acceptance checklist.
+
 ## Not currently supported
 
 There is no public support claim for Linux, Windows Server, 32-bit Windows, Windows ARM64, Intel Mac,

@@ -18,16 +18,17 @@ import { hostCommandFiles } from "./sync-host-commands.mjs";
 
 const execFile = promisify(execFileCallback);
 
-test("Codex and Claude source-only command archives regenerate stale copies from shared sources", async t => {
+test("Host source-only command archives regenerate stale copies from shared sources", async t => {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-command-staging-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = join(root, "source");
   const outputRoot = join(root, "artifacts");
   await mkdir(outputRoot);
   await mkdir(join(source, "skills/dev-flow/core"), { recursive: true });
+  await writeFile(join(source, "skills/dev-flow/core/example.md"), 'Packaged Host: {{host}}\n');
   await cp(fileURLToPath(new URL("../packages/host-command", import.meta.url)), join(source, "packages/host-command"), { recursive: true });
   await writeFile(join(source, "LICENSE"), "Source-only staging fixture\n");
-  for (const product of ["codex", "claude"]) {
+  for (const product of ["codex", "claude", "zcode"]) {
     const packageRoot = join(source, "packages", product);
     for (const path of hostCommandFiles) {
       const staleCopy = join(packageRoot, "lib", path);
@@ -35,7 +36,11 @@ test("Codex and Claude source-only command archives regenerate stale copies from
       await writeFile(staleCopy, "throw new Error('stale package copy');\n");
     }
     // This fixture tests source assembly and detached imports, not bundled Core runtimes.
-    const manifest = { name: `dev-flow-${product}`, version: "0.0.0", files: ["LICENSE", ...hostCommandFiles.map(path => `lib/${path}`)] };
+    const skillDirectory = product === "zcode" ? "skills/dev-flow" : "plugin/skills/dev-flow";
+    const reference = `${skillDirectory}/references/example.md`;
+    await mkdir(dirname(join(packageRoot, reference)), { recursive: true });
+    await writeFile(join(packageRoot, reference), "stale reference\n");
+    const manifest = { name: `dev-flow-${product}`, version: "0.0.0", files: ["LICENSE", reference, ...hostCommandFiles.map(path => `lib/${path}`)] };
     await writeFile(join(packageRoot, "package.json"), JSON.stringify(manifest));
     await writeFile(join(packageRoot, "README.md"), "Source-only command archive fixture\n");
     const artifact = await stageAndPack(product, {
@@ -44,6 +49,7 @@ test("Codex and Claude source-only command archives regenerate stale copies from
     const extracted = join(root, `${product}-extracted`);
     await mkdir(extracted);
     await execFile("tar", ["-xzf", artifact.path, "-C", extracted]);
+    assert.match(await readFile(join(extracted, "package", reference), "utf8"), new RegExp(`Packaged Host: ${product}`));
     for (const path of hostCommandFiles) {
       const shared = (await readFile(join(source, "packages/host-command", path), "utf8")).replace(/\r\n?/gu, "\n");
       assert.equal(await readFile(join(extracted, "package/lib", path), "utf8"), `// Generated from packages/host-command/${path}; edit the shared source.\n${shared}`);

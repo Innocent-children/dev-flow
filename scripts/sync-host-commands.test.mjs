@@ -8,7 +8,7 @@ import { checkHostCommands, hostCommandFiles, writeHostCommands } from "./sync-h
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 
-test("Codex and Claude command copies match their maintained source", async () => {
+test("Codex, Claude and ZCode command copies match their maintained source", async () => {
   await checkHostCommands();
 });
 
@@ -16,7 +16,7 @@ test("command copy checks tolerate checkout line endings and reject drift withou
   const root = await mkdtemp(join(tmpdir(), "dev-flow-command-copies-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await cp(join(repositoryRoot, "packages/host-command"), join(root, "packages/host-command"), { recursive: true });
-  for (const host of ["codex", "claude"]) {
+  for (const host of ["codex", "claude", "zcode"]) {
     await writeHostCommands({ root, destination: join(root, "packages", host, "lib") });
   }
   const copy = join(root, "packages/claude/lib/command.mjs");

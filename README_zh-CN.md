@@ -12,7 +12,7 @@
 
 ## Dev Flow 能帮你做什么
 
-Dev Flow 帮助你在 Codex、DeepSeek 或 Claude Code 中管理长时间运行的 AI 编程任务。它在本机保存已确定的
+Dev Flow 帮助你在 Codex、DeepSeek、Claude Code 或 ZCode 中管理长时间运行的 AI 编程任务。它在本机保存已确定的
 需求、文件范围、验证计划、进度和结果，方便会话中断后继续工作。
 
 - **明确改动范围：** 记录预计修改的文件，并按计划检查实际改动。
@@ -21,7 +21,7 @@ Dev Flow 帮助你在 Codex、DeepSeek 或 Claude Code 中管理长时间运行�
 - **查看结果：** 查看当前进度、检查结果，以及任务需要处理的问题。
 
 适合跨会话、需要明确文件范围和测试投入的仓库任务。一次性问答、代码解释和不需要保存进度的
-小型修改，直接使用 Codex、DeepSeek 或 Claude Code 通常更简单。
+小型修改，直接使用 Codex、DeepSeek、Claude Code 或 ZCode 通常更简单。
 
 ## 快速开始
 
@@ -31,12 +31,16 @@ Dev Flow 帮助你在 Codex、DeepSeek 或 Claude Code 中管理长时间运行�
 
 下方公开安装入口用于已发布的 Codex、DeepSeek 集成。Claude Code 请按[源码安装指南](docs/CLAUDE.md)操作；旧版公开 CLI 不会安装仅在源码中提供的 Adapter。
 
+ZCode 同样使用[源码安装指南](docs/ZCODE.md)。本地包面向 Windows x64 与 macOS arm64，macOS 的 ZCode 实机验证待后续完成。
+
 ```sh
 npm install -g @imotong/dev-flow@latest
 dev-flow
 ```
 
 在所用安装入口中选择对应 Host。Codex 安装后在 `/hooks` 中检查并信任 Dev Flow hook；DeepSeek 重启所选 Profile；Claude Code 重载插件或开始新会话，并按提示审阅权限。
+
+ZCode 需在 Settings → Plugins 中完成插件安装和启用，再开始新会话使 Hook 生效。本地包准备完成不代表 ZCode 已加载插件。
 
 ### 2. 启动任务
 
@@ -58,6 +62,14 @@ $dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件�
 
 ```text
 /dev-flow-claude:dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
+```
+
+**ZCode**
+
+在输入框的 `/` → Skills 中选择 `dev-flow`，再描述任务。
+
+```text
+使用 Dev Flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
 ```
 
 这些消息发送到对话中，不在终端执行。尽量写清目标、验收条件、文件范围和测试上限。
@@ -83,6 +95,8 @@ $dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件�
 
 Claude 用户应回到原工作目录和会话，使用 `/dev-flow-claude:dev-flow` 明确继续已保存的任务。
 
+ZCode 用户应重新打开原工作目录，选择 Dev Flow Skill 并请求继续已保存的任务；准备新目录时按返回的工作区打开说明接续。
+
 下列命令使用已安装的全局管理器；源码体验请使用指南中的对应入口。
 
 ```bash
@@ -97,7 +111,7 @@ dev-flow webui start
 
 ## 桌面宠物
 
-宠物需要已配置的 Adapter 和已安装的桌面应用。仅安装 Claude Adapter 不会安装桌面应用。
+宠物需要已配置的 Adapter 和已安装的桌面应用。仅安装 Adapter 不会安装桌面应用。
 
 桌面宠物通过叠加气泡展示多个任务，并可分别打开对应 WebUI。它优先展示受阻任务，当前任务完成后自动关注其他未完成任务，也支持固定关注。你可以自定义形象、控制动画、调整大小，以及独立启动或停止宠物。
 
@@ -117,7 +131,7 @@ dev-flow pet stop
 
 ## 文档
 
-- **使用说明：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [Claude Code](docs/CLAUDE.md) · [命令参考](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)
+- **使用说明：** [Codex](packages/codex/README.md) · [DeepSeek](packages/deepseek/README.md) · [Claude Code](docs/CLAUDE.md) · [ZCode](docs/ZCODE.md) · [命令参考](docs/COMMANDS.md) · [Control Center](docs/WEBUI.md)
 - **项目资料：** [产品定义](docs/PRODUCT.md) · [支持矩阵](docs/SUPPORT-MATRIX.md) · [安全策略](SECURITY.md)
 - **开发与贡献：** [文档目录](MANIFEST.md) · [贡献指南](CONTRIBUTING_zh-CN.md)
 

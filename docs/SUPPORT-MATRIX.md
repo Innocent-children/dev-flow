@@ -50,6 +50,17 @@ Windows 原生记录对应 2026-09-14 产物；2026-09-19 的统一管理器维�
 
 Adapter 要求 Node.js `>=24` 和 Claude Code `>=2.1.270`。安装方法见 [Claude 指南](CLAUDE.md)，日期、检查入口及其他限制见[验证记录](PROJECT-STATUS.md)。独立 Core 握手不等于模型已经调用插件工具。
 
+### ZCode
+
+ZCode Adapter 通过源码或本地开发包提供，不在当前稳定发布清单中。要求 Node.js `>=24`、Git 和具备原生插件、Skills、MCP、Hooks 的 ZCode。
+
+| 平台 | 当前实现目标 | 验证边界 |
+| --- | --- | --- |
+| Windows x64 | 自包含插件、包内 Core、统一生命周期、Write/Edit Hook 和工作区操作 | 自动包级检查与真实 ZCode UI、已认证模型会话分别记录；不能互相替代 |
+| macOS arm64 | 同一插件及对应 Core、macOS 路径和进程实现 | 本次未做 macOS 实机验证；交叉构建或静态检查不代表原生验收 |
+
+本地准备成功仍返回 `action_required`，ZCode 中的安装、启用、缓存刷新及移除需按返回步骤完成；没有自动 Host 就绪声明。安装和两阶段移除见 [ZCode 指南](ZCODE.md)，实际结果与后续原生验收清单见[项目状态](PROJECT-STATUS.md)。
+
 ## 尚未声明支持
 
 当前没有 Linux、Windows Server、Windows 32 位、Windows ARM64、Intel Mac、Rosetta 或 remote MCP
