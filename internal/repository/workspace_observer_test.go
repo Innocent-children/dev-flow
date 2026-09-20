@@ -130,7 +130,7 @@ func TestWorkspaceObserverGitlinkDigestTracksStagedObjectID(t *testing.T) {
 	root := t.TempDir()
 	remote := filepath.Join(root, "module.git")
 	source := filepath.Join(root, "module-source")
-	runObserverGit(t, "", "init", "--bare", remote)
+	runObserverGit(t, "", "init", "--bare", "--initial-branch=main", remote)
 	runObserverGit(t, "", "clone", remote, source)
 	runObserverGit(t, source, "switch", "-c", "main")
 	if err := os.WriteFile(filepath.Join(source, "module.txt"), []byte("one\n"), 0o644); err != nil {
@@ -299,7 +299,7 @@ func TestWorkspaceObserverRejectsDirtySubmoduleAndUnstableSecondPass(t *testing.
 	root := t.TempDir()
 	remote := filepath.Join(root, "dirty.git")
 	source := filepath.Join(root, "dirty-source")
-	runObserverGit(t, "", "init", "--bare", remote)
+	runObserverGit(t, "", "init", "--bare", "--initial-branch=main", remote)
 	runObserverGit(t, "", "clone", remote, source)
 	runObserverGit(t, source, "switch", "-c", "main")
 	if err := os.WriteFile(filepath.Join(source, "file.txt"), []byte("base\n"), 0o644); err != nil {
@@ -330,7 +330,7 @@ func provisionObserverWorktree(t *testing.T) (string, string, WorkspaceOriginSel
 	remote := filepath.Join(root, "remote.git")
 	source := filepath.Join(root, "source")
 	worktree := filepath.Join(root, "task")
-	runObserverGit(t, "", "init", "--bare", remote)
+	runObserverGit(t, "", "init", "--bare", "--initial-branch=main", remote)
 	runObserverGit(t, "", "clone", remote, source)
 	runObserverGit(t, source, "switch", "-c", "main")
 	if err := os.WriteFile(filepath.Join(source, "tracked.txt"), []byte("initial\n"), 0o644); err != nil {

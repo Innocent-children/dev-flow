@@ -46,6 +46,46 @@ func TestSkillSuccessExamplesMatchExecution(t *testing.T) {
 	}
 }
 
+func TestSkillSuccessExampleLineEndings(t *testing.T) {
+	t.Setenv("DEV_FLOW_UPDATE_SKILL_EXAMPLES", "")
+	scenario := newSkillScenario(t, "codex", readSkillExamples(t, "codex"))
+	example := scenario.example("handshake")
+	input := scenario.bind(example)
+	output := scenario.server.dispatch(context.Background(), example.Tool, "request-success-example", input)
+	if output.IsError {
+		t.Fatalf("documented call failed: %s", output.JSON)
+	}
+	normalizedInput, normalizedOutput := normalizeSkillExecution(input, output.JSON, scenario.task)
+	guide, err := os.ReadFile(example.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := example.Tool + "-" + example.Name + ".md"
+	success, err := os.ReadFile(filepath.Join(filepath.Dir(example.Path), "successes", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ending := range []struct{ name, value string }{{"LF", "\n"}, {"CRLF", "\r\n"}} {
+		t.Run(ending.name, func(t *testing.T) {
+			root := t.TempDir()
+			fixture := example
+			fixture.Path = filepath.Join(root, filepath.Base(example.Path))
+			successPath := filepath.Join(root, "successes", name)
+			if err := os.MkdirAll(filepath.Dir(successPath), 0755); err != nil {
+				t.Fatal(err)
+			}
+			for path, contents := range map[string][]byte{fixture.Path: guide, successPath: success} {
+				text := strings.ReplaceAll(string(contents), "\r\n", "\n")
+				text = strings.ReplaceAll(text, "\n", ending.value)
+				if err := os.WriteFile(path, []byte(text), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			verifySkillSuccessFile(t, "codex", fixture, normalizedInput, normalizedOutput)
+		})
+	}
+}
+
 type skillScenario struct {
 	t           *testing.T
 	host        string
@@ -423,14 +463,15 @@ func verifySkillSuccessFile(t *testing.T, host string, e skillExample, input, ou
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocks := regexp.MustCompile("(?s)```json\\n(.*?)\\n```").FindAllSubmatch(contents, -1)
+	text := strings.ReplaceAll(string(contents), "\r\n", "\n")
+	blocks := regexp.MustCompile("(?s)```json\\n(.*?)\\n```").FindAllStringSubmatch(text, -1)
 	if len(blocks) != 2 {
 		t.Fatal("success file requires its resolved request and complete response")
 	}
 	for i, raw := range [][]byte{input, output} {
 		var got, want any
 		json.Unmarshal(raw, &got)
-		if err := json.Unmarshal(blocks[i][1], &want); err != nil {
+		if err := json.Unmarshal([]byte(blocks[i][1]), &want); err != nil {
 			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(got, want) {
