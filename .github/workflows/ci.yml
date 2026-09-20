@@ -111,12 +111,27 @@ jobs:
         shell: pwsh
         run: go test ./... -count=1
 
-      - name: Run Windows Node package suites
+      - name: Verify Windows CI failure propagation
+        shell: pwsh
+        run: node --test tests/ci_workflow.test.mjs
+
+      - name: Run Windows Codex package suite
         shell: pwsh
         run: |
           pnpm --dir packages/codex test
+          exit $LASTEXITCODE
+
+      - name: Run Windows DeepSeek package suite
+        shell: pwsh
+        run: |
           pnpm --dir packages/deepseek test
+          exit $LASTEXITCODE
+
+      - name: Run Windows lifecycle manager package suite
+        shell: pwsh
+        run: |
           pnpm --dir packages/dev-flow test
+          exit $LASTEXITCODE
 
       - name: Build the dual-runtime local packages on Windows
         shell: pwsh

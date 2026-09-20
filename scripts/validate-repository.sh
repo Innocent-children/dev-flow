@@ -363,6 +363,7 @@ run_step "Codex one-command release syntax" node --check scripts/release-codex.m
 run_step "DeepSeek one-command release syntax" node --check scripts/release-deepseek.mjs
 run_step "Dev Flow one-command release syntax" node --check scripts/release-dev-flow.mjs
 run_step "GitHub npm release workflow contract" node --test tests/release_workflow.test.mjs
+run_step "Windows package CI failure propagation contract" node --test tests/ci_workflow.test.mjs
 run_step "Fake release npm syntax" node --check packages/codex/tests/fixtures/fake-release-npm.mjs
 run_step "Fake release GitHub syntax" node --check packages/codex/tests/fixtures/fake-release-gh.mjs
 run_step "Codex worktree-first package and Host contracts" \

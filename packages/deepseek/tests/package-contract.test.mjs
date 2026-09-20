@@ -218,6 +218,18 @@ test("source checkout omits precompiled Core while preserving the final manifest
   assert.equal(packedFiles.some((path) => /(?:^|\/)(?:tests?|evidence|profiles?|data)(?:\/|$)/iu.test(path)), false);
 });
 
+for (const [name, ending] of [["LF", "\n"], ["CRLF", "\r\n"]]) {
+  test(`tar listing parser preserves exact filenames with ${name} endings`, () => {
+    const listing = [
+      "package/", "package/lib/", "package/z.mjs", "package/lib/file name.mjs",
+      "unexpected.txt", "package/ leading and trailing spaces ", "",
+    ].join(ending);
+    assert.deepEqual(tarListingFiles(listing), [
+      " leading and trailing spaces ", "lib/file name.mjs", "unexpected.txt", "z.mjs",
+    ]);
+  });
+}
+
 test("staged tarball contains and starts the current dual-platform Core", async (t) => {
   const outputDirectory = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-package-contract-")));
   const extractDirectory = join(outputDirectory, "extract");
@@ -236,12 +248,7 @@ test("staged tarball contains and starts the current dual-platform Core", async 
   assert.equal(await sha256(readFile(report.artifact_path)), report.artifact_sha256);
 
   const { stdout: listing } = await execFile("tar", ["-tzf", report.artifact_path], { encoding: "utf8" });
-  const packedFiles = listing
-    .trim()
-    .split("\n")
-    .filter((path) => path && !path.endsWith("/"))
-    .map((path) => path.replace(/^package\//u, ""))
-    .sort();
+  const packedFiles = tarListingFiles(listing);
   assert.deepEqual(packedFiles, expectedFinalPackedFiles);
 
   const modes = ustarEntryModes(gunzipSync(await readFile(report.artifact_path)));
@@ -333,6 +340,13 @@ async function runWithClosedInput(command, args, options, input = "", expectedEx
     });
     child.stdin.end(input);
   });
+}
+
+function tarListingFiles(listing) {
+  return listing.split(/\r?\n/u)
+    .filter((path) => path !== "" && !path.endsWith("/"))
+    .map((path) => path.replace(/^package\//u, ""))
+    .sort();
 }
 
 async function readJSON(path) {
