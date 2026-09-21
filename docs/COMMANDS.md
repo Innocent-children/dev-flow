@@ -69,16 +69,18 @@ Core 缺失时，仅在没有 WebUI runtime receipt 的情况下继续清理；�
 
 | 命令 | 目标版本与重复执行 |
 | --- | --- |
-| `install` | 默认保留已有版本，缺失项使用 `latest`；已就绪且版本相同则无需变更。 |
-| `upgrade` | 默认选择 `latest`；已是目标版本且就绪则无需变更。 |
-| `repair` | 默认修复当前版本；恢复损坏文件与同版本受管注册，健康状态无需变更。 |
+| `install` | 默认保留已有 Adapter 版本，缺失项使用 `latest`；已就绪且版本相同则不替换 Adapter。 |
+| `upgrade` | 默认选择 `latest`；已是目标版本且就绪则不替换 Adapter。 |
+| `repair` | 默认修复当前 Adapter 版本；恢复损坏文件与同版本受管注册，健康 Adapter 无需修复。 |
 | `reinstall` | 默认重新安装当前版本，每次都执行替换，保留配置与 Task 数据。 |
 | `uninstall` | 已移除的 Adapter 无需再次操作，保留配置与 Task 数据。 |
 | `factory-reset` | 完成清理后再次执行为空操作；有实际清理目标时仍须确认当前计划。 |
 
 显式 `--version` 选择目标版本；所有版本替换命令的降级均须 `--confirm-downgrade`，普通 `--yes` 不代替降级确认。本地开发分发包始终使用包内校验过的版本和制品，维护时替换包内内容。
 
-执行前展示操作、当前/目标版本、资源路径和数据处理方式。JSON 模式从不询问；需要确认时返回 `confirmation` 与可复制的 `next_step`。显式数据目录在任何 Adapter 移除前完成确认。清理目录按 canonical 路径、文件系统身份和权限绑定，允许关闭受管服务时移除运行记录；单文件清理还核对大小和修改时间。安装、升级、修复和重装仅维护 Adapter；公共入口本身通过 `npm install -g @imotong/dev-flow@latest` 更新。
+执行前展示操作、当前/目标版本、资源路径和数据处理方式。JSON 模式从不询问；需要确认时返回 `confirmation` 与可复制的 `next_step`。显式数据目录在任何 Adapter 移除前完成确认。清理目录按 canonical 路径、文件系统身份和权限绑定，允许关闭受管服务时移除运行记录；单文件清理还核对大小和修改时间。
+
+安装、升级、修复和重装维护 Adapter；当管理器包内包含当前平台的桌面宠物应用时，还会更新用户目录中的应用副本，保留设置与形象素材。即使 Adapter 已健康且无需替换，应用更新仍会执行。公共入口及其包内应用通过 `npm install -g @imotong/dev-flow@latest` 更新。
 
 `status` 保留未安装目标，返回 Host 可用性、Adapter/Core 版本及问题；`doctor` 另外列出安装与配置检查，检查失败返回非零退出码。选择全部 Host 时，已有健康 Adapter 的情况下，未安装的可选 Adapter 仅列为未安装，不算故障。Codex 自检失败时仍读取 npm 安装信息以支持修复；DeepSeek 同时检查 Profile contribution、受管记录与实际 Core。未受管的现有 DeepSeek contribution 必须通过 `--adopt` 明确接管。
 

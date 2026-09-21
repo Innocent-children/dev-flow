@@ -14,7 +14,7 @@ provide consistent process behavior.
 | `workflow` | `standard-development`, node rules, 32 transitions, TASKS planning and user confirmation, payloads, and invalidation |
 | `application` | Open/resume/read/submit/recover/relocate/cancel/abandon use cases and component coordination |
 | `store` | SQLite bootstrap, strict snapshot, CAS, events, claims, and read-only preflight |
-| `repository` | Read-only queries of dedicated-worktree identity, history, content, and task changes, with query limits |
+| `repository` | Read-only queries of bound working-directory identity, history, content, and task changes, with query limits; supports branch modes in the existing directory and dedicated worktrees |
 | `recovery` | Classification of operation results into five cases, retry advice, blockers, and resume |
 | `mcp` | Seventeen-tool local STDIO contract, Action-kind-specific submission schemas, and Result Envelope |
 | `webui` | Loopback HTTP adapter, embedded assets, session protection, shared runtime receipt, and lifecycle |

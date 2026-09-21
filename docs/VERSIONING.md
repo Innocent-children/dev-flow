@@ -26,7 +26,8 @@ receipts, build reports, release manifests, and publication records do not have 
 numbers. Current capabilities, allowed fields and tools, content digests, artifact digests, and
 runtime behavior define the supported interfaces and rules.
 
-The existing public release entry points use `core-vX.Y.Z`, `codex-vX.Y.Z`, or `deepseek-vX.Y.Z`. Historical unprefixed Tags
-remain frozen and are not used to determine current product versions.
+Product Tag prefixes are `core-vX.Y.Z`, `codex-vX.Y.Z`, `deepseek-vX.Y.Z` and `dev-flow-vX.Y.Z`.
+The current public release entrypoints publish Codex, DeepSeek and the CLI. Historical unprefixed
+Tags remain frozen and are not used to determine current product versions.
 
 Claude and ZCode local package metadata identify their Adapter versions. Neither establishes a public release channel; each publication requires its own approved release contract.

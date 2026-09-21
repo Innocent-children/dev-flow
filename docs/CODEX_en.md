@@ -33,6 +33,12 @@ After setup, use Codex `/hooks` to inspect and trust the packaged hook. Until th
 `apply_patch` prewrite check is inactive. See the [Command Reference](COMMANDS_en.md#codex) for the
 complete parser surface.
 
+A trusted hook blocks out-of-plan `apply_patch` writes before execution. Core offers `allow_once` for
+the exact write intent, `expand_scope` to return to TASKS and revise the plan, or `reject` to resume
+the original node and keep rejecting those out-of-plan paths for the current Task Plan revision.
+A prewrite rejection needs no file restoration because the write has not happened. If Core has
+already observed actual out-of-plan changes, restore those changes before choosing `reject`.
+
 When absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
 `%USERPROFILE%\.dev-flow\config.json` on Windows with `{}`, leaving preference defaults to Core. Existing configuration passes path, file-type and permission checks before its content is validated by the packaged Core. Valid configuration remains unchanged, including DeepSeek and Claude settings. Default Task data is
 `$HOME/.dev-flow/data` or `%LOCALAPPDATA%\dev-flow\data`.
@@ -166,7 +172,7 @@ See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_
 
 ## Desktop task entry
 
-The desktop pet uses a local development package for macOS arm64 or Windows 10/11 x64 and reads the saved Task state from the configured Adapter’s Core. It opens the selected Task in WebUI; it does not indicate live Host activity or completion percentages. Regular npm packages omit the macOS native app. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, controls, updates and appearances.
+The public `@imotong/dev-flow` npm package includes desktop pet apps for macOS arm64 and Windows 10/11 x64. A configured Adapter supplies Core at runtime. The pet reads saved Task state and opens the selected Task in WebUI; it does not indicate live Host activity or completion percentages. The manager's install, upgrade, repair and reinstall operations refresh the application copy in the user directory while preserving settings and appearance assets. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, controls, updates and appearances.
 
 ## Completion and recovery
 

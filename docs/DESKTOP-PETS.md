@@ -376,6 +376,7 @@ Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Cod
 | `swift test --package-path packages/desktop-pet/macos --filter 'PetMotionTests\|PetAnimationTimelineTests\|AnimationAndBubbleTests\|PetTaskCollectionTests\|PetActivityTests'` | macOS；原生窗口的动画反向、中断、屏幕约束、滚动与按钮命中，以及逐帧时间线与活动规则；窗口检查使用构造的任务数据 |
 | `swift test --package-path packages/desktop-pet/macos --filter TaskObserverTests` | macOS；使用模拟 Core/HTTP 检查多任务发现、固定关注、自动交接与迟到响应处理 |
 | `swift test --package-path packages/desktop-pet/macos --filter PetAppearanceTests` | macOS；静态、原生和 Codex 素材导入保留支持的帧与时长，失败时保留已安装形象 |
+| `node --test packages/desktop-pet/windows/tests/contracts.test.cjs` | Node.js；检查 Windows 素材加载与导入的帧数和时长限制，超限重导入保留已安装形象；不运行 Windows 原生窗口 |
 | `node --test packages/desktop-pet/windows/tests/task-selection.test.cjs` | 模拟 Electron、偏好与 HTTP，检查任务发现和选择规则 |
 | `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` | 模拟 DOM、IPC 与时钟，检查轮询保留动画、缩放取消散步及后续正常调度 |
 | `node --test scripts/desktop-pet-artwork.test.mjs` | 检查默认素材复制与内容变化后的拒绝 |

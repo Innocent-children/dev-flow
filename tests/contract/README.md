@@ -9,10 +9,10 @@
 - `mcp_contract_test.go`：固定的十七个 MCP 工具、Action 提交的步骤结果字段、工作树/迁移/放弃字段、
   Recovery、ServerInfo 和存储标识；
 - `result_envelope_test.go`：返回结构、固定公开错误、允许的返回字段和敏感信息隐藏；
-- `graph_contract_test.go`：`standard-development` 节点、30 条转换、转换条件、原因、问题分类和方法配置；
+- `graph_contract_test.go`：MCP 工具数量、流程图 JSON 样例可解析、需求提交的 `method_results` 字段，以及拒绝 `get_task` 的额外输入字段；
 - `current_storage_contract_test.go`：新存储初始化、快照校验、只接受当前运行格式、不支持时停止、
   启停时保留数据，以及隐藏私有路径；
-- `platform_boundary_test.go`：Core 的任务规则不判断操作系统；三个安装包的系统差异各自实现；
+- `platform_boundary_test.go`：Core 的任务规则不判断操作系统；Codex、DeepSeek、Claude、ZCode 和统一管理器的系统差异各自实现；
   两个平台的可执行文件都来自统一构建目录；
 - `fixture_contract_test.go`：当前 Core 流程图样例，以及不同 Host 返回同一 Core 标识；
 - `repository_root_test.go`：仓库目录、安装包清单、脚本和允许执行的文件；

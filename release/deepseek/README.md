@@ -18,7 +18,7 @@ pnpm run release:deepseek -- \
 ```
 
 The default `stable` channel accepts `MAJOR.MINOR.PATCH`, requires clean synchronized `main`, and
-synchronizes maintained public release-version descriptions. The `beta` channel accepts only
+updates machine-readable public-version metadata. The `beta` channel accepts only
 `MAJOR.MINOR.PATCH-beta.N`, permits any clean named branch, pushes the version commit to that branch,
 keeps stable public identities unchanged, publishes npm with dist-tag `beta`, and marks the GitHub
 Release as a prerelease. Both channels commit `release(deepseek): v<DEEPSEEK_VERSION>` and use Tag

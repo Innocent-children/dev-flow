@@ -40,7 +40,7 @@ The following capabilities exist in the current source; some may be beta-only or
 | Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
 | Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop` |
 | Current-source platforms | Exact `darwin-arm64` and `win32-x64` runtimes; Windows scope is Windows 10/11 desktop x64 |
-| Advanced repository capability | One primary plus up to seven explicit additional repositories; every root must first be isolated and authorized; same-machine relocation atomically replaces bindings and claims |
+| Advanced repository capability | One primary plus up to seven explicit additional repositories; every root must be prepared under its confirmed workspace mode, authorized, and verified before Task creation; same-machine relocation is available when all repositories use dedicated worktrees and atomically replaces bindings and claims |
 | Host lifecycle | Unified `dev-flow` entry for Codex, DeepSeek, Claude Code and ZCode installation, diagnosis, maintenance, and removal; ZCode retains required UI actions |
 
 Multi-repository and worktree behavior is advanced capability, not the primary user scenario. Source

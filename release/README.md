@@ -25,8 +25,9 @@ the Publisher verifies and uploads both standalone Core assets.
 配置为允许 `npm publish` 的 GitHub Actions Trusted Publisher；工作流通过 OIDC 获取短期 npm 发布凭据，
 并使用安装到当前仓库、加入 `main` ruleset bypass list 的专用 GitHub App 短期 token 提交版本、
 创建 Tag 和维护 Release。仓库变量 `RELEASE_APP_CLIENT_ID` 保存 App Client ID，仓库 secret
-`RELEASE_APP_PRIVATE_KEY` 保存完整 PEM 私钥。工作流固定运行在 `macos-15` ARM64 runner 上，并按
-产品串行执行；排队任务获得执行机会后从最新 `main` checkout，避免前一个发布任务推送版本提交后，
+`RELEASE_APP_PRIVATE_KEY` 保存完整 PEM 私钥。Codex/DeepSeek 使用 `macos-15` ARM64 runner，
+Dev Flow 桌面包使用带 Xcode 27 的 ARM64 `xcode-27` 预览镜像。所有产品共用发布队列串行执行；
+排队任务获得执行机会后从最新 `main` checkout，避免前一个发布任务推送版本提交后，
 后续任务仍基于触发时的旧提交发布。发布工具链固定为 Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，npm 发布只使用 Trusted Publishing OIDC，不生成依赖
 `NODE_AUTH_TOKEN` 的旧式 registry 认证配置。
 
@@ -43,11 +44,11 @@ pnpm run release:codex -- \
 ```
 
 `stable` is the default channel. It accepts `MAJOR.MINOR.PATCH`, requires clean `main` equal to
-`origin/main`, and synchronizes maintained public release-version descriptions from `CORE_VERSION`,
-package manifests, and `release/public-versions.json`.
+`origin/main`, and updates the selected package version and its entry in `release/public-versions.json`,
+including the bundled version read from `CORE_VERSION`. Release commands do not rewrite Markdown.
 
 `beta` accepts only `MAJOR.MINOR.PATCH-beta.N`. It may run from any clean named branch, pushes its
-version commit back to that branch, leaves stable public-version descriptions unchanged, publishes
+version commit back to that branch, leaves stable public-version metadata unchanged, publishes
 with npm dist-tag `beta`, and creates a GitHub prerelease.
 
 The publisher creates or reuses only matching Tag and GitHub Release state, publishes npm at most
@@ -69,7 +70,8 @@ summary names the exact npm package, links the immutable source commit and sourc
 installation/support documents, and points readers to `SHA256SUMS`. Codex and DeepSeek summaries also
 name their bundled Core version; the Host-neutral lifecycle CLI has no bundled Core and omits that
 sentence. A retry that finds an existing matching Release preserves that remote Release instead of
-rewriting its title or notes.
+rewriting its title or notes. Its prerelease status must match the selected channel; a mismatch stops
+publication before npm or Release changes.
 
 Registry byte verification retries the actual `npm pack <package>@<version>` read-back for up to ten
 minutes when npm returns `ETARGET` or `E404`. Metadata visibility alone is not treated as tarball
@@ -90,7 +92,7 @@ pnpm run release:deepseek -- \
 ```
 
 Its package, Tag, output directory, npm identity, GitHub state and DSH registry lifecycle test results
-are independent from Codex. Stable releases apply the same public-document synchronization; beta
+are independent from Codex. Stable releases update the same machine-readable public-version metadata; beta
 releases preserve stable public identities and use the isolated `beta`/prerelease channel. See
 [`deepseek/README.md`](deepseek/README.md).
 

@@ -6,12 +6,12 @@
 
 Dev Flow 保护的是**开发任务的过程状态**，不是包裹编程 Agent 的安全沙箱。
 
-Codex 或 DeepSeek Harness 仍然使用开发者授予的权限读取仓库、修改文件和运行命令；Go Core 负责
-保存唯一 Task 状态，并校验流转、仓库绑定、持久化和 Recovery 决策。
+Codex、DeepSeek Harness、Claude Code 或 ZCode 仍然使用开发者授予的权限读取仓库、修改文件和运行
+命令；Go Core 负责保存唯一 Task 状态，并校验流转、仓库绑定、持久化和 Recovery 决策。
 
 ```mermaid
 flowchart LR
-    U[开发者] --> H[Codex 或 DeepSeek]
+    U[开发者] --> H[Codex / DeepSeek / Claude Code / ZCode]
     H --> R[已授权仓库]
     H --> A[Dev Flow Adapter]
     A --> C[本地 Go Core]
@@ -34,7 +34,7 @@ flowchart LR
 | 参与者 | 责任 |
 | --- | --- |
 | 开发者 | 选择是否进入 Dev Flow；确认 source/base/target/carry、仓库和 Host 权限、理解结论、handoff、清理与发布操作 |
-| Codex / DeepSeek Harness | 真正读取文件、修改仓库和运行命令，使用开发者授予的较高权限 |
+| Codex / DeepSeek Harness / Claude Code / ZCode | 真正读取文件、修改仓库和运行命令，使用开发者授予的较高权限 |
 | Host Adapter | 只读评估请求；在确认后执行 fetch、branch、worktree、relaunch/handoff；在命令、完整套件、测试文件修改和复核前判断范围；按 Action、Scope、当前验证计划和 Recovery 调用 Core |
 | Go Core | 只读观察 Git，保存唯一流程状态，计算 Task surface，并校验 revision、workspace、只允许约定字段的 payload、流转和持久化 |
 | 仓库内容 | 视为不可信输入，可能包含 prompt injection、危险脚本、symlink 或恶意文件名 |

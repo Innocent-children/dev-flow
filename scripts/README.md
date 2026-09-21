@@ -79,8 +79,8 @@ Node.js、npm 和 pnpm；不要求 Bash 来启动这个入口。
 `Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
 Trusted Publisher；运行时只选择产品、channel 和目标版本。工作流使用固定的发布检查，通过 OIDC
 获取短期 npm 发布凭据，使用
-ARM64 runner（Codex/DeepSeek 使用 `macos-15`，Dev Flow 桌面包使用带 Xcode 27 的 `xcode-27` 预览镜像）、Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，按产品串行执行，并交叉构建、
-校验 macOS arm64 与 Windows amd64 Core 后调用下列现有入口。发布 runner 的操作系统只是构建基础设施，
+ARM64 runner（Codex/DeepSeek 使用 `macos-15`，Dev Flow 桌面包使用带 Xcode 27 的 `xcode-27` 预览镜像）、Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，所有产品共用发布队列串行执行，
+再调用下列入口。Codex/DeepSeek 制备交叉构建并校验两个平台的 Core；CLI 制备包含两个平台的桌面应用。发布 runner 的操作系统只是构建基础设施，
 不缩小构建产物运行时范围。npm 发布不创建依赖 `NODE_AUTH_TOKEN` 的 registry 认证配置。
 版本提交、Tag 和 GitHub Release 使用安装到当前仓库、加入 `main` ruleset bypass list 的专用
 GitHub App 短期 token；仓库变量 `RELEASE_APP_CLIENT_ID` 和 secret `RELEASE_APP_PRIVATE_KEY`
@@ -102,17 +102,25 @@ pnpm run release:deepseek -- \
   --confirm "deepseek-v<DEEPSEEK_VERSION>"
 ```
 
-`stable` 为默认 channel，只接受稳定 SemVer，并要求 `main` 与 `origin/main` 一致。`beta` 只接受
+```bash
+pnpm run release:dev-flow -- \
+  --version "<DEV_FLOW_VERSION>" \
+  --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "dev-flow-v<DEV_FLOW_VERSION>"
+```
+
+Codex/DeepSeek 默认使用 `stable` channel，只接受稳定 SemVer，并要求 `main` 与 `origin/main` 一致。`beta` 只接受
 `MAJOR.MINOR.PATCH-beta.N`，允许任意干净的命名分支，version commit 推回当前分支；npm 固定使用
 `beta` dist-tag，GitHub Release 固定为 prerelease，稳定版 `latest` 保持不变。
+已有 GitHub Release 的 prerelease 属性必须与所选 channel 一致，否则停止发布。CLI 只支持 stable，并要求干净且同步的 `main`。
 
-两个一键发布命令只更新 package manifest、Plugin mirror 和 `release/public-versions.json` 等机器
-可读版本文件，不读取或改写 Markdown。
+Codex/DeepSeek 发布命令只更新 package manifest、Plugin mirror 和 `release/public-versions.json` 等机器
+可读版本文件；CLI 只更新 `packages/dev-flow/package.json`。发布命令不读取或改写 Markdown。
 
 发布命令使用一套固定检查。只有上述 exact-confirmation 入口可以修改产品版本、commit/push、Tag、
 npm、GitHub Release 与 assets。
 
-两个 channel 共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 绑定 source、
+三个产品共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 绑定 source、
 版本和安装包摘要；重跑时回读并复用匹配的远端状态。
 Publisher 最多等待十分钟并重试真正的 `npm pack <package>@<version>` tarball 下载与内容核对；只对
 `ETARGET`、`E404` 这类 registry 传播延迟继续等待，认证失败和字节不一致立即停止。

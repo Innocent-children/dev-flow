@@ -123,25 +123,30 @@ function validateCatalog(value) {
     required.some((k) => !clips[k])
   )
     throw new Error("Incomplete animation catalog");
+  let frameCount = 0;
   for (const [name, clip] of Object.entries(clips)) {
     if (
       ![...required, ...optional].includes(name) ||
       !Array.isArray(clip.frames) ||
       !clip.frames.length ||
       !Number.isFinite(clip.fps) ||
-      clip.fps <= 0 ||
+      clip.fps < 0.1 ||
+      clip.fps > 120 ||
       !Number.isInteger(clip.rest_frame) ||
       clip.rest_frame < 0 ||
       clip.rest_frame >= clip.frames.length
     )
       throw new Error("Invalid animation clip");
+    frameCount += clip.frames.length;
+    if (frameCount > 512)
+      throw new Error("Animation catalog exceeds 512 frame references");
     if (canvas.width * canvas.height * 4 * clip.frames.length > 128 * MiB)
       throw new Error("Decoded animation exceeds 128 MiB");
     if (
       clip.frame_durations_ms &&
       (clip.frame_durations_ms.length !== clip.frames.length ||
         clip.frame_durations_ms.some(
-          (t) => !Number.isInteger(t) || t <= 0 || t > 60000,
+          (t) => !Number.isInteger(t) || t < 9 || t > 60000,
         ))
     )
       throw new Error("Invalid frame durations");

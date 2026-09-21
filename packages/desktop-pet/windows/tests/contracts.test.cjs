@@ -155,6 +155,57 @@ test("SVG external content, unsafe paths and failed reimport preserve installed 
     svgSize(Buffer.from(svg.replace("<rect", '<use href="file:///C:/x"'))),
   );
 });
+test("native appearance imports enforce timing and total frame limits before replacement", async (t) => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dev-flow-pet-limits-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const source = path.join(root, "source");
+  await fs.mkdir(path.join(source, "Assets"), { recursive: true });
+  await fs.writeFile(
+    path.join(source, "pet.json"),
+    JSON.stringify({ id: "limits", name: "Animation limits" }),
+  );
+  await fs.writeFile(
+    path.join(source, "Assets/frame.svg"),
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="#ff9900"/></svg>',
+  );
+  const catalog = {
+    canvas: { width: 1, height: 1 },
+    anchor: { x: 0, y: 1 },
+    clips: Object.fromEntries(
+      ["idle", "working", "blocked", "complete", "disconnected"].map((clip) => [
+        clip,
+        {
+          frames: Array(clip === "idle" ? 508 : 1).fill("frame.svg"),
+          fps: clip === "idle" ? 0.1 : 120,
+          loop_range: clip === "complete" ? null : [0, 0],
+          rest_frame: 0,
+        },
+      ]),
+    ),
+  };
+  catalog.clips.working.frame_durations_ms = [9];
+  catalog.clips.complete.frame_durations_ms = [60000];
+  const manifest = path.join(source, "animations.json");
+  await fs.writeFile(manifest, JSON.stringify(catalog));
+  const store = new AppearanceStore(path.join(root, "installed"), bundled);
+  const installed = await store.import(source);
+  assert.deepEqual(installed.catalog, catalog);
+
+  for (const [label, mutate, error] of [
+    ["fps below 0.1", (value) => { value.clips.idle.fps = 0.09; }, /animation clip/],
+    ["fps above 120", (value) => { value.clips.idle.fps = 120.1; }, /animation clip/],
+    ["duration below 9 ms", (value) => { value.clips.working.frame_durations_ms = [8]; }, /frame durations/],
+    ["duration above 60000 ms", (value) => { value.clips.complete.frame_durations_ms = [60001]; }, /frame durations/],
+    ["513 total frame references", (value) => { value.clips.idle.frames.push("frame.svg"); }, /512 frame references/],
+  ]) {
+    const invalid = structuredClone(catalog);
+    mutate(invalid);
+    await fs.writeFile(manifest, JSON.stringify(invalid));
+    await assert.rejects(store.import(source), error, label);
+    assert.deepEqual(await store.selected("limits"), installed, label);
+    assert.deepEqual(await fs.readdir(path.join(root, "installed")), ["limits"]);
+  }
+});
 test("concurrent preference updates keep independent selections and exact scale", async (t) => {
   const root = await fs.mkdtemp(
     path.join(os.tmpdir(), "dev-flow-pet-settings-"),

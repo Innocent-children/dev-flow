@@ -14,21 +14,25 @@
 增加登录失败次数限制。修改范围只限认证模块，只运行验证该行为所需的定向测试。
 ```
 
-Host 先只读检查候选实现、调用方、测试和 Git 状态，给出改动级别、已知影响面、未知项和建议，然后
-停止。此时没有 Core 调用、Task 或 Git 写入。开发者选择 Dev Flow 后，确认本地或远端来源、起始
-分支、新任务分支，以及本地内容是否携带。Host 固定起点，创建专属工作树并按选择复制内容，保留源
-checkout。只有目标工作树验证成功后，Core 才创建本地 Task，保存请求、范围、验收条件、WorkspaceOrigin
-和 method profile；此时尚未冻结最终验证预算。
+Host 先只读检查候选实现、调用方、测试和 Git 状态，给出改动级别、已知影响面、未知项和建议，等待
+尚未作出的流程选择。此时没有 Core 调用、Task 或 Git 写入。开发者选择 Dev Flow 后，默认从当前 HEAD
+在原目录新建任务分支，也可以明确选择使用当前分支。Host 展示实际目录、分支和未提交修改，取得尚缺的
+目标分支或初始修改选择，检查目录占用，再准备分支；被接受的初始修改保留原文件与暂存状态。
+
+开发者也可以明确选择独立工作树，再确认本地或远端来源、起始分支、新任务分支和本地内容是否携带。
+Host 固定起点，创建独立工作树并按选择复制内容，保留源 checkout。全部选定工作目录通过核验后，Core
+才创建本地 Task，保存请求、范围、验收条件、WorkspaceOrigin 和 method profile；此时尚未冻结最终验证预算。
 
 ## 2. 实现完成，进入测试
 
 Codex 在 TASKS 分析完需求、设计、影响和现有测试结构后，保存这项定向认证测试、选择它的理由、预计
-一条自动命令、不需要完整套件且不需要新测试文件。完成实现并进入 `TEST` 后，当前 Task 显示：
+一条自动命令、不需要完整套件且不需要新测试文件。开发者明确认可完整计划后开始实现。完成实现并进入
+`TEST` 后，当前 Task 显示：
 
 ```text
 Task: auth-rate-limit
 State: TEST
-Revision: 5
+Revision: 6
 Completed: implementation
 Remaining: targeted auth test
 ```
@@ -47,14 +51,14 @@ identity、history 和 content，再恢复当前节点、revision、范围和剩
 重启前
 Task: auth-rate-limit
 State: TEST
-Revision: 5
+Revision: 6
 Completed: implementation
 Remaining: targeted auth test
 
 重启后
 Task: auth-rate-limit
 State: TEST
-Revision: 5
+Revision: 6
 Next: run the remaining targeted auth test
 ```
 

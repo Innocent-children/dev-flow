@@ -38,7 +38,7 @@ npm `@latest` 当前选择以下稳定 package：
 | 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
 | 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop` |
 | 当前源码平台 | 精确支持 `darwin-arm64` 与 `win32-x64` runtime；Windows 范围是 Windows 10/11 桌面版 x64 |
-| 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；全部 roots 都必须先隔离和授权；同机 relocation 原子替换 bindings 与 claims |
+| 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；每个目录均按确认的工作区模式准备、授权并通过核验后才创建 Task；全部仓库采用独立工作树时支持同机 relocation，原子替换 bindings 与 claims |
 | Host 生命周期 | 统一 `dev-flow` 入口管理 Codex、DeepSeek、Claude Code 与 ZCode 的安装、诊断、维护和移除；ZCode 保留实际所需的 UI 操作 |
 
 多仓库与 worktree 是高级能力，不代表 Dev Flow 的主要用户场景。它们的源码存在也不表示已有对应

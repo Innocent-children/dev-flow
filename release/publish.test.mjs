@@ -116,6 +116,7 @@ for (const product of ["codex", "deepseek", "dev-flow"]) {
     const remote = fakeRemote(fixture);
     const result = await publishRelease({ ...fixture.selection, runProcess: remote.run });
     assert.equal(result.status, "complete");
+    assert.equal(remote.release.isPrerelease, false);
     assert.deepEqual([...remote.assets.keys()].sort(), [...fixture.files.keys()].sort());
     for (const [name, bytes] of fixture.files) assert.deepEqual(remote.assets.get(name), bytes);
     const completedCalls = remote.calls.length;
@@ -147,6 +148,42 @@ for (const product of ["codex", "deepseek", "dev-flow"]) {
     });
   });
 }
+
+for (const product of ["codex", "deepseek"]) {
+  test(`${product} beta publication and retry retain npm beta and GitHub prerelease state`, async t => {
+    const fixture = await releaseFixture(t, product, "0.7.8-beta.1"), remote = fakeRemote(fixture);
+    assert.equal((await publishRelease({ ...fixture.selection, runProcess: remote.run })).status, "complete");
+    assert.equal(remote.release.isPrerelease, true);
+    assert.equal(remote.release.isDraft, false);
+    assert.equal((await publishRelease({ ...fixture.selection, runProcess: remote.run })).status, "complete");
+    const publications = remote.calls.filter(call => call.command === "npm" && call.args[0] === "publish");
+    assert.equal(publications.length, 1);
+    assert.equal(publications[0].args[publications[0].args.indexOf("--tag") + 1], "beta");
+    const creations = remote.calls.filter(call => call.command === "gh" && call.args[1] === "create");
+    assert.equal(creations.length, 1);
+    assert.ok(creations[0].args.includes("--prerelease=true"));
+    assert.equal(remote.release.isPrerelease, true);
+  });
+}
+
+test("publisher rejects a conflicting prerelease status before npm publication or Release changes", async t => {
+  for (const releaseVersion of [version, "0.7.8-beta.1"]) for (const isDraft of [true, false]) {
+    await t.test(`${releaseVersion} ${isDraft ? "draft" : "published"}`, async t => {
+      const fixture = await releaseFixture(t, "codex", releaseVersion), remote = fakeRemote(fixture);
+      await publishRelease({ ...fixture.selection, runProcess: remote.run });
+      remote.release.isPrerelease = !remote.release.isPrerelease;
+      remote.release.isDraft = isDraft;
+      const previousCalls = remote.calls.length;
+      await assert.rejects(publishRelease({ ...fixture.selection, runProcess: remote.run }), /prerelease status mismatch/);
+      assert.deepEqual(remote.calls.slice(previousCalls).map(({ command, args }) => [command, ...args.slice(0, 2)]), [
+        ["git", "ls-remote", "--tags"],
+        ["gh", "release", "view"],
+      ]);
+      assert.equal(remote.release.isPrerelease, !releaseVersion.includes("-beta."));
+      assert.equal(remote.release.isDraft, isDraft);
+    });
+  }
+});
 
 test("publisher refuses a replaced Core before creating Tag or npm state", async t => {
   const fixture = await releaseFixture(t, "codex");
@@ -332,18 +369,18 @@ function npmError(code, stderr) {
   return error;
 }
 
-async function releaseFixture(t, product) {
+async function releaseFixture(t, product, releaseVersion = version) {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-publisher-artifacts-")), directory = join(root, "prepared");
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(directory);
   const sourceCommit = "a".repeat(40), coreVersion = "0.8.5", bundlesCore = product !== "dev-flow";
-  const tarballName = `${bundlesCore ? `dev-flow-${product}` : "imotong-dev-flow"}-${version}.tgz`;
+  const tarballName = `${bundlesCore ? `dev-flow-${product}` : "imotong-dev-flow"}-${releaseVersion}.tgz`;
   const names = [tarballName, ...(bundlesCore ? [`dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-core-${coreVersion}-windows-amd64.exe`] : [])];
   const files = new Map(names.map(name => [name, Buffer.from(`prepared ${name}\n`)]));
   const digest = bytes => createHash("sha256").update(bytes).digest("hex");
   const artifacts = names.map((name, index) => ({ kind: index === 0 ? "npm_tarball" : "core_binary", relative_path: name, sha256: digest(files.get(name)) }));
   const manifest = {
-    release: { product, version, source_commit: sourceCommit, ...(bundlesCore ? { core_version: coreVersion, source_tree: "b".repeat(40) } : {}) },
+    release: { product, version: releaseVersion, source_commit: sourceCommit, ...(bundlesCore ? { core_version: coreVersion, source_tree: "b".repeat(40) } : {}) },
     artifacts,
     ...(bundlesCore ? {} : { desktop_applications: { "darwin-arm64": { signing: "ad-hoc" }, "win32-x64": { signing: "unsigned" } } }),
   };
@@ -353,7 +390,7 @@ async function releaseFixture(t, product) {
   if (bundlesCore) sums.push(`${digest(manifestBytes)}  release-manifest.json`);
   files.set("SHA256SUMS", Buffer.from(sums.join("\n") + "\n"));
   for (const [name, bytes] of files) await writeFile(join(directory, name), bytes);
-  return { root, selection: { product, version, sourceCommit, directory }, manifest, files, tarball: join(directory, tarballName) };
+  return { root, selection: { product, version: releaseVersion, sourceCommit, directory }, manifest, files, tarball: join(directory, tarballName) };
 }
 
 function fakeRemote(fixture) {
@@ -369,7 +406,7 @@ function fakeRemote(fixture) {
     if (command === "npm") {
       if (args[0] === "view") {
         if (!npmBytes) throw new Error("version absent");
-        return JSON.stringify(version);
+        return JSON.stringify(fixture.selection.version);
       }
       if (args[0] === "publish") { npmBytes = await readFile(args[1]); return ""; }
       if (args[0] === "pack") {
@@ -382,18 +419,23 @@ function fakeRemote(fixture) {
     if (command === "gh" && args[0] === "release") {
       if (args[1] === "view") {
         if (!release) throw new Error("release absent");
-        return JSON.stringify({ ...release, assets: [...assets.keys()].map(name => ({ name })) });
+        const observed = { ...release, assets: [...assets.keys()].map(name => ({ name })) };
+        return JSON.stringify(Object.fromEntries(args.at(-1).split(",").map(field => [field, observed[field]])));
       }
-      if (args[1] === "create") { release = { tagName: args[2], targetCommitish: fixture.selection.sourceCommit, isDraft: true }; return ""; }
+      if (args[1] === "create") { release = { tagName: args[2], targetCommitish: fixture.selection.sourceCommit, isDraft: true, isPrerelease: args.includes("--prerelease=true") }; return ""; }
       if (args[1] === "upload") { assets.set(basename(args[3]), await readFile(args[3])); return ""; }
       if (args[1] === "download") {
         const name = args[args.indexOf("--pattern") + 1], directory = args[args.indexOf("--dir") + 1];
         assert.ok(assets.has(name));
         await writeFile(join(directory, name), assets.get(name)); return "";
       }
-      if (args[1] === "edit") { release.isDraft = false; return ""; }
+      if (args[1] === "edit") {
+        release.isDraft = false;
+        if (args.some(arg => arg.startsWith("--prerelease="))) release.isPrerelease = args.includes("--prerelease=true");
+        return "";
+      }
     }
     throw new Error(`unexpected fake command: ${command} ${args.join(" ")}`);
   };
-  return { run, calls, assets };
+  return { run, calls, assets, get release() { return release; } };
 }

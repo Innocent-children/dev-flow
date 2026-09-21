@@ -58,7 +58,10 @@ reasons
 Codex retains explicit choices and authorizations that remain valid for the current request and assessment. When no decision or required input is outstanding, it continues without an acknowledgment pause for progress updates or Skill-rule explanations. When input is needed, it asks the concrete question in the same response; development mode, worktree parameters, comprehension confirmation, separate operation authorization, and blockers keep their respective rules.
 
 The assessment binds request, canonical root, HEAD, and status digest. A change while waiting makes it
-stale. Explicit resume is the only route that skips assessment.
+stale. Explicit resume and bootstrap from a verified launch receipt do not repeat assessment.
+Bootstrap reuses the saved assessment and confirmations, but still checks the receipt's surface and
+phase, destination worktree identity, and permissions before choosing initialization, Task creation,
+or Task resume.
 
 After choosing Dev Flow, `workspace_mode` defaults to `new_branch`, creating a branch from current
 HEAD in the existing directory. Explicit alternatives are `current_branch` and `dedicated_worktree`.

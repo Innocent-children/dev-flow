@@ -51,7 +51,7 @@ dev-flow-codex --version
 
 `setup` 在缺少固定用户配置时创建 macOS 的 `$HOME/.dev-flow/config.json` 或 Windows 的
 `%USERPROFILE%\.dev-flow\config.json`，初始内容为 `{}`，默认偏好由 Core 解释。已有配置先经过路径、文件类型和权限检查，再由包内 Core 校验内容；合法配置保持原样，包括 DeepSeek 和 Claude 的设置。`setup` 验证 package、bundled Core 和 Codex 兼容性后注册
-marketplace、Plugin 与 MCP。桌面宠物另按本文的本地开发包说明获取与启动。默认 Task 数据在 macOS 位于 `$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。所有参数和机器可读输出见
+marketplace、Plugin 与 MCP。桌面宠物应用由正式 `@imotong/dev-flow` npm 包提供，安装与启动见下方“桌面任务入口”。默认 Task 数据在 macOS 位于 `$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。所有参数和机器可读输出见
 [命令参考](../../docs/COMMANDS.md#codex)。
 
 `setup` 完成后先在 Codex `/hooks` 中审核并信任 Dev Flow packaged hook；未信任时 Codex 会跳过
@@ -121,8 +121,9 @@ Plugin 自带 `PreToolUse` hook。用户通过 Codex `/hooks` 信任当前 hook 
 授权且文件属于计划范围，就直接修改，不因为当前工作目录位于 A 而询问。
 
 计划外文件会在 `apply_patch` 运行前暂停 Task。用户选择：`allow_once` 只允许相同写入意图，
-`expand_scope` 返回 `TASKS` 更新计划，`reject` 要求实际恢复路径后返回原节点。选择与原因由 Core
-保存。Core 在 Action 提交和读取下一步前重新观察 Git，并从冻结 base commit 推导当前 Task surface；
+`expand_scope` 返回 `TASKS` 更新计划，`reject` 返回原节点，并在当前 Task Plan revision 内继续拒绝这些路径的越界写入。
+写前拦截尚未修改文件，无需恢复；若 Core 已观察到实际越界改动，选择 `reject` 前须先恢复这些改动。
+选择与原因由 Core 保存。Core 在 Action 提交和读取下一步前重新观察 Git，并从冻结 base commit 推导当前 Task surface；
 Host 不再自行声明文件变化。
 
 该 hook 不解析 Bash、外部进程或绕过 Codex tool hook 的专用工具；这些写入可能只能在 Core 最终
@@ -215,7 +216,7 @@ Repository Scope、worktree 分派和协议规则见[架构](../../docs/ARCHITEC
 
 ## 桌面任务入口
 
-桌面宠物通过 macOS arm64 或 Windows 10/11 x64 本地开发包使用，从已配置 Adapter 的 Core 读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。常规 npm 包不包含 macOS 原生应用。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
+正式 `@imotong/dev-flow` npm 包提供 macOS arm64 与 Windows 10/11 x64 桌面宠物应用，运行时由已配置的 Adapter 提供 Core。宠物读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
 
 ## 完成与恢复
 

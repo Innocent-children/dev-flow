@@ -93,8 +93,9 @@ For each npm package, configure `publish-npm.yml` from `Innocent-children/dev-fl
 Trusted Publisher allowed to run `npm publish`. Then select only the product, channel, and exact
 version. The workflow uses one fixed release check and obtains a short-lived npm
 publish credential through OIDC, uses ARM64 runners (`macos-15` for Codex/DeepSeek and the `xcode-27` preview image with Xcode 27 for the Dev Flow desktop package), Go `1.26.5`, Node.js `24.18.0`, and pnpm
-`11.24.0`, cross-builds and verifies both macOS arm64 and Windows amd64 Core executables, serializes
-runs per product, and invokes the existing commands below. The release runner OS is build
+`11.24.0`, serializes all products through one release queue, and invokes the commands below.
+Codex/DeepSeek preparation cross-builds and verifies both Core targets; CLI preparation includes
+both desktop applications. The release runner OS is build
 infrastructure rather than an artifact-runtime restriction. npm publication does not create
 registry authentication configuration that depends on `NODE_AUTH_TOKEN`.
 Version commits, Tags, and GitHub Releases use a short-lived token from a dedicated GitHub App that is
@@ -118,18 +119,28 @@ pnpm run release:deepseek -- \
   --confirm "deepseek-v<DEEPSEEK_VERSION>"
 ```
 
-`stable` is the default channel. It accepts stable SemVer and requires `main` to equal
+```bash
+pnpm run release:dev-flow -- \
+  --version "<DEV_FLOW_VERSION>" \
+  --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "dev-flow-v<DEV_FLOW_VERSION>"
+```
+
+For Codex/DeepSeek, `stable` is the default channel. It accepts stable SemVer and requires `main` to equal
 `origin/main`. `beta` accepts only `MAJOR.MINOR.PATCH-beta.N`, may use any clean named branch, and
 pushes the version commit back to that branch. It always uses npm dist-tag `beta`, marks the GitHub
 Release as a prerelease, and preserves stable `latest`.
+An existing GitHub Release must have the prerelease status selected by the channel; a mismatch stops
+publication. The CLI supports stable only and requires clean synchronized `main`.
 
-Both one-command release flows update only machine-readable version files such as package manifests,
-the Plugin mirror, and `release/public-versions.json`; they neither read nor rewrite Markdown.
+Codex/DeepSeek release flows update only machine-readable version files such as package manifests,
+the Plugin mirror and `release/public-versions.json`; the CLI updates only `packages/dev-flow/package.json`.
+Release commands neither read nor rewrite Markdown.
 
 The release command uses one fixed check set. Only these exact-confirmation entrypoints may change a
 product version, commit and push, create a Tag, publish npm, or mutate GitHub Release assets.
 
-Both channels share one Publisher. The external `release-manifest.json` binds source, version, and
+All three products share one Publisher. The external `release-manifest.json` binds source, version, and
 artifact digests; reruns reread and reuse matching remote state.
 The Publisher retries the actual `npm pack <package>@<version>` tarball read-back for up to ten
 minutes. Only registry propagation responses such as `ETARGET` and `E404` keep waiting;

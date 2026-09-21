@@ -77,16 +77,18 @@ The menu reads installation state before offering Adapter installation, maintena
 
 | Command | Target version and repeated execution |
 | --- | --- |
-| `install` | Keeps installed versions by default; missing installations use `latest`. A ready matching version needs no changes. |
-| `upgrade` | Selects `latest` by default; a ready matching version needs no changes. |
-| `repair` | Repairs the current version by default, restoring damaged files and same-version owned registration. Healthy state needs no changes. |
+| `install` | Keeps installed Adapter versions by default; missing installations use `latest`. A ready Adapter at the matching version is not replaced. |
+| `upgrade` | Selects `latest` by default; a ready Adapter at the target version is not replaced. |
+| `repair` | Repairs the current Adapter version by default, restoring damaged files and same-version owned registration. A healthy Adapter needs no repair. |
 | `reinstall` | Reinstalls the current version by default on every invocation, preserving configuration and Task data. |
 | `uninstall` | Already-removed Adapters need no further action; configuration and Task data are preserved. |
 | `factory-reset` | Repeating completed cleanup is a no-op; actual cleanup targets still require confirmation of the current plan. |
 
 Explicit `--version` selects a target. Every version-replacement command requires `--confirm-downgrade` for a downgrade; ordinary `--yes` is insufficient. Local development distributions always use their verified bundled versions and artifacts, replacing their contents during maintenance.
 
-Before execution, the plan shows actions, current/target versions, resource paths and data handling. JSON never prompts: required confirmation returns `confirmation` and a copyable `next_step`. Explicit data-directory approval is checked before removing any Adapter. Cleanup directories bind canonical paths, filesystem identity and permissions, allowing managed shutdown to remove runtime records; individual file targets also bind size and modification time. Installation, upgrade, repair and reinstall maintain Adapters; update the public launcher itself with `npm install -g @imotong/dev-flow@latest`.
+Before execution, the plan shows actions, current/target versions, resource paths and data handling. JSON never prompts: required confirmation returns `confirmation` and a copyable `next_step`. Explicit data-directory approval is checked before removing any Adapter. Cleanup directories bind canonical paths, filesystem identity and permissions, allowing managed shutdown to remove runtime records; individual file targets also bind size and modification time.
+
+Installation, upgrade, repair and reinstall maintain Adapters. When the manager package contains the desktop pet app for the current platform, these operations also refresh its copy in the user directory while preserving settings and appearance assets. This application update still runs when the Adapter is healthy and needs no replacement. Update the public launcher and its bundled apps with `npm install -g @imotong/dev-flow@latest`.
 
 `status` retains absent targets and reports Host availability, Adapter/Core versions and issues. `doctor` adds installation and configuration checks and exits nonzero on failure. With all Hosts selected, an absent optional Adapter is informational when another Adapter is healthy. Codex self-check failures retain npm installation metadata for repair; DeepSeek checks Profile contribution, the managed receipt and the actual Core. An existing unmanaged DeepSeek contribution requires explicit `--adopt`.
 

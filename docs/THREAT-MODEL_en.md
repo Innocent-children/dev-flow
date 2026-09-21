@@ -6,13 +6,13 @@
 
 Dev Flow protects **task process state**; it is not a sandbox around the coding agent.
 
-Codex or DeepSeek Harness still reads repositories, changes files, and runs commands with the
-permissions the developer gave it. The Go Core keeps the single Task state and validates
-transitions, bindings, persistence, and recovery decisions.
+Codex, DeepSeek Harness, Claude Code, or ZCode still reads repositories, changes files, and runs
+commands with the permissions the developer gave it. The Go Core keeps the single Task state and
+validates transitions, bindings, persistence, and recovery decisions.
 
 ```mermaid
 flowchart LR
-    U[Developer] --> H[Codex or DeepSeek]
+    U[Developer] --> H[Codex / DeepSeek / Claude Code / ZCode]
     H --> R[Authorized repositories]
     H --> A[Dev Flow adapter]
     A --> C[Local Go Core]
@@ -35,7 +35,7 @@ flowchart LR
 | Participant | Responsibility |
 | --- | --- |
 | Developer | Chooses whether to enter Dev Flow and confirms source/base/target/carry, repository and Host permissions, comprehension, handoff, cleanup, and releases |
-| Codex / DeepSeek Harness | Actually reads files, changes repositories, and runs commands; uses the elevated permissions granted by the developer |
+| Codex / DeepSeek Harness / Claude Code / ZCode | Actually reads files, changes repositories, and runs commands; uses the elevated permissions granted by the developer |
 | Host Adapter | Assesses requests read-only; after confirmation performs fetch, branch, worktree, relaunch/handoff; judges scope before commands, full suites, test-code changes, and review; calls Core under the Action, Scope, current verification plan, and Recovery contract |
 | Go Core | Observes Git read-only, retains the one process state, derives Task surface, and validates revision, workspace, payload field restrictions, transitions, and persistence |
 | Repository content | Treated as untrusted input that may contain prompt injection, dangerous scripts, symlinks, or hostile filenames |

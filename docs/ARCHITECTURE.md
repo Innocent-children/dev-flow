@@ -51,8 +51,9 @@ reasons
 
 Codex 沿用当前请求和评估下仍有效的明确选择与授权；没有待决定事项或必需输入时直接继续，不为进度说明或技能规则解释增加“确认后继续”的暂停。需要输入时，在同一回复中提出具体问题；开发方式、工作树参数、理解确认、独立操作授权及阻塞处理仍按各自规则执行。
 
-评估绑定 request、canonical root、HEAD 和 status digest。等待选择期间任一项变化都要重新评估。明确
-resume 是唯一跳过评估的入口。
+评估绑定 request、canonical root、HEAD 和 status digest。等待选择期间任一项变化都要重新评估。
+明确 resume 或已核验启动记录的 bootstrap 接续不重复评估。bootstrap 复用已保存的评估和确认，
+仍须核对记录的 surface、phase、目标工作树身份与权限，再决定初始化、创建或恢复 Task。
 
 用户选择 Dev Flow 后，`workspace_mode` 默认采用 `new_branch`，从当前 HEAD 在原目录新建任务
 分支；显式选项还有 `current_branch` 与 `dedicated_worktree`。Core `WorkspaceOrigin.mode` 保存同一

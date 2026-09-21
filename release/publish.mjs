@@ -46,14 +46,15 @@ export async function publishRelease({ product, version, directory, sourceCommit
   const prepared = await validateReleaseArtifacts({ product, version, directory, sourceCommit });
   const tag = `${config.tagPrefix}${version}`;
   const presentation = releasePresentation(product, version, prepared.manifest);
+  const prerelease = version.includes("-beta.");
 
   await ensureTag(tag, sourceCommit, environment, runProcess);
-  await ensureDraft(tag, sourceCommit, presentation, environment, runProcess);
+  await ensureDraft(tag, sourceCommit, presentation, prerelease, environment, runProcess);
   const existing = await npmVersion(config.packageName, version, environment, runProcess);
-  if (!existing) await runProcess("npm", ["publish", prepared.tarball.path, "--access", "public", `--registry=${registry}`, ...(version.includes("-beta.") ? ["--tag", "beta"] : [])], environment);
+  if (!existing) await runProcess("npm", ["publish", prepared.tarball.path, "--access", "public", `--registry=${registry}`, ...(prerelease ? ["--tag", "beta"] : [])], environment);
   await verifyRegistryBytes(config.packageName, version, prepared.tarball.sha256, environment, { runProcess });
   await ensureAssets(tag, prepared.assets, environment, runProcess);
-  await runProcess("gh", ["release", "edit", tag, "--repo", repository, "--draft=false"], environment);
+  await runProcess("gh", ["release", "edit", tag, "--repo", repository, "--draft=false", `--prerelease=${prerelease}`], environment);
   return { product, version, tag, source_commit: sourceCommit, status: "complete" };
 }
 
@@ -109,14 +110,15 @@ async function ensureTag(tag, sourceCommit, environment, runProcess) {
   await runProcess("git", ["push", "origin", `refs/tags/${tag}:refs/tags/${tag}`], environment);
 }
 
-async function ensureDraft(tag, sourceCommit, presentation, environment, runProcess) {
-  const observed = await allow("gh", ["release", "view", tag, "--repo", repository, "--json", "tagName,targetCommitish,isDraft"], environment, runProcess);
+async function ensureDraft(tag, sourceCommit, presentation, prerelease, environment, runProcess) {
+  const observed = await allow("gh", ["release", "view", tag, "--repo", repository, "--json", "tagName,targetCommitish,isDraft,isPrerelease"], environment, runProcess);
   if (observed.ok) {
     const release = JSON.parse(observed.stdout);
     if (release.tagName !== tag || release.targetCommitish !== sourceCommit) throw new Error("existing GitHub Release identity mismatch");
+    if (release.isPrerelease !== prerelease) throw new Error("existing GitHub Release prerelease status mismatch");
     return;
   }
-  await runProcess("gh", ["release", "create", tag, "--repo", repository, "--draft", "--title", presentation.title, "--notes", presentation.notes, "--target", sourceCommit], environment);
+  await runProcess("gh", ["release", "create", tag, "--repo", repository, "--draft", `--prerelease=${prerelease}`, "--title", presentation.title, "--notes", presentation.notes, "--target", sourceCommit], environment);
 }
 
 async function npmVersion(packageName, version, environment, runProcess) {

@@ -17,23 +17,31 @@ targeted tests needed for this behavior.
 ```
 
 The Host first inspects candidate implementation, callers, tests, and Git state read-only, reports a
-change level, known impact, unknowns, and a recommendation, then stops. No Core call, Task, or Git
-write exists yet. After choosing Dev Flow, the developer confirms local or remote source, base and
-target branches, and whether to carry local changes. The Host freezes the starting point, creates
-a dedicated worktree and applies selected content while preserving the source checkout. Core creates
-the Task after verification, retaining the request, scope, acceptance, WorkspaceOrigin and method
-profile. No final verification budget is frozen before analysis.
+change level, known impact, unknowns, and a recommendation, and waits for any unresolved workflow
+choice. No Core call, Task, or Git write exists yet. After choosing Dev Flow, the default is a new task
+branch from current HEAD in the existing directory; the developer can explicitly choose the current
+branch instead. The Host shows the actual directory, branch, and uncommitted changes, obtains any
+missing target-branch or initial-content decision, checks directory claims, and prepares the branch.
+Accepted initial changes retain their files and staged state.
+
+The developer can also explicitly choose a dedicated worktree, then confirm the local or remote
+source, base and target branches, and whether to carry local changes. The Host freezes the starting
+point, creates the worktree, and applies selected content while preserving the source checkout. Core
+creates the Task only after every selected working directory is verified, retaining the request,
+scope, acceptance, WorkspaceOrigin, and method profile. No final verification budget is frozen before
+analysis.
 
 ## 2. Implementation completes and testing begins
 
 At TASKS, after requirements, design, impact, and existing tests are understood, Codex retains this
 targeted authentication test, its rationale, one expected automatic command, no expected full suite,
-and no expected test-file change. After implementation enters `TEST`, the Task shows:
+and no expected test-file change. Implementation starts after the developer explicitly approves the
+complete plan. After implementation enters `TEST`, the Task shows:
 
 ```text
 Task: auth-rate-limit
 State: TEST
-Revision: 5
+Revision: 6
 Completed: implementation
 Remaining: targeted auth test
 ```
@@ -53,14 +61,14 @@ revision, scope, and remaining verification:
 Before restart
 Task: auth-rate-limit
 State: TEST
-Revision: 5
+Revision: 6
 Completed: implementation
 Remaining: targeted auth test
 
 After restart
 Task: auth-rate-limit
 State: TEST
-Revision: 5
+Revision: 6
 Next: run the remaining targeted auth test
 ```
 

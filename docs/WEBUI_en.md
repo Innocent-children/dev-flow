@@ -115,7 +115,7 @@ runtime use needs no Node server, CDN, external font, or separate WebUI package.
 
 ## Desktop entry and file errors
 
-The desktop pet can open the selected Task in this WebUI. It uses a local development package and the configured Adapter’s Core. Installation, controls and appearances are described in the [desktop pet guide](DESKTOP-PETS_en.md).
+The desktop pet can open the selected Task in this WebUI. The public `@imotong/dev-flow` npm package includes apps for macOS arm64 and Windows 10/11 x64, and a configured Adapter supplies Core at runtime. The manager's install, upgrade, repair and reinstall operations refresh the application copy in the user directory while preserving settings and appearance assets. Installation, controls and appearances are described in the [desktop pet guide](DESKTOP-PETS_en.md).
 
 When a submission omits changed process files, the page shows the missing repository paths separately from request-field errors. A correction is allowed only when Core confirms no write and explicitly permits one correction of the listed artifact fields. Workspace and history errors follow their existing recovery rules. Integration fields belong in [artifact collection and submission](ARTIFACTS_en.md).
 
