@@ -1,6 +1,6 @@
 {
   "name": "@imotong/dev-flow",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": false,
   "description": "Unified lifecycle manager for Dev Flow Codex, DeepSeek, Claude Code and ZCode adapters.",
   "license": "Apache-2.0",
