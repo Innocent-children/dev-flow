@@ -11,5 +11,9 @@
   "claude": {
     "version": "0.1.0",
     "core_version": "0.18.0"
+  },
+  "zcode": {
+    "version": "0.1.0",
+    "core_version": "0.18.0"
   }
 }
