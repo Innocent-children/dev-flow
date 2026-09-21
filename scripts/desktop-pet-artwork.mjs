@@ -4,13 +4,15 @@ import { fileURLToPath } from "node:url";
 
 const sourceRoot = fileURLToPath(new URL("../packages/desktop-pet/default-appearance/", import.meta.url));
 
-// Stages the default artwork as data; drawing and pose generation live outside the application.
+/**
+ * Stages the default artwork as data; drawing and pose generation live outside the application.
+ */
 async function artworkFiles() {
   const catalog = JSON.parse(await readFile(join(sourceRoot, "animations.json"), "utf8"));
   const frames = Object.values(catalog.clips).flatMap((clip) => clip.frames);
   for (const frame of frames) {
-    if (typeof frame !== "string" || !/^[a-z-]+\/[0-9]+\.svg$/u.test(frame)) {
-      throw new Error(`invalid default SVG frame path: ${frame}`);
+    if (typeof frame !== "string" || !/^[a-z-]+\/[0-9]+\.png$/u.test(frame)) {
+      throw new Error(`invalid default PNG frame path: ${frame}`);
     }
   }
   if (frames.length === 0 || frames.length > 512) throw new Error("default artwork requires 1–512 frame references");

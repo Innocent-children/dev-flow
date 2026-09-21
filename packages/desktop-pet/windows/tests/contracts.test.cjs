@@ -94,13 +94,13 @@ test("presentation follows Core lifecycle and never replays completion after a d
   assert.equal(origin("http://localhost:45678"), false);
   assert.equal(origin("https://example.com"), false);
 });
-test("default native artwork retains nine clips and 312 frames", async () => {
+test("default native artwork retains nine clips and 57 PNG frames", async () => {
   const store = new AppearanceStore("", bundled);
   const value = await store.load(bundled);
   assert.equal(Object.keys(value.catalog.clips).length, 9);
   assert.equal(
     Object.values(value.catalog.clips).reduce((n, c) => n + c.frames.length, 0),
-    312,
+    57,
   );
   assert.equal(
     rows.reduce((n, [, d]) => n + d.length, 0),

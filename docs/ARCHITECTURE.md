@@ -438,7 +438,7 @@ Core 数据、流程图和 MCP 工具保持现有职责。
 `PetMenu` 提供大小选择；`PetController` 保存缩放比例与位置后应用变更；`PetContentView` 调整角色约束并保持气泡文字大小，`PetActivityController` 按缩放比例计算行走速度。
 完整使用、形象格式与触发规则见[桌面宠物指南](DESKTOP-PETS.md)。
 
-`scripts/build-desktop-pet.mjs` 调用 `scripts/desktop-pet-artwork.mjs`，从 `packages/desktop-pet/default-appearance/` 复制默认 SVG 形象并逐文件核对内容。自定义形象由用户从外部包导入；`PetAppearanceStore` 负责用户目录中的形象列表与加载，`PetAppearanceSelection` 在默认形象与已导入形象之间切换。生成的应用包保存在仓库外，不纳入 Git 跟踪。
+`scripts/build-desktop-pet.mjs` 调用 `scripts/desktop-pet-artwork.mjs`，从 `packages/desktop-pet/default-appearance/` 复制默认蓝色海洋精灵的九类动作、57 个 PNG 帧，并逐文件核对内容。自定义形象由用户从外部包导入；`PetAppearanceStore` 负责用户目录中的形象列表与加载，`PetAppearanceSelection` 在默认形象与已导入形象之间切换。生成的应用包保存在仓库外，不纳入 Git 跟踪。
 
 ## 平台职责
 

@@ -185,7 +185,7 @@ This entry does not rebuild Core, change Adapter installations, or publish npm. 
 `dev-flow:local` retains its temporary lifecycle manager; the pet uses the persistent installed package
 built by this entry.
 
-The build uses `scripts/desktop-pet-artwork.mjs` to copy the default SVG appearance from `packages/desktop-pet/default-appearance/` and compare each delivered file with its source. The pack contains nine clips and 312 frames; the `frames` and `asset_bytes` result fields record its animation frame count and artwork file size. Custom appearances such as Whale Girl are imported from external artwork packs. Generated application bundles and external artwork directories are not tracked by Git.
+The build uses `scripts/desktop-pet-artwork.mjs` to copy the default blue sea sprite appearance from `packages/desktop-pet/default-appearance/` and compare each delivered file with its source. The pack contains nine clips and 57 PNG frames; the `frames` and `asset_bytes` result fields record its animation frame count and artwork file size. Other custom appearances are imported from external artwork packs. Generated application bundles and external artwork directories are not tracked by Git.
 
 Build the Windows desktop package with `build-desktop-pet-windows.mjs`. From the repository root, run `npm ci --prefix packages/desktop-pet/windows`, then `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`. Output must be outside the repository. This entry assembles the Windows desktop, launcher and all four Adapter packages through the Core target catalog; it does not execute Mac programs, Mac tests or publication.
 

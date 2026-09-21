@@ -15,7 +15,7 @@ formal distribution verification. See the [support matrix](SUPPORT-MATRIX_en.md#
 Below, `productRoot` means the product directory, which defaults to `~/.dev-flow` on macOS; settings and appearances live in its `pet/` subdirectory.
 
 The formal `@imotong/dev-flow` npm package includes `runtime/darwin-arm64/DevFlowPet.app` and
-`runtime/win32-x64/DevFlowPet`, each with nine default actions and 312 SVG frames.
+`runtime/win32-x64/DevFlowPet`, each with nine default actions and 57 PNG frames.
 Running the built application requires no compiler or Electron development environment. An independently installed Adapter provides Core.
 Formal preparation on macOS arm64 compiles Swift, assembles the locked Windows x64 Electron runtime,
 and checks versions, architectures, artwork and the extracted package files. macOS uses ad-hoc signing; Windows distribution signing remains unverified.
@@ -66,7 +66,7 @@ dev-flow pet start
 dev-flow pet stop
 ~~~
 
-Replace `<local-package>.tgz` with the filename identified by tarball in desktop-pet-build.json. This build assembles the Windows desktop and complete Adapter packages using the existing Core target catalog, binding artifact paths, versions and SHA256 hashes. It copies nine default actions and 312 frames and verifies extracted artwork and executable bytes. Mac Core is cross-compiled only; no Mac program, Mac test or publication is run. Windows uses the system tray in place of the macOS menu bar; artwork formats, task semantics and six scale choices align.
+Replace `<local-package>.tgz` with the filename identified by tarball in desktop-pet-build.json. This build assembles the Windows desktop and complete Adapter packages using the existing Core target catalog, binding artifact paths, versions and SHA256 hashes. It copies nine default actions and 57 frames and verifies extracted artwork and executable bytes. Mac Core is cross-compiled only; no Mac program, Mac test or publication is run. Windows uses the system tray in place of the macOS menu bar; artwork formats, task semantics and six scale choices align.
 
 The local distribution's `--host all` includes ZCode. Its `action_required` result still requires plugin installation and enablement in the ZCode UI; see the [ZCode guide](ZCODE_en.md). The pet reading Core does not establish an available ZCode model session.
 
@@ -93,7 +93,7 @@ Installing the npm package alone updates its bundled application. Refresh an exi
 
 ## Default appearance and external artwork
 
-The pet package includes only the default appearance from `packages/desktop-pet/default-appearance/`, with nine clips and 312 SVG frames. The build copies the artwork and verifies each file against its source. Import Whale Girl or other custom appearances as
+The pet package includes only Dudu (嘟嘟), the blue sea sprite from `packages/desktop-pet/default-appearance/`, with nine clips and 57 PNG frames. The build copies the artwork and verifies each file against its source. Import other custom appearances as
 separate artwork packs: choose Import appearance and select a folder containing `pet.json`. Supported formats
 are listed below under Appearance types and available animations.
 

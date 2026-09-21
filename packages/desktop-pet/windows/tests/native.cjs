@@ -26,7 +26,7 @@ app
       await desktop.win.webContents.executeJavaScript(
         'document.querySelector("#character").naturalWidth',
       ),
-      256,
+      192,
     );
     for (const value of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
       await desktop.scale(value);
@@ -114,7 +114,7 @@ app
         await desktop.win.webContents.executeJavaScript(
           'document.querySelector("#character").naturalWidth',
         ),
-        256,
+        192,
       );
     }
     await desktop.poll();
@@ -126,7 +126,7 @@ app
       JSON.stringify(
         {
           native_window: true,
-          default_frames: 312,
+          default_frames: 57,
           scales: 6,
           resize_cancels_activity: true,
           hide_restore: true,

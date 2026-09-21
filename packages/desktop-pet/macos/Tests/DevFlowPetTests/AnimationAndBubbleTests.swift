@@ -243,6 +243,27 @@ final class AnimationAndBubbleTests: XCTestCase {
 
     // MARK: - Asset reader
 
+    func testBundledAppearanceLoadsEveryFrame() throws {
+        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../default-appearance", isDirectory: true).standardizedFileURL
+        let library = try AssetLibrary(resourceDirectory: source)
+        XCTAssertEqual(library.catalog.canvas, .init(width: 192, height: 208))
+        XCTAssertEqual(Set(library.catalog.clips.keys), Set(AnimationClip.allCases))
+        XCTAssertEqual(library.catalog.clips.values.reduce(0) { $0 + $1.frames.count }, 57)
+
+        for clip in AnimationClip.allCases {
+            let description = try XCTUnwrap(library.catalog.clips[clip])
+            let frames = try library.frames(for: clip)
+            XCTAssertEqual(frames.images.count, description.frames.count, clip.rawValue)
+            for (index, image) in frames.images.enumerated() {
+                let rendered = try XCTUnwrap(image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+                                            description.frames[index])
+                XCTAssertEqual(rendered.width, library.catalog.canvas.width, description.frames[index])
+                XCTAssertEqual(rendered.height, library.catalog.canvas.height, description.frames[index])
+            }
+        }
+    }
+
     @MainActor
     func testScalingResizesCharacterAndKeepsBubbleTypographyAndAnchorGeometry() throws {
         let clips = Dictionary(uniqueKeysWithValues: AnimationCatalog.requiredClips.map {

@@ -15,7 +15,7 @@ Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实�
 下文 `productRoot` 指产品目录，macOS 默认是 `~/.dev-flow`；设置与形象保存在其中的 `pet/` 子目录。
 
 正式 `@imotong/dev-flow` npm 包包含 `runtime/darwin-arm64/DevFlowPet.app` 与
-`runtime/win32-x64/DevFlowPet`，两个平台均携带九类动作、312 个 SVG 帧。
+`runtime/win32-x64/DevFlowPet`，两个平台均携带九类动作、57 个 PNG 帧。
 运行已构建的应用无需编译器或 Electron 开发环境。Adapter 仍独立安装并提供 Core。
 正式制备由 macOS arm64 构建机编译 Swift、装配锁定的 Windows x64 Electron 运行时，
 然后核对应用版本、架构、默认素材和最终解包文件。macOS 使用 ad-hoc 签名；Windows 正式分发签名尚未验证。
@@ -66,7 +66,7 @@ dev-flow pet start
 dev-flow pet stop
 ~~~
 
-将 `<local-package>.tgz` 替换为 desktop-pet-build.json 中 tarball 对应的文件名。该构建装配 Windows 桌面应用，并通过既有构建目标表生成四个 Adapter 的完整 Core 文件和安装包，绑定路径、版本与 SHA256；复制默认九类动作、312 帧并验证解包后的素材和可执行文件。Mac Core 仅交叉编译，不执行 Mac 程序或测试，不执行发布。Windows 采用系统托盘代替 macOS 菜单栏，素材格式、任务语义和六档缩放一致。
+将 `<local-package>.tgz` 替换为 desktop-pet-build.json 中 tarball 对应的文件名。该构建装配 Windows 桌面应用，并通过既有构建目标表生成四个 Adapter 的完整 Core 文件和安装包，绑定路径、版本与 SHA256；复制默认九类动作、57 帧并验证解包后的素材和可执行文件。Mac Core 仅交叉编译，不执行 Mac 程序或测试，不执行发布。Windows 采用系统托盘代替 macOS 菜单栏，素材格式、任务语义和六档缩放一致。
 
 本地分发包的 `--host all` 包含 ZCode；其 `action_required` 提示仍需在 ZCode UI 完成插件安装和启用，见 [ZCode 指南](ZCODE.md)。宠物能够读取 Core 不代表 ZCode 模型会话已经可用。
 
@@ -93,7 +93,7 @@ dev-flow pet start
 
 ## 默认形象与外部素材
 
-宠物包仅内置默认形象，来自 `packages/desktop-pet/default-appearance/`，包含九类动作、312 个 SVG 帧。构建时复制素材并逐文件核对内容。鲸鱼娘等自定义形象作为独立素材包，通过“导入形象…”选择包含
+宠物包仅内置蓝色海洋精灵“嘟嘟”，来自 `packages/desktop-pet/default-appearance/`，包含九类动作、57 个 PNG 帧。构建时复制素材并逐文件核对内容。其他自定义形象作为独立素材包，通过“导入形象…”选择包含
 `pet.json` 的文件夹导入；支持的格式见下文“形象类型与动作可用性”。
 
 导入后的素材保存在 `productRoot/pet/appearances/<id>`，程序更新保留这些素材。
