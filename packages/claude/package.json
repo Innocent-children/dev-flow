@@ -108,5 +108,14 @@
     "README.md",
     "runtime/darwin-arm64/dev-flow",
     "runtime/win32-x64/dev-flow.exe"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Innocent-children/dev-flow.git",
+    "directory": "packages/claude"
+  }
 }

@@ -3,17 +3,17 @@
 `release/` contains the current prepare/publish implementation and operator guidance. Generated output stays
 in an external operator-selected directory and is never committed.
 
-## Current five-file output
+## Host Adapter output
 
 ```text
-dev-flow-codex-<CODEX_VERSION>.tgz
+dev-flow-<HOST>-<VERSION>.tgz
 dev-flow-core-<CORE_VERSION>-darwin-arm64
 dev-flow-core-<CORE_VERSION>-windows-amd64.exe
 SHA256SUMS
 release-manifest.json
 ```
 
-The manifest binds the product, version, source commit, Core identity, and artifact digests. The
+`<HOST>` is `codex`, `deepseek`, `claude` or `zcode`. The manifest binds the product, version, source commit, Core identity, and artifact digests. The
 package and standalone assets include only the exact `darwin-arm64` and `win32-x64` runtime pairs;
 the Publisher verifies and uploads both standalone Core assets.
 
@@ -21,15 +21,17 @@ the Publisher verifies and uploads both standalone Core assets.
 
 维护者通常通过 GitHub Actions 的 `publish-npm` 工作流运行这些入口。在 Actions 页面选择
 `Run workflow`，填写 `product`、`channel` 和 `version`。工作流使用固定的发布检查，不要求操作者选择
-验证模式或勾选理解确认。三个 npm 包分别把 `Innocent-children/dev-flow` 的 `publish-npm.yml`
+验证模式或勾选理解确认。可选产品为 `codex`、`deepseek`、`claude`、`zcode` 和 `dev-flow`。每个 npm 包须分别把 `Innocent-children/dev-flow` 的 `publish-npm.yml`
 配置为允许 `npm publish` 的 GitHub Actions Trusted Publisher；工作流通过 OIDC 获取短期 npm 发布凭据，
 并使用安装到当前仓库、加入 `main` ruleset bypass list 的专用 GitHub App 短期 token 提交版本、
 创建 Tag 和维护 Release。仓库变量 `RELEASE_APP_CLIENT_ID` 保存 App Client ID，仓库 secret
-`RELEASE_APP_PRIVATE_KEY` 保存完整 PEM 私钥。Codex/DeepSeek 使用 `macos-15` ARM64 runner，
+`RELEASE_APP_PRIVATE_KEY` 保存完整 PEM 私钥。四个 Host Adapter 使用 `macos-15` ARM64 runner，
 Dev Flow 桌面包使用带 Xcode 27 的 ARM64 `xcode-27` 预览镜像。所有产品共用发布队列串行执行；
 排队任务获得执行机会后从最新 `main` checkout，避免前一个发布任务推送版本提交后，
 后续任务仍基于触发时的旧提交发布。发布工具链固定为 Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，npm 发布只使用 Trusted Publishing OIDC，不生成依赖
-`NODE_AUTH_TOKEN` 的旧式 registry 认证配置。
+`NODE_AUTH_TOKEN` 的 registry 认证配置。
+
+新增的 Claude/ZCode 发布入口不代表 `dev-flow-claude`、`dev-flow-zcode` 已在 npm 完成首次发布或已配置 Trusted Publisher。首次启用前，包维护者须确认包名所有权、npm 侧的首次发布条件和认证方式，并分别配置上述 Trusted Publisher。仓库不自动创建 npm 包所有权或修改 npm 设置；在这些条件完成前，不能仅凭 Actions 中出现产品选项就认定可以发布。首次发布仍须明确选择产品、channel、精确版本，并通过独立发布入口完成固定检查与产物核对。
 
 工作流仍调用下面的 standalone command，完成版本检查、构建产物检查、npm tarball 回读和 GitHub
 Release 资产处理，不运行 Host 或 Task 完整流程测试。每次运行都会上传 runner 临时目录中的构建产物；同一组
@@ -43,9 +45,21 @@ pnpm run release:codex -- \
   --confirm "codex-v<CODEX_VERSION>"
 ```
 
+The four Host release commands use the same arguments and product-specific confirmation. Use
+`release:deepseek`, `release:claude` or `release:zcode` with `deepseek-v<VERSION>`,
+`claude-v<VERSION>` or `zcode-v<VERSION>` respectively. Product details: [Codex](codex/README.md),
+[DeepSeek](deepseek/README.md), [Claude Code](claude/README.md), [ZCode](zcode/README.md).
+
+The release command can create its output directory, but the parent must already exist. If `--output`
+is omitted, it uses `~/dev-flow-releases/<host>-v<VERSION>`.
+
 `stable` is the default channel. It accepts `MAJOR.MINOR.PATCH`, requires clean `main` equal to
 `origin/main`, and updates the selected package version and its entry in `release/public-versions.json`,
-including the bundled version read from `CORE_VERSION`. Release commands do not rewrite Markdown.
+including the bundled version read from `CORE_VERSION`. The selected plugin and marketplace version
+mirrors are updated with the package version. A first stable release may keep the current source
+package version while adding its public-version entry. No Host release requires a previous Tag.
+Release commands do not rewrite Markdown; creating release tooling does not change public-version
+metadata or expand the [support matrix](../docs/SUPPORT-MATRIX_en.md).
 
 `beta` accepts only `MAJOR.MINOR.PATCH-beta.N`. It may run from any clean named branch, pushes its
 version commit back to that branch, leaves stable public-version metadata unchanged, publishes
@@ -55,10 +69,11 @@ The publisher creates or reuses only matching Tag and GitHub Release state, publ
 once, verifies registry tarball bytes, uploads prepared assets, and finalizes without running Host or
 Task 完整流程测试.
 
-Every initial or resumed publication first validates the local prepared directory through
-`release/artifacts.mjs`, before any Git, npm, or GitHub command. It requires the exact product-specific
+The standalone command commits and pushes any version-file changes before preparing artifacts.
+For each initial or resumed publication, the shared publisher validates the prepared directory through
+`release/artifacts.mjs` before its Tag, npm and GitHub Release operations. It requires the exact product-specific
 file set, matching release identity, unique artifact names, regular non-symbolic-link files, and
-agreement between saved manifest digests, `SHA256SUMS`, and actual bytes. Codex and DeepSeek checksums
+agreement between saved manifest digests, `SHA256SUMS`, and actual bytes. All four Host checksums
 cover the tarball, both Core binaries, and the manifest; the lifecycle CLI's current prepare format
 checksums only its tarball. Missing, extra, duplicated, linked, out-of-directory, or altered artifacts
 stop publication. Registry and GitHub read-back use the expectations saved by this validation rather
@@ -67,7 +82,7 @@ operator to retain ownership of the output directory.
 
 For a new draft, the publisher writes a product-specific title and a compact Release summary. The
 summary names the exact npm package, links the immutable source commit and source-pinned
-installation/support documents, and points readers to `SHA256SUMS`. Codex and DeepSeek summaries also
+installation/support documents, and points readers to `SHA256SUMS`. All four Host summaries also
 name their bundled Core version; the Host-neutral lifecycle CLI has no bundled Core and omits that
 sentence. A retry that finds an existing matching Release preserves that remote Release instead of
 rewriting its title or notes. Its prerelease status must match the selected channel; a mismatch stops
@@ -81,26 +96,21 @@ Pull-request CI syntax-checks these components and runs fake-remote contracts; i
 release entrypoint or mutates Tag, npm, GitHub Release, assets, Codex registration, or task data. Only the
 manually dispatched `publish-npm` workflow invokes a real release entrypoint.
 
-DeepSeek uses the same operator argument shape with an independent product identity:
+Host source packages store no precompiled Core. Preparation builds both runtime pairs from
+`CORE_VERSION` in two temporary frozen-source staging directories, verifies package contents and
+version mirrors, and compares the independently built tarballs before publication. Preparation can
+also run without publishing. Its output must be an existing empty absolute directory outside the
+repository:
 
 ```bash
-pnpm run release:deepseek -- \
-  [--channel stable|beta] \
-  --version "<DEEPSEEK_VERSION>" \
-  --output "<ABSOLUTE_DIRECTORY>" \
-  --confirm "deepseek-v<DEEPSEEK_VERSION>"
+node scripts/build-host-release.mjs --product <codex|deepseek|claude|zcode> --output "<ABSOLUTE_DIRECTORY>"
 ```
 
-Its package, Tag, output directory, npm identity, GitHub state and DSH registry lifecycle test results
-are independent from Codex. Stable releases update the same machine-readable public-version metadata; beta
-releases preserve stable public identities and use the isolated `beta`/prerelease channel. See
-[`deepseek/README.md`](deepseek/README.md).
+The Codex and DeepSeek shell prepare commands delegate to this shared Host builder. Host setup,
+authenticated model sessions, Task behavior and ZCode UI activation remain product checks, separate
+from release checks.
 
-Like Codex, the DeepSeek source tree stores no precompiled Core. Release preparation builds both
-runtime pairs from `CORE_VERSION` inside each temporary frozen-source staging directory, packs them
-into the npm tarball, and compares the two independently built tarballs before publication.
-
-The Host-neutral CLI has its own normal-only release identity:
+The Host-neutral CLI has its own stable-only release identity:
 
 ```bash
 pnpm run release:dev-flow -- --version "<DEV_FLOW_VERSION>" --output "<ABSOLUTE_DIRECTORY>" \

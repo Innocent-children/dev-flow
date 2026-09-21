@@ -1,17 +1,52 @@
 import assert from "node:assert/strict";
+import { execFile as callback } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import test from "node:test";
+import { promisify } from "node:util";
 
 import { publishRelease, releasePresentation, verifyRegistryBytes } from "./publish.mjs";
 import { validateReleaseArtifacts } from "./artifacts.mjs";
+import { prepareRelease, releaseOutputNames } from "./prepare.mjs";
 
+const execFile = promisify(callback);
+const hostProducts = ["codex", "deepseek", "claude", "zcode"];
+const allProducts = [...hostProducts, "dev-flow"];
 const packageName = "dev-flow-codex";
 const version = "0.7.8";
 
-for (const product of ["codex", "deepseek", "dev-flow"]) {
+for (const product of hostProducts) {
+  test(`${product} prepares a deterministic package and both Core artifacts for the publisher`, async t => {
+    const root = await mkdtemp(join(tmpdir(), "dev-flow-prepare-test-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const repositoryRoot = join(root, "source"), packageRoot = join(root, "packed/package"), outputDirectory = join(root, "prepared");
+    await mkdir(join(repositoryRoot, "packages", product), { recursive: true });
+    await mkdir(outputDirectory);
+    await writeFile(join(repositoryRoot, "packages", product, "package.json"), JSON.stringify({ name: `dev-flow-${product}`, version }));
+    await writeFile(join(repositoryRoot, "CORE_VERSION"), "0.8.5\n");
+    for (const [platform, binary] of [["darwin-arm64", "dev-flow"], ["win32-x64", "dev-flow.exe"]]) {
+      await mkdir(join(packageRoot, "runtime", platform), { recursive: true });
+      await writeFile(join(packageRoot, "runtime", platform, binary), `Core fixture for ${platform}\n`);
+    }
+    const firstTarball = join(root, "first.tgz"), secondTarball = join(root, "second.tgz");
+    await execFile("tar", ["-czf", firstTarball, "-C", join(root, "packed"), "package"]);
+    await copyFile(firstTarball, secondTarball);
+    const selection = { product, repositoryRoot, sourceCommit: "a".repeat(40), sourceTree: "b".repeat(40), firstTarball, secondTarball, outputDirectory };
+    const result = await prepareRelease(selection);
+    assert.deepEqual(result.output_files, releaseOutputNames(product, version, "0.8.5"));
+    const prepared = await validateReleaseArtifacts({ product, version, directory: outputDirectory, sourceCommit: selection.sourceCommit });
+    assert.equal(prepared.manifest.release.product, product);
+    assert.deepEqual(await readFile(prepared.tarball.path), await readFile(firstTarball));
+    assert.equal(await readFile(join(outputDirectory, "dev-flow-core-0.8.5-darwin-arm64"), "utf8"), "Core fixture for darwin-arm64\n");
+    assert.equal(await readFile(join(outputDirectory, "dev-flow-core-0.8.5-windows-amd64.exe"), "utf8"), "Core fixture for win32-x64\n");
+    await writeFile(secondTarball, "different build");
+    await assert.rejects(prepareRelease(selection), /not deterministic/);
+  });
+}
+
+for (const product of allProducts) {
   test(`${product} accepts its current prepare format and retains recorded digests`, async t => {
     const fixture = await releaseFixture(t, product);
     const prepared = await validateReleaseArtifacts(fixture.selection);
@@ -38,7 +73,7 @@ for (const product of ["codex", "deepseek", "dev-flow"]) {
   });
 }
 
-for (const product of ["codex", "deepseek"]) {
+for (const product of hostProducts) {
   for (const index of [1, 2]) test(`${product} rejects replaced Core artifact ${index}`, async t => {
     const fixture = await releaseFixture(t, product);
     await writeFile(join(fixture.selection.directory, fixture.manifest.artifacts[index].relative_path), "replacement Core");
@@ -110,12 +145,13 @@ test("release identity must match the selected product, version and source", asy
   }
 });
 
-for (const product of ["codex", "deepseek", "dev-flow"]) {
+for (const product of allProducts) {
   test(`${product} publishes its complete verified artifact set and resumes matching remote state`, async t => {
     const fixture = await releaseFixture(t, product);
     const remote = fakeRemote(fixture);
     const result = await publishRelease({ ...fixture.selection, runProcess: remote.run });
     assert.equal(result.status, "complete");
+    assert.equal(result.tag, `${product}-v${version}`);
     assert.equal(remote.release.isPrerelease, false);
     assert.deepEqual([...remote.assets.keys()].sort(), [...fixture.files.keys()].sort());
     for (const [name, bytes] of fixture.files) assert.deepEqual(remote.assets.get(name), bytes);
@@ -149,7 +185,7 @@ for (const product of ["codex", "deepseek", "dev-flow"]) {
   });
 }
 
-for (const product of ["codex", "deepseek"]) {
+for (const product of hostProducts) {
   test(`${product} beta publication and retry retain npm beta and GitHub prerelease state`, async t => {
     const fixture = await releaseFixture(t, product, "0.7.8-beta.1"), remote = fakeRemote(fixture);
     assert.equal((await publishRelease({ ...fixture.selection, runProcess: remote.run })).status, "complete");
@@ -242,6 +278,8 @@ test("release presentation names every product and links immutable release detai
   const cases = [
     { product: "codex", title: "Dev Flow for Codex v0.7.8", packageName: "dev-flow-codex", guidePath: "packages/codex/README.md", bundlesCore: true },
     { product: "deepseek", title: "Dev Flow for DeepSeek Harness v0.7.8", packageName: "dev-flow-deepseek", guidePath: "packages/deepseek/README.md", bundlesCore: true },
+    { product: "claude", title: "Dev Flow for Claude Code v0.7.8", packageName: "dev-flow-claude", guidePath: "packages/claude/README.md", bundlesCore: true },
+    { product: "zcode", title: "Dev Flow for ZCode v0.7.8", packageName: "dev-flow-zcode", guidePath: "packages/zcode/README.md", bundlesCore: true },
     { product: "dev-flow", title: "Dev Flow CLI v0.7.8", packageName: "@imotong/dev-flow", guidePath: "packages/dev-flow/README.md", bundlesCore: false },
   ];
 
@@ -404,6 +442,10 @@ function fakeRemote(fixture) {
       if (args[0] === "push") { tagged = true; return ""; }
     }
     if (command === "npm") {
+      if (["view", "pack"].includes(args[0])) {
+        const expectedName = fixture.selection.product === "dev-flow" ? "@imotong/dev-flow" : `dev-flow-${fixture.selection.product}`;
+        assert.equal(args[1], `${expectedName}@${fixture.selection.version}`);
+      }
       if (args[0] === "view") {
         if (!npmBytes) throw new Error("version absent");
         return JSON.stringify(fixture.selection.version);

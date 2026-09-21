@@ -1,41 +1,42 @@
 # Product Release Strategy
 
 Dev Flow versions Core, Codex, DeepSeek, Claude, ZCode and the lifecycle CLI independently. Current
-public release commands publish Codex, DeepSeek or the CLI. See [VERSIONING.md](VERSIONING.md) for
+release commands publish any of the four Host Adapters or the CLI. See [VERSIONING.md](VERSIONING.md) for
 their authorities. A product release changes only that product's version; a host artifact records the
 actual bundled Core version separately.
 
-## Tags and Codex baseline
+## Product Tags
 
-Product Tag prefixes are `core-vX.Y.Z`, `codex-vX.Y.Z`, `deepseek-vX.Y.Z` and `dev-flow-vX.Y.Z`. Historical `v0.1.0` through
-`v0.5.0` remain frozen. The first new Codex release compares against `v0.5.0`; later Codex releases
-compare against the latest lower `codex-v*`.
+Product Tag prefixes are `core-vX.Y.Z`, `codex-vX.Y.Z`, `deepseek-vX.Y.Z`, `claude-vX.Y.Z`,
+`zcode-vX.Y.Z` and `dev-flow-vX.Y.Z`. Historical unprefixed Tags remain frozen. Host releases
+validate the selected source and artifacts directly; a first release does not require a previous Tag.
 
-## Codex artifacts
+## Host Adapter artifacts
 
 ```text
-dev-flow-codex-<CODEX_VERSION>.tgz
+dev-flow-<HOST>-<VERSION>.tgz
 dev-flow-core-<CORE_VERSION>-darwin-arm64
 dev-flow-core-<CORE_VERSION>-windows-amd64.exe
 SHA256SUMS
 release-manifest.json
 ```
 
-The manifest records product, package/Core versions, source commit/tree, and artifact digests. The
+`<HOST>` is `codex`, `deepseek`, `claude` or `zcode`. The manifest records product, package/Core versions, source commit/tree, and artifact digests. The
 npm package contains the exact `darwin-arm64` and `win32-x64` runtime directories, and publication
 verifies and uploads both standalone Core executables.
 
 ## One-command release
 
 维护者默认通过 GitHub Actions 手工触发 `publish-npm` 工作流，填写 product、channel 和 version。
-Codex/DeepSeek 使用 ARM64 `macos-15` runner，CLI 桌面包使用带 Xcode 27 的 ARM64 `xcode-27` 预览镜像。
-工作流使用固定发布检查，再调用对应的一键发布命令。三个 npm
-包分别信任 `Innocent-children/dev-flow` 的 `publish-npm.yml`，workflow
+四个 Host Adapter 使用 ARM64 `macos-15` runner，CLI 桌面包使用带 Xcode 27 的 ARM64 `xcode-27` 预览镜像。
+工作流使用固定发布检查，再调用对应的一键发布命令。五个 npm
+包须分别配置为信任 `Innocent-children/dev-flow` 的 `publish-npm.yml`，workflow
 通过 OIDC 获取短期 npm 发布凭据；GitHub mutation 使用已安装到当前仓库并加入 `main` ruleset
 bypass list 的专用 GitHub App 短期 token，所有产品共用一个串行发布队列。App Client ID 存在仓库
 变量 `RELEASE_APP_CLIENT_ID`，完整 PEM 私钥存在仓库 secret `RELEASE_APP_PRIVATE_KEY`。
 
 工作流上传 runner 临时发布目录中的构建产物；同输入重跑时由 Publisher 回读并复用匹配的远端状态。
+Claude/ZCode 首次启用前还需确认 npm 包所有权、首次发布条件和认证方式，并分别完成 Trusted Publisher 配置；源码中的发布选项不代表这些外部配置已经完成。详见 [Release Ownership](../release/README.md)。
 
 ```bash
 pnpm run release:codex -- \
@@ -44,20 +45,24 @@ pnpm run release:codex -- \
   --confirm "codex-v<CODEX_VERSION>"
 ```
 
-The Codex version commit updates its package and plugin mirror and uses
-`release(codex): v<CODEX_VERSION>`. Stable releases also update `release/public-versions.json` with
-the selected Codex version and bundled Core version. Core and DeepSeek version files remain unchanged;
-release commands do not rewrite Markdown. DeepSeek and CLI entrypoints are documented in
-[Release Ownership](../release/README.md).
+The four Host commands are `release:codex`, `release:deepseek`, `release:claude` and `release:zcode`.
+They use the same options and their own `<host>-v<VERSION>` confirmation and Tag. The version commit
+updates the selected package and its plugin or marketplace mirrors, using `release(<host>): v<VERSION>`.
+Stable releases also update that Host's `release/public-versions.json` entry and bundled Core version.
+A first stable release can retain the current package version while adding the missing public identity.
+Core and other Host version files remain unchanged, and release commands do not rewrite Markdown.
+Adding a release entrypoint does not publish the package or expand verified platform support.
+Product-specific instructions and the CLI entrypoint are linked from [Release Ownership](../release/README.md).
 
 The release command runs one fixed set of package and publication checks before creating the version
 commit.
 
-Preparation keeps the two-clean-worktree deterministic build. Publication keeps exact confirmation,
-publish-once npm behavior, immutable Tag/assets, remote read-back, atomic local state, and
-read-before-retry. Resume uses the original product, Codex/Core versions, Tag, source, mode, previous
-release, and digests, including a frozen source checkout when current source has advanced.
+Preparation builds the same frozen source in two independent clean checkouts and requires identical
+tarball bytes. Publication requires exact confirmation and checks existing Tag, npm and GitHub
+Release state before publishing or retrying. Resume checks the saved source commit/tree, product, package/Core versions,
+channel and artifact bytes, then publishes the already verified artifacts. It does not rebuild them
+or create another source checkout.
 
 Product changes and pull-request validation never execute publication. Publication requires the
 product, channel, target version and exact maintainer confirmation. Stable releases require synchronized
-`main`; Codex and DeepSeek beta releases may use a clean named branch. The CLI supports stable only.
+`main`; all four Host beta releases may use a clean named branch. The CLI supports stable only.

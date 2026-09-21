@@ -704,6 +704,28 @@ Worktree creation first confirms a local or remote source, base and target branc
 
 When increasing verification capacity, `additional_checks` may refer to check names in the current plan or earlier adjustments; `rationale` explains the remaining work or rerun. Names remain unique within one submission, and concrete reasons, an actual increase and the existing limits are still required. Increasing capacity does not create passed results.
 
+## Package preparation and publication
+
+### Host Adapters
+
+All four Hosts share standalone release options while maintaining separate package, Tag and public-version identities:
+
+| Host | Release command | Exact confirmation format |
+| --- | --- | --- |
+| Codex | `pnpm run release:codex -- ...` | `codex-v<VERSION>` |
+| DeepSeek | `pnpm run release:deepseek -- ...` | `deepseek-v<VERSION>` |
+| Claude Code | `pnpm run release:claude -- ...` | `claude-v<VERSION>` |
+| ZCode | `pnpm run release:zcode -- ...` | `zcode-v<VERSION>` |
+
+```bash
+pnpm run release:claude -- --channel stable --version "<VERSION>" --output "<ABSOLUTE_DIRECTORY>" --confirm "claude-v<VERSION>"
+node scripts/build-host-release.mjs --product <codex|deepseek|claude|zcode> --output "<ABSOLUTE_DIRECTORY>"
+```
+
+`--channel` defaults to `stable`, accepts `MAJOR.MINOR.PATCH` and requires clean `main` synchronized with `origin/main`; `beta` accepts `MAJOR.MINOR.PATCH-beta.N` and uses a clean named branch. `--version` and `--confirm` are required, and confirmation must match the selected Host and version. `--output` is optional, defaulting to `dev-flow-releases/<host>-v<VERSION>` under the user's home directory; an explicit path must be absolute and outside the repository, and its parent must already exist. Fixed checks precede selected package and plugin/marketplace version updates. When version files change, the command commits and pushes them, then checks the resulting remote commit; only afterward does it prepare artifacts for publisher verification and publication. Only stable updates that Host's public-version entry.
+
+`build-host-release.mjs` only prepares and verifies the five-file artifact set containing both Core runtimes; it does not publish. `--product` and `--output` are required; the output must be an existing empty absolute directory outside the repository. Implementations are `scripts/release-<host>.mjs`, `release/host-command.mjs` and `scripts/build-host-release.mjs`. New release entrypoints do not mean Claude/ZCode have stable releases; maintainers must first complete the npm ownership, initial-publication and Trusted Publisher setup requirements. See [Release Ownership](../release/README.md) for the complete requirements and artifact format.
+
 ### Formal desktop package preparation
 
 ```bash

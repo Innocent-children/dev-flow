@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { releaseProducts } from "./products.mjs";
 
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 const hostVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/u;
@@ -8,8 +9,8 @@ const gitIdentity = /^[0-9a-f]{40}$/u;
 const artifactDigest = /^[0-9a-f]{64}$/u;
 
 export async function validateReleaseArtifacts({ product, version, directory, sourceCommit }) {
-  if (!["codex", "deepseek", "dev-flow"].includes(product)) throw new Error("invalid release product");
-  const bundlesCore = product !== "dev-flow";
+  if (!Object.hasOwn(releaseProducts, product)) throw new Error("invalid release product");
+  const { packageName, bundlesCore } = releaseProducts[product];
   if (!(bundlesCore ? hostVersion : stableVersion).test(version ?? "")) throw new Error("invalid release version");
   if (!gitIdentity.test(sourceCommit ?? "")) throw new Error("invalid source commit");
   const requested = resolve(directory);
@@ -30,7 +31,7 @@ export async function validateReleaseArtifacts({ product, version, directory, so
   }
   if (!bundlesCore) exactKeys(manifest.desktop_applications, ["darwin-arm64", "win32-x64"], "desktop applications");
 
-  const tarballName = `${bundlesCore ? `dev-flow-${product}` : "imotong-dev-flow"}-${version}.tgz`;
+  const tarballName = `${packageName.replace(/^@/u, "").replaceAll("/", "-")}-${version}.tgz`;
   const expected = new Map([[tarballName, "npm_tarball"]]);
   if (bundlesCore) {
     expected.set(`dev-flow-core-${manifest.release.core_version}-darwin-arm64`, "core_binary");

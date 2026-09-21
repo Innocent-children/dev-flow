@@ -1,7 +1,7 @@
 # DeepSeek Release
 
 日常发布从 GitHub Actions 手工运行 `publish-npm`：选择 `product=deepseek`、channel 和目标版本；
-工作流使用固定发布检查。npm 包 `dev-flow-deepseek` 把
+工作流使用固定发布检查。npm 包 `dev-flow-deepseek` 须把
 `Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
 Trusted Publisher；工作流通过 OIDC 认证，并在 `macos-15` ARM64 runner 上调用下面同一个命令。
 失败时下载 workflow artifact 查看发布记录，再用
@@ -25,6 +25,12 @@ Release as a prerelease. Both channels commit `release(deepseek): v<DEEPSEEK_VER
 `deepseek-v<DEEPSEEK_VERSION>`. The packaged Core version comes from `CORE_VERSION` and is recorded
 independently.
 
+The shared prepare command can build the release directory without publishing:
+
+```bash
+node scripts/build-host-release.mjs --product deepseek --output "<ABSOLUTE_DIRECTORY>"
+```
+
 Preparation creates exactly:
 
 ```text
@@ -37,7 +43,7 @@ release-manifest.json
 
 The repository does not store either DeepSeek Core executable. `packages/deepseek/package.json`
 declares their final package paths, while release preparation checks out the frozen source twice and
-uses `scripts/build-deepseek-local.mjs` to build both runtime pairs in temporary staging directories.
+uses the shared `scripts/build-host-release.mjs` builder to build both runtime pairs in temporary staging directories.
 The resulting tarballs must be byte-identical before either one becomes the prepared npm artifact.
 
 Confirmed publication creates or reuses matching Tag/npm/GitHub state, verifies registry tarball
@@ -46,8 +52,9 @@ remain covered by product tests and do not run inside publication.
 The npm tarball read-back retries only propagation responses such as `ETARGET` and `E404` for up to
 ten minutes; authentication failures and byte mismatches stop immediately.
 
-The shared publisher checks the complete local five-file directory before any remote command on
-both first publication and resume. It requires regular non-symbolic-link files, unique exact artifact
+The shared publisher checks the complete local five-file directory before its Tag, npm and GitHub
+Release operations on both first publication and resume. Version-file commits and pushes precede
+artifact preparation. It requires regular non-symbolic-link files, unique exact artifact
 names, matching release identity, matching tarball/Core digests in the manifest and `SHA256SUMS`, and
 a matching checksum for the manifest itself. Missing, extra, duplicated, out-of-directory, or altered
 files stop publication. npm and GitHub read-back compare against those saved expectations even if a

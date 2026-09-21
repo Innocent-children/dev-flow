@@ -316,12 +316,9 @@ test("staged tarball contains and starts the current dual-platform Core", async 
   assert.equal(mcpStderr, "");
 });
 
-test("release preparation builds both frozen artifacts through the staging builder", async () => {
+test("DeepSeek release preparation delegates to the shared Host builder", async () => {
   const release = await readFile(join(repositoryRoot, "scripts", "build-deepseek-release.sh"), "utf8");
-  assert.match(release, /build_report_a=.*build-deepseek-local\.mjs/u);
-  assert.match(release, /build_report_b=.*build-deepseek-local\.mjs/u);
-  assert.match(release, /report\.source_dirty[\s\S]*report\.source_commit/u);
-  assert.doesNotMatch(release, /packages\/deepseek\/tests\/build-artifact\.mjs/u);
+  assert.match(release, /exec node "\$repository_root\/scripts\/build-host-release\.mjs" --product deepseek "\$@"/u);
 });
 
 async function runWithClosedInput(command, args, options, input = "", expectedExit = 0) {

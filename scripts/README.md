@@ -66,7 +66,7 @@ Node.js、npm 和 pnpm；不要求 Bash 来启动这个入口。
 - `build-core-runtimes.mjs`：唯一的双 Core runtime 构建入口，输出按 runtime key 命名的 JSON 报告；
 - `build-codex-local.sh`：使用统一 runtime 报告构建 Codex 源码 tarball；
 - `build-deepseek-local.mjs`：在系统临时 staging 中使用统一 runtime 报告构建 DeepSeek 源码 tarball；
-- `build-codex-release.sh`、`build-deepseek-release.sh`：为 standalone release 准备确定性构建产物。
+- `build-host-release.mjs --product <codex|deepseek|claude|zcode>`：从两份独立冻结源码准备 Host 正式发布产物；`build-codex-release.sh`、`build-deepseek-release.sh` 调用同一实现。
 
 各 Host Adapter 源码 package 均不保存预编译 Core。各自的 `package.json` 仍声明最终 npm 包内的
 两个 runtime 路径；本地构建和 release staging 现场生成这些文件后再打包。
@@ -75,16 +75,18 @@ Node.js、npm 和 pnpm；不要求 Bash 来启动这个入口。
 
 ## 发布入口
 
-推荐在 GitHub Actions 手工运行 `publish-npm` 工作流。三个 npm 包分别把
+推荐在 GitHub Actions 手工运行 `publish-npm` 工作流，选择 `codex`、`deepseek`、`claude`、`zcode` 或 `dev-flow`。五个 npm 包须分别把
 `Innocent-children/dev-flow` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
 Trusted Publisher；运行时只选择产品、channel 和目标版本。工作流使用固定的发布检查，通过 OIDC
 获取短期 npm 发布凭据，使用
-ARM64 runner（Codex/DeepSeek 使用 `macos-15`，Dev Flow 桌面包使用带 Xcode 27 的 `xcode-27` 预览镜像）、Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，所有产品共用发布队列串行执行，
-再调用下列入口。Codex/DeepSeek 制备交叉构建并校验两个平台的 Core；CLI 制备包含两个平台的桌面应用。发布 runner 的操作系统只是构建基础设施，
+ARM64 runner（四个 Host Adapter 使用 `macos-15`，Dev Flow 桌面包使用带 Xcode 27 的 `xcode-27` 预览镜像）、Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，所有产品共用发布队列串行执行，
+再调用下列入口。四个 Host Adapter 制备交叉构建并校验两个平台的 Core；CLI 制备包含两个平台的桌面应用。发布 runner 的操作系统只是构建基础设施，
 不缩小构建产物运行时范围。npm 发布不创建依赖 `NODE_AUTH_TOKEN` 的 registry 认证配置。
 版本提交、Tag 和 GitHub Release 使用安装到当前仓库、加入 `main` ruleset bypass list 的专用
 GitHub App 短期 token；仓库变量 `RELEASE_APP_CLIENT_ID` 和 secret `RELEASE_APP_PRIVATE_KEY`
 分别提供 App Client ID 与完整 PEM 私钥。
+
+Claude/ZCode 的新增入口不代表对应 npm 包已经首次发布或配置 Trusted Publisher。首次启用前由维护者确认包名所有权、npm 首次发布条件和认证方式，并完成每个包的 Trusted Publisher 配置；仓库不自动修改 npm 设置。
 
 ```bash
 pnpm run release:codex -- \
@@ -103,24 +105,39 @@ pnpm run release:deepseek -- \
 ```
 
 ```bash
+pnpm run release:claude -- \
+  [--channel stable|beta] \
+  --version "<CLAUDE_VERSION>" \
+  --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "claude-v<CLAUDE_VERSION>"
+```
+
+```bash
+pnpm run release:zcode -- \
+  [--channel stable|beta] \
+  --version "<ZCODE_VERSION>" \
+  --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "zcode-v<ZCODE_VERSION>"
+```
+
+```bash
 pnpm run release:dev-flow -- \
   --version "<DEV_FLOW_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
   --confirm "dev-flow-v<DEV_FLOW_VERSION>"
 ```
 
-Codex/DeepSeek 默认使用 `stable` channel，只接受稳定 SemVer，并要求 `main` 与 `origin/main` 一致。`beta` 只接受
+四个 Host Adapter 默认使用 `stable` channel，只接受稳定 SemVer，并要求 `main` 与 `origin/main` 一致。`beta` 只接受
 `MAJOR.MINOR.PATCH-beta.N`，允许任意干净的命名分支，version commit 推回当前分支；npm 固定使用
 `beta` dist-tag，GitHub Release 固定为 prerelease，稳定版 `latest` 保持不变。
 已有 GitHub Release 的 prerelease 属性必须与所选 channel 一致，否则停止发布。CLI 只支持 stable，并要求干净且同步的 `main`。
 
-Codex/DeepSeek 发布命令只更新 package manifest、Plugin mirror 和 `release/public-versions.json` 等机器
-可读版本文件；CLI 只更新 `packages/dev-flow/package.json`。发布命令不读取或改写 Markdown。
+Host 发布命令只更新所选 package manifest、对应 plugin/marketplace 版本副本，以及 stable 的 `release/public-versions.json` 条目；CLI 只更新 `packages/dev-flow/package.json`。发布命令不读取或改写 Markdown。首次 stable 发布可以使用当前源码版本并新增公开版本条目；四个 Host 均不依赖历史 Tag。
 
 发布命令使用一套固定检查。只有上述 exact-confirmation 入口可以修改产品版本、commit/push、Tag、
 npm、GitHub Release 与 assets。
 
-三个产品共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 绑定 source、
+五个产品共用同一个 Publisher。Publisher 使用仓库外的 `release-manifest.json` 绑定 source、
 版本和安装包摘要；重跑时回读并复用匹配的远端状态。
 Publisher 最多等待十分钟并重试真正的 `npm pack <package>@<version>` tarball 下载与内容核对；只对
 `ETARGET`、`E404` 这类 registry 传播延迟继续等待，认证失败和字节不一致立即停止。

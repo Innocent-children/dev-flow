@@ -3,6 +3,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { HOST_PRODUCTS } from "../release/products.mjs";
 
 const SEMVER_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/u;
 
@@ -23,7 +24,7 @@ export async function syncPublicReleaseVersions(root, { product, version, coreVe
 }
 
 function validateSelection({ product, version, coreVersion }) {
-  if (!["codex", "deepseek"].includes(product)) throw new Error("product must equal codex or deepseek");
+  if (!HOST_PRODUCTS.includes(product)) throw new Error(`product must equal ${HOST_PRODUCTS.join(", ")}`);
   if (!SEMVER_PATTERN.test(version ?? "") || !SEMVER_PATTERN.test(coreVersion ?? "")) {
     throw new Error("product and Core versions must be strict MAJOR.MINOR.PATCH");
   }
@@ -31,7 +32,8 @@ function validateSelection({ product, version, coreVersion }) {
 
 function validateMetadata(value) {
   if (!SEMVER_PATTERN.test(value?.core_version ?? "")) throw new Error("public Core version metadata is invalid");
-  for (const product of ["codex", "deepseek"]) {
+  for (const product of HOST_PRODUCTS) {
+    if (!Object.hasOwn(value, product)) continue;
     if (!SEMVER_PATTERN.test(value?.[product]?.version ?? "") || !SEMVER_PATTERN.test(value?.[product]?.core_version ?? "")) {
       throw new Error(`public ${product} version metadata is invalid`);
     }
@@ -43,7 +45,7 @@ function parseArguments(arguments_) {
   for (let index = 0; index < arguments_.length; index += 2) {
     const flag = arguments_[index];
     if (!["--product", "--version", "--core-version"].includes(flag) || index + 1 >= arguments_.length) {
-      throw new Error("usage: sync-public-release-versions.mjs --product codex|deepseek --version VERSION --core-version CORE_VERSION");
+      throw new Error(`usage: sync-public-release-versions.mjs --product ${HOST_PRODUCTS.join("|")} --version VERSION --core-version CORE_VERSION`);
     }
     values.set(flag, arguments_[index + 1]);
   }

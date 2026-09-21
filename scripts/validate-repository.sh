@@ -362,6 +362,10 @@ run_step "npm release publisher syntax" node --check release/publish.mjs
 run_step "npm release publisher behavior" node --test release/publish.test.mjs
 run_step "Codex one-command release syntax" node --check scripts/release-codex.mjs
 run_step "DeepSeek one-command release syntax" node --check scripts/release-deepseek.mjs
+run_step "Claude one-command release syntax" node --check scripts/release-claude.mjs
+run_step "ZCode one-command release syntax" node --check scripts/release-zcode.mjs
+run_step "Host release preparation syntax" node --check scripts/build-host-release.mjs
+run_step "Host release command and preparation contracts" node --test tests/host-release-command.test.mjs tests/host-release-prepare.test.mjs
 run_step "Dev Flow one-command release syntax" node --check scripts/release-dev-flow.mjs
 run_step "GitHub npm release workflow contract" node --test tests/release_workflow.test.mjs
 run_step "Windows package CI failure propagation contract" node --test tests/ci_workflow.test.mjs

@@ -6,6 +6,23 @@ import test from "node:test";
 const root = join(import.meta.dirname, "..");
 const workflow = await readFile(join(root, ".github/workflows/publish-npm.yml"), "utf8");
 
+test("every Host Adapter has a workflow choice and standalone release entrypoint", async () => {
+  const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  const productInput = workflow.slice(workflow.indexOf("      product:"), workflow.indexOf("      channel:"));
+  assert.deepEqual([...productInput.matchAll(/^          - (.+)$/gmu)].map(match => match[1]), [
+    "codex", "deepseek", "claude", "zcode", "dev-flow",
+  ]);
+  const hostDispatch = workflow.match(/^            ([a-z|]+)\)\n              pnpm run "release:\$RELEASE_PRODUCT"/mu);
+  assert.ok(hostDispatch, "Host products must dispatch to their standalone release command");
+  assert.deepEqual(hostDispatch[1].split("|"), ["codex", "deepseek", "claude", "zcode"]);
+  for (const product of ["codex", "deepseek", "claude", "zcode"]) {
+    assert.equal(manifest.scripts[`release:${product}`], `node ./scripts/release-${product}.mjs`);
+  }
+  for (const product of ["claude", "zcode"]) {
+    assert.equal(manifest.scripts[`release:${product}:prepare`], `node ./scripts/build-host-release.mjs --product ${product}`);
+  }
+});
+
 test("npm publication is manual, globally serialized, and minimally privileged", () => {
   assert.match(workflow, /on:\n  workflow_dispatch:/u);
   assert.doesNotMatch(workflow, /^  (push|pull_request|schedule):/mu);

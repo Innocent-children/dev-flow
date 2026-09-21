@@ -7,42 +7,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { validateReleaseArtifacts } from "./artifacts.mjs";
+import { releaseProducts } from "./products.mjs";
 
 const execFile = promisify(execFileCallback);
 const registry = "https://registry.npmjs.org/";
 const repository = "Innocent-children/dev-flow";
 const npmVisibilityTimeoutMs = 600_000;
 const npmVisibilityPollMs = 5_000;
-const products = Object.freeze({
-  codex: {
-    packageName: "dev-flow-codex",
-    tagPrefix: "codex-v",
-    releaseName: "Dev Flow for Codex",
-    guideName: "Codex guide",
-    guidePath: "packages/codex/README.md",
-    bundlesCore: true,
-  },
-  deepseek: {
-    packageName: "dev-flow-deepseek",
-    tagPrefix: "deepseek-v",
-    releaseName: "Dev Flow for DeepSeek Harness",
-    guideName: "DeepSeek Harness guide",
-    guidePath: "packages/deepseek/README.md",
-    bundlesCore: true,
-  },
-  "dev-flow": {
-    packageName: "@imotong/dev-flow",
-    tagPrefix: "dev-flow-v",
-    releaseName: "Dev Flow CLI",
-    guideName: "lifecycle CLI guide",
-    guidePath: "packages/dev-flow/README.md",
-    bundlesCore: false,
-  },
-});
 
 export async function publishRelease({ product, version, directory, sourceCommit, environment = process.env, runProcess = run } = {}) {
-  const config = products[product];
-  if (!config) throw new Error("product must equal codex, deepseek or dev-flow");
+  const config = Object.hasOwn(releaseProducts, product) ? releaseProducts[product] : null;
+  if (!config) throw new Error(`product must equal ${Object.keys(releaseProducts).join(", ")}`);
   const prepared = await validateReleaseArtifacts({ product, version, directory, sourceCommit });
   const tag = `${config.tagPrefix}${version}`;
   const presentation = releasePresentation(product, version, prepared.manifest);
@@ -59,7 +34,7 @@ export async function publishRelease({ product, version, directory, sourceCommit
 }
 
 export function releasePresentation(product, version, manifest) {
-  const config = products[product];
+  const config = Object.hasOwn(releaseProducts, product) ? releaseProducts[product] : null;
   const coreVersion = manifest?.release?.core_version;
   const sourceCommit = manifest?.release?.source_commit;
   if (!config || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/u.test(version ?? "")) {

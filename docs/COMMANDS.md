@@ -654,6 +654,28 @@ Codex 启动先由 `dispatch-start` 将完整 `host_request` 保存到 `receipt.
 
 增加验证额度时，`additional_checks` 可以引用原计划或此前增加记录中的检查名称，使用 `rationale` 说明本次补做或重跑。单次提交内名称仍需唯一，具体原因、实际增加量和上限继续校验；追加额度本身不生成通过结果。
 
+## 包制备与发布
+
+### Host Adapter
+
+四个 Host 使用相同的独立发布参数，各自维护 package、Tag 和公开版本记录：
+
+| Host | 发布命令 | 精确确认格式 |
+| --- | --- | --- |
+| Codex | `pnpm run release:codex -- ...` | `codex-v<VERSION>` |
+| DeepSeek | `pnpm run release:deepseek -- ...` | `deepseek-v<VERSION>` |
+| Claude Code | `pnpm run release:claude -- ...` | `claude-v<VERSION>` |
+| ZCode | `pnpm run release:zcode -- ...` | `zcode-v<VERSION>` |
+
+```bash
+pnpm run release:claude -- --channel stable --version "<VERSION>" --output "<ABSOLUTE_DIRECTORY>" --confirm "claude-v<VERSION>"
+node scripts/build-host-release.mjs --product <codex|deepseek|claude|zcode> --output "<ABSOLUTE_DIRECTORY>"
+```
+
+发布命令的 `--channel` 默认为 `stable`，接受 `MAJOR.MINOR.PATCH`，要求干净且与 `origin/main` 同步的 `main`；`beta` 接受 `MAJOR.MINOR.PATCH-beta.N`，使用干净的命名分支。`--version` 和 `--confirm` 必填，确认内容必须对应所选 Host 与版本。`--output` 可省略，默认使用用户目录下的 `dev-flow-releases/<host>-v<VERSION>`；显式目录须为仓库外绝对路径，父目录必须已经存在。发布前执行固定检查，随后对齐所选 package 与 plugin/marketplace 版本副本。有版本文件变化时先提交并推送，再核对推送后的远端提交；之后才构建产物并交给 publisher 核对与发布。只有 stable 更新对应公开版本条目。
+
+`build-host-release.mjs` 只制备和核对包含两个平台 Core 的五个产物文件，不执行发布；`--product` 和 `--output` 必填，输出须为已经存在的仓库外空绝对目录。源码入口来自 `scripts/release-<host>.mjs`、`release/host-command.mjs` 和 `scripts/build-host-release.mjs`。新增发布入口不表示 Claude/ZCode 已稳定发布；首次使用还需由维护者完成 npm 包所有权、首次发布和 Trusted Publisher 所需配置。完整要求与产物说明见[发布说明](../release/README.md)。
+
 ### 正式桌面包制备
 
 ```bash
