@@ -4,32 +4,36 @@ import { mkdtemp, mkdir, readFile, realpath, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
+import { execPortableCommand } from "../../packages/host-command/command.mjs";
 
 const exec = promisify(execFile);
 const [packageDirectory] = process.argv.slice(2);
 if (!packageDirectory) throw new Error("Usage: node tests/zcode/verify-package.mjs ABSOLUTE_EXTRACTED_PACKAGE");
-const root = await realpath(resolve(packageDirectory));
+const source = await realpath(resolve(packageDirectory));
 const isolated = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-zcode-acceptance-")));
 const data = join(isolated, "data"), repository = join(isolated, "repository");
 await mkdir(data); await mkdir(repository);
 const environment = { ...process.env, HOME: isolated, USERPROFILE: isolated, LOCALAPPDATA: join(isolated, "appdata"), DEV_FLOW_DATA_DIR: data };
+const prefix = join(isolated, "npm-prefix");
+const commandOptions = { env: environment, windowsHide: true, timeout: 30000, maxBuffer: 8 * 1024 * 1024 };
+await execPortableCommand("npm", ["install", "--global", "--prefix", prefix, "--cache", join(isolated, "npm-cache"),
+  "--install-links", "--ignore-scripts", "--offline", "--no-audit", "--no-fund", source], commandOptions);
+const root = join(prefix, process.platform === "win32" ? "node_modules" : "lib/node_modules", "dev-flow-zcode");
+const launcher = join(prefix, process.platform === "win32" ? "" : "bin", "dev-flow-zcode");
 const cli = join(root, "bin/dev-flow-zcode.mjs");
 const run = (executable, args, options = {}) => exec(executable, args, { env: environment, windowsHide: true, timeout: 30000, maxBuffer: 8 * 1024 * 1024, ...options });
-function command(args, input) {
-  return new Promise((done, fail) => {
-    const child = execFile(process.execPath, [cli, ...args], { env: environment, windowsHide: true, timeout: 30000, maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
-      if (error) return fail(error);
-      try { done(stdout.trim() ? JSON.parse(stdout) : null); } catch (failure) { fail(failure); }
-    });
-    child.stdin.end(input === undefined ? "" : JSON.stringify(input));
-  });
+async function command(args, input) {
+  const { stdout } = await execPortableCommand(launcher, args, { ...commandOptions, input: input === undefined ? "" : JSON.stringify(input) });
+  return stdout.trim() ? JSON.parse(stdout) : null;
 }
-const report = { package: root, platform: `${process.platform}-${process.arch}`, isolated_directory: isolated, checks: [],
+const report = { package: root, source_package: source, platform: `${process.platform}-${process.arch}`, isolated_directory: isolated, checks: [],
   zcode_ui: "not exercised by this package harness", model_session: "not exercised", macos_native: process.platform === "darwin" ? "native package check only" : "not executed" };
 await writeFile(join(data, "unrelated.txt"), "preserve\n");
 const setup = await command(["setup", "--json"]);
 assert.equal(setup.status, "action_required");
 assert.equal(setup.registration.host, "unverified");
+assert.equal((await command(["status", "--json"])).registration.phase, "prepared");
+report.checks.push("npm-generated launcher returns valid setup and status JSON");
 assert.equal((await command(["setup", "--json"])).changed, false);
 report.checks.push("detached complete package, native Core and idempotent local preparation; UI state remains unverified");
 

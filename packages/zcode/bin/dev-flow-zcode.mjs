@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readSync } from "node:fs";
+import { readSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { core } from "../lib/runtime.mjs";
 import * as lifecycle from "../lib/lifecycle.mjs";
@@ -94,7 +94,16 @@ export async function runCLI(args) {
   throw new Error("Invalid command; use --help");
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
   runCLI(process.argv.slice(2)).then(code => { process.exitCode = code; }, error => {
     process.stderr.write(`dev-flow-zcode: ${error.message}\n`);
     if (error.launch_id && error.receipt_path) {

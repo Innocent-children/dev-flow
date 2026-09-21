@@ -4,17 +4,25 @@ import { dirname, join, resolve } from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import assert from "node:assert/strict";
+import { execPortableCommand } from "../../packages/host-command/command.mjs";
 const run = promisify(execFile);
 const [packageDirectory, claudeExecutable] = process.argv.slice(2);
 if (!packageDirectory || !claudeExecutable) throw new Error("Usage: node verify-package.mjs ABSOLUTE_EXTRACTED_PACKAGE ABSOLUTE_CLAUDE_EXECUTABLE");
-const root = await realpath(resolve(packageDirectory)), isolated = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-claude-acceptance-")));
+const source = await realpath(resolve(packageDirectory)), isolated = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-claude-acceptance-")));
 const config = join(isolated, "config"), data = join(isolated, "data");
 await mkdir(config); await mkdir(data);
 const environment = { ...process.env, HOME: isolated, USERPROFILE: isolated, LOCALAPPDATA: join(isolated, "appdata"), CLAUDE_CONFIG_DIR: config, DEV_FLOW_DATA_DIR: data, PATH: dirname(claudeExecutable) + (process.platform === "win32" ? ";" : ":") + process.env.PATH };
-const command = async args => JSON.parse((await run(process.execPath, [join(root, "bin/dev-flow-claude.mjs"), ...args, "--json"], { env: environment, windowsHide: true, maxBuffer: 8 * 1024 * 1024, timeout: 60000 })).stdout);
-const report = { package: root, host_version: (await run(claudeExecutable, ["--version"], { env: environment, windowsHide: true })).stdout.trim(), platform: process.platform + "-" + process.arch, isolated_directory: isolated, checks: [] };
+const prefix = join(isolated, "npm-prefix");
+const commandOptions = { env: environment, windowsHide: true, maxBuffer: 8 * 1024 * 1024, timeout: 60000 };
+await execPortableCommand("npm", ["install", "--global", "--prefix", prefix, "--cache", join(isolated, "npm-cache"),
+  "--install-links", "--ignore-scripts", "--offline", "--no-audit", "--no-fund", source], commandOptions);
+const root = join(prefix, process.platform === "win32" ? "node_modules" : "lib/node_modules", "dev-flow-claude");
+const launcher = join(prefix, process.platform === "win32" ? "" : "bin", "dev-flow-claude");
+const command = async args => JSON.parse((await execPortableCommand(launcher, [...args, "--json"], commandOptions)).stdout);
+const report = { package: root, source_package: source, host_version: (await run(claudeExecutable, ["--version"], { env: environment, windowsHide: true })).stdout.trim(), platform: process.platform + "-" + process.arch, isolated_directory: isolated, checks: [] };
 await writeFile(join(config, "unrelated.txt"), "preserve");
 const setup = await command(["setup"]); assert.equal(setup.status, "ready"); report.checks.push("native plugin installation and byte-for-byte cache closure");
+assert.equal((await command(["status"])).status, "ready"); report.checks.push("npm-generated launcher returns valid setup and status JSON");
 assert.equal((await command(["setup"])).changed, false); report.checks.push("repeat setup has no changes");
 const info = await new Promise((done, fail) => {
   const child = spawn(process.execPath, [join(root, "bin/dev-flow-claude.mjs"), "mcp"], { env: environment, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });

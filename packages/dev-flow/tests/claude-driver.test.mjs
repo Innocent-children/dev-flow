@@ -4,6 +4,63 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createClaudeDriver } from "../lib/hosts/claude.mjs";
+
+function installFixture({ setupOutput, statusOutput } = {}) {
+  const calls = [], progress = [], started = [];
+  const ready = JSON.stringify({ status: "ready", package_version: "0.1.0", registration: { receipt: true } });
+  const driver = createClaudeDriver({ run: async (executable, args) => {
+    calls.push([executable, ...args]);
+    if (executable === "npm") return { stdout: "" };
+    assert.equal(executable, "dev-flow-claude");
+    return { stdout: args[0] === "setup" ? setupOutput ?? ready : statusOutput ?? ready };
+  } });
+  const install = () => driver.execute("install", {
+    targetVersion: "0.1.0", observed: { hostAvailable: true, state: "absent" },
+    onProgress: step => progress.push(step), onStepStart: step => started.push(step),
+  });
+  return { install, calls, progress, started };
+}
+
+test("Claude confirms setup before reporting registration complete and reading status", async () => {
+  const f = installFixture();
+  const result = await f.install();
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.completedSteps, ["claude.install_package", "claude.setup_registration"]);
+  assert.deepEqual(f.progress, result.completedSteps);
+  assert.deepEqual(f.calls, [
+    ["npm", "install", "--global", "dev-flow-claude@0.1.0"],
+    ["dev-flow-claude", "setup", "--json"], ["dev-flow-claude", "status", "--json"],
+  ]);
+});
+
+test("Claude rejects unsuccessful setup output without losing the installed package change", async t => {
+  for (const setupOutput of ["", "{", "null", '{"status":"partial","package_version":"0.1.0"}', '{"status":"ready","package_version":"0.0.9"}']) {
+    await t.test(JSON.stringify(setupOutput), async () => {
+      const f = installFixture({ setupOutput });
+      await assert.rejects(f.install, error => {
+        assert.match(error.message, /dev-flow-claude setup --json/);
+        assert.equal(error.changed, true);
+        assert.deepEqual(error.completedSteps, ["claude.install_package"]);
+        assert.equal(error.nextStep, "dev-flow repair --host claude --yes");
+        return true;
+      });
+      assert.deepEqual(f.started, ["claude.install_package", "claude.setup_registration"]);
+      assert.deepEqual(f.progress, ["claude.install_package"]);
+      assert.equal(f.calls.some(call => call[1] === "status"), false);
+    });
+  }
+});
+
+test("Claude names an empty status response after a verified setup", async () => {
+  const f = installFixture({ statusOutput: "" });
+  await assert.rejects(f.install, error => {
+    assert.equal(error.message, "dev-flow-claude status --json returned empty JSON output");
+    assert.equal(error.changed, true);
+    assert.deepEqual(error.completedSteps, ["claude.install_package", "claude.setup_registration"]);
+    return true;
+  });
+});
+
 async function orphanFixture(t, foreign = false) {
   const root = await mkdtemp(join(tmpdir(), "claude-orphan-"));
   t.after(() => rm(root, { recursive: true, force: true }));

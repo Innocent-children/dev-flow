@@ -1,12 +1,40 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile, access, copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { readFile, access, copyFile, lstat, mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { operations } from "../bin/dev-flow-zcode.mjs";
+import { execPortableCommand } from "../lib/command.mjs";
 
 const root = new URL("../", import.meta.url);
+
+test("npm-installed ZCode bin returns status JSON before local preparation", async t => {
+  const isolated = await mkdtemp(join(tmpdir(), "dev-flow-zcode-npm-"));
+  t.after(() => rm(isolated, { recursive: true, force: true }));
+  const prefix = join(isolated, "prefix");
+  const options = { env: { ...process.env, HOME: isolated, USERPROFILE: isolated, LOCALAPPDATA: join(isolated, "appdata"), DEV_FLOW_DATA_DIR: "" }, timeout: 60000 };
+  await execPortableCommand("npm", ["install", "--global", "--prefix", prefix, "--cache", join(isolated, "cache"),
+    "--install-links", "--ignore-scripts", "--offline", "--no-audit", "--no-fund", fileURLToPath(root)], options);
+  const command = join(prefix, process.platform === "win32" ? "" : "bin", "dev-flow-zcode");
+  if (process.platform !== "win32") {
+    assert.equal((await lstat(command)).isSymbolicLink(), true);
+    assert.equal(await realpath(command), join(await realpath(prefix), "lib/node_modules/dev-flow-zcode/bin/dev-flow-zcode.mjs"));
+  }
+  const status = JSON.parse((await execPortableCommand(command, ["status", "--json"], options)).stdout);
+  assert.equal(status.operation, "status");
+  assert.equal(status.status, "partial");
+  assert.equal(status.changed, false);
+  assert.equal(status.registration.receipt, false);
+  assert.equal(status.registration.phase, null);
+  assert.deepEqual(status.next_steps.slice(0, 1), ["Run dev-flow-zcode setup --json to prepare and verify the local plugin source."]);
+  assert.match((await execPortableCommand(command, ["--help"], options)).stdout, /^dev-flow-zcode status\|setup\|remove/u);
+  await assert.rejects(execPortableCommand(command, ["invalid-command"], options), error => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Invalid command; use --help/u);
+    return true;
+  });
+});
 
 test("native plugin, marketplace, MCP and process Hook share a self-contained package", async () => {
   const pkg = JSON.parse(await readFile(new URL("package.json", root), "utf8"));

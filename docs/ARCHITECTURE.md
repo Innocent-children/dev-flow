@@ -466,6 +466,8 @@ Windows 路径实现将已有 AppData 目录解析为实际路径，包括打包
 
 `packages/dev-flow/lib/cli.mjs` 解析参数并组织交互菜单，`terminal.mjs` 保留同一次交互中的输入，`presentation.mjs` 展示计划、进度和结果。`plan.mjs` 生成维护动作与确认要求，`lifecycle.mjs` 先观察、解析目标版本、展示计划和取得确认，再执行并记录操作结果。它按明确选定的 Host/Profile 调用驱动，安装目录规范化后重新创建驱动，使后续操作使用同一组路径。`diagnostics.mjs` 汇总安装与用户配置检查。重试重新观察实际安装；安装记录不决定 Core Task 的状态。
 
+DeepSeek 驱动从 `npm pack --json` 的列表或包名映射中读取唯一制品报告，核对包名、版本和文件名后才修改 Profile。Claude 与 ZCode 的 CLI 入口按真实文件路径判断直接执行，支持 npm 生成的命令软链接。两者的管理器驱动校验 `setup` 返回的 JSON 和预期状态后才记录注册步骤完成，再通过 `status` 回读安装；空输出或无效 JSON 的错误会指出具体命令。
+
 | 模块 | 职责 |
 | --- | --- |
 | `packages/dev-flow/lib/hosts/` | Codex、DeepSeek、Claude、ZCode 驱动各自拥有包定位和私有安装记录，DeepSeek 同时负责 Profile 规则；各驱动执行已确认的 Adapter 操作。`runtimeCandidates()` 提供启动候选；`maintenanceTargets()` 提供已注册或安装中断后仍存在的包及 Core 位置。 |

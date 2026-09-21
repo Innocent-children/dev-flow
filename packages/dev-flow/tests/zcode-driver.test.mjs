@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { createZCodeDriver } from "../lib/hosts/zcode.mjs";
 
-async function fixture(t) {
+async function fixture(t, { setupOutput, statusOutput } = {}) {
   const root = await mkdtemp(join(tmpdir(), "dev-flow-zcode-driver-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const paths = { productRoot: join(root, "dev-flow"), runtimeKey: "win32-x64", runtimeDirectory: "win32-x64", runtimeExecutable: "dev-flow.exe" };
@@ -33,10 +33,10 @@ async function fixture(t) {
     }
     assert.equal(executable, "dev-flow-zcode", "the driver must not invent a ZCode CLI");
     if (!installed) throw new Error("Adapter is absent");
-    if (args[0] === "setup") { await save("prepared"); return { stdout: JSON.stringify({ ...report(), changed: true }) }; }
+    if (args[0] === "setup") { await save("prepared"); return { stdout: setupOutput ?? JSON.stringify({ ...report(), changed: true }) }; }
     if (args[0] === "remove") { await save("removal_required"); return { stdout: JSON.stringify({ ...report(), changed: true }) }; }
     assert.deepEqual(args, ["status", "--json"]);
-    return { stdout: JSON.stringify(report()) };
+    return { stdout: statusOutput ?? JSON.stringify(report()) };
   };
   const driver = createZCodeDriver({ paths, environment: {}, run, localPackage: { path: join(root, "local.tgz"), version: "0.1.0" } });
   return { driver, calls, receiptPath, paths, save, localPackagePath: join(root, "local.tgz"),
@@ -57,6 +57,39 @@ test("ZCode prepares a local source and reports UI work without inventing Host a
   assert.equal((await f.driver.runtimeCandidates())[0].source, "zcode");
   assert.deepEqual(f.calls.find(call => call[0] === "npm" && call[1] === "install"), ["npm", "install", "--global", f.localPackagePath]);
   assert.ok(result.nextSteps[0].includes("ZCode"));
+});
+
+test("ZCode rejects unsuccessful setup output without reporting local preparation complete", async t => {
+  for (const setupOutput of ["", "{", "null", JSON.stringify({ status: "partial" }),
+    JSON.stringify({ status: "action_required", package_version: "0.1.0", registration: { phase: "removal_required" }, next_steps: [] })]) {
+    await t.test(JSON.stringify(setupOutput), async t => {
+      const f = await fixture(t, { setupOutput });
+      const progress = [], started = [];
+      await assert.rejects(f.driver.execute("install", {
+        targetVersion: "0.1.0", observed: {}, onProgress: step => progress.push(step), onStepStart: step => started.push(step),
+      }), error => {
+        assert.match(error.message, /dev-flow-zcode setup --json/);
+        assert.equal(error.changed, true);
+        assert.deepEqual(error.completedSteps, ["zcode.install_package"]);
+        assert.equal(error.nextStep, "dev-flow repair --host zcode --yes");
+        return true;
+      });
+      assert.deepEqual(started, ["zcode.install_package", "zcode.setup_registration"]);
+      assert.deepEqual(progress, ["zcode.install_package"]);
+      assert.equal(f.calls.some(call => call[1] === "status"), false);
+      assert.equal(JSON.parse(await readFile(f.receiptPath, "utf8")).phase, "prepared");
+    });
+  }
+});
+
+test("ZCode names an empty status response after a verified local preparation", async t => {
+  const f = await fixture(t, { statusOutput: "" });
+  await assert.rejects(f.driver.execute("install", { targetVersion: "0.1.0", observed: {} }), error => {
+    assert.equal(error.message, "dev-flow-zcode status --json returned empty JSON output");
+    assert.equal(error.changed, true);
+    assert.deepEqual(error.completedSteps, ["zcode.install_package", "zcode.setup_registration"]);
+    return true;
+  });
 });
 
 test("ZCode keeps the removal command until UI removal is confirmed, then uninstalls only its package", async t => {

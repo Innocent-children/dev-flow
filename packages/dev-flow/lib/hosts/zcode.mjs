@@ -12,6 +12,16 @@ const defaultRun = (executable, args, { environment = process.env, ...options } 
 
 export function createZCodeDriver({ paths, environment = process.env, run = defaultRun, localPackage = null } = {}) {
   const call = (executable, args) => run(executable, args, { environment });
+  const adapterReport = async operation => {
+    const command = `${packageName} ${operation} --json`;
+    const { stdout } = await call(packageName, [operation, "--json"]);
+    if (typeof stdout !== "string" || !stdout.trim()) throw new Error(`${command} returned empty JSON output`);
+    let report;
+    try { report = JSON.parse(stdout); }
+    catch (cause) { throw new Error(`${command} returned invalid JSON`, { cause }); }
+    if (report === null || typeof report !== "object" || Array.isArray(report)) throw new Error(`${command} must return a JSON object`);
+    return report;
+  };
   const receiptPath = join(paths.productRoot, "registrations", "zcode.json");
   const removalSteps = ["In ZCode Settings > Plugins, uninstall dev-flow-zcode and remove the dev-flow-zcode-local marketplace. Start a new session to unload its tools and hooks."];
   async function readReceipt() {
@@ -60,7 +70,7 @@ export function createZCodeDriver({ paths, environment = process.env, run = defa
       const issues = [];
       let report = null, packageVersion = null, receipt = null;
       try {
-        report = JSON.parse((await call(packageName, ["status", "--json"])).stdout);
+        report = await adapterReport("status");
         packageVersion = stable(report.package_version);
         if (!["partial", "action_required"].includes(report.status) || !Array.isArray(report.next_steps)) throw new Error("Invalid ZCode installation status");
       } catch (error) {
@@ -123,15 +133,22 @@ export function createZCodeDriver({ paths, environment = process.env, run = defa
           return { changed: true, completedSteps, nextSteps: [] };
         }
         await step("zcode.install_package", "npm", ["install", "--global", localPackage?.path ?? `${packageName}@${stable(targetVersion)}`]);
-        const prepared = JSON.parse((await step("zcode.setup_registration", packageName, ["setup", "--json"])).stdout);
-        const readback = JSON.parse((await call(packageName, ["status", "--json"])).stdout);
-        if (prepared.status !== "action_required" || readback.status !== "action_required" ||
+        onStepStart("zcode.setup_registration");
+        const prepared = await adapterReport("setup");
+        if (prepared.status !== "action_required" || prepared.package_version !== targetVersion ||
+            prepared.registration?.phase !== "prepared" || !Array.isArray(prepared.next_steps)) {
+          throw new Error("dev-flow-zcode setup --json did not confirm the requested local preparation");
+        }
+        completedSteps.push("zcode.setup_registration"); onProgress("zcode.setup_registration");
+        const readback = await adapterReport("status");
+        if (readback.status !== "action_required" ||
             readback.package_version !== targetVersion || readback.registration?.phase !== "prepared" || !Array.isArray(readback.next_steps)) {
-          throw new Error("ZCode local preparation readback failed");
+          throw new Error("dev-flow-zcode status --json local preparation readback failed");
         }
         return { changed: true, completedSteps, nextSteps: readback.next_steps };
       } catch (error) {
         error.completedSteps = completedSteps;
+        error.changed = error.changed === true || completedSteps.length > 0;
         error.nextStep = `dev-flow ${operation === "uninstall" ? "uninstall" : "repair"} --host zcode --yes`;
         throw error;
       }

@@ -6,6 +6,16 @@ const stable = v => { if (typeof v !== "string" || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)
 const defaultRun = (exe, args, { environment = process.env, ...options } = {}) => execPortableCommand(exe, args, { ...options, env: environment, encoding: "utf8", windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
 export function createClaudeDriver({ environment = process.env, run = defaultRun, localPackage = null, paths = null } = {}) {
   const call = (exe, args) => run(exe, args, { environment });
+  const adapterReport = async operation => {
+    const command = `dev-flow-claude ${operation} --json`;
+    const { stdout } = await call("dev-flow-claude", [operation, "--json"]);
+    if (typeof stdout !== "string" || !stdout.trim()) throw new Error(`${command} returned empty JSON output`);
+    let report;
+    try { report = JSON.parse(stdout); }
+    catch (cause) { throw new Error(`${command} returned invalid JSON`, { cause }); }
+    if (report === null || typeof report !== "object" || Array.isArray(report)) throw new Error(`${command} must return a JSON object`);
+    return report;
+  };
   const readOrphan = async () => {
     if (!paths) return null;
     const receiptPath = join(paths.productRoot, "registrations", "claude.json");
@@ -73,7 +83,7 @@ export function createClaudeDriver({ environment = process.env, run = defaultRun
       const issues = []; let hostAvailable = false, hostVersion = null, value = null, packageVersion = null;
       try { hostVersion = (await call("claude", ["--version"])).stdout.trim(); hostAvailable = true; }
       catch (error) { issues.push({ code: "host_missing", message: error.message, command: "claude --version" }); }
-      try { value = JSON.parse((await call("dev-flow-claude", ["status", "--json"])).stdout); packageVersion = stable(value.package_version); }
+      try { value = await adapterReport("status"); packageVersion = stable(value.package_version); }
       catch (error) {
         try {
           let result;
@@ -131,12 +141,15 @@ export function createClaudeDriver({ environment = process.env, run = defaultRun
           if (!localPackage && observed.state === "ready" && observed.packageVersion === targetVersion && operation !== "reinstall") return { changed: false, completedSteps };
           if (observed.receipt && observed.packageInstalled) await step("claude.remove_registration", "dev-flow-claude", ["remove", "--json"]);
           await step("claude.install_package", "npm", ["install", "--global", localPackage?.path ?? "dev-flow-claude@" + stable(targetVersion)]);
-          await step("claude.setup_registration", "dev-flow-claude", ["setup", "--json"]);
-          const result = JSON.parse((await call("dev-flow-claude", ["status", "--json"])).stdout);
-          if (result.status !== "ready" || result.package_version !== targetVersion) throw new Error("Claude installation readback failed");
+          onStepStart("claude.setup_registration");
+          const prepared = await adapterReport("setup");
+          if (prepared.status !== "ready" || prepared.package_version !== targetVersion) throw new Error("dev-flow-claude setup --json did not confirm the requested installation");
+          completedSteps.push("claude.setup_registration"); onProgress("claude.setup_registration");
+          const result = await adapterReport("status");
+          if (result.status !== "ready" || result.package_version !== targetVersion) throw new Error("dev-flow-claude status --json installation readback failed");
         }
         return { changed: true, completedSteps, nextSteps: operation === "uninstall" ? [] : ["Reload Claude plugins or start a new Claude Code session."] };
-      } catch (error) { error.completedSteps = completedSteps; error.nextStep = operation === "uninstall" ? "dev-flow uninstall --host claude --yes" : "dev-flow repair --host claude --yes"; throw error; }
+      } catch (error) { error.completedSteps = completedSteps; error.changed = error.changed === true || completedSteps.length > 0; error.nextStep = operation === "uninstall" ? "dev-flow uninstall --host claude --yes" : "dev-flow repair --host claude --yes"; throw error; }
     }
   };
 }

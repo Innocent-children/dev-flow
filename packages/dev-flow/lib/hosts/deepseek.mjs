@@ -109,7 +109,9 @@ export function createDeepSeekDriver({
           artifact = await realpath(localPackage.path);
         } else {
           const packed = await run(npmExecutable, ["pack", `dev-flow-deepseek@${targetVersion}`, "--json"], { environment, cwd: temporaryRoot });
-          const report = Array.isArray(parseJSON(packed.stdout, "npm pack")) ? parseJSON(packed.stdout, "npm pack")[0] : parseJSON(packed.stdout, "npm pack");
+          const reports = parseJSON(packed.stdout, "npm pack");
+          const entries = reports !== null && typeof reports === "object" ? Object.values(reports) : [];
+          const report = entries.length === 1 ? entries[0] : null;
           if (report?.name !== "dev-flow-deepseek" || report?.version !== targetVersion || typeof report?.filename !== "string" || basename(report.filename) !== report.filename) {
             throw new Error("DeepSeek artifact identity is invalid");
           }
