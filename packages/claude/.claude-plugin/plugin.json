@@ -1,6 +1,6 @@
 {
   "name": "dev-flow-claude",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Persistent Dev Flow development tasks for Claude Code.",
   "skills": "./plugin/skills",
   "hooks": "./plugin/hooks/hooks.json",
