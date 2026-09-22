@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Conservez le périmètre, les limites de vérification et l'avancement des longues tâches de programmation avec IA d'une session à l'autre.</strong></p>
+<p align="center"><strong>La programmation IA au long cours, sous contrôle.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -12,14 +12,15 @@
 
 ## Ce que Dev Flow vous permet de faire
 
-Dev Flow vous aide à gérer de longues tâches de programmation avec IA dans Codex, DeepSeek, Claude Code ou ZCode.
-Il enregistre localement les exigences convenues, le périmètre des fichiers, le plan de vérification,
-l’avancement et les résultats pour poursuivre le travail après la fin d’une session.
+Votre agent choisit la prochaine action technique.<br />
+Dev Flow garde la tâche sous contrôle.
 
-- **Clarifier le périmètre :** enregistrez les fichiers prévus et comparez les modifications réelles au plan.
-- **Planifier les tests :** choisissez les contrôles utiles et fixez une limite à l’effort de vérification.
-- **Reprendre le travail :** poursuivez la même tâche et le travail restant depuis son répertoire d’origine.
-- **Consulter les résultats :** suivez l’avancement, les contrôles et les problèmes à traiter.
+Utilisez-le avec Codex, DeepSeek, Claude Code ou ZCode. L’agent raisonne sur le code ; Dev Flow conserve le périmètre, les limites de vérification, l’état et les données de reprise.
+
+- **Périmètre explicite:** Comparez les modifications aux fichiers approuvés. Sortir du plan demande une décision.
+- **Vérification bornée:** Prévoyez les contrôles utiles et leurs limites. Tout ajout demande une raison concrète.
+- **État persistant:** L’état de référence de la tâche reste enregistré localement entre les sessions.
+- **Reprise sûre:** Consultez l’état et les opérations enregistrées pour résoudre un échec ou un résultat incertain avant de réessayer.
 
 Il convient aux travaux sur un dépôt qui s’étendent sur plusieurs sessions ou nécessitent des limites
 claires de fichiers et de tests. Pour les questions ponctuelles, les explications de code et les petites
@@ -135,6 +136,8 @@ Les applications de bureau ciblent macOS arm64 et Windows 10/11 x64. Consultez l
 [matrice de support](docs/SUPPORT-MATRIX_en.md) pour les environnements vérifiés.
 
 ## Limites d’utilisation
+
+Dev Flow contrôle le déroulement de la tâche, pas les permissions du système. Il n’intercepte pas chaque opération sur les fichiers ni chaque commande shell.
 
 Un worktree dédié sépare les modifications de code. Les processus, le réseau, les identifiants et
 les services externes restent partagés avec votre environnement.

@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>긴 AI 코딩 작업의 변경 범위, 검증 한도, 현재 진행 상황을 세션이 바뀌어도 그대로 유지합니다.</strong></p>
+<p align="center"><strong>오래 이어지는 AI 코딩에도, 분명한 경계를.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -12,13 +12,15 @@
 
 ## Dev Flow로 할 수 있는 일
 
-Dev Flow는 Codex, DeepSeek, Claude Code 또는 ZCode에서 오래 이어지는 AI 코딩 작업을 관리하도록 돕습니다. 합의한 요구사항,
-파일 범위, 검증 계획, 진행 상황과 결과를 로컬에 저장해 세션이 끝난 뒤에도 작업을 이어갈 수 있습니다.
+기술적 판단은 Agent가 합니다.<br />
+Dev Flow는 작업의 경계를 유지합니다.
 
-- **변경 범위 확인:** 수정할 파일을 기록하고 실제 변경 사항을 계획과 비교합니다.
-- **검증 계획 수립:** 작업에 필요한 검사를 선택하고 검증에 들일 작업량의 한도를 정합니다.
-- **작업 재개:** 원래 작업 디렉터리에서 같은 작업의 남은 내용을 이어갑니다.
-- **결과 확인:** 진행 상황, 검사 결과, 처리가 필요한 문제를 확인합니다.
+Codex, DeepSeek, Claude Code 또는 ZCode와 함께 사용합니다. 코드를 이해하고 다음 기술적 행동을 선택하는 일은 Agent가 맡습니다.
+
+- **명확한 범위:** 실제 변경을 승인된 파일과 비교합니다. 계획 밖의 작업에는 별도 결정이 필요합니다.
+- **검증 한도:** 필요한 검사와 한도를 계획합니다. 검증을 늘리려면 구체적인 이유를 기록합니다.
+- **지속되는 상태:** 세션이 바뀌어도 로컬에 저장된 작업 상태를 기준으로 이어갑니다.
+- **안전한 복구:** 실패하거나 결과가 불확실하면 저장된 상태와 작업 기록을 확인한 뒤 재개나 재시도를 결정합니다.
 
 여러 세션에 걸치거나 파일 범위와 테스트 작업량을 명확히 정해야 하는 저장소 작업에 적합합니다.
 일회성 질문, 코드 설명, 진행 상황을 저장할 필요가 없는 작은 수정은 Codex, DeepSeek, Claude Code 또는 ZCode를 직접 쓰는 편이 간단합니다.
@@ -129,6 +131,8 @@ dev-flow pet stop
 [펫 안내서](docs/DESKTOP-PETS_en.md), 검증된 사용 가능 범위는[지원 범위](docs/SUPPORT-MATRIX_en.md)를 참고하세요.
 
 ## 사용 제한
+
+Dev Flow는 작업 흐름을 관리하며 OS 권한을 관리하지 않습니다. 모든 파일 작업이나 셸 명령을 가로채지는 않습니다.
 
 전용 작업 트리는 코드 변경 사항을 분리합니다. 프로세스, 네트워크, 자격 증명과 외부 서비스는 현재 환경과 공유됩니다.
 

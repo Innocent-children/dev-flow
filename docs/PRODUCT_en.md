@@ -4,9 +4,18 @@
 
 ## Product position
 
-Dev Flow helps developers decide whether a request needs a full development process, and preserves requirements, change scope, verification effort and progress so long-running AI coding tasks can continue after a session ends.
+**Long-running AI coding, under control.**
 
-Codex, DeepSeek, Claude Code or ZCode understands code, edits files and executes commands. Go Core retains the one Task state, observes the actual worktree, checks current results and decides the legal next step. A Task is a persisted development job; an Action is an operation Core issues for its current stage.
+Your coding agent decides what to do next. Dev Flow keeps the task under control.
+
+The Host / coding agent—Codex, DeepSeek, Claude Code or ZCode—understands requirements, reads code, reasons about technical solutions, chooses the next action, edits code and runs commands. Dev Flow does not replace that reasoning. It maintains a durable control boundary around the engineering task:
+
+- **Explicit Scope:** check actual changes against the approved plan. Unplanned files need a recorded decision; expanding the plan requires renewed approval.
+- **Bounded Verification:** plan relevant checks and effort limits. Additional verification needs a concrete recorded reason; spare capacity alone does not justify wider testing.
+- **Durable State:** Go Core retains the one authoritative task state. Progress and valid checks come from saved records, not reconstructed chat context.
+- **Safe Recovery:** failures retain reasons and handling paths. Read saved operation records before deciding how to recover or retry an uncertain result.
+
+A Task is a persisted development job; an Action is an operation Core issues for its current stage. Core checks the worktree and submitted results to determine legal workflow transitions; the agent still chooses the technical action. New requests are assessed for fit, and small mechanical edits usually need only direct development.
 
 ## Target users and use cases
 

@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>讓長時間 AI 程式開發任務的修改範圍、驗證上限與目前進度，不因會話中斷而遺失。</strong></p>
+<p align="center"><strong>長時 AI 程式開發，始終有界。</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -12,13 +12,15 @@
 
 ## Dev Flow 能幫你做什麼
 
-Dev Flow 幫助你在 Codex、DeepSeek、Claude Code 或 ZCode 中管理長時間執行的 AI 程式開發任務。它在本機保存已確定的
-需求、檔案範圍、驗證計畫、進度與結果，方便會話中斷後繼續工作。
+技術判斷，交給 Agent。<br />
+任務邊界，交給 Dev Flow。
 
-- **明確修改範圍：** 記錄預計修改的檔案，並依計畫檢查實際修改。
-- **安排驗證投入：** 選擇與任務相關的檢查，設定驗證投入上限。
-- **恢復任務：** 回到原工作目錄，繼續同一任務中尚未完成的工作。
-- **查看結果：** 查看目前進度、檢查結果，以及任務需要處理的問題。
+搭配 Codex、DeepSeek、Claude Code 或 ZCode 使用。
+
+- **範圍明確：** 依已確認的檔案核對修改。計畫外的工作，另作決定。
+- **驗證有度：** 檢查有計畫、有上限。增加驗證，先說明理由。
+- **狀態持久：** 任務以本機保存的狀態為準，不隨會話消失。
+- **安全復原：** 失敗或結果不明，先查記錄，再決定如何繼續。
 
 適合跨會話、需要明確檔案範圍和測試投入的儲存庫任務。一次性問答、程式說明與不需保存進度的
 小型修改，直接使用 Codex、DeepSeek、Claude Code 或 ZCode 通常更簡單。
@@ -124,6 +126,8 @@ dev-flow pet stop
 已驗證的可用範圍見[支援矩陣](docs/SUPPORT-MATRIX.md)。
 
 ## 使用限制
+
+Dev Flow 管理任務流程，不接管系統權限，也不攔截每次檔案操作或命令執行。
 
 專屬工作樹用於分開程式碼修改。程序、網路、憑證和外部服務仍與目前環境共用。
 

@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Bewahre Umfang, Prüfgrenzen und aktuellen Fortschritt langer KI-Coding-Aufgaben über Sitzungen hinweg.</strong></p>
+<p align="center"><strong>Lange KI-Coding-Aufgaben, unter Kontrolle.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -12,14 +12,15 @@
 
 ## Was du mit Dev Flow tun kannst
 
-Dev Flow hilft dir, lange KI-Programmieraufgaben in Codex, DeepSeek, Claude Code oder ZCode zu verwalten. Es speichert
-die vereinbarten Anforderungen, den Dateiumfang, den Prüfplan, den Fortschritt und die Ergebnisse
-lokal, damit du nach dem Ende einer Sitzung weiterarbeiten kannst.
+Dein Coding-Agent wählt den nächsten technischen Schritt.<br />
+Dev Flow hält die Aufgabe unter Kontrolle.
 
-- **Umfang festhalten:** Erfasse die vorgesehenen Dateien und gleiche die tatsächlichen Änderungen mit dem Plan ab.
-- **Tests planen:** Wähle passende Prüfungen und begrenze den Prüfaufwand.
-- **Arbeit fortsetzen:** Setze dieselbe Aufgabe und die verbleibende Arbeit im ursprünglichen Verzeichnis fort.
-- **Ergebnisse ansehen:** Prüfe Fortschritt, Testergebnisse und Probleme, die Aufmerksamkeit benötigen.
+Nutze es mit Codex, DeepSeek, Claude Code oder ZCode. Der Agent beurteilt den Code; Dev Flow bewahrt Umfang, Prüfgrenzen, Aufgabenstand und Wiederherstellungsdaten.
+
+- **Klarer Umfang:** Gleiche tatsächliche Änderungen mit genehmigten Dateien ab. Arbeit außerhalb des Plans braucht eine Entscheidung.
+- **Begrenzte Prüfung:** Plane relevante Prüfungen und ihre Grenzen. Weitere Prüfungen brauchen einen konkreten Grund.
+- **Dauerhafter Zustand:** Der maßgebliche Aufgabenstand bleibt über Sitzungen hinweg lokal gespeichert.
+- **Sichere Wiederherstellung:** Kläre Fehler oder ungewisse Ergebnisse anhand gespeicherter Zustände und Vorgänge, bevor du sie erneut ausführst.
 
 Das eignet sich für Arbeiten an einem Repository, die mehrere Sitzungen dauern oder klare Grenzen
 für Dateien und Tests benötigen. Für einzelne Fragen, Code-Erklärungen und kleine Änderungen ohne
@@ -135,6 +136,8 @@ Bedienung stehen im [Maskottchen-Handbuch](docs/DESKTOP-PETS_en.md), die verifiz
 in der [Support-Matrix](docs/SUPPORT-MATRIX_en.md).
 
 ## Nutzungsgrenzen
+
+Dev Flow steuert den Aufgabenablauf, nicht die Betriebssystemrechte. Es fängt nicht jeden Dateizugriff oder Shell-Befehl ab.
 
 Ein eigener Worktree trennt Codeänderungen. Prozesse, Netzwerkzugriff, Zugangsdaten und externe
 Dienste bleiben mit deiner Umgebung geteilt.

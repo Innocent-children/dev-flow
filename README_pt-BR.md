@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Preserve o escopo, os limites de verificação e o progresso de tarefas longas de programação com IA entre sessões.</strong></p>
+<p align="center"><strong>Programação prolongada com IA, sob controle.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -12,14 +12,15 @@
 
 ## O que você pode fazer com o Dev Flow
 
-O Dev Flow ajuda a gerenciar tarefas longas de programação com IA no Codex, DeepSeek, Claude Code ou ZCode. Ele salva
-localmente os requisitos acordados, o escopo de arquivos, o plano de verificação, o progresso e os
-resultados para você continuar depois que a sessão terminar.
+Seu agente escolhe a próxima ação técnica.<br />
+O Dev Flow mantém a tarefa sob controle.
 
-- **Definir o escopo:** registre os arquivos previstos e compare as alterações reais com o plano.
-- **Planejar os testes:** escolha verificações pertinentes e limite o esforço de validação.
-- **Retomar o trabalho:** continue a mesma tarefa e o trabalho restante no diretório original.
-- **Consultar resultados:** acompanhe o progresso, as verificações e os problemas que precisam de atenção.
+Use com Codex, DeepSeek, Claude Code ou ZCode. O agente raciocina sobre o código; o Dev Flow preserva o escopo, os limites de verificação, o estado e os registros de recuperação.
+
+- **Escopo explícito:** Compare as alterações reais com os arquivos aprovados. Trabalhar fora do plano exige uma decisão.
+- **Verificação limitada:** Planeje as verificações relevantes e seus limites. Ampliá-las exige um motivo concreto.
+- **Estado persistente:** O estado de referência da tarefa fica salvo localmente entre sessões.
+- **Recuperação segura:** Consulte o estado e as operações salvas para resolver falhas ou resultados incertos antes de tentar novamente.
 
 É útil para trabalhos em repositórios que atravessam sessões ou precisam de limites claros de
 arquivos e testes. Para perguntas pontuais, explicações de código e pequenas alterações que não
@@ -134,6 +135,8 @@ Os aplicativos de desktop são destinados ao macOS arm64 e Windows 10/11 x64. Co
 [matriz de suporte](docs/SUPPORT-MATRIX_en.md) para a disponibilidade verificada.
 
 ## Limites de uso
+
+O Dev Flow controla o fluxo da tarefa, não as permissões do sistema operacional. Ele não intercepta cada operação de arquivo ou comando de shell.
 
 Um worktree dedicado separa as alterações de código. Processos, acesso à rede, credenciais e serviços
 externos continuam compartilhados com seu ambiente.

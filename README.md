@@ -4,7 +4,7 @@
 
 <h1 align="center">Dev Flow</h1>
 
-<p align="center"><strong>Keep scope, verification limits, and current progress intact across long AI coding sessions.</strong></p>
+<p align="center"><strong>Long-running AI coding, under control.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
@@ -12,13 +12,15 @@
 
 ## What Dev Flow helps you do
 
-Dev Flow helps you manage long AI coding tasks in Codex, DeepSeek, Claude Code or ZCode. It saves the agreed requirements,
-file scope, verification plan, progress, and results locally so you can continue after a session ends.
+Your coding agent decides what to do next.<br />
+Dev Flow keeps the task under control.
 
-- **Keep scope clear:** record the intended files and check the actual changes against the plan.
-- **Plan testing:** choose relevant checks and set limits on verification effort.
-- **Resume work:** continue the same task and remaining work from its original directory.
-- **Inspect results:** view progress, checks, and reasons a task needs attention.
+Use it with Codex, DeepSeek, Claude Code or ZCode. The agent reasons about the code and chooses the technical action; Dev Flow keeps the scope, verification limits, state and recovery records around that work.
+
+- **Explicit Scope:** Check actual changes against approved files. Work beyond the plan needs a decision.
+- **Bounded Verification:** Plan relevant checks and their limits. More verification needs a concrete reason.
+- **Durable State:** Keep the authoritative task state locally, across sessions.
+- **Safe Recovery:** Use saved state and operation records to resolve failures or uncertain results before retrying.
 
 It suits repository work that spans sessions or needs explicit scope and testing limits. For one-off
 questions, code explanations, and small edits that need no saved progress, using Codex, DeepSeek, Claude Code or ZCode
@@ -133,6 +135,8 @@ Desktop applications target macOS arm64 and Windows 10/11 x64. See the
 [Support Matrix](docs/SUPPORT-MATRIX_en.md) for verified availability.
 
 ## Usage limits
+
+Dev Flow controls the task workflow, not OS permissions. It does not intercept every file operation or shell command.
 
 A dedicated worktree separates code changes. Processes, network access, credentials, and external
 services remain shared with your environment.
