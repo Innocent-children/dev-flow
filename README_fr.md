@@ -148,6 +148,10 @@ son worktree. Ces opérations nécessitent une autorisation distincte de votre p
 - **Projet :** [Définition du produit](docs/PRODUCT_en.md) · [Matrice de support](docs/SUPPORT-MATRIX_en.md) · [Sécurité](SECURITY.md)
 - **Développement et contributions :** [Index de documentation](MANIFEST_en.md) · [Guide de contribution](CONTRIBUTING.md)
 
+## Communauté
+
+[LINUX DO](https://linux.do/)
+
 ## Licence
 
 [Apache License 2.0](LICENSE)

@@ -147,6 +147,10 @@ operações exigem sua autorização separada.
 - **Projeto:** [Definição do produto](docs/PRODUCT_en.md) · [Matriz de suporte](docs/SUPPORT-MATRIX_en.md) · [Segurança](SECURITY.md)
 - **Desenvolvimento e contribuições:** [Índice de documentação](MANIFEST_en.md) · [Guia de contribuição](CONTRIBUTING.md)
 
+## Comunidade
+
+[LINUX DO](https://linux.do/)
+
 ## Licença
 
 [Apache License 2.0](LICENSE)

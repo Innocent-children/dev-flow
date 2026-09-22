@@ -146,6 +146,10 @@ require your separate authorization.
 - **Project:** [Product](docs/PRODUCT_en.md) · [Support Matrix](docs/SUPPORT-MATRIX_en.md) · [Security](SECURITY.md)
 - **Development and contributions:** [Documentation index](MANIFEST_en.md) · [Contributing](CONTRIBUTING.md)
 
+## Community
+
+[LINUX DO](https://linux.do/)
+
 ## License
 
 [Apache License 2.0](LICENSE)

@@ -140,6 +140,10 @@ dev-flow pet stop
 - **프로젝트:** [제품 정의](docs/PRODUCT_en.md) · [지원 범위](docs/SUPPORT-MATRIX_en.md) · [보안](SECURITY.md)
 - **개발 및 기여:** [문서 목록](MANIFEST_en.md) · [기여 안내](CONTRIBUTING.md)
 
+## 커뮤니티
+
+[LINUX DO](https://linux.do/)
+
 ## 라이선스
 
 [Apache License 2.0](LICENSE)

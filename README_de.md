@@ -148,6 +148,10 @@ keinen Worktree. Diese Vorgänge erfordern deine gesonderte Zustimmung.
 - **Projekt:** [Produktbeschreibung](docs/PRODUCT_en.md) · [Support-Matrix](docs/SUPPORT-MATRIX_en.md) · [Sicherheit](SECURITY.md)
 - **Entwicklung und Beiträge:** [Dokumentationsübersicht](MANIFEST_en.md) · [Beitragsleitfaden](CONTRIBUTING.md)
 
+## Community
+
+[LINUX DO](https://linux.do/)
+
 ## Lizenz
 
 [Apache License 2.0](LICENSE)

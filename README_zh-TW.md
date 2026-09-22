@@ -135,6 +135,10 @@ dev-flow pet stop
 - **專案資料：** [產品定義](docs/PRODUCT.md) · [支援矩陣](docs/SUPPORT-MATRIX.md) · [安全政策](SECURITY.md)
 - **開發與貢獻：** [文件目錄](MANIFEST.md) · [貢獻指南](CONTRIBUTING_zh-CN.md)
 
+## 社群
+
+[LINUX DO](https://linux.do/)
+
 ## 授權條款
 
 [Apache License 2.0](LICENSE)
