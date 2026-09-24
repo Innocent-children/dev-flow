@@ -110,7 +110,7 @@ For a dedicated workspace, `launch` returns a complete descriptor of this shape.
 {"executable":"claude","arguments":["--session-id","bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","--","Continue this Dev Flow task in the prepared workspace. First read the entire retained request and original discussion at /private/dev-flow/provisioning/claude/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/receipt.json. Read dev-flow-claude host-launch status and scope for launch aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa. Preserve existing content. Perform server_info. Resume an existing matching Core Task, and create only after establishing that no prior Core creation occurred. After a successful open, record its actual task_id with host-launch bind-task. Retain all original requirements and corrections from the saved discussion."],"cwd":"/work/project","session_id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}
 ```
 
-After `provision`, `scope` returns the exact object to combine with `host:"claude"` and `new_task` for the [Core creation request](tool-results.md#open-or-resume-a-task):
+After `provision`, `scope` returns the exact object to combine with `host:"claude"` and `new_task` for the [Core creation request](connection.md#open-or-resume-a-task):
 
 <!-- example:host-launch-output scope success -->
 ```json

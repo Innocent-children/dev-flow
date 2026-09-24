@@ -1,7 +1,8 @@
-# Assessment and launch
+# Assessment and local launch
 
-Read for a new development request or a receipt-backed bootstrap. Core reads are described in
-[tool results](tool-results.md); final handoff material in [task handoff](task-handoff.md).
+Read for a new request or saved local launch. This page covers current-directory work; read
+[worktree launch](worktree-launch.md) only for a selected dedicated workspace or Host-session recovery.
+After every repository is ready, use [Core connection](connection.md) to create or resume the Task.
 
 ## Command transport
 
@@ -44,20 +45,7 @@ Candidate paths are discovered candidates, not the final plan.
 Inputs: the exact admitted request overview, and every candidate key/root. Keep the same request
 string for prepare and the handoff. `inspect` canonicalizes paths; duplicate roots/keys are rejected.
 
-<!-- example:host inspect single -->
-```json
-{
-  "request": "Return the requested field from the endpoint.",
-  "repositories": [
-    {
-      "key": "primary",
-      "repository_path": "/work/project"
-    }
-  ]
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-inspect-single.md).
+[Complete inspect example](launch-examples.md#host-inspect-single).
 
 The linked response includes the complete helper result and its retained assessment anchor.
 
@@ -68,47 +56,7 @@ reassess known changed requirements/code rather than claiming that the anchor pr
 
 Assessment example (Host-owned; this is not a Core tool input):
 
-<!-- example:assessment assessment standard -->
-```json
-{
-  "change_level": "standard",
-  "observed_repositories": [
-    "/work/project"
-  ],
-  "candidate_components": [
-    "endpoint"
-  ],
-  "candidate_paths": [
-    "src/endpoint.js"
-  ],
-  "public_contract_flags": [
-    "Response field changes"
-  ],
-  "persistence_or_state_flags": [],
-  "host_or_platform_flags": [],
-  "verification_shape": [
-    "Endpoint response check"
-  ],
-  "unknowns": [],
-  "recommendation": "dev_flow",
-  "reasons": [
-    "The response is a public contract."
-  ],
-  "anchor": {
-    "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
-    "repositories": [
-      {
-        "repository_key": "primary",
-        "canonical_root": "/work/project",
-        "head": "1111111111111111111111111111111111111111",
-        "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
-        "dirty_paths": [],
-        "dirty_paths_truncated": false
-      }
-    ]
-  }
-}
-```
+[Complete assessment example](launch-examples.md#assessment-assessment-standard).
 
 `small` requires one repository/responsibility, clear acceptance, concentrated implementation and
 checks, no material unknown and no public-contract/persistence/state/Host/platform/security concern;
@@ -117,6 +65,11 @@ Show the result and ask only if the mode is unresolved. Example: “This changes
 Do you want direct development, Dev Flow, or clarification first?” Reuse an existing valid answer.
 A direct choice leaves Dev Flow without creating state. Recheck request/root/HEAD/status before prepare;
 a changed anchor requires reassessment and a current choice.
+
+A dependent sequence toward one result is one request. For explicitly requested independent parallel
+items, assess each and obtain its item/branch choices before dispatch. Each has its own Host task,
+worktree and Core Task. One directory has one active Task; use separately selected dedicated worktrees
+or execute sequentially. `ACTIVE_TASK_CONFLICT` requires resolving or resuming the existing Task.
 
 ## Confirm source and prepare
 
@@ -150,146 +103,16 @@ For a multi-repository selection containing dedicated worktrees, establish a rea
 authorize every resulting root before preparing any repository. Separate child sessions are not one
 shared writable scope. Read `scope` only after every repository is ready.
 
-For an explicitly selected `dedicated_worktree`, obtain local/remote `source_type`, `base_branch`,
-`remote_name` for remote, `carry_changes` for local, and the new `target_branch`. Local sources use
-`remote_name:""`; remote sources use `carry_changes:false`. Select `managed_worktree` only when the
-Host can create and authorize the selected roots, or `cli_worktree` when an installed Codex CLI and
-usable interactive terminal are available. Missing capability stops that selected operation.
-Write the [handoff JSON](task-handoff.md) outside assessed roots after confirmation. Managed creation
-uses `worktree_path:null`; CLI creation names the explicit absolute destination.
+For an explicitly selected dedicated worktree, read [worktree launch](worktree-launch.md) for source,
+Host-surface and handoff requirements before prepare.
 
 The first prepare may omit `launch_id`. Reuse its returned launch ID for all remaining repositories
 of the same Task. `workspace_mode` is always explicit in the helper input and saved receipt.
 
 ### prepare
 
-<!-- example:host prepare local-managed -->
-```json
-{
-  "request": "Return the requested field from the endpoint.",
-  "repository_key": "primary",
-  "repository_path": "/work/project",
-  "workspace_mode": "dedicated_worktree",
-  "source_type": "local",
-  "carry_changes": false,
-  "remote_name": "",
-  "base_branch": "main",
-  "target_branch": "codex/endpoint-field",
-  "surface": "managed_worktree",
-  "worktree_path": null,
-  "handoff_file": "/private/tmp/dev-flow-handoff.json",
-  "assessment": {
-    "change_level": "standard",
-    "observed_repositories": [
-      "/work/project"
-    ],
-    "candidate_components": [
-      "Endpoint response"
-    ],
-    "candidate_paths": [
-      "src/endpoint.js"
-    ],
-    "public_contract_flags": [
-      "Response field changes"
-    ],
-    "persistence_or_state_flags": [],
-    "host_or_platform_flags": [],
-    "verification_shape": [
-      "Endpoint response check"
-    ],
-    "unknowns": [],
-    "recommendation": "dev_flow",
-    "reasons": [
-      "The response is a public contract."
-    ],
-    "anchor": {
-      "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
-      "repositories": [
-        {
-          "repository_key": "primary",
-          "canonical_root": "/work/project",
-          "head": "1111111111111111111111111111111111111111",
-          "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
-          "dirty_paths": [],
-          "dirty_paths_truncated": false
-        }
-      ]
-    }
-  },
-  "user_choice": {
-    "source": "user",
-    "mode": "dev_flow",
-    "summary": "The user selected Dev Flow after reading the assessment."
-  }
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-prepare-local-managed.md).
-
-For a remote CLI launch, the complete input is:
-
-<!-- example:host prepare remote-cli -->
-```json
-{
-  "request": "Return the requested field from the endpoint.",
-  "repository_key": "primary",
-  "repository_path": "/work/project",
-  "workspace_mode": "dedicated_worktree",
-  "source_type": "remote",
-  "carry_changes": false,
-  "remote_name": "origin",
-  "base_branch": "main",
-  "target_branch": "codex/endpoint-field",
-  "surface": "cli_worktree",
-  "worktree_path": "/work/tasks/endpoint-field",
-  "handoff_file": "/private/tmp/dev-flow-handoff.json",
-  "assessment": {
-    "change_level": "standard",
-    "observed_repositories": [
-      "/work/project"
-    ],
-    "candidate_components": [
-      "Endpoint response"
-    ],
-    "candidate_paths": [
-      "src/endpoint.js"
-    ],
-    "public_contract_flags": [
-      "Response field changes"
-    ],
-    "persistence_or_state_flags": [],
-    "host_or_platform_flags": [],
-    "verification_shape": [
-      "Endpoint response check"
-    ],
-    "unknowns": [],
-    "recommendation": "dev_flow",
-    "reasons": [
-      "The response is a public contract."
-    ],
-    "anchor": {
-      "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
-      "repositories": [
-        {
-          "repository_key": "primary",
-          "canonical_root": "/work/project",
-          "head": "1111111111111111111111111111111111111111",
-          "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
-          "dirty_paths": [],
-          "dirty_paths_truncated": false
-        }
-      ]
-    }
-  },
-  "user_choice": {
-    "source": "user",
-    "mode": "dev_flow",
-    "summary": "The user selected Dev Flow after reading the assessment."
-  }
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-prepare-remote-cli.md).
+Use the [local-branch input](launch-examples.md#host-prepare-local-branch) for the default mode.
+Dedicated-worktree inputs are linked from [worktree launch](worktree-launch.md).
 
 The helper saves the receipt and, for dedicated worktrees, the handoff material. It resolves the
 local branch or fetches only the selected remote branch, freezes `base_commit`, and captures `snapshot_commit` only for confirmed local carry.
@@ -307,15 +130,7 @@ the assessment anchor's HEAD/status contract described above.
 ### status
 
 Implementation: `packages/codex/bin/dev-flow-codex.mjs` — `runHostLaunchCommand`.
-<!-- example:host status launch -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary"
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-status-launch.md).
+[Complete status example](launch-examples.md#host-status-launch).
 
 Read `receipt` and its `operation_status`; a missing record returns `receipt:null`. Example:
 `{"receipt_path":"/private/tmp/receipt.json","receipt":null}` means no record was found, not that
@@ -323,80 +138,14 @@ creation may be repeated. Status does not retry preparation, dispatch, Handoff o
 
 ## Continue in the current directory
 
-<!-- example:host prepare local-branch -->
-```json
-{
-  "request": "Return the requested field from the endpoint.",
-  "repository_key": "primary",
-  "repository_path": "/work/project",
-  "workspace_mode": "new_branch",
-  "source_type": "local",
-  "carry_changes": false,
-  "remote_name": "",
-  "base_branch": "main",
-  "target_branch": "codex/endpoint-field",
-  "surface": "current_session",
-  "worktree_path": "/work/project",
-  "handoff_file": null,
-  "assessment": {
-    "change_level": "standard",
-    "observed_repositories": [
-      "/work/project"
-    ],
-    "candidate_components": [
-      "Endpoint response"
-    ],
-    "candidate_paths": [
-      "src/endpoint.js"
-    ],
-    "public_contract_flags": [
-      "Response field changes"
-    ],
-    "persistence_or_state_flags": [],
-    "host_or_platform_flags": [],
-    "verification_shape": [
-      "Endpoint response check"
-    ],
-    "unknowns": [],
-    "recommendation": "dev_flow",
-    "reasons": [
-      "The response is a public contract."
-    ],
-    "anchor": {
-      "request_digest": "6e1ecf5454bf017b0a842e6d3f7f537dd21f1e4b5741ce8967a54a4d33e662e6",
-      "repositories": [
-        {
-          "repository_key": "primary",
-          "canonical_root": "/work/project",
-          "head": "1111111111111111111111111111111111111111",
-          "status_digest": "2222222222222222222222222222222222222222222222222222222222222222",
-          "dirty_paths": [],
-          "dirty_paths_truncated": false
-        }
-      ]
-    }
-  },
-  "user_choice": {
-    "source": "user",
-    "mode": "dev_flow",
-    "summary": "The user selected Dev Flow after reading the assessment."
-  }
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-prepare-local-branch.md).
+[Complete prepare example](launch-examples.md#host-prepare-local-branch).
 
 After `prepared`, call `local-provision` with the saved identity. It rechecks Core availability,
 creates the selected local branch or keeps the current branch, and verifies the HEAD, directory and
 staged state. It saves the attempt before branch mutation; failures/uncertainty retain the directory
 and receipt. Inspect an unfinished operation rather than running another branch command.
 
-<!-- example:host local-provision current-session -->
-```json
-{"launch_id":"launch-example","repository_key":"primary"}
-```
-
-Complete successful request and response: [view every returned field](successes/host-local-provision-current-session.md).
+[Complete local-provision example](launch-examples.md#host-local-provision-current-session).
 
 Read `receipt.operation_status.phase` and `workspace_origin`. Once all receipts are `provisioned`,
 use `scope`, perform the server handshake and create one Core Task in the current execution session.
@@ -405,310 +154,33 @@ Core verify creation/resume. A known or uncertain Core open uses the existing Ta
 Never reapply the snapshot to a local directory. Initial content needs preservation checks and new
 work still needs its own implementation and verification.
 
-## Managed dispatch
+## Continue a saved launch
 
-Implementation: `packages/codex/lib/task-launch.mjs` — `beginManagedTaskDispatch, claimManagedTaskDispatch, recordManagedTaskDispatch`.
+Read `host-launch status` with the saved launch/repository identity; do not repeat assessment.
 
-Use a saved-project ID returned by the current Host project listing. `dispatch-start` saves the exact
-Host request; `dispatch-call` grants one invocation. Host task creation is asynchronous. Keep the
-coordinator available to record its response and inspect completion; each independent item has its own
-launch. A managed multi-repository Task requires a Host that can provision and authorize every root;
-reject partial isolation rather than pretending separate child sessions share writable roots.
-
-### dispatch-start
-
-<!-- example:host dispatch-start managed -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "project_id": "project-example"
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-dispatch-start-managed.md).
-
-Result: `should_dispatch:false`, receipt phase `dispatch_prepared`, and complete `host_request`.
-Keep `receipt.operation_status.dispatch_attempt_id`. Re-reading start/status returns the saved request;
-it does not grant a creation call.
-
-### dispatch-call
-
-<!-- example:host dispatch-call managed -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "dispatch_attempt_id": "3333333333333333333333333333333333333333333333333333333333333333"
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-dispatch-call-managed.md).
-
-Use the attempt ID from the preceding receipt. Only this invocation's `should_dispatch:true` permits
-one Host `create_thread`. The exact `host_request` contains prompt, title and
-`target:{type:"project",projectId,environment:{type:"worktree",startingState:{type:"branch",branchName:base_commit}}}`.
-Forward the retained object unchanged; the frozen commit is the branch/ref input, and `onMissing` is absent.
-
-Example orchestration when those capabilities are available (the request and response are full values):
-
-```js
-const host_response = await tools.mcp__codex_app__create_thread(saved_dispatch.host_request);
-store("launch_host_response", host_response);
-text(host_response);
-```
-
-Save that response through `dispatch-result`. If only `clientThreadId` is returned, it identifies queued
-setup; it is not a `threadId`. Use Host status/task inspection for the same creation and never dispatch
-again because a response was queued, timed out, truncated in display or missing.
-
-### dispatch-result
-
-<!-- example:host dispatch-result queued -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "host_result": {
-    "clientThreadId": "client-example"
-  }
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-dispatch-result-queued.md).
-<!-- example:host dispatch-result ready -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "host_result": {
-    "threadId": "thread-example",
-    "hostId": "local"
-  }
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-dispatch-result-ready.md).
-
-The complete original Host wrapper is also accepted; forward it instead of constructing the sample
-object. Read `receipt.operation_status.host_client_thread_id`, `host_thread_id`, phase and `changed`.
-A queued result becomes `queued`; ready becomes `dispatched`; null, errors or malformed results become
-`uncertain`. A retained original response can later be recorded without another creation call.
-
-### dispatch-recover
-
-Implementation: `packages/codex/lib/task-launch.mjs` — `recoverUncalledManagedTaskDispatch`.
-<!-- example:host dispatch-recover not-called -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "dispatch_attempt_id": "3333333333333333333333333333333333333333333333333333333333333333",
-  "host_call_not_made": true,
-  "previous_caller_stopped": true,
-  "reason": "The prior caller stopped after parsing dispatch-call; its call log contains no create_thread invocation."
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-dispatch-recover-not-called.md).
-
-Use only after checking the actual call sequence and stopping the previous caller. Empty Host IDs
-alone prove nothing. Output retains the request, rotates the attempt ID and has `should_dispatch:false`;
-use the new ID in `dispatch-call`. An actual call or unknown outcome follows reconciliation instead.
-
-### dispatch-reconcile
-
-Implementation: `packages/codex/lib/task-launch.mjs` — `reconcileManagedTaskDispatch`.
-<!-- example:host dispatch-reconcile lookup -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "candidates": [
-    {
-      "thread_id": "thread-example",
-      "initial_prompt": "Complete original prompt read from the actual Host task."
-    }
-  ]
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-dispatch-reconcile-lookup.md).
-
-Replace `initial_prompt` with the complete actual initial message. Search current/archived Host tasks
-using launch/repository title hints, then inspect prompts; titles can be renamed. Supply all actual
-matches. Exactly one prompt match yields `matched:true` and records its Task ID. Zero/multiple matches,
-incomplete listing or unavailable inspection remain uncertain and never authorize another creation.
-
-## Bootstrap
-
-Implementation: `packages/codex/lib/task-launch.mjs` — `bootstrapManagedTask`.
-
-Read the saved material and `host-launch status` for every confirmed repository first. Route by
-`receipt.operation_status.surface` and `phase`:
-
-| Receipt state | Destination operation |
+| Receipt and actual session state | Next step |
 | --- | --- |
-| `managed_worktree` with `dispatching`, `queued`, `dispatched` or `uncertain`, and the actual managed destination is known | Use `bootstrap` below for first initialization. It checks the Git common group, distinct worktree Git directory, frozen HEAD and clean initial status, creates/switches the target branch, then applies the selected snapshot. |
-| `current_session` with `prepared` | Run `local-provision` in the existing directory, then continue the current session. |
-| `cli_worktree` with `prepared` | The coordinator completes `cli-provision` for every root before launching the destination. |
-| Any surface with `provisioned` | Initialization is already recorded. Inspect the existing worktrees and follow the continuation procedure below; preserve carried content and subsequent work. |
-| Other, missing or uncertain provisioning state | Inspect the saved operation and actual destination before further mutation. |
+| `current_session`, `prepared` | Run [local-provision](#continue-in-the-current-directory). |
+| `managed_worktree` | Follow [bootstrap](worktree-launch.md#bootstrap) for its actual phase. |
+| `cli_worktree`, `prepared` | The coordinator completes [CLI provisioning](worktree-launch.md#cli-provisioning). |
+| `provisioned` | Inspect actual roots, permissions and Git identity. Preserve carried content and later work. Read [connection](connection.md) and resume any existing or uncertain Core Task. Create only after establishing that no prior creation remains pending and the confirmed launch still applies. |
+| Missing, failed or uncertain preparation | Inspect the retained operation and destination before another mutation. |
 
-Raw managed Host creation alone has not completed provisioning. For first managed initialization:
-
-<!-- example:host bootstrap managed -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "worktree_path": "/work/tasks/endpoint-field"
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-bootstrap-managed.md).
-
-Use the actual destination path from Host/Git. Read `receipt.operation_status.phase` and
-`workspace_origin`; only `provisioned` supplies Core creation fields. A failed/unverifiable bootstrap
-stops before Core. The bootstrap route consumes prior confirmations; it does not restart assessment.
-
-### Continue from provisioned worktrees
-
-Read each receipt's actual `worktree_path`, target branch and source repository identity, and inspect
-the corresponding Git worktree/common-directory relationship, current branch, HEAD and status.
-Check every root is accessible to the execution session. `bootstrap` on a `provisioned` receipt
-returns saved data without rechecking Git; `scope` also assembles saved receipts rather than observing
-the current worktrees. Their successful return alone does not establish current workspace validity.
-
-The clean initial state and exact frozen HEAD checks belong to first managed initialization. Carried
-changes can make a newly provisioned worktree dirty, and later authorized work or linear commits can
-change status/HEAD. Preserve that content; compare the launch snapshot only for carried content that
-is meant to remain unchanged. Core validates an existing Task's current history and content when
-opening/resuming it. Never reapply the snapshot or reset the worktree to make it look newly created.
-
-After the server handshake, use the [session/Core state table](#continue-after-a-launch-failure) to
-choose creation or resume. Assemble all confirmed receipts through `scope` only for creation. For
-resume, omit creation fields and preserve the existing Task's repository scope and method profile.
-
-## CLI provisioning
-
-Implementation: `packages/codex/lib/task-launch.mjs` — `provisionCliTask, buildCliRelaunchDescriptor`.
-<!-- example:host cli-provision single -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "source_repository_path": "/work/project",
-  "additional_worktree_paths": []
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-cli-provision-single.md).
-
-Requires a prepared `cli_worktree` receipt. The CLI parser takes `source_repository_path` and passes
-it as a helper option. Supply already provisioned additional roots when building the primary relaunch.
-Output contains `receipt`, `workspace_origin` and `relaunch:{executable,arguments}`. Invoke that
-executable/argv unchanged through the Host's process API after every root is ready and authorized.
-The descriptor uses `codex -C <primary>`, one `--add-dir <additional>` per root, then `--` and the saved
-bootstrap prompt. It creates no second Core Task. Failure leaves the receipt/destination for inspection.
-
-### Launch the interactive Codex session
-
-The returned `codex` command starts an interactive session. Host-launch JSON commands use closed
-stdin; this relaunch needs terminal stdin, stdout and stderr. Request a PTY through the actual process
-tool (for example, `exec_command` with `tty:true`) and retain its session ID for subsequent reads.
-Inspect terminal capability separately from `TERM`: changing `TERM` does not allocate a terminal.
-Check `test -t 0 && test -t 1 && test -t 2` inside the PTY before launch. Preserve a usable `TERM`.
-If it is unset or `dumb`, use the terminal type supported by that Host's PTY, such as
-`xterm-256color` only when supported, in the launch environment. If support cannot be established,
-report that specific limitation. Read any TUI compatibility prompt and answer only when the existing
-authorization covers its effect; a trust or permission prompt may require the user's decision.
-
-Load the saved descriptor from a file while preserving terminal stdin. For example, on a POSIX Host,
-run this command through its PTY-enabled process tool, replacing the path with the complete saved
-primary `cli-provision` output:
-
-```sh
-node --input-type=module -e '
-import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
-const { relaunch } = JSON.parse(readFileSync(process.argv[1], "utf8"));
-const result = spawnSync(relaunch.executable, relaunch.arguments, { stdio: "inherit", shell: false });
-if (result.error) throw result.error;
-process.exit(result.status ?? 1);
-' /private/tmp/dev-flow-primary-provision.json
-```
-
-A script file also preserves stdin. A heredoc such as `python3 - <<'PY'` or `node <<'JS'` redirects
-stdin to the script text; a child inheriting that input has no terminal even when the outer command
-uses a PTY. Pass the returned executable and arguments as separate process values, including the
-complete saved prompt, rather than rebuilding a shell command or substituting `codex exec`.
-
-### Continue after a launch failure
-
-Separate worktree provisioning, Host session startup and Core Task opening in the reported result.
-Keep the launch ID, each repository receipt, primary relaunch descriptor, process/session ID, and
-original startup output. A terminal error describes the attempted invocation; check its stdin
-redirection and PTY options before declaring the Host incapable of providing a terminal.
-
-The process tool's session ID identifies a running command; the Codex task/thread ID identifies its
-conversation; Core `task_id` identifies the saved development Task. Keep these identities separate.
-The receipt's `provisioned` phase records Git preparation, not Core creation or a live Codex session.
-
-| Observed state | Next operation and owner |
-| --- | --- |
-| Invocation definitely failed before a Codex session started | The coordinator corrects the invocation and reuses the saved descriptor after checking all roots. |
-| Destination process/session is running | The coordinator reads that same session's output and handles required input. The destination alone performs Core calls and repository work. |
-| Process exited, but a Codex task/thread is known | Inspect and resume that conversation through the available Host resume operation, in its original worktree with all required roots authorized. Pass the known Codex ID, not a Core ID; preserve saved context. |
-| Process or conversation outcome is uncertain | Inspect retained output and Host task status before another launch or consumer. Resolve that uncertainty first. |
-| Execution session is ready and no Core open call has occurred | After the handshake and worktree checks, use `scope` and the complete creation input once. |
-| Core Task is known, or a previous open call may have occurred | The execution session uses `dev_flow_open_task` with only `host` and the original primary `repository_path`, then compares the returned intent/origins/scope with the launch. Resume a matching Task; handle its recovery/blocker before work. |
-| That lookup returns `TASK_NOT_FOUND` | Follow the Core uncertain-creation rule: inspect the prior call/result and actual workspace. Create only after establishing that no earlier creation remains pending and the confirmed launch still applies; a mismatch or uncertain result stays stopped. |
-
-If the Host cannot resume a known destination, report the missing operation instead of silently
-starting another consumer. Reuse provisioned receipts and worktrees; a launch failure does not
-require another `prepare`, branch, worktree or snapshot application. Keep the coordinator available
-while it owns an interactive CLI process; report completion or a required user action from actual
-destination output rather than treating process startup as completion.
-
-If the destination cannot connect to Core, follow the [connection rule](tool-results.md#server-handshake)
-before opening a Task and the [Host diagnosis guidance](host-lifecycle.md#installation-and-diagnosis-commands).
-Report the actual failed step and retained destination. A working Host session alone does not mean
-that a Core Task has opened or that business implementation has begun.
+Receipt status records workspace preparation, not Core creation. `scope` assembles saved receipts;
+its success does not verify the current workspace. Never reapply snapshots or reset a workspace to
+make it look newly created. [Launch recovery](worktree-launch.md#continue-after-a-launch-failure)
+separates Host process/session uncertainty from Core creation.
 
 ## Complete repository scope
 
 Implementation: `packages/codex/lib/task-launch.mjs` — `readOpenTaskRepositoryScope, buildOpenTaskRepositoryScope`.
-<!-- example:host scope single -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_keys": [
-    "primary"
-  ],
-  "primary_repository_key": "primary"
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-scope-single.md).
-<!-- example:host scope multiple -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_keys": [
-    "api",
-    "web"
-  ],
-  "primary_repository_key": "api"
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-scope-multiple.md).
+[Single-repository scope example](launch-examples.md#host-scope-single).
+[Multiple-repository scope example](launch-examples.md#host-scope-multiple).
 
 Call only after every selected repository has a provisioned receipt belonging to the same launch and
 request. Read the complete result as the repository fields of `dev_flow_open_task`: `repository_path`,
 `workspace_origin`, and, for multiple repositories, `primary_repository_key` and closed
 `additional_repositories[{key,repository_path,workspace_origin}]`. Add only `host` and `new_task` from
-[Core opening](tool-results.md#open-or-resume-a-task). Missing/mismatched records stop the whole creation.
+[Core opening](connection.md#open-or-resume-a-task). Missing/mismatched records stop the whole creation.
 One Core Task supports a primary plus at most seven additional repositories. An explicit resume uses
 the existing worktree and omits these creation fields.

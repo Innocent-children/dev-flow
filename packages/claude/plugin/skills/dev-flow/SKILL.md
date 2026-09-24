@@ -5,24 +5,34 @@ description: Assess development requests, then execute and resume complete Dev F
 
 # Dev Flow for Claude Code
 
-Use /dev-flow-claude:dev-flow to request assessment. This selector does not authorize Git changes or approve an unseen implementation plan.
+Use `/dev-flow-claude:dev-flow` for assessment. Claude performs repository work and authorized Host
+operations; Core owns Task state, Actions, transitions, verification, blockers and recovery.
+Invocation does not authorize Git changes or approve an unseen plan. Reuse valid user answers.
 
-Claude owns code work and explicitly authorized workspace/session operations. Core owns the only Task, Action, process graph, guards, verification, recovery and terminal outcome.
+| Request or state | Read and perform |
+| --- | --- |
+| New development request | [Admission](references/admission.md): assess read-only, obtain missing choices, then prepare every confirmed repository; default to a new local branch. |
+| Saved launch | Read its status/receipt and actual workspace identity through admission before creation/resume; a requested Claude session does not prove Core creation. |
+| Existing Task | Return to the original workspace and [connect/resume](references/connection.md), without preparing another workspace or creating another Task. |
+| Current Action | [Action execution](references/node-payloads.md) and only the current node guide. |
+| Rejection, lost result or blocker | [Response handling](references/tool-results.md) and its linked recovery procedure. |
+| Installation, relocation, cancellation, abandonment or cleanup | [Host lifecycle](references/host-lifecycle.md). |
 
-For new development requests, read [admission](references/admission.md). Assess read-only and show impact, unknowns and verification. Obtain the missing direct/Dev Flow/clarification choice. Reuse valid user answers. Default to a new branch in the current directory after obtaining the target branch and any initial-change decision. Support current_branch and dedicated_worktree when selected. Confirm every repository before preparation, at most the current Core limit of eight. Never create a partial Core Task.
+After provisioning or on resume, perform [server_info](references/connection.md#server-handshake)
+first and require Claude support. Use actually visible tools through [transport](references/transport.md).
+Retain full responses, inspect `ok`, then recovery/blocker/outcome and the complete Action.
 
-For explicit Task resume, return to its original workspace instance and read [Core results](references/tool-results.md). Do not rerun preparation or create another Task. For a saved launch, inspect the receipt and workspace identity before creation/resume. A requested Claude session is not proof that Core creation occurred.
+Follow the Action procedure for requirements/design discussion, saved-plan approval, method steps and
+submission. Use [artifacts](references/artifacts.md) before writes and every submission, and
+[verification](references/verification.md) for checks. Required user decisions stay with the user.
+Write/Edit/NotebookEdit require the trusted PreToolUse Hook; a denial or disabled gate cannot be
+bypassed with another tool. Bash/external writes are observed later. Claude permissions still apply.
 
-After provisioning, perform the server handshake first. Require claude support and current process/Schema. Call only actually visible tools as described in [transport](references/transport.md). Retain complete results; inspect ok before success members, then recovery, blockers, terminal outcome and the entire Action. Do not replace missing data with a summary.
+Follow current user and CLAUDE.md/AGENTS.md instructions. Confirm every repository (at most eight)
+and its permissions before preparation; never create a partial Task. Indexes are optional and are
+not installed automatically. Read [handoff](references/task-handoff.md) before another session.
+DONE/CANCELLED preserves local work and grants no commit, push, publication or deletion authority;
+dedicated worktree and branch deletion require their separate authorization.
 
-Show requirements, design and complete work/file/verification plan. Save tasks_plan_saved and wait in TASKS for explicit approval of those saved digests and revision. Use tasks_ready only with that user verdict. Selecting Dev Flow or a branch does not approve the plan. Expanded scope requires an updated saved plan and confirmation.
-
-Execute only the current Action, using [node submissions](references/node-payloads.md), [method profiles](references/method-profiles.md), [artifacts](references/artifacts.md) and [verification](references/verification.md). Core controls allowed transitions and test budget. Collect/prepare artifacts through the packaged helper before every submission. Report actual outcomes and sources; do not fabricate checks or user understanding.
-
-Write/Edit/NotebookEdit are protected by the trusted PreToolUse hook. It parses paths and calls Core. Do not bypass a denial or disabled gate using another tool. Bash and external writes are observed later; no claim of universal interception is made. Claude permissions remain in effect even if Core permits the path.
-
-Follow [lifecycle](references/host-lifecycle.md) for installation, relocation, cancellation, recovery and cleanup. DONE/CANCELLED never imply commit, push, publication or deletion. Local workspaces remain in place. Dedicated worktree and branch cleanup require separate explicit authorization.
-
-Follow current user instructions and applicable CLAUDE.md/AGENTS.md. Code indexes are optional: use existing requested tools, otherwise ordinary file/text search; never install an index automatically.
-
-Implementation: `packages/claude/lib/workspace.mjs`, `packages/claude/bin/dev-flow-claude.mjs`, `packages/claude/plugin/hooks/pre-tool-use.mjs`; shared Core instructions are generated from `skills/dev-flow/core/`.
+Implementation: `packages/claude/lib/workspace.mjs`; `packages/claude/bin/dev-flow-claude.mjs`;
+`packages/claude/plugin/hooks/pre-tool-use.mjs`.

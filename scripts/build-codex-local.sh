@@ -173,6 +173,24 @@ plugin/skills/dev-flow/SKILL.md
 plugin/skills/dev-flow/agents/openai.yaml
 plugin/skills/dev-flow/references/admission.md
 plugin/skills/dev-flow/references/artifact-contract.md
+plugin/skills/dev-flow/references/connection-examples.md
+plugin/skills/dev-flow/references/connection.md
+plugin/skills/dev-flow/references/core-lifecycle-examples.md
+plugin/skills/dev-flow/references/core-lifecycle.md
+plugin/skills/dev-flow/references/launch-examples.md
+plugin/skills/dev-flow/references/lifecycle-examples.md
+plugin/skills/dev-flow/references/nodes/comprehension-examples.md
+plugin/skills/dev-flow/references/nodes/delivery-examples.md
+plugin/skills/dev-flow/references/nodes/design-examples.md
+plugin/skills/dev-flow/references/nodes/implementation-examples.md
+plugin/skills/dev-flow/references/nodes/refactor-examples.md
+plugin/skills/dev-flow/references/nodes/requirements-examples.md
+plugin/skills/dev-flow/references/nodes/tasks-examples.md
+plugin/skills/dev-flow/references/nodes/test-examples.md
+plugin/skills/dev-flow/references/recovery-examples.md
+plugin/skills/dev-flow/references/recovery.md
+plugin/skills/dev-flow/references/response-examples.md
+plugin/skills/dev-flow/references/worktree-launch.md
 plugin/skills/dev-flow/references/artifacts.md
 plugin/skills/dev-flow/references/host-lifecycle.md
 plugin/skills/dev-flow/references/method-profiles.md
@@ -342,6 +360,24 @@ const expected = [
   "plugin/skills/dev-flow/agents/openai.yaml",
   "plugin/skills/dev-flow/references/admission.md",
   "plugin/skills/dev-flow/references/artifact-contract.md",
+  "plugin/skills/dev-flow/references/connection-examples.md",
+  "plugin/skills/dev-flow/references/connection.md",
+  "plugin/skills/dev-flow/references/core-lifecycle-examples.md",
+  "plugin/skills/dev-flow/references/core-lifecycle.md",
+  "plugin/skills/dev-flow/references/launch-examples.md",
+  "plugin/skills/dev-flow/references/lifecycle-examples.md",
+  "plugin/skills/dev-flow/references/nodes/comprehension-examples.md",
+  "plugin/skills/dev-flow/references/nodes/delivery-examples.md",
+  "plugin/skills/dev-flow/references/nodes/design-examples.md",
+  "plugin/skills/dev-flow/references/nodes/implementation-examples.md",
+  "plugin/skills/dev-flow/references/nodes/refactor-examples.md",
+  "plugin/skills/dev-flow/references/nodes/requirements-examples.md",
+  "plugin/skills/dev-flow/references/nodes/tasks-examples.md",
+  "plugin/skills/dev-flow/references/nodes/test-examples.md",
+  "plugin/skills/dev-flow/references/recovery-examples.md",
+  "plugin/skills/dev-flow/references/recovery.md",
+  "plugin/skills/dev-flow/references/response-examples.md",
+  "plugin/skills/dev-flow/references/worktree-launch.md",
   "plugin/skills/dev-flow/references/artifacts.md",
   "plugin/skills/dev-flow/references/host-lifecycle.md",
   "plugin/skills/dev-flow/references/method-profiles.md",

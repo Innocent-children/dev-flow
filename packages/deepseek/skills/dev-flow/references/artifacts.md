@@ -81,7 +81,7 @@ The gate constructs this Core host-check shape from that actual call:
 
 Core returns allow/deny. Allowed writes continue to the original DSH tool. A denial becomes
 {kind:"deny",reason:"<actual Core reason>"}; unavailable/invalid checks also deny the write. Follow the
-shared [file-scope blocker inputs](tool-results.md#resolve-blockers) after the actual user choice.
+shared [file-scope blocker inputs](recovery.md#resolve-blockers) after the actual user choice.
 The same prepared write intent may be allowed once; a different patch cannot reuse that permission.
 This gate does not cover Bash, unrelated tools or turns without the selector; do not describe it as a
 filesystem sandbox. Later Core observation still checks Git-visible changes.

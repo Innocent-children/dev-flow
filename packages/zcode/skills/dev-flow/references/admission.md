@@ -98,7 +98,7 @@ The remaining preparation and UI calls use the saved `launch_id`:
 | `open` | `{"launch_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}` | UI guidance with `status:"action_required"`; no ZCode session has been launched. |
 | `resume` | `{"launch_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}` | The same UI guidance shape, with the retained `task_id` when one is bound. |
 
-After `provision`, `scope` returns the exact repository members to combine with `host:"zcode"` and `new_task` for the [Core creation request](tool-results.md#open-or-resume-a-task):
+After `provision`, `scope` returns the exact repository members to combine with `host:"zcode"` and `new_task` for the [Core creation request](connection.md#open-or-resume-a-task):
 
 <!-- example:host-launch-output scope success -->
 ```json

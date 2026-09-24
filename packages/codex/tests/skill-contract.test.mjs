@@ -43,7 +43,7 @@ test("all Skill references are reachable, packaged and cite existing implementat
 });
 
 test("assessment and handoff examples pass the actual Host validators", async () => {
-  const admission = await readFile(join(skillRoot, "references", "admission.md"), "utf8");
+  const admission = await readFile(join(skillRoot, "references", "launch-examples.md"), "utf8");
   for (const example of examples(admission, "assessment")) {
     const value = {
       ...example.value,
@@ -72,7 +72,7 @@ test("Hook examples match the actual event translation and denial format", async
   const denial = examples(markdown, "hook-output")[0].value;
   assert.deepEqual(hookDecision({ decision: "deny", reason: denial.systemMessage }), denial);
   assert.equal(hookDecision({ decision: "allow" }), null);
-  const lifecycle = await readFile(join(skillRoot, "references", "host-lifecycle.md"), "utf8");
+  const lifecycle = await readFile(join(skillRoot, "references", "lifecycle-examples.md"), "utf8");
   const decision = examples(lifecycle, "host").find((example) => example.operation === "cleanup-decision");
   assert.deepEqual(terminalCleanupDecision(decision.value), {
     automatic_cleanup: false, worktree_cleanup: "requires_dirty_review", branch_cleanup: "requires_dirty_review",
@@ -81,7 +81,7 @@ test("Hook examples match the actual event translation and denial format", async
 
 test("response example retains complete results and displays bounded success data", async () => {
   const reference = await readFile(join(skillRoot, "references", "transport.md"), "utf8");
-  const coreReference = await readFile(join(skillRoot, "references", "tool-results.md"), "utf8");
+  const coreReference = await readFile(join(skillRoot, "references", "response-examples.md"), "utf8");
   const code = marked(reference, "submission-response-example").match(/^```js\n([\s\S]*)\n```$/u)[1];
   const previousTask = { task_id: "task-example", revision: 5, current_cursor: "TEST" };
   const rejection = examples(coreReference, "mcp-output")[0].value;

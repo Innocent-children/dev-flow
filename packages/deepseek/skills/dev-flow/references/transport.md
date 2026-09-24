@@ -9,9 +9,10 @@ Implementation: `packages/deepseek/lib/index.mjs` — `activateDeepSeekIntegrati
 Call the visible DSH MCP tool whose name is `mcp__dev_flow__` plus the Core raw name. For example,
 Core returns submission_tool dev_flow_submit_test; invoke mcp__dev_flow__dev_flow_submit_test with
 the complete TEST input. The common examples' marker/tool field remains a Core raw name; the DSH
-call name is qualified and every input uses host deepseek.
+call name is qualified. Use `host:"deepseek"` except for `dev_flow_server_info`, whose complete
+argument is `{}`. The current-turn selector is still required for the handshake.
 
-For a current direct user message such as “/dev-flow continue Task task-example”, use the complete [saved Task read request and response](tool-results.md#read-saved-state-and-the-next-action),
+For a current direct user message such as “/dev-flow continue Task task-example”, use the complete [saved Task read request and response](connection.md#read-saved-state-and-the-next-action),
 invoked as `mcp__dev_flow__dev_flow_get_task` with `host:"deepseek"`.
 
 Use the actual Task ID, not the sample. Every Core call requires a current user selector even when
@@ -38,7 +39,7 @@ its `guard.failures` and the exact `recovery.message` returned by Core.
 For that guard rejection read the current qualified get_next_action once. Do not extract result from the
 rejection, replay the submission, or attribute an older IMPLEMENT recovery assessment to it. Use
 [Core result handling](tool-results.md#submission-response-handling) for success paths and
-[uncertain recovery](tool-results.md#uncertain-action-recovery) only if the original outcome is genuinely
+[uncertain recovery](recovery.md#uncertain-action-recovery) only if the original outcome is genuinely
 missing. A shortened display is not uncertainty when the complete result remains accessible.
 
 DSH supplies its own tool execution/result interfaces. This Skill does not require Codex functions.exec,

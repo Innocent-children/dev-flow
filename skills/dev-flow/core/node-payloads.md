@@ -5,6 +5,30 @@ Implementation: `internal/mcp/schemas.go` — `actionSubmissionSchema`;
 `internal/workflow/action_schema.go` — `SubmissionNodeResultSchema`;
 `internal/application/submit_action.go` — `SubmitAction`.
 
+Read this procedure once for the current Task, then only the current node guide below. Each guide
+keeps its prerequisites and every legal transition; open the linked example for the selected
+transition when constructing its input. Other nodes and example catalogs need not be loaded.
+
+## Planning and current authority
+
+Show requirements and acceptance criteria, then design and impact, then the complete work/file/
+verification plan. Discuss feedback and reuse explicit answers covering the same content. Save the
+draft with `tasks_plan_saved` and wait in TASKS until the user approves its current content and
+revision; only then submit `tasks_ready`. Selecting Dev Flow or a workspace does not approve an
+unseen plan. Revised plans and expanded file scope require a new saved plan and confirmation;
+follow the exact fields in [TASKS](nodes/tasks.md).
+
+Before any write mechanism, compare intended files with the approved scope; directory ranges need
+a visible purpose and reason. Keep the entire returned Action: identity/revision, process/digests,
+purpose, conditions, allowed effects, required records, method steps, transitions, payload contract,
+guidance and issuance time. Follow [response handling](tool-results.md) before acting; a saved
+`get_task` is not a fresh workspace guard. Missing original Action data stops execution.
+
+Use [method profiles](method-profiles.md) for current method steps, [Host artifacts](artifacts.md)
+for file preparation and write gates, and [verification](verification.md) for checks. Only actual
+work and user answers supply results, approvals or comprehension. Continue authorized work when no
+required input remains; explanations and progress updates need no acknowledgment.
+
 ## Common submission procedure
 
 1. Start from the complete fresh Action after handling recovery/blocker/outcome. Use its
@@ -26,7 +50,7 @@ summary. Method results have exactly the returned step IDs, each with capability
 capability denotes completed ordinary work. Core fills roles, method order/status, revisions,
 process/issuance identity and its normalized internal payload. These are absent from Host input.
 
-The examples below use one illustrative endpoint task and show every current ordinary transition.
+The linked examples use one illustrative endpoint task and show every current ordinary transition.
 They are alternatives selected from an actual Action, not an execution script or permission to take
 an edge. Empty artifact arrays mean preparation found no process files for that sample. Replace them
 with the complete actual prepared output. Findings are empty for problem_class none and concrete for
@@ -53,6 +77,9 @@ The next Action is `result.current_action`, not `result.task.current_action`. A 
 read the actual result. The [result reference](tool-results.md) defines complete-error and uncertain-
 operation handling. Examples in each node state their expected next node, and Core decides whether
 its current guards allow it.
+
+Stop repository work on BLOCKED or a terminal result and follow the corresponding recovery or
+Host lifecycle instructions. DONE/CANCELLED grants no Git publication or resource-deletion authority.
 
 The checkable examples enumerate existing contracts for maintenance; the runtime always selects from
 the fresh Action. No example adds a transition, changes Scope, grants Git authority or supplies a human

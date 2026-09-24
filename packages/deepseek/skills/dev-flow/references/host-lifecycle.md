@@ -9,8 +9,8 @@ Implementation: `packages/deepseek/lib/workspace-tool.mjs` — `registerWorkspac
 
 ## Core terminal operations
 
-Use the shared [cancellation](tool-results.md#cancellation) and
-[abandonment](tool-results.md#abandon-an-unavailable-workspace) inputs through qualified DSH tools.
+Use the shared [cancellation](core-lifecycle.md#cancellation) and
+[abandonment](core-lifecycle.md#abandon-an-unavailable-workspace) inputs through qualified DSH tools.
 Cancellation requires a fresh cancellation request_id, current Task revision and actual user reason.
 Abandonment is only for an unavailable original worktree instance. A lost lifecycle result is read
 back from the same Task; it is not an ordinary Action recovery.
@@ -21,7 +21,7 @@ the complete shared cancellation example. DONE/CANCELLED release Core claims and
 
 ## Relocation
 
-The shared Core exposes [prepare/resolve relocation](tool-results.md#prepare-relocation), but this
+The shared Core exposes [prepare/resolve relocation](core-lifecycle.md#prepare-relocation), but this
 DSH package's workspace_coordinator has no Host relocation/Handoff operation. Tool availability alone
 does not provide a complete move procedure. Report automatic Host relocation as unavailable before
 creating a relocation blocker; do not call Codex handoff_thread or invent a coordinator operation.

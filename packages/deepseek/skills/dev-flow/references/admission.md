@@ -184,7 +184,7 @@ following route while preserving the confirmed request and repository choices:
 The Core calls require `/dev-flow` in the current direct user turn. An existing Task resume does not
 require a new `confirm-workspace` or `resume-worktree` confirmation. The exact consume confirmation
 applies only when that operation is needed. Use the complete [Core creation/resume inputs and
-uncertain-creation rules](tool-results.md#open-or-resume-a-task).
+uncertain-creation rules](connection.md#open-or-resume-a-task).
 
 Existing or uncertain Core Tasks bypass `consume`: that operation checks the original frozen HEAD
 even for a previously consumed receipt. Normal later commits can fail that initial-state check.
@@ -223,10 +223,10 @@ tool: mcp__dev_flow__dev_flow_open_task
 arguments: { ...consume.open_task, host: "deepseek", new_task: <current intent> }
 ```
 
-This is a construction sketch; the [shared opening examples](tool-results.md#open-or-resume-a-task)
+This is a construction sketch; the [shared opening examples](connection.md#open-or-resume-a-task)
 show complete JSON inputs. Every workspace_origin includes mode, source_type, carry_changes,
 remote_name, base_branch, base_commit, task_branch and provisioning_receipt_id. Forward every root,
 including the primary_repository_key and additional_repositories array returned for this launch.
-First call the [Core server handshake](tool-results.md#server-handshake) with the current user selector.
+First call the [Core server handshake](connection.md#server-handshake) with the current user selector.
 A consumed bootstrap does not repeat assessment. Missing/mismatched receipts or roots stop before Core.
 For existing or uncertain Core Tasks, use the recovery routes above instead of this creation sketch.

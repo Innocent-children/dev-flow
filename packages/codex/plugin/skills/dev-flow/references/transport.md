@@ -5,7 +5,8 @@ Implementation: `internal/mcp/results.go` — `Envelope`, `EncodeSuccess`, `Enco
 
 Resolve the visible Codex tool for the Core raw name. For example, this session may expose
 `tools.mcp__dev_flow__dev_flow_get_task`. The Core example's JSON is the complete tool argument;
-Core tool names are not shell commands. Set `host="codex"`.
+Core tool names are not shell commands. Set `host="codex"` except for `dev_flow_server_info`,
+whose complete argument is `{}`.
 
 ```js
 const response = await tools.mcp__dev_flow__dev_flow_get_task({host: "codex", task_id: current_task_id});

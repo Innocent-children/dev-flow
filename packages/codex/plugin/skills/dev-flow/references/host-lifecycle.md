@@ -6,8 +6,8 @@ Host commands use the [stdin/stdout transport](admission.md#command-transport).
 
 ## Core lifecycle operations
 
-Use shared [cancellation](tool-results.md#cancellation) and
-[abandonment](tool-results.md#abandon-an-unavailable-workspace) inputs with the current user authority.
+Use shared [cancellation](core-lifecycle.md#cancellation) and
+[abandonment](core-lifecycle.md#abandon-an-unavailable-workspace) inputs with the current user authority.
 Their readback uses the same retained Task and lifecycle identity, separately from Action recovery.
 
 ## Relocation
@@ -15,9 +15,9 @@ Their readback uses the same retained Task and lifecycle identity, separately fr
 Relocation applies only when every participating repository uses `dedicated_worktree`. Local branch
 Tasks retain their original directory; do not prepare relocation or invoke Host handoff for them.
 
-Use [Core relocation preparation](tool-results.md#prepare-relocation) after user authorization.
+Use [Core relocation preparation](core-lifecycle.md#prepare-relocation) after user authorization.
 It retains the source binding and relocation blocker before the Host move. Readback of uncertain
-preparation and cancellation/abandonment is defined in [Core lifecycle](tool-results.md#cancellation).
+preparation and cancellation/abandonment is defined in [Core lifecycle](core-lifecycle.md#cancellation).
 
 A coordinator other than the moving task performs Handoff. The calling task cannot move itself.
 Use the actual Host thread ID, which is distinct from Core task_id.
@@ -25,17 +25,7 @@ Use the actual Host thread ID, which is distinct from Core task_id.
 ### handoff-start
 
 Implementation: `packages/codex/lib/task-launch.mjs` — `beginTaskHandoff`.
-<!-- example:host handoff-start start -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "relocation_id": "relocation-example",
-  "thread_id": "thread-example"
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-handoff-start-start.md).
+[Complete handoff-start example](lifecycle-examples.md#host-handoff-start-start).
 
 Copy launch/repository from the provisioned receipt and relocation ID from Core. Only
 `should_dispatch:true` permits one Host call, using the complete returned `host_request`:
@@ -52,19 +42,7 @@ call. `should_dispatch:false` means read the existing attempt; it does not permi
 ### handoff-result
 
 Implementation: `packages/codex/lib/task-launch.mjs` — `recordTaskHandoff`.
-<!-- example:host handoff-result record -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "host_result": {
-    "operationId": "host-operation-example",
-    "revision": 1
-  }
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-handoff-result-record.md).
+[Complete handoff-result example](lifecycle-examples.md#host-handoff-result-record).
 
 Forward the complete actual Host response, including its wrapper; the sample shows its inner shape.
 Read `receipt.operation_status.host_operation_id` and `host_operation_revision`; valid values produce
@@ -86,30 +64,8 @@ Read its actual changed revision/status/destination before recording the next co
 ### handoff-status
 
 Implementation: `packages/codex/lib/task-launch.mjs` — `recordTaskHandoffStatus`.
-<!-- example:host handoff-status pending -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "status": "pending",
-  "revision": 2,
-  "worktree_path": null
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-handoff-status-pending.md).
-<!-- example:host handoff-status succeeded -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "status": "succeeded",
-  "revision": 3,
-  "worktree_path": "/work/tasks/relocated-endpoint"
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-handoff-status-succeeded.md).
+[Complete handoff-status example](lifecycle-examples.md#host-handoff-status-pending).
+[Complete handoff-status example](lifecycle-examples.md#host-handoff-status-succeeded).
 
 Use the Host operation revision, not the Core revision. Record failed status in the same shape with
 `status:"failed"` and the observed path or null. Output retains receipt/changed/relocation_id. Only
@@ -117,7 +73,7 @@ actual Host success proceeds to Core resolution; failure keeps the original bind
 
 Resolve at the destination with the current blocked Action and every actual destination root:
 
-See the complete [Core relocation resolution input](tool-results.md#complete-relocation).
+See the complete [Core relocation resolution input](core-lifecycle.md#complete-relocation).
 
 Core checks repository group, frozen base, equivalent content/surface and claim conflicts, then replaces
 bindings together. Success is the complete Task in `result`; follow `result.current_action`.
@@ -145,18 +101,7 @@ No terminal result implies a commit, push, pull request, Handoff or deletion.
 
 Read fresh Core/Git facts and query eligibility; this command grants no deletion authority:
 
-<!-- example:host cleanup-decision keep -->
-```json
-{
-  "lifecycle": "DONE",
-  "surface": "cli_worktree",
-  "clean": false,
-  "pushed": false,
-  "stateCertain": true
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-cleanup-decision-keep.md).
+[Complete cleanup-decision example](lifecycle-examples.md#host-cleanup-decision-keep).
 
 Output members are `automatic_cleanup` (always false), `worktree_cleanup` and `branch_cleanup`.
 Keep active, dirty, uncertain or unpushed resources under the returned decision. Managed-worktree
@@ -170,18 +115,7 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `cleanupCliTaskWorktree
 Only for a verified terminal, clean CLI worktree after explicit deletion authorization. `terminal`
 comes from a fresh Core result and `authorized` from that user decision; they are not default booleans.
 
-<!-- example:host cleanup-worktree remove-worktree -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "source_repository_path": "/work/project",
-  "terminal": true,
-  "authorized": true
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-cleanup-worktree-remove-worktree.md).
+[Complete cleanup-worktree example](lifecycle-examples.md#host-cleanup-worktree-remove-worktree).
 
 The helper saves the attempt before removal, verifies the exact receipt-owned repository/worktree,
 and removes without force. Read changed/uncertain and receipt cleanup status. A requested-but-uncertain
@@ -193,18 +127,7 @@ Implementation: `packages/codex/lib/task-launch.mjs` — `cleanupTaskBranch`.
 
 After completed worktree cleanup and separate current branch-deletion authorization:
 
-<!-- example:host cleanup-branch remove-branch -->
-```json
-{
-  "launch_id": "launch-example",
-  "repository_key": "primary",
-  "source_repository_path": "/work/project",
-  "terminal": true,
-  "authorized": true
-}
-```
-
-Complete successful request and response: [view every returned field](successes/host-cleanup-branch-remove-branch.md).
+[Complete cleanup-branch example](lifecycle-examples.md#host-cleanup-branch-remove-branch).
 
 Success records completed branch cleanup. The helper uses non-force `git branch -d`; an unmerged
 branch remains on Git refusal. A missing identity, wrong repository, prior uncertain attempt or

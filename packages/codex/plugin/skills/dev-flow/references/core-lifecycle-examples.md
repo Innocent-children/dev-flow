@@ -1,0 +1,182 @@
+<!-- Generated from skills/dev-flow/core/core-lifecycle-examples.md; edit the shared source and run node scripts/sync-skill-references.mjs. -->
+
+# Core relocation and terminal operations: examples
+
+Read the [core relocation and terminal operations instructions](core-lifecycle.md) first. Use current values and the live schema; sample IDs and user decisions are never defaults.
+
+Implementation: `internal/mcp/skill_examples_test.go`; `internal/mcp/skill_error_examples_test.go`;
+`internal/mcp/skill_success_examples_test.go`.
+
+## dev_flow_prepare_task_relocation-prepare
+
+<!-- example:mcp dev_flow_prepare_task_relocation prepare -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "revision": 8
+}
+```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_prepare_task_relocation-prepare.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_prepare_task_relocation prepare-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_prepare_task_relocation",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+## dev_flow_resolve_blocker-relocation
+
+<!-- example:mcp dev_flow_resolve_blocker relocation -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "action_id": "blocked-action",
+  "relocation_id": "relocation-example",
+  "relocation_destinations": [
+    {
+      "key": "primary",
+      "repository_path": "/work/tasks/relocated-endpoint"
+    }
+  ]
+}
+```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_resolve_blocker-relocation.md).
+
+Possible error for this request: `relocation_id` is present but `relocation_destinations` is empty.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"set","path":"relocation_destinations","value":[]} -->
+<!-- example:mcp-output dev_flow_resolve_blocker relocation-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_resolve_blocker",
+  "error": {
+    "code": "INVALID_ARGUMENT",
+    "message": "The request does not match the closed Core contract.",
+    "details": [
+      {
+        "path": "relocation_destinations",
+        "rule": "required_collection_non_empty",
+        "message": "the current transition requires at least one item"
+      }
+    ]
+  },
+  "recovery": {
+    "retry_safe": true,
+    "action": "correct_request",
+    "message": "Correct only allowed_paths using established values and user decisions. Keep the same tool and existing request identity fields unless listed. Do not add the response request_id to tools that do not accept it. Submit once; ask only for missing facts or decisions, and stop if the corrected request fails.",
+    "allowed_paths": [
+      "relocation_destinations"
+    ]
+  }
+}
+```
+
+## dev_flow_cancel_task-cancel
+
+<!-- example:mcp dev_flow_cancel_task cancel -->
+```json
+{
+  "request_id": "cancel-request-example",
+  "host": "codex",
+  "task_id": "task-example",
+  "revision": 8,
+  "reason": "The user cancelled this endpoint change."
+}
+```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_cancel_task-cancel.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_cancel_task cancel-error -->
+```json
+{
+  "ok": false,
+  "request_id": "cancel-request-example",
+  "tool": "dev_flow_cancel_task",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```
+
+## dev_flow_abandon_task-abandon
+
+<!-- example:mcp dev_flow_abandon_task abandon -->
+```json
+{
+  "host": "codex",
+  "task_id": "task-example",
+  "revision": 8,
+  "reason": "The original worktree is unavailable and the user explicitly abandoned the Task."
+}
+```
+
+Complete successful request and response: [view every returned field](successes/dev_flow_abandon_task-abandon.md).
+
+Possible error for this request: the supplied `task_id` has no record in the connected Core store.
+
+Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
+`internal/application/service.go` — `loadOwned, mapStoreError`;
+`internal/mcp/server.go` — `dispatch`;
+`internal/mcp/results.go` — `EncodeError, publicFailure, boundedCorrectionPaths, requestCorrectionPaths`.
+
+<!-- error-case: {"operation":"missing_task"} -->
+<!-- example:mcp-output dev_flow_abandon_task abandon-error -->
+```json
+{
+  "ok": false,
+  "request_id": "request-error-example",
+  "tool": "dev_flow_abandon_task",
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "The task was not found."
+  },
+  "recovery": {
+    "retry_safe": false,
+    "action": "read_task",
+    "message": "Confirm the retained Task identity and connected Core instance before reading; do not repeat the same missing lookup unchanged."
+  }
+}
+```

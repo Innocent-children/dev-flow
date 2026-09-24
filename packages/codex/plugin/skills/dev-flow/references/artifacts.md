@@ -74,7 +74,7 @@ JSON output. A denial is translated to this Host message shape:
 }
 ```
 
-Stop and follow [file-scope blocker resolution](tool-results.md#resolve-blockers), using actual retained
+Stop and follow [file-scope blocker resolution](recovery.md#resolve-blockers), using actual retained
 paths and the developer's choice/reason. The same prepared intent may be allowed once; a different
 patch needs its own decision. A failed/invalid internal check exits 2 and stops the supported write.
 Nonmatching events and a missing default data store are skipped by the Hook. Do not claim interception
