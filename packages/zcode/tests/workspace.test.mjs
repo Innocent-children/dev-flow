@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { bindTask, cleanup, inspect, prepare, provision, relocate, scope, session, status as launchStatus } from "../lib/workspace.mjs";
 import { paths } from "../lib/runtime.mjs";
 import { defaultRunGit as git } from "../lib/worktree-lifecycle.mjs";
+import { examples } from "../../../tests/skills/resources.mjs";
 async function fixture(t) {
   const parent = await realpath(await mkdtemp(join(tmpdir(), "zcode-workspace-")));
   const root = join(parent, "repo"); await mkdir(root);
@@ -17,6 +18,65 @@ async function fixture(t) {
   const options = { environment: { ...process.env, HOME: parent, USERPROFILE: parent, LOCALAPPDATA: join(parent, "appdata"), DEV_FLOW_DATA_DIR: "" }, checkWorkspaceAvailable: async repository_path => ({ available: true, repository_path }) };
   return { root, options };
 }
+
+function example(markdown, kind, operation, name) {
+  const found = examples(markdown, kind).find(entry => entry.operation === operation && entry.name === name);
+  assert.ok(found, `${kind} ${operation} ${name}`);
+  return found.value;
+}
+
+function shape(value) {
+  if (value === null) return null;
+  if (Array.isArray(value)) return value.map(shape);
+  if (typeof value === "object") return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, shape(entry)]));
+  return typeof value;
+}
+
+test("documented ZCode Host calls match the CLI and workspace result shapes", async t => {
+  const { root, options } = await fixture(t);
+  const admission = await readFile(new URL("../skills/dev-flow/references/admission.md", import.meta.url), "utf8");
+  const lifecycle = await readFile(new URL("../skills/dev-flow/references/host-lifecycle.md", import.meta.url), "utf8");
+
+  const inspectInput = structuredClone(example(admission, "host-launch", "inspect", "request"));
+  inspectInput.repositories[0].repository_path = root;
+  const command = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/dev-flow-zcode.mjs", import.meta.url)), "host-launch", "inspect"], { input: JSON.stringify(inspectInput), encoding: "utf8" });
+  assert.equal(command.status, 0, command.stderr);
+  const anchor = JSON.parse(command.stdout);
+  assert.deepEqual(shape(anchor), shape(example(admission, "host-launch-output", "inspect", "success")));
+  assert.deepEqual(anchor, await inspect(inspectInput));
+
+  const prepareInput = structuredClone(example(admission, "host-launch", "prepare", "request"));
+  prepareInput.assessment.anchor = anchor;
+  prepareInput.repositories[0].repository_path = root;
+  prepareInput.repositories[0].worktree_path = root;
+  const rejectedInput = structuredClone(prepareInput);
+  rejectedInput.assessment.unknowns = ["Unresolved endpoint behavior"];
+  const rejected = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/dev-flow-zcode.mjs", import.meta.url)), "host-launch", "prepare"], { input: JSON.stringify(rejectedInput), env: options.environment, encoding: "utf8" });
+  assert.equal(rejected.status, 1);
+  assert.equal(rejected.stdout, "");
+  assert.match(rejected.stderr, /Complete resolved assessment required/u);
+  const receipt = await prepare(prepareInput, options);
+  assert.deepEqual(shape(receipt), shape(example(admission, "host-launch-output", "prepare", "success")));
+  assert.deepEqual(receipt.user_choice, prepareInput.user_choice);
+  assert.equal(receipt.repositories[0].phase, "prepared");
+
+  await provision(receipt.launch_id, options);
+  const scoped = await scope(receipt.launch_id, options);
+  assert.deepEqual(shape(scoped), shape(example(admission, "host-launch-output", "scope", "success")));
+  const statusInput = structuredClone(example(lifecycle, "host-launch", "status", "request"));
+  assert.deepEqual(Object.keys(statusInput), ["launch_id"]);
+  statusInput.launch_id = receipt.launch_id;
+  assert.equal((await launchStatus(statusInput.launch_id, options)).repositories[0].phase, "provisioned");
+
+  const opened = await session(receipt.launch_id, "open", options);
+  const documentedOpen = example(admission, "host-launch-output", "open", "success");
+  assert.deepEqual(shape(opened), shape(documentedOpen));
+  assert.deepEqual(opened.next_steps, documentedOpen.next_steps);
+  assert.equal(opened.prompt, documentedOpen.prompt.replaceAll(documentedOpen.receipt_path, opened.receipt_path).replaceAll(documentedOpen.launch_id, receipt.launch_id));
+  assert.equal(opened.status, "action_required");
+  assert.equal(opened.task_id, null);
+});
+
 test("local branch prepares once and UI guidance preserves the Core identity", async t => {
   const { root, options } = await fixture(t);
   const receipt = await prepareSelections([{ ...dedicated(root), workspace_mode: "new_branch", worktree_path: root }], options);

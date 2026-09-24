@@ -22,11 +22,37 @@ Only after the user explicitly confirms those UI operations and closed sessions,
 
 Read `host-launch status` with the saved `launch_id` before acting on incomplete or uncertain preparation. Preserve receipt identity and complete original output. A launch receipt has no Core process cursor and no ZCode session cursor. `open`/`resume` produce UI guidance only; they do not prove Core creation or that a session opened. If an earlier Core write result is uncertain, recover that exact operation instead of creating another Task.
 
-When preparation fails after saving a launch, its error reports `launch_id` and the receipt path; retain both and inspect that launch instead of calling prepare again. An existing operation lock is never reclaimed automatically, including a lock from a stopped process. Inspect its receipt and actual workspaces, establish that the previous owner stopped, and explicitly clear only that operation lock when appropriate. An uncertain recorded operation still cannot be replayed merely because its lock was cleared.
+The first recovery read sends this complete body on [Host command stdin](transport.md) and returns the complete saved receipt shape from [preparation](admission.md#host-launch-requests), including the current repository phase:
+
+<!-- example:host-launch status request -->
+```json
+{"launch_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}
+```
+
+If `prepare` fails after writing its launch receipt, the CLI exits 1, leaves stdout empty and reports `Saved launch_id: <actual ID>` and `Receipt: <actual path>` on stderr. Read that exact `status` before another Host action. An existing operation lock is never reclaimed automatically, including after its owner stops. Inspect the receipt and workspaces, establish that the prior caller stopped, and explicitly clear only that lock when appropriate. Clearing it does not make an uncertain operation safe to replay.
 
 ## Relocation
 
 Obtain `dev_flow_prepare_task_relocation` and retain its complete successful `result` from Core first. With user authorization, call `host-launch relocate` with `launch_id`, `relocation_id`, `core_preparation` (that exact `result`, containing `relocation_id` and `task`), `destinations` (all `repository_key`/`repository_path` pairs), and `authorized=true`. The helper checks the bound Task, ZCode identity, current relocation blocker and source workspace paths. Only all-dedicated provisioned workspaces can move. Each move is saved; uncertain or partial moves remain for inspection.
+
+Construct the complete Host request by passing the exact retained Core result as `core_preparation` without summarizing or editing it:
+
+```js
+const input = {
+  launch_id: retained_launch_id,
+  relocation_id: core_result.relocation_id,
+  core_preparation: core_result,
+  destinations: [{repository_key: "primary", repository_path: confirmed_destination}],
+  authorized: true
+};
+```
+
+The CLI receives `JSON.stringify(input)` on stdin. A successful Host move returns:
+
+<!-- example:host-launch-output relocate success -->
+```json
+{"relocation_id":"relocation-from-core","relocation_destinations":[{"key":"primary","repository_path":"/work/relocated-project"}],"core_resolution_required":true}
+```
 
 Pass returned `relocation_id` and `relocation_destinations` unchanged to Core's relocation blocker resolution; each returned destination uses `key`/`repository_path`. Until Core verifies destinations, its original binding remains authoritative. Open the actual destination workspaces in ZCode and resume the same Task. Do not relaunch a guessed CLI or create another Task.
 
@@ -35,6 +61,13 @@ After a successful move, repeating the same relocation ID with its original prep
 ## Terminal operations and cleanup
 
 Cancel/abandon through Core using the shared references. Do not infer DONE from ZCode stopping. After an actual terminal Task, `host-launch cleanup-worktree` receives `launch_id`, `repository_key`, `terminal=true`, `authorized=true` based on real state and explicit deletion authorization. It removes only clean receipt-owned dedicated worktrees without force. `cleanup-branch` requires its own authorization after worktree removal and uses non-force deletion. Never automatically delete active, dirty, unpushed or uncertain resources. Local directories and branches remain.
+
+Each cleanup call takes this complete body with a separate actual user authorization; choose the operation name `cleanup-worktree` or `cleanup-branch` and retain the returned updated receipt:
+
+<!-- example:host-launch cleanup request -->
+```json
+{"launch_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","repository_key":"primary","terminal":true,"authorized":true}
+```
 
 ## Terminal presentation
 

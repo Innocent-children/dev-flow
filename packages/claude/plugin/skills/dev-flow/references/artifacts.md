@@ -1,6 +1,6 @@
 # Claude artifacts and write gates
 
-Implementation: packages/claude/plugin/hooks/pre-tool-use.mjs; cmd/dev-flow/artifacts.go; internal/application/file_scope.go.
+Implementation: `packages/claude/plugin/hooks/pre-tool-use.mjs`; `cmd/dev-flow/artifacts.go`; `internal/application/file_scope.go`.
 
 Before each submission use dev-flow-claude artifacts collect and prepare according to [shared artifact rules](artifact-contract.md). Use current host=claude, Task and Action. Preserve all observed files and their identities. Classify only the slot/summary; do not fabricate paths or digests.
 

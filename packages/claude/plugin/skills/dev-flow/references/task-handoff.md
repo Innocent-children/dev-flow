@@ -1,8 +1,14 @@
 # Requirement handoff
 
-Implementation: packages/claude/lib/workspace.mjs — prepare and session.
+Implementation: `packages/claude/lib/workspace.mjs` — prepare and session.
 
 Preserve the original relevant user/assistant messages in handoff.discussion along with the current request, confirmed requirements and later corrections. Keep unaccepted suggestions, assumptions and unresolved questions separate. Preserve message identity when available; do not invent inaccessible original messages. User and repository instructions remain authoritative.
+
+For a dedicated worktree, `host-launch prepare` receives this `handoff` member inside its complete request. Replace the example with the actual available messages in their original order; this example does not authorize summarizing or inventing a missing message:
+
+```json
+{"discussion":[{"role":"user","text":"Implement the endpoint field."},{"role":"user","text":"Keep the existing response fields."}]}
+```
 
 The receipt binds the request to its assessment digest and the retained handoff to its content digest. A changed request or discussion is rejected before launch or provisioning; inspect the original retained record rather than recreating the launch.
 

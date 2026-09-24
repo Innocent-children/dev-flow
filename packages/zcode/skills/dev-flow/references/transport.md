@@ -6,7 +6,17 @@ The native plugin declares local stdio Core under server key `dev-flow`; ZCode n
 
 Keep the complete MCP result, including any text/structured envelope. Inspect `ok`, error and recovery before reading `result`. Ordinary submissions return `result.current_action`; opening returns `result.task.current_action`; next-action reads return `result.action`. Display truncation does not justify discarding a retained complete response. Follow bounded correction instructions, and recover uncertain writes instead of retrying them blindly.
 
-`dev-flow-zcode artifacts collect|prepare` accepts one closed JSON object on stdin. Retain complete stdout and the exit code; these helpers return Core's `ok/result` or `ok/error` envelope. `host-check pre-file-write|workspace-available` uses its own direct Core response. `host-launch` returns a direct Host result and exits nonzero on rejection. Do not confuse these shapes.
+`dev-flow-zcode artifacts collect|prepare` accepts one closed JSON object on stdin. Retain complete stdout and the exit code; these helpers return Core's `ok/result` or `ok/error` envelope. `host-check pre-file-write|workspace-available` uses its own direct Core response.
+
+Every `dev-flow-zcode host-launch <operation>` call reads one closed UTF-8 JSON object from stdin (at most 1 MiB). Use the Host's process/terminal interface to pass the [complete operation input](admission.md#host-launch-requests) as stdin:
+
+```text
+executable: dev-flow-zcode
+arguments: ["host-launch", "inspect"]
+stdin: {"request":"Implement the endpoint field.","repositories":[{"key":"primary","repository_path":"/work/project"}]}
+```
+
+Use the actual platform's absolute workspace paths in the body. Exit 0 writes the direct Host result as one JSON object on stdout, without a Core `ok/result` envelope. A rejected call exits nonzero and writes its error to stderr; a failed `prepare` that saved a launch also reports `launch_id` and `receipt_path` on stderr. Retain the original output and exit code. After an uncertain write, read `host-launch status` when the `launch_id` is known; if it is unknown, stop for inspection. [Host lifecycle](host-lifecycle.md) gives the recovery inputs. Do not confuse these shapes with MCP or artifact responses.
 
 The plugin MCP and Hook invoke `node` with argv using `${ZCODE_PLUGIN_ROOT}/bin/dev-flow-zcode.mjs`. The Hook is a synchronous `process` executor for `Write|Edit`, with no shell interpolation. Standard `hooks/hooks.json` is automatically discovered once. ZCode's documented snake_case Hook aliases supply `cwd`, `hook_event_name`, `tool_name` and `tool_input.file_path`. Core decides whether the path is permitted; a deny returns `hookSpecificOutput.permissionDecision=deny`. Any input/check failure exits 2 so a protected write is blocked. Logs belong on stderr, not protocol stdout.
 

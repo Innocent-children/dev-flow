@@ -1,11 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { bindTask, cleanup, inspect, prepare, provision, relocate, scope, session, status as launchStatus } from "../lib/workspace.mjs";
 import { paths } from "../lib/runtime.mjs";
 import { defaultRunGit as git } from "../lib/worktree-lifecycle.mjs";
+import { assertSkillResources, examples } from "../../../tests/skills/resources.mjs";
 async function fixture(t) {
   const parent = await realpath(await mkdtemp(join(tmpdir(), "claude-workspace-")));
   const root = join(parent, "repo"); await mkdir(root);
@@ -15,6 +18,79 @@ async function fixture(t) {
   const options = { environment: { ...process.env, HOME: parent, USERPROFILE: parent, LOCALAPPDATA: join(parent, "appdata"), DEV_FLOW_DATA_DIR: "" }, checkWorkspaceAvailable: async repository_path => ({ available: true, repository_path }) };
   return { root, options };
 }
+
+function example(markdown, kind, operation, name) {
+  const found = examples(markdown, kind).find(entry => entry.operation === operation && entry.name === name);
+  assert.ok(found, `${kind} ${operation} ${name}`);
+  return found.value;
+}
+
+function shape(value) {
+  if (value === null) return null;
+  if (Array.isArray(value)) return value.map(shape);
+  if (typeof value === "object") return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, shape(entry)]));
+  return typeof value;
+}
+
+test("Claude Skill references are packaged and reachable from its entrypoint", async () => {
+  await assertSkillResources({
+    skillRoot: fileURLToPath(new URL("../plugin/skills/dev-flow/", import.meta.url)),
+    packageRoot: fileURLToPath(new URL("../", import.meta.url)),
+    repositoryRoot: fileURLToPath(new URL("../../../", import.meta.url)),
+  });
+});
+
+test("documented Claude Host calls match the CLI and workspace result shapes", async t => {
+  const { root, options } = await fixture(t);
+  const admission = await readFile(new URL("../plugin/skills/dev-flow/references/admission.md", import.meta.url), "utf8");
+  const lifecycle = await readFile(new URL("../plugin/skills/dev-flow/references/host-lifecycle.md", import.meta.url), "utf8");
+
+  const inspectInput = structuredClone(example(admission, "host-launch", "inspect", "request"));
+  inspectInput.repositories[0].repository_path = root;
+  const command = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/dev-flow-claude.mjs", import.meta.url)), "host-launch", "inspect"], { input: JSON.stringify(inspectInput), encoding: "utf8" });
+  assert.equal(command.status, 0, command.stderr);
+  const anchor = JSON.parse(command.stdout);
+  assert.deepEqual(shape(anchor), shape(example(admission, "host-launch-output", "inspect", "success")));
+  assert.deepEqual(anchor, await inspect(inspectInput));
+
+  const prepareInput = structuredClone(example(admission, "host-launch", "prepare", "request"));
+  prepareInput.assessment.anchor = anchor;
+  prepareInput.repositories[0].repository_path = root;
+  prepareInput.repositories[0].worktree_path = root;
+  const rejectedInput = structuredClone(prepareInput);
+  rejectedInput.assessment.unknowns = ["Unresolved endpoint behavior"];
+  const rejected = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/dev-flow-claude.mjs", import.meta.url)), "host-launch", "prepare"], { input: JSON.stringify(rejectedInput), env: options.environment, encoding: "utf8" });
+  assert.equal(rejected.status, 1);
+  assert.equal(rejected.stdout, "");
+  assert.match(rejected.stderr, /Complete resolved assessment required/u);
+  const receipt = await prepare(prepareInput, options);
+  assert.deepEqual(shape(receipt), shape(example(admission, "host-launch-output", "prepare", "success")));
+  assert.deepEqual(receipt.user_choice, prepareInput.user_choice);
+  assert.equal(receipt.repositories[0].phase, "prepared");
+
+  await provision(receipt.launch_id, options);
+  const scoped = await scope(receipt.launch_id, options);
+  assert.deepEqual(shape(scoped), shape(example(admission, "host-launch-output", "scope", "success")));
+  const statusInput = structuredClone(example(lifecycle, "host-launch", "status", "request"));
+  assert.deepEqual(Object.keys(statusInput), ["launch_id"]);
+  statusInput.launch_id = receipt.launch_id;
+  assert.equal((await launchStatus(statusInput.launch_id, options)).repositories[0].phase, "provisioned");
+
+  const launch = await session(receipt.launch_id, "launch", {}, options);
+  const documentedLaunch = example(admission, "host-launch-output", "launch", "success");
+  assert.deepEqual(shape(launch), shape(documentedLaunch));
+  const receiptPath = join((await paths(options.environment)).productRoot, "provisioning", "claude", receipt.launch_id, "receipt.json");
+  const documentedReceiptPath = "/private/dev-flow/provisioning/claude/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/receipt.json";
+  assert.equal(launch.arguments.at(-1), documentedLaunch.arguments.at(-1).replaceAll(documentedReceiptPath, receiptPath).replaceAll("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", receipt.launch_id));
+  assert.deepEqual(launch.arguments.slice(0, 3), ["--session-id", launch.session_id, "--"]);
+  const retryInput = structuredClone(example(lifecycle, "host-launch", "retry-launch", "request"));
+  retryInput.launch_id = receipt.launch_id;
+  const { launch_id: _, ...retryArgs } = retryInput;
+  const retry = await session(receipt.launch_id, "retry-launch", retryArgs, options);
+  assert.equal(retry.session_id, launch.session_id);
+  assert.equal(retry.arguments[0], "--session-id");
+});
+
 test("local branch prepares once and keeps one session identity", async t => {
   const { root, options } = await fixture(t), request = "Implement an endpoint";
   const anchor = await inspect({ request, repositories: [{ key: "primary", repository_path: root }] });
