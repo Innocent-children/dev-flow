@@ -25,13 +25,13 @@ Complete response:
   "result": {
     "health": "ready",
     "host_preferences": {
+      "claude": {
+        "codebase_memory": false
+      },
       "codex": {
         "codebase_memory": false
       },
       "deepseek": {
-        "codebase_memory": false
-      },
-      "claude": {
         "codebase_memory": false
       },
       "zcode": {
@@ -77,7 +77,7 @@ Complete response:
       "dev_flow_abandon_task"
     ],
     "transport": "stdio",
-    "version": "0.18.1"
+    "version": "0.18.2"
   },
   "tool": "dev_flow_server_info"
 }

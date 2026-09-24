@@ -17,16 +17,16 @@ import (
 
 func (s *Service) OpenTask(ctx context.Context, r OpenTaskRequest) (OpenTaskResult, error) {
 	if !s.valid() || ctx == nil || !r.RequestID.IsValid() || !r.Host.IsValid() || !validRepositoryPathInput(r.RepositoryPath) {
-		return OpenTaskResult{}, domain.ErrInvalidArgument
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The application service, request context or required request identity is invalid.")
 	}
 	if r.NewTask == nil {
 		if r.WorkspaceOrigin != nil || r.PrimaryRepositoryKey != "" || len(r.AdditionalRepositories) != 0 {
-			return OpenTaskResult{}, domain.ErrInvalidArgument
+			return OpenTaskResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "Resuming a Task must omit workspace_origin, primary_repository_key and additional_repositories.")
 		}
 		return s.resumeTask(ctx, r)
 	}
 	if r.WorkspaceOrigin == nil || !validWorkspaceOriginInput(*r.WorkspaceOrigin) {
-		return OpenTaskResult{}, domain.ErrWorktreeProvisioningRequired
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrWorktreeProvisioningRequired, "Task creation requires a valid confirmed workspace origin and provisioning receipt.")
 	}
 	intent, err := normalizedIntent(*r.NewTask)
 	if err != nil {
@@ -42,11 +42,11 @@ func (s *Service) OpenTask(ctx context.Context, r OpenTaskRequest) (OpenTaskResu
 	}
 	primaryKey, additional, err = domain.NormalizeRepositoryScope(primaryKey, primaryOrigin, primary, additional)
 	if err != nil {
-		return OpenTaskResult{}, domain.ErrInvalidArgument
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "Repository keys, workspace origins or bindings do not form a valid unique Task repository scope.")
 	}
 	_, err = s.taskStore.LoadActiveTask(ctx, primary.WorktreeInstanceDigest)
 	if err == nil {
-		return OpenTaskResult{}, domain.ErrActiveTaskConflict
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrActiveTaskConflict, "An active Task already claims the primary worktree instance.")
 	}
 	if !errors.Is(err, store.ErrTaskNotFound) {
 		return OpenTaskResult{}, mapStoreError(err)
@@ -68,11 +68,11 @@ func (s *Service) OpenTask(ctx context.Context, r OpenTaskRequest) (OpenTaskResu
 	task := domain.ProcessTask{TaskID: taskID, OriginHost: r.Host, Intent: intent, Process: definition.Reference, CurrentNode: domain.NodeRequirements, PrimaryRepositoryKey: primaryKey, WorkspaceOrigin: primaryOrigin, Repository: primary, AdditionalRepositories: additional, CurrentChangedPaths: currentRepositoryScopePaths(primaryKey, primary, additional), Revision: 1, CreatedAt: now, UpdatedAt: now}
 	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
-		return OpenTaskResult{}, domain.ErrInvalidArgument
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	action, err := workflow.BuildProcessActionForWorkspace(definition, domain.NodeRequirements, taskID, 1, workspace, intent.MethodProfile, actionID, now)
 	if err != nil {
-		return OpenTaskResult{}, domain.ErrInternal
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 	}
 	payloadDigest, err := digestCanonical(struct {
 		Host                   domain.Host                 `json:"host"`
@@ -83,7 +83,7 @@ func (s *Service) OpenTask(ctx context.Context, r OpenTaskRequest) (OpenTaskResu
 		Intent                 domain.TaskIntent           `json:"intent"`
 	}{r.Host, r.RepositoryPath, *r.WorkspaceOrigin, primaryKey, additionalInput, intent})
 	if err != nil {
-		return OpenTaskResult{}, domain.ErrInternal
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the Task creation input for its operation digest.")
 	}
 	operation := &domain.LastOperation{OperationID: r.RequestID, Kind: domain.OperationOpenTask, FromRevision: 0, ToRevision: 1, PayloadDigest: payloadDigest, CommittedAt: now}
 	task.CurrentAction = &action
@@ -125,10 +125,10 @@ func (s *Service) resumeTask(ctx context.Context, r OpenTaskRequest) (OpenTaskRe
 		return OpenTaskResult{}, mapStoreError(err)
 	}
 	if identifyErr != nil || !taskContainsWorkspaceInstance(active, root, instance) {
-		return OpenTaskResult{}, domain.ErrWorkspaceUnavailable
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "The requested directory no longer identifies the original worktree instance retained by the active Task.")
 	}
 	if active.OriginHost != r.Host {
-		return OpenTaskResult{}, domain.ErrHostOwnershipConflict
+		return OpenTaskResult{}, domain.WithExplanation(domain.ErrHostOwnershipConflict, "The requested host does not match the host that owns the active Task in this workspace.")
 	}
 	read, err := s.GetTask(ctx, GetTaskRequest{Host: r.Host, TaskID: active.TaskID})
 	if err != nil {
@@ -165,14 +165,14 @@ func normalizeOpenRepositoryInput(primaryKey domain.RepositoryKey, additional []
 		primaryKey = domain.DefaultPrimaryRepositoryKey
 	}
 	if !primaryKey.IsValid() || len(additional) > domain.MaxAdditionalRepositories {
-		return "", nil, domain.ErrInvalidArgument
+		return "", nil, domain.WithExplanation(domain.ErrInvalidArgument, "The primary repository key is invalid or more than 7 additional repositories were supplied.")
 	}
 	normalized := append([]AdditionalRepositoryInput(nil), additional...)
 	sort.Slice(normalized, func(i, j int) bool { return normalized[i].Key < normalized[j].Key })
 	keys := map[domain.RepositoryKey]bool{primaryKey: true}
 	for _, entry := range normalized {
 		if !entry.Key.IsValid() || keys[entry.Key] || !validRepositoryPathInput(entry.RepositoryPath) || !validWorkspaceOriginInput(entry.WorkspaceOrigin) {
-			return "", nil, domain.ErrInvalidArgument
+			return "", nil, domain.WithExplanation(domain.ErrInvalidArgument, "Additional repositories require unique valid keys, non-empty paths and confirmed workspace origins.")
 		}
 		keys[entry.Key] = true
 	}
@@ -182,7 +182,7 @@ func normalizeOpenRepositoryInput(primaryKey domain.RepositoryKey, additional []
 func (s *Service) observeOpenRepositoryScope(ctx context.Context, primaryPath string, primaryInput WorkspaceOriginInput, additional []AdditionalRepositoryInput) (domain.WorkspaceOrigin, domain.RepositoryBinding, []domain.RepositoryScopeEntry, error) {
 	observer, ok := s.repositoryObserver.(repository.WorkspaceRepositoryObserver)
 	if !ok {
-		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, nil, domain.ErrWorktreeProvisioningRequired
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, nil, domain.WithExplanation(domain.ErrWorktreeProvisioningRequired, "The repository observer cannot verify prepared workspaces for this operation.")
 	}
 	type observedScope struct {
 		primaryOrigin domain.WorkspaceOrigin
@@ -223,11 +223,11 @@ func (s *Service) observeOpenRepositoryScope(ctx context.Context, primaryPath st
 	firstObservation := recovery.RepositoryScopeObservation{Primary: first.primary, Additional: first.additional}
 	secondObservation := recovery.RepositoryScopeObservation{Primary: second.primary, Additional: second.additional}
 	if first.primaryOrigin != second.primaryOrigin || !sameRepositoryScopeObservation(firstObservation, secondObservation) {
-		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, nil, domain.ErrWorkspaceObservationUnstable
+		return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, nil, domain.WithExplanation(domain.ErrWorkspaceObservationUnstable, "The workspace origin or repository observation changed between the two consistency reads.")
 	}
 	for index := range first.additional {
 		if first.additional[index].Origin != second.additional[index].Origin {
-			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, nil, domain.ErrWorkspaceObservationUnstable
+			return domain.WorkspaceOrigin{}, domain.RepositoryBinding{}, nil, domain.WithExplanation(domain.ErrWorkspaceObservationUnstable, "An additional repository origin changed between the two consistency reads.")
 		}
 	}
 	return second.primaryOrigin, second.primary, second.additional, nil
@@ -248,7 +248,7 @@ func normalizedIntent(input NewTaskInput) (domain.TaskIntent, error) {
 		for i, v := range items {
 			v = strings.TrimSpace(v)
 			if v == "" || seen[v] {
-				return nil, domain.ErrInvalidArgument
+				return nil, domain.WithExplanation(domain.ErrInvalidArgument, "Initial scope and acceptance lists must not contain empty or duplicate text items.")
 			}
 			seen[v] = true
 			out[i] = v
@@ -269,7 +269,7 @@ func normalizedIntent(input NewTaskInput) (domain.TaskIntent, error) {
 	}
 	intent := domain.TaskIntent{Request: strings.TrimSpace(input.Request), InitialScope: scope, InitialOutOfScope: out, KnownAcceptanceCriteria: acceptance, MethodProfile: input.MethodProfile}
 	if intent.Validate() != nil {
-		return domain.TaskIntent{}, domain.ErrInvalidArgument
+		return domain.TaskIntent{}, domain.WithExplanation(domain.ErrInvalidArgument, "Task intent requires a normalized non-empty request, a supported method profile and bounded unique text lists.")
 	}
 	return intent, nil
 }

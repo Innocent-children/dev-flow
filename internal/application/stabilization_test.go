@@ -29,13 +29,13 @@ func TestOpenTaskIntentConflictAndIDFailureAreZeroWrite(t *testing.T) {
 	before := ms.commits
 	base.RequestID = "request-two"
 	base.NewTask.Request = "Requirement B"
-	if _, err := s.OpenTask(context.Background(), base); err != domain.ErrActiveTaskConflict || ms.commits != before {
+	if _, err := s.OpenTask(context.Background(), base); !errors.Is(err, domain.ErrActiveTaskConflict) || ms.commits != before {
 		t.Fatalf("conflict=%v writes=%d", err, ms.commits-before)
 	}
 	failed := &memoryStore{}
 	bad, _ := newService(failed, &mutableObserver{binding: binding, origin: origin}, func() time.Time { return now }, func(string) (domain.ID, error) { return "", domain.ErrInternal })
 	base.NewTask.Request = "Requirement A"
-	if _, err := bad.OpenTask(context.Background(), base); err != domain.ErrInternal || failed.commits != 0 {
+	if _, err := bad.OpenTask(context.Background(), base); !errors.Is(err, domain.ErrInternal) || failed.commits != 0 {
 		t.Fatal("ID failure wrote state")
 	}
 }

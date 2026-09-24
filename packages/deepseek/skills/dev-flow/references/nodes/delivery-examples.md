@@ -76,7 +76,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_delivery",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "node_result.acceptance[0].evidence_ids: the closed contract requires this member",
     "details": [
       {
         "path": "node_result.acceptance[0].evidence_ids",
@@ -155,7 +155,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_delivery",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "delivery_implementation_gap_identified",
       "failures": [
@@ -234,7 +234,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_delivery",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "delivery_test_gap_identified",
       "failures": [
@@ -313,7 +313,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_delivery",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "delivery_comprehension_gap_identified",
       "failures": [
@@ -392,7 +392,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_delivery",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "delivery_design_gap_identified",
       "failures": [
@@ -471,7 +471,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_delivery",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "delivery_requirement_gap_identified",
       "failures": [

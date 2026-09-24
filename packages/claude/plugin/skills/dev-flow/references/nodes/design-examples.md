@@ -78,7 +78,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_design",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "node_result.baseline.approach: the closed contract requires this member",
     "details": [
       {
         "path": "node_result.baseline.approach",
@@ -155,7 +155,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_design",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "material_requirement_gap",
       "failures": [

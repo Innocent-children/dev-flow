@@ -47,11 +47,11 @@ func TestMalformedGraphRecoveryInputStopsBeforeObservationWrite(t *testing.T) {
 	}
 	process := workflow.StandardProcess().Reference
 	badProbe := &OperationProbe{OperationID: "original-operation", ProcessID: process.ID, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, RepositoryBindingDigest: digestOf("a")}
-	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: badProbe}); err != domain.ErrInvalidArgument {
+	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostCodex, TaskID: "task", OperationProbe: badProbe}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("malformed probe error=%v", err)
 	}
 	request := ApplyActionRequest{RequestID: "original-operation", Host: domain.HostCodex, TaskID: "task", ExpectedRevision: 1, ActionID: "action", ActionKind: domain.ActionCompleteRequirements, ProcessID: process.ID, ProcessDefinitionDigest: process.DefinitionDigest, SourceCursor: domain.NodeRequirements, RepositoryBindingDigest: digestOf("a"), Payload: json.RawMessage("null"), RecoveryApply: &RecoveryApplyInput{SourceCursor: domain.NodeRequirements}}
-	if _, err := service.ApplyAction(context.Background(), request); err != domain.ErrInvalidArgument {
+	if _, err := service.ApplyAction(context.Background(), request); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("malformed recovery apply error=%v", err)
 	}
 	if storage.loads != 0 || storage.commits != 0 || observer.calls != 0 {
@@ -158,13 +158,13 @@ func TestProblemClassMismatchIsTransitionNotAllowedAndZeroWrite(t *testing.T) {
 }
 
 func TestCancelTerminalAndReasonValidationZeroWrite(t *testing.T) {
-	if mapped := mapStoreError(store.ErrInvalidArgument); mapped != domain.ErrInvalidArgument {
+	if mapped := mapStoreError(store.ErrInvalidArgument); !errors.Is(mapped, domain.ErrInvalidArgument) {
 		t.Fatalf("store invalid argument mapped to %v", mapped)
 	}
 	service, memory, _ := phase5Service(t)
 	task := openPhase5Task(t, service)
 	base := CancelTaskRequest{RequestID: "cancel-base", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, Reason: "Cancel task."}
-	if _, err := service.CancelTask(nil, base); err != domain.ErrInvalidArgument {
+	if _, err := service.CancelTask(nil, base); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("nil context error=%v", err)
 	}
 	for name, mutate := range map[string]func(*CancelTaskRequest){
@@ -176,7 +176,7 @@ func TestCancelTerminalAndReasonValidationZeroWrite(t *testing.T) {
 			request := base
 			mutate(&request)
 			before := memory.commits
-			if _, err := service.CancelTask(context.Background(), request); err != domain.ErrInvalidArgument || memory.commits != before {
+			if _, err := service.CancelTask(context.Background(), request); !errors.Is(err, domain.ErrInvalidArgument) || memory.commits != before {
 				t.Fatalf("error=%v writes=%d", err, memory.commits-before)
 			}
 		})
@@ -188,12 +188,12 @@ func TestCancelTerminalAndReasonValidationZeroWrite(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			before := memory.commits
 			_, err := service.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-invalid", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, Reason: reason})
-			if err != domain.ErrInvalidArgument || memory.commits != before {
+			if !errors.Is(err, domain.ErrInvalidArgument) || memory.commits != before {
 				t.Fatalf("error=%v writes=%d", err, memory.commits-before)
 			}
 		})
 	}
-	if _, err := service.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-stale", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision + 1, Reason: "Cancel task."}); err != domain.ErrRevisionConflict {
+	if _, err := service.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-stale", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision + 1, Reason: "Cancel task."}); !errors.Is(err, domain.ErrRevisionConflict) {
 		t.Fatalf("stale cancel error=%v", err)
 	}
 	result, err := service.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-active", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: task.Revision, Reason: "Cancel task."})
@@ -201,14 +201,14 @@ func TestCancelTerminalAndReasonValidationZeroWrite(t *testing.T) {
 		t.Fatalf("active cancel result=%v error=%v", result.Task.CurrentNode, err)
 	}
 	before := memory.commits
-	if _, err := service.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-terminal", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: result.Task.Revision, Reason: "Cancel again."}); err != domain.ErrTaskTerminal || memory.commits != before {
+	if _, err := service.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-terminal", Host: domain.HostCodex, TaskID: task.TaskID, ExpectedRevision: result.Task.Revision, Reason: "Cancel again."}); !errors.Is(err, domain.ErrTaskTerminal) || memory.commits != before {
 		t.Fatalf("terminal cancel error=%v writes=%d", err, memory.commits-before)
 	}
 	doneService, doneMemory, _ := phase5Service(t)
 	done := phase5TaskAtDelivery(t, doneService)
 	done = applyPhase5(t, doneService, done, "delivery_complete", "", deliveryCompleteNodeResult(done))
 	before = doneMemory.commits
-	if _, err := doneService.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-done", Host: domain.HostCodex, TaskID: done.TaskID, ExpectedRevision: done.Revision, Reason: "Cancel completed task."}); err != domain.ErrTaskTerminal || doneMemory.commits != before {
+	if _, err := doneService.CancelTask(context.Background(), CancelTaskRequest{RequestID: "cancel-done", Host: domain.HostCodex, TaskID: done.TaskID, ExpectedRevision: done.Revision, Reason: "Cancel completed task."}); !errors.Is(err, domain.ErrTaskTerminal) || doneMemory.commits != before {
 		t.Fatalf("DONE cancel error=%v writes=%d", err, doneMemory.commits-before)
 	}
 

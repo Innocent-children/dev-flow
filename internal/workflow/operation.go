@@ -11,22 +11,22 @@ import (
 
 func ValidateOperationReference(operation domain.OperationReference) error {
 	if operation.Validate() != nil {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The operation reference requires valid identities, a positive expected revision and all issuance workspace digests.")
 	}
 	definition := StandardProcess()
 	if operation.Process != definition.Reference {
-		return domain.ErrProcessUnsupported
+		return domain.WithExplanation(domain.ErrProcessUnsupported, "The operation process identity or definition digest differs from the supported process definition.")
 	}
 	node, err := NodeDefinition(definition, operation.SourceCursor)
 	if err != nil || node.ActionKind != operation.ActionKind {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The operation Action kind does not match its source node.")
 	}
 	return nil
 }
 
 func GraphOperationDigest(host domain.Host, taskID domain.ID, operation domain.OperationReference, canonicalPayload json.RawMessage) (domain.Digest, error) {
 	if !host.IsValid() || !taskID.IsValid() || ValidateOperationReference(operation) != nil || len(canonicalPayload) == 0 {
-		return "", domain.ErrInvalidArgument
+		return "", domain.WithExplanation(domain.ErrInvalidArgument, "Computing an operation digest requires a supported host, valid Task and operation identities and a retained payload.")
 	}
 	value := struct {
 		Host                    domain.Host       `json:"host"`

@@ -301,11 +301,7 @@ func (o *GitObserver) observe(ctx context.Context, repositoryPath string, select
 }
 
 func ValidWorkspaceOriginSelection(s WorkspaceOriginSelection) bool {
-	return s.Mode.IsValid() && (s.Mode == domain.WorkspaceModeDedicatedWorktree || s.SourceType == "local") &&
-		(s.Mode != domain.WorkspaceModeCurrentBranch || s.BaseBranch == s.TaskBranch) &&
-		(s.Mode != domain.WorkspaceModeNewBranch || s.BaseBranch != s.TaskBranch) &&
-		domain.ValidWorkspaceSource(s.SourceType, s.RemoteName, s.CarryChanges) && validBranchRefName(s.BaseBranch) &&
-		validBranchRefName(s.TaskBranch) && validGitObjectID(s.BaseCommit) && s.ProvisioningReceiptID.IsValid()
+	return len(WorkspaceOriginViolations("workspace_origin", s)) == 0
 }
 
 func validOriginSelection(s WorkspaceOriginSelection) bool {

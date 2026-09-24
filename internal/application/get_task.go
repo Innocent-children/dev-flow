@@ -12,7 +12,7 @@ import (
 
 func (s *Service) GetTask(ctx context.Context, r GetTaskRequest) (GetTaskResult, error) {
 	if !s.valid() || ctx == nil || !r.Host.IsValid() || !r.TaskID.IsValid() {
-		return GetTaskResult{}, domain.ErrInvalidArgument
+		return GetTaskResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The application service, request context or required request identity is invalid.")
 	}
 	if r.OperationProbe != nil {
 		if err := validateProbeInput(r.OperationProbe); err != nil {
@@ -46,7 +46,7 @@ func (s *Service) GetTask(ctx context.Context, r GetTaskRequest) (GetTaskResult,
 	}
 	if !found || workflow.ValidateActionCommit(task, operation.Commit) != nil {
 		if found {
-			return GetTaskResult{}, domain.ErrStorageUnavailable
+			return GetTaskResult{}, domain.WithExplanation(domain.ErrStorageUnavailable, "The prepared Action operation does not match the Task, payload or operation digest.")
 		}
 		return GetTaskResult{Task: task}, nil
 	}
@@ -90,7 +90,7 @@ func assessRecordedActionCommit(host domain.Host, task domain.ProcessTask, commi
 		ObservedScope: &observed,
 	})
 	if err != nil || decision.Assessment.Classification != domain.RecoveryCompletedAndRecorded {
-		return nil, domain.ErrStorageUnavailable
+		return nil, domain.WithExplanation(domain.ErrStorageUnavailable, "The saved Action operation is not proven to be the operation already recorded by this Task.")
 	}
 	return &decision.Assessment, nil
 }
@@ -108,17 +108,17 @@ func (s *Service) assessActionCommit(ctx context.Context, host domain.Host, task
 }
 func validateProbeInput(p *OperationProbe) error {
 	if p == nil || len(p.Payload) == 0 || workflow.ValidateOperationReference(p.Reference()) != nil {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "operation_probe requires a complete valid operation identity and a payload member.")
 	}
 	if !bytes.Equal(bytes.TrimSpace(p.Payload), []byte("null")) {
 		if p.SourceCursor == domain.NodeBlocked {
 			if _, _, err := recovery.DecodeBlockerResolutionPayload(p.Payload); err != nil {
-				return domain.ErrInvalidArgument
+				return domain.WithExplanation(domain.ErrInvalidArgument, "A BLOCKED recovery probe requires the complete saved blocker-resolution payload.")
 			}
 			return nil
 		}
 		if err := workflow.ValidateRetainedPayload(p.SourceCursor, p.Payload); err != nil {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "The recovery probe payload must satisfy its source node contract.")
 		}
 	}
 	return nil

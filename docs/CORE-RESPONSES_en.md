@@ -21,9 +21,16 @@ the saved Task, which may be BLOCKED, DONE or CANCELLED. Ordinary submissions re
 
 ## Error fields
 
-`error.code` is a stable category and `message` is a description without interpolated request content.
+All 17 tools use the same rules. `error.code` is a stable category; `message` states the specific failed
+condition. For parameter and transition-condition errors it summarizes field paths and requirements.
+Long summaries are bounded; `details[]` or `guard.failures[]` retains the complete conditions. Known
+causes are not replaced with generic invalid-argument or operation-failed text.
 Identified parameter failures use `details[]`: each entry has a request `path`, fixed `rule` and
-specific required behavior in `message`. Array positions use `[index]`. Budget paths under `verification.*` identify the current Task budget or usage; `arguments` names the entire MCP argument object, and other parameter-error paths identify submitted members. Transition conditions use
+specific required behavior in `message`. Type failures name the required type. Text, identifier,
+duplicate-member, field-dependency and work-item-dependency errors state their actual requirements.
+Missing fields, malformed JSON, invalid UTF-8 and duplicate object members are distinct failures.
+Unsafe member names are reported at their containing object without echoing the name or value.
+Array positions use `[index]`. Budget paths under `verification.*` identify the current Task budget or usage; `arguments` names the entire MCP argument object, and other parameter-error paths identify submitted members. Transition conditions use
 `guard.guard_id` and `guard.failures[]`. Core returns every relevant field it can establish rather than
 requiring the Host to guess from generic prose.
 
@@ -36,6 +43,18 @@ no automatic commands and are independent of the pending manual-handoff permissi
 Public failures exclude submitted content, configuration values, secrets, internal directories and
 stacks. `repository_paths` is reserved for existing missing-manifest feedback. Counters expose only
 the non-sensitive quantities described above.
+
+Storage and repository-observation errors retain the failed check and known cause, such as an
+undecodable saved snapshot, a different worktree instance, a Git timeout, or a classified SQLite lock,
+read-only, capacity or I/O failure. Outer callers preserve explanations already provided by the failing
+check. When a lower-level cause is unknown, state the known failed operation and diagnostic limit;
+do not invent a disk, permission or input problem.
+
+Missing success results, JSON encoding failures, oversized responses and request-ID generation failures
+have distinct explanations. Encoding failures retain the actual tool and valid request ID. Failed ID
+generation uses `request-unavailable` and states that the tool was not executed. Original checks still
+own error categories and recovery decisions: additional explanation never grants retry permission or
+proves zero writes.
 
 ## Recovery guidance
 
@@ -66,6 +85,10 @@ original Task/Action before using a Core-authorized recovery path. Never reinter
 success or substitute an earlier successful operation's result.
 
 ## Verification
+
+`error_reasons_test.go` checks JSON, member-type and response-encoding failures across all 17 tools,
+and executes nested-field, work-item dependency and corrupt-snapshot failures. Request-ID failures
+are checked over an in-memory MCP transport to verify the actual tool identity.
 
 MCP tests validate real success/failure responses against output schemas, covering result locations,
 invalid mixed envelopes, detailed failures, quantity versus permission restrictions, zero-write

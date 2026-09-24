@@ -22,22 +22,47 @@ func persistedOriginSelection(origin domain.WorkspaceOrigin) repository.Workspac
 
 func mapWorkspaceOpenError(err error) error {
 	if errors.Is(err, repository.ErrInconsistentWorktree) {
-		return domain.ErrWorkspaceObservationUnstable
+		return domain.WithExplanation(domain.ErrWorkspaceObservationUnstable, repositoryObservationExplanation(err))
 	}
 	if errors.Is(err, repository.ErrProvisioningRequired) || errors.Is(err, repository.ErrNotGitRepository) || errors.Is(err, repository.ErrInvalidRepositoryPath) {
-		return domain.ErrWorktreeProvisioningRequired
+		return domain.WithExplanation(domain.ErrWorktreeProvisioningRequired, repositoryObservationExplanation(err))
 	}
-	return domain.ErrInternal
+	return domain.WithExplanation(domain.ErrInternal, repositoryObservationExplanation(err))
 }
 
 func mapWorkspaceObservationError(err error) error {
 	if errors.Is(err, repository.ErrInconsistentWorktree) {
-		return domain.ErrWorkspaceObservationUnstable
+		return domain.WithExplanation(domain.ErrWorkspaceObservationUnstable, repositoryObservationExplanation(err))
 	}
 	if errors.Is(err, repository.ErrNotGitRepository) || errors.Is(err, repository.ErrInvalidRepositoryPath) {
-		return domain.ErrWorkspaceUnavailable
+		return domain.WithExplanation(domain.ErrWorkspaceUnavailable, repositoryObservationExplanation(err))
 	}
-	return domain.ErrInternal
+	return domain.WithExplanation(domain.ErrInternal, repositoryObservationExplanation(err))
+}
+
+func repositoryObservationExplanation(err error) string {
+	switch {
+	case errors.Is(err, repository.ErrInconsistentWorktree):
+		return "Git status or file identity changed during repository observation."
+	case errors.Is(err, repository.ErrNotGitRepository):
+		return "Git could not identify a worktree at the requested repository path."
+	case errors.Is(err, repository.ErrInvalidRepositoryPath):
+		return "The repository path cannot identify an accessible, bounded Git worktree."
+	case errors.Is(err, repository.ErrProvisioningRequired):
+		return "The observed workspace does not match its confirmed mode, source, branch, commit or carried-change selection."
+	case errors.Is(err, repository.ErrDirtySubmodule):
+		return "A dirty submodule cannot be represented by the supported ordinary-file content fingerprint."
+	case errors.Is(err, repository.ErrFingerprintPathLimit):
+		return "The repository observation exceeds the maximum number of fingerprinted paths."
+	case errors.Is(err, repository.ErrGitOutputLimit):
+		return "A Git observation command exceeded the output byte limit."
+	case errors.Is(err, repository.ErrGitCommandTimeout), errors.Is(err, context.DeadlineExceeded):
+		return "A Git observation command exceeded its deadline."
+	case errors.Is(err, context.Canceled):
+		return "Repository observation was cancelled."
+	default:
+		return "Git could not complete repository observation; no more specific safe diagnostic is available."
+	}
 }
 
 func currentRepositoryScopePaths(primaryKey domain.RepositoryKey, primary domain.RepositoryBinding, additional []domain.RepositoryScopeEntry) []string {
@@ -53,7 +78,7 @@ func (s *Service) observeTaskRepositories(ctx context.Context, task domain.Proce
 				return domain.RepositoryBinding{}, mapWorkspaceObservationError(err)
 			}
 			if observedOrigin != origin {
-				return domain.RepositoryBinding{}, domain.ErrWorkspaceUnavailable
+				return domain.RepositoryBinding{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "The observed workspace origin differs from the origin retained by the Task.")
 			}
 			return binding, nil
 		}
@@ -87,7 +112,7 @@ func (s *Service) observeTaskRepositories(ctx context.Context, task domain.Proce
 		return recovery.RepositoryScopeObservation{}, err
 	}
 	if !sameRepositoryScopeObservation(first, second) {
-		return recovery.RepositoryScopeObservation{}, domain.ErrWorkspaceObservationUnstable
+		return recovery.RepositoryScopeObservation{}, domain.WithExplanation(domain.ErrWorkspaceObservationUnstable, "The repository scope changed between the two consistency observations.")
 	}
 	return second, nil
 }
@@ -176,7 +201,7 @@ func (s *Service) guardTaskWorkspace(ctx context.Context, task domain.ProcessTas
 		return domain.ProcessTask{}, err
 	}
 	if scopeHasUnavailableWorkspace(task, fresh) {
-		return domain.ProcessTask{}, domain.ErrWorkspaceUnavailable
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "An observed worktree is missing or no longer has the instance identity retained by the Task.")
 	}
 	if scopeHasHistoryConflict(fresh) {
 		return s.createWorkspaceHistoryBlocker(ctx, task, fresh, requestID)
@@ -206,13 +231,13 @@ func (s *Service) hasPendingActionOperation(ctx context.Context, task domain.Pro
 		return false, nil
 	}
 	if workflow.ValidateActionCommit(task, operation.Commit) != nil {
-		return false, domain.ErrStorageUnavailable
+		return false, domain.WithExplanation(domain.ErrStorageUnavailable, "The prepared Action operation does not match the Task, payload or operation digest.")
 	}
 	if operation.AppliedRevision == nil {
 		return true, nil
 	}
 	if !operation.RecordedBy(task) {
-		return false, domain.ErrStorageUnavailable
+		return false, domain.WithExplanation(domain.ErrStorageUnavailable, "An Action operation is pending, so workspace guarding cannot replace the Task state before recovery.")
 	}
 	return false, nil
 }
@@ -220,7 +245,7 @@ func (s *Service) hasPendingActionOperation(ctx context.Context, task domain.Pro
 func (s *Service) invalidateContentEvidence(ctx context.Context, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, requestID domain.ID) (domain.ProcessTask, error) {
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	eventID, err := s.id("event")
 	if err != nil {
@@ -240,11 +265,11 @@ func (s *Service) invalidateContentEvidence(ctx context.Context, task domain.Pro
 	next.UpdatedAt = now
 	workspace, err := next.EffectiveWorkspaceDigests()
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeImplement, next.TaskID, next.Revision, workspace, next.Intent.MethodProfile, actionID, now)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 	}
 	next.CurrentAction = &action
 	previousContent := task.Implementation.ContentDigest
@@ -256,7 +281,7 @@ func (s *Service) invalidateContentEvidence(ctx context.Context, task domain.Pro
 		Current  domain.Digest `json:"current_content_digest"`
 	}{previousContent, workspace.Content})
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the content change for its invalidation digest.")
 	}
 	oldAction := task.CurrentAction.ActionID
 	next.LastOperation = &domain.LastOperation{OperationID: requestID, Kind: domain.OperationObserveWorkspace, ActionID: &oldAction, FromRevision: task.Revision, ToRevision: next.Revision, PayloadDigest: payloadDigest, CommittedAt: now}
@@ -282,7 +307,7 @@ func (s *Service) createWorkspaceHistoryBlocker(ctx context.Context, task domain
 	}
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	blockerID, err := s.id("blocker")
 	if err != nil {
@@ -302,19 +327,19 @@ func (s *Service) createWorkspaceHistoryBlocker(ctx context.Context, task domain
 	} else {
 		condition, err = workspaceCondition(task, "", domain.BlockerConditionResolveHistory)
 		if err != nil {
-			return domain.ProcessTask{}, domain.ErrInternal
+			return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct the workspace-history condition from the saved Task.")
 		}
 	}
 	observed, err := scopeWorkspaceDigests(task, fresh)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The observed repository scope is invalid and cannot produce workspace digests.")
 	}
 	if refreshing && observed.Binding == task.Blocker.ObservedBindingDigest {
 		return task, nil
 	}
 	observedHistory, err := workspaceHistorySnapshot(task, fresh, observed)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The observed repository history could not form a valid history snapshot.")
 	}
 	now := s.now().UTC()
 	resume := task.CurrentNode
@@ -339,11 +364,11 @@ func (s *Service) createWorkspaceHistoryBlocker(ctx context.Context, task domain
 	}
 	workspace, err := next.EffectiveWorkspaceDigests()
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeBlocked, next.TaskID, next.Revision, workspace, next.Intent.MethodProfile, actionID, now)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 	}
 	next.CurrentAction = &action
 	payloadDigest, err := digestCanonical(struct {
@@ -351,7 +376,7 @@ func (s *Service) createWorkspaceHistoryBlocker(ctx context.Context, task domain
 		Observed domain.Digest `json:"observed_binding_digest"`
 	}{task.TaskID, observed.Binding})
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the workspace-history blocker for its operation digest.")
 	}
 	sourceAction := task.CurrentAction.ActionID
 	next.LastOperation = &domain.LastOperation{OperationID: requestID, Kind: domain.OperationObserveWorkspace, ActionID: &sourceAction, FromRevision: task.Revision, ToRevision: next.Revision, PayloadDigest: payloadDigest, CommittedAt: now}
@@ -402,7 +427,7 @@ func workspaceHistorySnapshot(task domain.ProcessTask, fresh recovery.Repository
 		ObservedAt:          observedAt,
 	}
 	if snapshot.Validate() != nil {
-		return domain.WorkspaceHistorySnapshot{}, domain.ErrInvalidArgument
+		return domain.WorkspaceHistorySnapshot{}, domain.WithExplanation(domain.ErrInvalidArgument, "The history snapshot has invalid repository keys, workspace digests or observation metadata.")
 	}
 	return snapshot, nil
 }

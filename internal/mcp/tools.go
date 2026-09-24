@@ -3,6 +3,7 @@ package mcp
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -11,8 +12,6 @@ import (
 
 	"github.com/Innocent-children/dev-flow/internal/application"
 	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/repository"
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
@@ -122,244 +121,244 @@ type abandonWire struct {
 }
 
 func decodeClosed(raw []byte, out any) error {
-	if !utf8.Valid(raw) || rejectDuplicateMembers(raw) != nil {
-		return domain.ErrInvalidArgument
+	if err := workflow.ValidateRequestJSON("arguments", raw); err != nil {
+		return err
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(out); err != nil {
-		return domain.ErrInvalidArgument
+		var mismatch *json.UnmarshalTypeError
+		if errors.As(err, &mismatch) {
+			path := mismatch.Field
+			if !domain.ValidViolationPath(path) {
+				path = "arguments"
+			}
+			return domain.InvalidArgumentViolations(domain.ExplainedViolation(path, domain.RuleValueType, "value cannot be decoded as "+mismatch.Type.String()))
+		}
+		return domain.InvalidArgumentViolations(domain.Violation("arguments", domain.RuleUnknownMember))
 	}
 	var x any
 	if err := d.Decode(&x); err != io.EOF {
-		return domain.ErrInvalidArgument
+		return domain.InvalidArgumentViolations(domain.Violation("arguments", domain.RuleJSONMalformed))
 	}
 	return nil
 }
-func rejectDuplicateMembers(raw []byte) error {
-	d := json.NewDecoder(bytes.NewReader(raw))
-	var walk func() error
-	walk = func() error {
-		token, err := d.Token()
-		if err != nil {
-			return err
-		}
-		delim, ok := token.(json.Delim)
-		if !ok {
-			return nil
-		}
-		if delim == '{' {
-			seen := map[string]bool{}
-			for d.More() {
-				keyToken, err := d.Token()
-				if err != nil {
-					return err
-				}
-				key := keyToken.(string)
-				if seen[key] {
-					return fmt.Errorf("duplicate %s", key)
-				}
-				seen[key] = true
-				if err := walk(); err != nil {
-					return err
-				}
-			}
-			_, err = d.Token()
-			return err
-		}
-		if delim == '[' {
-			for d.More() {
-				if err := walk(); err != nil {
-					return err
-				}
-			}
-			_, err = d.Token()
-			return err
-		}
-		return nil
-	}
-	return walk()
-}
 func ValidateToolInput(tool string, raw []byte) error {
-	if trimmed := bytes.TrimSpace(raw); len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(trimmed) || !utf8.Valid(trimmed) {
+	if err := workflow.ValidateRequestJSON("arguments", raw); err != nil {
+		return err
+	}
+	if trimmed := bytes.TrimSpace(raw); len(trimmed) == 0 || trimmed[0] != '{' {
 		return domain.InvalidArgumentViolations(domain.Violation("arguments", domain.RuleArgumentsObjectRequired))
 	}
-	if kind, ok := submissionKindForTool(tool); ok {
-		return validateSubmitActionInput(kind, raw)
+	if !isToolName(tool) {
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The requested tool is not in the current 17-tool catalog.")
 	}
 	if violations := toolRequestMemberViolations(tool, raw); len(violations) != 0 {
 		return domain.InvalidArgumentViolations(violations...)
 	}
+	if tool == ToolOpenTask && (!hasAnyKey(raw, "new_task") || nullField(raw, "new_task")) {
+		var violations []domain.ContractViolation
+		for _, name := range []string{"workspace_origin", "primary_repository_key", "additional_repositories"} {
+			if hasAnyKey(raw, name) {
+				violations = append(violations, domain.Violation(name, domain.RuleCreationMemberOnResume))
+			}
+		}
+		if len(violations) != 0 {
+			return domain.InvalidArgumentViolations(violations...)
+		}
+	}
+	if violations := toolRequestStructureViolations(tool, raw); len(violations) != 0 {
+		failure := domain.InvalidArgumentViolations(violations...)
+		if tool == ToolOpenTask {
+			var value openWire
+			onlyOrigin := true
+			for _, violation := range violations {
+				onlyOrigin = onlyOrigin && (violation.Path == "workspace_origin" || strings.HasPrefix(violation.Path, "workspace_origin."))
+			}
+			if onlyOrigin && decodeClosed(raw, &value) == nil && value.NewTask != nil {
+				failure.Code = domain.ErrorWorktreeProvisioningRequired
+				failure.Message = domain.ErrWorktreeProvisioningRequired.Message
+			}
+		}
+		return failure
+	}
+	if kind, ok := submissionKindForTool(tool); ok {
+		return validateSubmitActionInput(kind, raw)
+	}
+	var violations []domain.ContractViolation
 	switch tool {
 	case ToolServerInfo:
 		var v struct{}
 		return decodeClosed(raw, &v)
 	case ToolOpenTask:
-		if !hasKeys(raw, "host", "repository_path") {
-			return domain.ErrInvalidArgument
-		}
 		var v openWire
-		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !validRepositoryPath(v.RepositoryPath) || len(v.AdditionalRepositories) > domain.MaxAdditionalRepositories {
-			return domain.ErrInvalidArgument
+		if err := decodeClosed(raw, &v); err != nil {
+			return err
 		}
-		if nullField(raw, "primary_repository_key") || nullField(raw, "additional_repositories") {
-			return domain.ErrInvalidArgument
-		}
+		violations = append(violations, hostViolations(v.Host)...)
+		violations = append(violations, repositoryPathViolations("repository_path", v.RepositoryPath)...)
 		primaryKey := v.PrimaryRepositoryKey
-		if primaryKey == "" {
+		if primaryKey == "" && !hasAnyKey(raw, "primary_repository_key") {
 			primaryKey = domain.DefaultPrimaryRepositoryKey
 		}
 		if !primaryKey.IsValid() {
-			return domain.ErrInvalidArgument
+			violations = append(violations, domain.ExplainedViolation("primary_repository_key", domain.RuleValueFormat, "repository keys must match [a-z0-9][a-z0-9._-]{0,127}"))
+		}
+		if len(v.AdditionalRepositories) > domain.MaxAdditionalRepositories {
+			violations = append(violations, domain.ExplainedViolation("additional_repositories", domain.RuleStringListTooLong, "at most 7 additional repositories are allowed"))
 		}
 		keys := map[domain.RepositoryKey]bool{primaryKey: true}
-		for _, repository := range v.AdditionalRepositories {
-			if !repository.Key.IsValid() || keys[repository.Key] || !validRepositoryPath(repository.RepositoryPath) || !validWorkspaceOriginWire(repository.WorkspaceOrigin) {
-				return domain.ErrInvalidArgument
+		for index, repository := range v.AdditionalRepositories {
+			path := fmt.Sprintf("additional_repositories[%d]", index)
+			if !repository.Key.IsValid() {
+				violations = append(violations, domain.ExplainedViolation(path+".key", domain.RuleValueFormat, "repository keys must match [a-z0-9][a-z0-9._-]{0,127}"))
+			} else if keys[repository.Key] {
+				violations = append(violations, domain.ExplainedViolation(path+".key", domain.RuleStringListDuplicate, "repository keys must be unique across the primary and additional repositories"))
 			}
 			keys[repository.Key] = true
-		}
-		if v.NewTask == nil && hasAnyKey(raw, "workspace_origin", "primary_repository_key", "additional_repositories") {
-			var violations []domain.ContractViolation
-			for _, name := range []string{"workspace_origin", "primary_repository_key", "additional_repositories"} {
-				if hasAnyKey(raw, name) {
-					violations = append(violations, domain.Violation(name, domain.RuleCreationMemberOnResume))
-				}
-			}
-			return domain.InvalidArgumentViolations(violations...)
+			violations = append(violations, repositoryPathViolations(path+".repository_path", repository.RepositoryPath)...)
+			violations = append(violations, workspaceOriginViolations(path+".workspace_origin", repository.WorkspaceOrigin)...)
 		}
 		if v.NewTask != nil {
-			if v.WorkspaceOrigin == nil || !validWorkspaceOriginWire(*v.WorkspaceOrigin) {
+			if v.WorkspaceOrigin == nil {
 				return &domain.Error{Code: domain.ErrorWorktreeProvisioningRequired, Message: domain.ErrWorktreeProvisioningRequired.Message, ZeroWrite: true,
 					Violations: []domain.ContractViolation{domain.Violation("workspace_origin", domain.RuleWorkspaceOriginRequired)}}
 			}
-			intent := domain.TaskIntent{Request: v.NewTask.Request, InitialScope: v.NewTask.InitialScope, InitialOutOfScope: v.NewTask.InitialOutOfScope, KnownAcceptanceCriteria: v.NewTask.KnownAcceptanceCriteria, MethodProfile: v.NewTask.MethodProfile}
-			if intent.Validate() != nil {
-				return domain.ErrInvalidArgument
+			originFailures := workspaceOriginViolations("workspace_origin", *v.WorkspaceOrigin)
+			if len(originFailures) != 0 && len(violations) == 0 {
+				failure := domain.InvalidArgumentViolations(originFailures...)
+				failure.Code = domain.ErrorWorktreeProvisioningRequired
+				failure.Message = domain.ErrWorktreeProvisioningRequired.Message
+				return failure
+			}
+			violations = append(violations, originFailures...)
+			violations = append(violations, textViolations("new_task.request", v.NewTask.Request, domain.MaxGoalBytes, true)...)
+			if !v.NewTask.MethodProfile.IsValid() {
+				violations = append(violations, domain.ExplainedViolation("new_task.method_profile", domain.RuleEnumValueInvalid, "method_profile must be plain, spec-kit or openspec"))
+			}
+			for _, list := range []struct {
+				name   string
+				values []string
+			}{
+				{"initial_scope", v.NewTask.InitialScope}, {"initial_out_of_scope", v.NewTask.InitialOutOfScope}, {"known_acceptance_criteria", v.NewTask.KnownAcceptanceCriteria},
+			} {
+				violations = append(violations, requestListViolations("new_task."+list.name, list.values)...)
 			}
 		}
-		return nil
 	case ToolGetTask, ToolGetNextAction:
-		if !hasKeys(raw, "host", "task_id") {
-			return domain.ErrInvalidArgument
-		}
 		var v readWire
-		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || !validOperationProbe(v.OperationProbe) {
-			return domain.ErrInvalidArgument
+		if err := decodeClosed(raw, &v); err != nil {
+			return err
 		}
-		return nil
+		violations = append(violations, hostViolations(v.Host)...)
+		violations = append(violations, idViolations("task_id", v.TaskID)...)
+		violations = append(violations, operationProbeViolations(v.OperationProbe)...)
 	case ToolCancelTask:
-		if !hasKeys(raw, "request_id", "host", "task_id", "revision", "reason") {
-			return domain.ErrInvalidArgument
-		}
 		var v cancelWire
-		if decodeClosed(raw, &v) != nil || !v.RequestID.IsValid() || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || !utf8.ValidString(v.Reason) || strings.TrimSpace(v.Reason) == "" || v.Reason != strings.TrimSpace(v.Reason) || len(v.Reason) > domain.MaxReasonBytes {
-			return domain.ErrInvalidArgument
+		if err := decodeClosed(raw, &v); err != nil {
+			return err
 		}
-		return nil
+		violations = append(violations, hostViolations(v.Host)...)
+		violations = append(violations, idViolations("request_id", v.RequestID)...)
+		violations = append(violations, idViolations("task_id", v.TaskID)...)
+		violations = append(violations, revisionViolations(v.Revision)...)
+		violations = append(violations, textViolations("reason", v.Reason, domain.MaxReasonBytes, true)...)
 	case ToolPrepareTaskRelocation:
-		if !hasKeys(raw, "host", "task_id", "revision") {
-			return domain.ErrInvalidArgument
-		}
 		var v lifecycleWire
-		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 {
-			return domain.ErrInvalidArgument
+		if err := decodeClosed(raw, &v); err != nil {
+			return err
 		}
-		return nil
+		violations = append(violations, hostViolations(v.Host)...)
+		violations = append(violations, idViolations("task_id", v.TaskID)...)
+		violations = append(violations, revisionViolations(v.Revision)...)
 	case ToolAbandonTask:
-		if !hasKeys(raw, "host", "task_id", "revision", "reason") {
-			return domain.ErrInvalidArgument
-		}
 		var v abandonWire
-		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || v.Revision == 0 || strings.TrimSpace(v.Reason) != v.Reason || v.Reason == "" || len(v.Reason) > domain.MaxReasonBytes {
-			return domain.ErrInvalidArgument
+		if err := decodeClosed(raw, &v); err != nil {
+			return err
 		}
-		return nil
+		violations = append(violations, hostViolations(v.Host)...)
+		violations = append(violations, idViolations("task_id", v.TaskID)...)
+		violations = append(violations, revisionViolations(v.Revision)...)
+		violations = append(violations, textViolations("reason", v.Reason, domain.MaxReasonBytes, true)...)
 	case ToolResolveBlocker:
-		if !hasKeys(raw, "host", "task_id", "action_id") {
-			return domain.ErrInvalidArgument
-		}
 		var v resolveBlockerWire
-		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || !v.ActionID.IsValid() {
-			return domain.ErrInvalidArgument
+		if err := decodeClosed(raw, &v); err != nil {
+			return err
 		}
+		violations = append(violations, hostViolations(v.Host)...)
+		violations = append(violations, idViolations("task_id", v.TaskID)...)
+		violations = append(violations, idViolations("action_id", v.ActionID)...)
 		if v.Choice == "" {
 			if v.Reason != "" {
-				return domain.ErrInvalidArgument
+				violations = append(violations, domain.ExplainedViolation("choice", domain.RuleMemberDependency, "a file-scope reason requires choice: allow_once, expand_scope or reject"))
 			}
 		} else {
-			var violations []domain.ContractViolation
 			if !v.Choice.IsValid() {
-				violations = append(violations, domain.Violation("choice", domain.RuleEnumValueInvalid))
+				violations = append(violations, domain.ExplainedViolation("choice", domain.RuleEnumValueInvalid, "choice must be allow_once, expand_scope or reject"))
 			}
-			if strings.TrimSpace(v.Reason) != v.Reason || v.Reason == "" || len(v.Reason) > domain.MaxReasonBytes {
-				violations = append(violations, domain.Violation("reason", domain.RuleTextNotNormalized))
-			}
-			if len(violations) != 0 {
-				return domain.InvalidArgumentViolations(violations...)
+			violations = append(violations, textViolations("reason", v.Reason, domain.MaxReasonBytes, true)...)
+		}
+		if v.RelocationID != "" {
+			violations = append(violations, idViolations("relocation_id", v.RelocationID)...)
+			if len(v.RelocationDestinations) == 0 {
+				violations = append(violations, domain.Violation("relocation_destinations", domain.RuleRequiredCollectionNonEmpty))
 			}
 		}
-		if v.RelocationID != "" && !v.RelocationID.IsValid() {
-			return domain.ErrInvalidArgument
-		}
-		if v.RelocationID != "" && len(v.RelocationDestinations) == 0 {
-			return domain.InvalidArgumentViolations(domain.Violation("relocation_destinations", domain.RuleRequiredCollectionNonEmpty))
+		for index, destination := range v.RelocationDestinations {
+			path := fmt.Sprintf("relocation_destinations[%d]", index)
+			if !destination.Key.IsValid() {
+				violations = append(violations, domain.ExplainedViolation(path+".key", domain.RuleValueFormat, "repository keys must match [a-z0-9][a-z0-9._-]{0,127}"))
+			}
+			violations = append(violations, repositoryPathViolations(path+".repository_path", destination.RepositoryPath)...)
 		}
 		if history := v.HistoryResolution; history != nil {
-			var violations []domain.ContractViolation
 			if history.Choice != "accept_current_history" {
-				violations = append(violations, domain.Violation("history_resolution.choice", domain.RuleEnumValueInvalid))
+				violations = append(violations, domain.ExplainedViolation("history_resolution.choice", domain.RuleEnumValueInvalid, "choice must be accept_current_history"))
 			}
-			if !utf8.ValidString(history.Reason) || strings.TrimSpace(history.Reason) != history.Reason || history.Reason == "" || len(history.Reason) > domain.MaxReasonBytes {
-				violations = append(violations, domain.Violation("history_resolution.reason", domain.RuleTextNotNormalized))
-			}
-			if len(violations) != 0 {
-				return domain.InvalidArgumentViolations(violations...)
-			}
+			violations = append(violations, textViolations("history_resolution.reason", history.Reason, domain.MaxReasonBytes, true)...)
 		}
-		return nil
 	case ToolRecoverAction:
-		if !hasKeys(raw, "host", "task_id", "action_id") {
-			return domain.ErrInvalidArgument
-		}
 		var v actionReferenceWire
-		if decodeClosed(raw, &v) != nil || !v.Host.IsValid() || !v.TaskID.IsValid() || !v.ActionID.IsValid() {
-			return domain.ErrInvalidArgument
+		if err := decodeClosed(raw, &v); err != nil {
+			return err
 		}
-		return nil
-	default:
-		return domain.ErrInvalidArgument
+		violations = append(violations, hostViolations(v.Host)...)
+		violations = append(violations, idViolations("task_id", v.TaskID)...)
+		violations = append(violations, idViolations("action_id", v.ActionID)...)
 	}
+	if len(violations) != 0 {
+		return domain.InvalidArgumentViolations(violations...)
+	}
+	return nil
 }
 
 func validateSubmitActionInput(kind domain.ActionKind, raw []byte) error {
-	if missing := missingRequestMembers(raw, "host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"); len(missing) != 0 {
-		return domain.InvalidArgumentViolations(missing...)
-	}
 	var value submitActionWire
 	if err := decodeClosed(raw, &value); err != nil {
-		if member, ok := unknownRequestMember(raw, "host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"); ok {
-			return domain.InvalidArgumentViolations(domain.Violation(member, domain.RuleUnknownMember))
-		}
-		return domain.ErrInvalidArgument
+		return err
 	}
-	if !value.Host.IsValid() || !value.TaskID.IsValid() || !value.ActionID.IsValid() ||
-		!value.TransitionID.IsValid() || len(value.NodeResult) == 0 || !json.Valid(value.NodeResult) ||
-		len(value.Artifacts.Current)+len(value.Artifacts.OtherProcess) > domain.MaxArtifactReferencesPerAction ||
-		len(value.MethodResults) > domain.MaxMethodEvidencePerAction {
-		return domain.ErrInvalidArgument
+	violations := hostViolations(value.Host)
+	violations = append(violations, idViolations("task_id", value.TaskID)...)
+	violations = append(violations, idViolations("action_id", value.ActionID)...)
+	if !value.TransitionID.IsValid() {
+		violations = append(violations, domain.ExplainedViolation("transition_id", domain.RuleValueFormat, "transition_id must be a non-empty semantic identifier using lowercase letters, digits, underscores, dots or hyphens"))
+	}
+	if len(value.Artifacts.Current)+len(value.Artifacts.OtherProcess) > domain.MaxArtifactReferencesPerAction {
+		violations = append(violations, domain.ExplainedViolation("artifacts", domain.RuleStringListTooLong, fmt.Sprintf("current and other_process together must contain at most %d artifact references", domain.MaxArtifactReferencesPerAction)))
+	}
+	if len(value.MethodResults) > domain.MaxMethodEvidencePerAction {
+		violations = append(violations, domain.ExplainedViolation("method_results", domain.RuleStringListTooLong, fmt.Sprintf("at most %d method results are allowed", domain.MaxMethodEvidencePerAction)))
+	}
+	if len(violations) != 0 {
+		return domain.InvalidArgumentViolations(violations...)
 	}
 	node, err := workflow.NodeDefinitionForActionKind(workflow.StandardProcess(), kind)
 	if err != nil {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(err, "The submission tool has no node in the current process definition.")
 	}
 	if _, err := workflow.TransitionFor(workflow.StandardProcess(), node.NodeID, value.TransitionID); err != nil {
-		return domain.ErrTransitionNotAllowed
+		return domain.WithExplanation(domain.ErrTransitionNotAllowed, "transition_id is not an outgoing transition of the node handled by this submission tool.")
 	}
-	// The submission contract relaxes only the system-state members Core fills
-	// from the current Task snapshot, so a nested member the model owes is
-	// reported here with its exact path, before any Task, Event, Evidence or
-	// Action operation is touched.
 	if err := workflow.ValidateSubmissionNodeResult(kind, value.NodeResult); err != nil {
 		return err
 	}
@@ -368,26 +367,6 @@ func validateSubmitActionInput(kind domain.ActionKind, raw []byte) error {
 	}
 	return nil
 }
-func validOperationProbe(v *operationProbeWire) bool {
-	if v == nil {
-		return true
-	}
-	operation := domain.OperationReference{OperationID: v.OperationID, Process: domain.ProcessReference{ID: v.ProcessID, DefinitionDigest: v.ProcessDefinitionDigest}, SourceCursor: v.SourceCursor, ExpectedRevision: v.ExpectedRevision, ActionID: v.ActionID, ActionKind: v.ActionKind, RepositoryBindingDigest: v.RepositoryBindingDigest, IssuanceIdentityDigest: v.IssuanceIdentityDigest, IssuanceHistoryDigest: v.IssuanceHistoryDigest, IssuanceContentDigest: v.IssuanceContentDigest}
-	if workflow.ValidateOperationReference(operation) != nil || len(v.Payload) == 0 {
-		return false
-	}
-	if bytes.Equal(bytes.TrimSpace(v.Payload), []byte("null")) {
-		return true
-	}
-	if v.SourceCursor == domain.NodeBlocked {
-		_, _, err := recovery.DecodeBlockerResolutionPayload(v.Payload)
-		return err == nil
-	}
-	return workflow.ValidateRetainedPayload(v.SourceCursor, v.Payload) == nil
-}
-
-// missingRequestMembers names every required top-level request member that the
-// caller omitted.
 func missingRequestMembers(raw []byte, keys ...string) []domain.ContractViolation {
 	var value map[string]json.RawMessage
 	if json.Unmarshal(raw, &value) != nil {
@@ -400,42 +379,6 @@ func missingRequestMembers(raw []byte, keys ...string) []domain.ContractViolatio
 		}
 	}
 	return out
-}
-
-// unknownRequestMember names the first submitted top-level member the closed
-// request contract does not declare.
-func unknownRequestMember(raw []byte, declared ...string) (string, bool) {
-	var value map[string]json.RawMessage
-	if json.Unmarshal(raw, &value) != nil {
-		return "", false
-	}
-	known := make(map[string]bool, len(declared))
-	for _, key := range declared {
-		known[key] = true
-	}
-	names := make([]string, 0, len(value))
-	for name := range value {
-		if !known[name] && domain.ValidViolationPath(name) {
-			names = append(names, name)
-		}
-	}
-	if len(names) == 0 {
-		return "", false
-	}
-	sort.Strings(names)
-	return names[0], true
-}
-func hasKeys(raw []byte, keys ...string) bool {
-	var value map[string]json.RawMessage
-	if json.Unmarshal(raw, &value) != nil {
-		return false
-	}
-	for _, key := range keys {
-		if _, ok := value[key]; !ok {
-			return false
-		}
-	}
-	return true
 }
 
 func hasAnyKey(raw []byte, keys ...string) bool {
@@ -488,9 +431,6 @@ func toProbe(w *operationProbeWire) *application.OperationProbe {
 func toWorkspaceOrigin(w workspaceOriginWire) application.WorkspaceOriginInput {
 	return application.WorkspaceOriginInput{Mode: w.Mode, SourceType: w.SourceType, CarryChanges: *w.CarryChanges, RemoteName: *w.RemoteName, BaseBranch: w.BaseBranch, BaseCommit: w.BaseCommit, TaskBranch: w.TaskBranch, ProvisioningReceiptID: w.ProvisioningReceiptID}
 }
-func validWorkspaceOriginWire(w workspaceOriginWire) bool {
-	return w.CarryChanges != nil && w.RemoteName != nil && repository.ValidWorkspaceOriginSelection(repository.WorkspaceOriginSelection{Mode: w.Mode, SourceType: w.SourceType, CarryChanges: *w.CarryChanges, RemoteName: *w.RemoteName, BaseBranch: w.BaseBranch, BaseCommit: w.BaseCommit, TaskBranch: w.TaskBranch, ProvisioningReceiptID: w.ProvisioningReceiptID})
-}
 func toSubmitAction(w submitActionWire, requestID domain.ID, kind domain.ActionKind) application.SubmitActionRequest {
 	current := make([]application.ArtifactSubmission, len(w.Artifacts.Current))
 	for index, item := range w.Artifacts.Current {
@@ -539,6 +479,8 @@ func toolRequestMemberViolations(tool string, raw []byte) []domain.ContractViola
 			if _, known := schema.Properties[name]; !known {
 				if violation := domain.Violation(name, domain.RuleUnknownMember); violation.Path != "" {
 					violations = append(violations, violation)
+				} else {
+					violations = append(violations, domain.Violation("arguments", domain.RuleUnsafeMemberName))
 				}
 			}
 		}

@@ -28,37 +28,40 @@ func WorkspaceRelocationSupported(task domain.ProcessTask) bool {
 
 func (s *Service) PrepareTaskRelocation(ctx context.Context, request PrepareTaskRelocationRequest) (PrepareTaskRelocationResult, error) {
 	if !s.valid() || ctx == nil || !request.RequestID.IsValid() || !request.Host.IsValid() || !request.TaskID.IsValid() || request.ExpectedRevision == 0 {
-		return PrepareTaskRelocationResult{}, domain.ErrInvalidArgument
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The application service, request context or required request identity is invalid.")
 	}
 	task, err := s.loadOwned(ctx, request.Host, request.TaskID)
 	if err != nil {
 		return PrepareTaskRelocationResult{}, err
 	}
 	if !WorkspaceRelocationSupported(task) {
-		return PrepareTaskRelocationResult{}, domain.ErrInvalidArgument
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "Relocation requires dedicated_worktree mode for every repository; local branch modes must resume in their original directories.")
 	}
 	if task.CurrentNode == domain.NodeBlocked && task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseTaskRelocationPending && task.Relocation != nil && request.ExpectedRevision+1 == task.Revision {
 		return PrepareTaskRelocationResult{Task: task, RelocationID: task.Relocation.RelocationID}, nil
 	}
 	if task.CurrentNode.Terminal() {
-		return PrepareTaskRelocationResult{}, domain.ErrTaskTerminal
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrTaskTerminal, "This operation requires an active Task, but the Task has already reached DONE or CANCELLED.")
 	}
-	if task.CurrentNode == domain.NodeBlocked || task.Revision != request.ExpectedRevision {
-		return PrepareTaskRelocationResult{}, domain.ErrRevisionConflict
+	if task.CurrentNode == domain.NodeBlocked {
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrRevisionConflict, "The Task is already BLOCKED; resolve the current blocker before preparing a relocation.")
+	}
+	if task.Revision != request.ExpectedRevision {
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrRevisionConflict, "The supplied revision does not match the saved Task revision.")
 	}
 	fresh, err := s.observeTaskRepositories(ctx, task)
 	if err != nil {
 		return PrepareTaskRelocationResult{}, err
 	}
 	if scopeHasUnavailableWorkspace(task, fresh) {
-		return PrepareTaskRelocationResult{}, domain.ErrWorkspaceUnavailable
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "An observed worktree is missing or no longer has the instance identity retained by the Task.")
 	}
 	if scopeHasHistoryConflict(fresh) {
-		return PrepareTaskRelocationResult{}, domain.ErrWorkspaceHistoryConflict
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrWorkspaceHistoryConflict, "The observed branch or commit history conflicts with the history retained by the Task.")
 	}
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return PrepareTaskRelocationResult{}, domain.ErrInternal
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	relocationID, err := s.id("relocation")
 	if err != nil {
@@ -80,7 +83,7 @@ func (s *Service) PrepareTaskRelocation(ctx context.Context, request PrepareTask
 	resume := task.CurrentNode
 	workspace, err := scopeWorkspaceDigests(task, fresh)
 	if err != nil {
-		return PrepareTaskRelocationResult{}, domain.ErrInternal
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrInternal, "The observed repository scope is invalid and cannot produce workspace digests.")
 	}
 	surface := currentRepositoryScopePaths(task.EffectivePrimaryRepositoryKey(), fresh.Primary, fresh.Additional)
 	next.Relocation = &domain.TaskRelocation{
@@ -95,7 +98,7 @@ func (s *Service) PrepareTaskRelocation(ctx context.Context, request PrepareTask
 	}
 	retainedWorkspace, err := next.EffectiveWorkspaceDigests()
 	if err != nil {
-		return PrepareTaskRelocationResult{}, domain.ErrInternal
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	condition := domain.BlockerCondition{
 		Kind:                   domain.BlockerConditionResolveRelocation,
@@ -122,7 +125,7 @@ func (s *Service) PrepareTaskRelocation(ctx context.Context, request PrepareTask
 	blockedWorkspace := retainedWorkspace
 	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeBlocked, next.TaskID, next.Revision, blockedWorkspace, next.Intent.MethodProfile, actionID, now)
 	if err != nil {
-		return PrepareTaskRelocationResult{}, domain.ErrInternal
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 	}
 	next.CurrentAction = &action
 	payloadDigest, err := digestCanonical(struct {
@@ -131,7 +134,7 @@ func (s *Service) PrepareTaskRelocation(ctx context.Context, request PrepareTask
 		RelocationID domain.ID `json:"relocation_id"`
 	}{task.TaskID, task.Revision, relocationID})
 	if err != nil {
-		return PrepareTaskRelocationResult{}, domain.ErrInternal
+		return PrepareTaskRelocationResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the relocation preparation for its operation digest.")
 	}
 	next.LastOperation = &domain.LastOperation{
 		OperationID:   request.RequestID,
@@ -165,7 +168,7 @@ func (s *Service) resolveTaskRelocationPayload(ctx context.Context, apply ApplyA
 	if task.Blocker == nil || task.Relocation == nil ||
 		payload.BlockerID != task.Blocker.BlockerID || payload.Condition != task.Blocker.Condition ||
 		payload.RelocationID != task.Relocation.RelocationID {
-		return ApplyActionResult{}, domain.ErrInvalidArgument
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The saved relocation payload does not match the current blocker, its condition or the prepared relocation identity.")
 	}
 	request := RecoverActionRequest{
 		Host:                   apply.Host,
@@ -182,7 +185,7 @@ func (s *Service) resolveTaskRelocation(ctx context.Context, request RecoverActi
 		request.ActionID != task.CurrentAction.ActionID || !requestID.IsValid() ||
 		request.RelocationID != task.Relocation.RelocationID ||
 		len(request.RelocationDestinations) != len(task.AdditionalRepositories)+1 {
-		return ApplyActionResult{}, domain.ErrInvalidArgument
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The relocation identity or destination count does not match the relocation prepared for this Task.")
 	}
 	target, err := s.validateTaskRelocationDestination(ctx, task, request.RelocationDestinations, expectedObservedDigest)
 	if err != nil {
@@ -196,7 +199,7 @@ func (s *Service) resolveTaskRelocation(ctx context.Context, request RecoverActi
 	current := target.currentChangedPaths
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return ApplyActionResult{}, domain.ErrInternal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	previousClaims := store.RepositoryClaimIdentities(task)
 	next.WorkspaceOrigin, next.Repository, next.AdditionalRepositories = primaryOrigin, primary, additional
@@ -223,11 +226,11 @@ func (s *Service) resolveTaskRelocation(ctx context.Context, request RecoverActi
 	}
 	workspace, err = next.EffectiveWorkspaceDigests()
 	if err != nil {
-		return ApplyActionResult{}, domain.ErrInternal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), destination, next.TaskID, next.Revision, workspace, next.Intent.MethodProfile, actionID, now)
 	if err != nil {
-		return ApplyActionResult{}, domain.ErrInternal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 	}
 	next.CurrentAction = &action
 	canonical := append(json.RawMessage(nil), retainedCanonical...)
@@ -241,18 +244,18 @@ func (s *Service) resolveTaskRelocation(ctx context.Context, request RecoverActi
 		}
 		raw, marshalErr := json.Marshal(payload)
 		if marshalErr != nil {
-			return ApplyActionResult{}, domain.ErrInternal
+			return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the prepared operation payload as JSON.")
 		}
 		_, canonical, err = workflow.DecodeBlockerResolutionPayload(raw)
 		if err != nil {
-			return ApplyActionResult{}, domain.ErrInternal
+			return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "The blocker-resolution payload does not match the saved blocker contract.")
 		}
 	}
 	apply := applyRequestForCurrentAction(requestID, request.Host, task, canonical)
 	operation := operationFromApply(apply)
 	payloadDigest, err := workflow.GraphOperationDigest(request.Host, task.TaskID, operation, canonical)
 	if err != nil {
-		return ApplyActionResult{}, domain.ErrInternal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "The Action identity or canonical payload could not be encoded into an operation digest.")
 	}
 	resolvedAction := task.CurrentAction.ActionID
 	next.LastOperation = &domain.LastOperation{OperationID: requestID, Kind: domain.OperationApplyAction, ActionID: &resolvedAction, FromRevision: task.Revision, ToRevision: next.Revision, PayloadDigest: payloadDigest, CommittedAt: now}
@@ -260,11 +263,11 @@ func (s *Service) resolveTaskRelocation(ctx context.Context, request RecoverActi
 	mutation := store.TaskMutation{ExpectedRevision: task.Revision, Task: next, Event: event, Claim: store.ClaimReplace, PreviousClaims: previousClaims}
 	operationStore, ok := s.taskStore.(store.ActionOperationStore)
 	if !ok {
-		return ApplyActionResult{}, domain.ErrInternal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "The connected Task store does not support retaining and recovering Action operations.")
 	}
 	commit := domain.ActionCommit{Operation: operation, Payload: canonical, PayloadDigest: payloadDigest, PreparedAt: now}
 	if workflow.ValidateActionCommit(task, commit) != nil {
-		return ApplyActionResult{}, domain.ErrInternal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "The prepared Action operation does not match the Task, payload or operation digest.")
 	}
 	existing, found, err := operationStore.LoadActionOperation(ctx, task.TaskID)
 	if err != nil {
@@ -278,7 +281,7 @@ func (s *Service) resolveTaskRelocation(ctx context.Context, request RecoverActi
 		expected := commit
 		expected.PreparedAt = existing.Commit.PreparedAt
 		if !existing.Commit.Equal(expected) || existing.AppliedRevision != nil {
-			return ApplyActionResult{}, domain.ErrRecoveryUnavailable
+			return ApplyActionResult{}, domain.WithExplanation(domain.ErrRecoveryUnavailable, "A different relocation operation is already retained, or the retained operation has already been applied.")
 		}
 		commit = existing.Commit
 		staged = true
@@ -303,13 +306,13 @@ type validatedRelocationTarget struct {
 
 func (s *Service) assessTaskRelocationCommit(ctx context.Context, host domain.Host, task domain.ProcessTask, commit domain.ActionCommit) (*recovery.RecoveryAssessment, error) {
 	if host != task.OriginHost {
-		return nil, domain.ErrHostOwnershipConflict
+		return nil, domain.WithExplanation(domain.ErrHostOwnershipConflict, "The requested host does not match the host that owns this Task.")
 	}
 	payload, _, err := workflow.DecodeBlockerResolutionPayload(commit.Payload)
 	if err != nil || task.Blocker == nil || task.Relocation == nil ||
 		payload.BlockerID != task.Blocker.BlockerID || payload.Condition != task.Blocker.Condition ||
 		payload.RelocationID != task.Relocation.RelocationID {
-		return nil, domain.ErrStorageUnavailable
+		return nil, domain.WithExplanation(domain.ErrStorageUnavailable, "The saved relocation payload does not match the current blocker, its condition or the prepared relocation identity.")
 	}
 	target, err := s.validateTaskRelocationDestination(ctx, task, payload.RelocationDestinations, payload.ObservedBindingDigest)
 	if err != nil {
@@ -317,7 +320,7 @@ func (s *Service) assessTaskRelocationCommit(ctx context.Context, host domain.Ho
 	}
 	authoritative, err := task.EffectiveRepositoryBindingDigest()
 	if err != nil {
-		return nil, domain.ErrInternal
+		return nil, domain.WithExplanation(domain.ErrInternal, "The Task repository bindings are invalid and cannot produce a binding digest.")
 	}
 	observedAt := target.scope.Primary.ObservedAt
 	for _, repository := range target.scope.Additional {
@@ -373,7 +376,7 @@ func (s *Service) assessTaskRelocationCommit(ctx context.Context, host domain.Ho
 func (s *Service) validateTaskRelocationDestination(ctx context.Context, task domain.ProcessTask, requested []domain.RelocationDestination, expectedObservedDigest domain.Digest) (validatedRelocationTarget, error) {
 	observer, ok := s.repositoryObserver.(repository.WorkspaceRepositoryObserver)
 	if !ok {
-		return validatedRelocationTarget{}, domain.ErrInternal
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrInternal, "The repository observer cannot verify prepared workspaces for this operation.")
 	}
 	destinations := append([]domain.RelocationDestination(nil), requested...)
 	sort.Slice(destinations, func(i, j int) bool {
@@ -387,13 +390,13 @@ func (s *Service) validateTaskRelocationDestination(ctx context.Context, task do
 		return expectedKeys[i] < expectedKeys[j]
 	})
 	if len(destinations) != len(expectedKeys) {
-		return validatedRelocationTarget{}, domain.ErrInvalidArgument
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrInvalidArgument, "Relocation must include exactly one destination for every repository in the Task.")
 	}
 	byKey := make(map[domain.RepositoryKey]domain.RelocationDestination, len(destinations))
 	for index, key := range expectedKeys {
 		destination := destinations[index]
 		if destination.Key != key || !validRelocationRepositoryPath(destination.RepositoryPath) {
-			return validatedRelocationTarget{}, domain.ErrInvalidArgument
+			return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrInvalidArgument, "Each relocation destination must use the expected repository key and a normalized absolute repository path.")
 		}
 		byKey[destination.Key] = destination
 	}
@@ -403,24 +406,24 @@ func (s *Service) validateTaskRelocationDestination(ctx context.Context, task do
 	}
 	primary := observed.scope.Primary
 	if primary.WorktreeInstanceDigest == task.Repository.WorktreeInstanceDigest {
-		return validatedRelocationTarget{}, domain.ErrInvalidArgument
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrInvalidArgument, "A relocation destination must be a different worktree instance from its source.")
 	}
 	if !relocationDestinationHistoryAllowed(task.WorkspaceOrigin, primary) {
-		return validatedRelocationTarget{}, domain.ErrWorkspaceHistoryConflict
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrWorkspaceHistoryConflict, "The relocation destination does not preserve the prepared source branch and permitted commit history.")
 	}
 	if observed.primaryOrigin.SourceRepositoryGroupDigest != task.WorkspaceOrigin.SourceRepositoryGroupDigest {
-		return validatedRelocationTarget{}, domain.ErrWorkspaceUnavailable
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "The relocation destination belongs to a different Git repository group than the retained source.")
 	}
 	for index, source := range task.AdditionalRepositories {
 		destination := observed.scope.Additional[index]
 		if destination.Binding.WorktreeInstanceDigest == source.Binding.WorktreeInstanceDigest {
-			return validatedRelocationTarget{}, domain.ErrInvalidArgument
+			return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrInvalidArgument, "A relocation destination must be a different worktree instance from its source.")
 		}
 		if !relocationDestinationHistoryAllowed(source.Origin, destination.Binding) {
-			return validatedRelocationTarget{}, domain.ErrWorkspaceHistoryConflict
+			return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrWorkspaceHistoryConflict, "The relocation destination does not preserve the prepared source branch and permitted commit history.")
 		}
 		if destination.Origin.SourceRepositoryGroupDigest != source.Origin.SourceRepositoryGroupDigest {
-			return validatedRelocationTarget{}, domain.ErrWorkspaceUnavailable
+			return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "The relocation destination belongs to a different Git repository group than the retained source.")
 		}
 	}
 	candidate := task
@@ -429,17 +432,17 @@ func (s *Service) validateTaskRelocationDestination(ctx context.Context, task do
 	candidate.AdditionalRepositories = observed.scope.Additional
 	workspace, err := candidate.EffectiveWorkspaceDigests()
 	if err != nil {
-		return validatedRelocationTarget{}, domain.ErrInternal
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	if workspace.Identity == task.Relocation.SourceIdentityDigest {
-		return validatedRelocationTarget{}, domain.ErrInvalidArgument
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrInvalidArgument, "The relocation destinations still have the original workspace identity.")
 	}
 	if expectedObservedDigest != "" && (!expectedObservedDigest.IsValid() || expectedObservedDigest != workspace.Binding) {
-		return validatedRelocationTarget{}, domain.ErrInvalidArgument
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrInvalidArgument, "The observed relocation binding digest no longer matches the prepared destination digest.")
 	}
 	current := currentRepositoryScopePaths(candidate.EffectivePrimaryRepositoryKey(), observed.scope.Primary, observed.scope.Additional)
 	if workspace.Content != task.Relocation.SourceContentDigest || !sameStrings(current, task.Relocation.SourceTaskSurface) {
-		return validatedRelocationTarget{}, domain.ErrWorkspaceHistoryConflict
+		return validatedRelocationTarget{}, domain.WithExplanation(domain.ErrWorkspaceHistoryConflict, "The relocation destination content or changed-file set differs from the prepared source.")
 	}
 	return validatedRelocationTarget{
 		primaryOrigin:       observed.primaryOrigin,
@@ -514,11 +517,11 @@ func (s *Service) observeRelocationDestinations(ctx context.Context, observer re
 		return relocationObservation{}, err
 	}
 	if first.primaryOrigin != second.primaryOrigin || !sameRepositoryScopeObservation(first.scope, second.scope) {
-		return relocationObservation{}, domain.ErrWorkspaceObservationUnstable
+		return relocationObservation{}, domain.WithExplanation(domain.ErrWorkspaceObservationUnstable, "The workspace origin or repository observation changed between the two consistency reads.")
 	}
 	for index := range first.scope.Additional {
 		if first.scope.Additional[index].Origin != second.scope.Additional[index].Origin {
-			return relocationObservation{}, domain.ErrWorkspaceObservationUnstable
+			return relocationObservation{}, domain.WithExplanation(domain.ErrWorkspaceObservationUnstable, "An additional relocation destination changed between the two consistency reads.")
 		}
 	}
 	return second, nil

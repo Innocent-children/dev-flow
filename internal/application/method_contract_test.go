@@ -50,7 +50,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 	service, memory, _ := phase5Service(t)
 	task := openMethodProfileTask(t, service, domain.MethodPlain)
 	_, err := service.OpenTask(context.Background(), OpenTaskRequest{RequestID: "profile-conflict", Host: domain.HostCodex, RepositoryPath: testPath("repo"), NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: domain.MethodSpecKit}})
-	if err != domain.ErrWorktreeProvisioningRequired {
+	if !errors.Is(err, domain.ErrWorktreeProvisioningRequired) {
 		t.Fatalf("profile conflict error=%v", err)
 	}
 	before := memory.commits
@@ -64,7 +64,7 @@ func TestMethodProfileEquivalentTransitionsAndImmutability(t *testing.T) {
 	invalidService, _, _ := phase5Service(t)
 	invalidOrigin := invalidService.repositoryObserver.(*mutableObserver).origin
 	invalidOriginInput := WorkspaceOriginInput{Mode: invalidOrigin.Mode, SourceType: invalidOrigin.SourceType, CarryChanges: invalidOrigin.CarryChanges, RemoteName: invalidOrigin.RemoteName, BaseBranch: invalidOrigin.BaseBranch, BaseCommit: invalidOrigin.BaseCommit, TaskBranch: invalidOrigin.TaskBranch, ProvisioningReceiptID: invalidOrigin.ProvisioningReceiptID}
-	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &invalidOriginInput, NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: "future"}}); err != domain.ErrInvalidArgument {
+	if _, err := invalidService.OpenTask(context.Background(), OpenTaskRequest{RequestID: "invalid-profile", Host: domain.HostCodex, RepositoryPath: testPath("repo"), WorkspaceOrigin: &invalidOriginInput, NewTask: &NewTaskInput{Request: "Build feature", MethodProfile: "future"}}); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("invalid profile error=%v", err)
 	}
 }
@@ -114,7 +114,7 @@ func TestMethodEvidenceFailurePathsAreZeroWrite(t *testing.T) {
 			beforeWrites, beforeObservations, beforeEvidence := memory.commits, observer.calls, len(memory.task.Evidence)
 			beforeMutation := memory.lastMutation
 			_, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "method-rejected", raw))
-			if err != tc.want || memory.commits != beforeWrites || observer.calls != beforeObservations || len(memory.task.Evidence) != beforeEvidence || !reflect.DeepEqual(memory.lastMutation, beforeMutation) || memory.task.Revision != task.Revision || memory.task.CurrentAction.ActionID != task.CurrentAction.ActionID {
+			if !errors.Is(err, tc.want) || memory.commits != beforeWrites || observer.calls != beforeObservations || len(memory.task.Evidence) != beforeEvidence || !reflect.DeepEqual(memory.lastMutation, beforeMutation) || memory.task.Revision != task.Revision || memory.task.CurrentAction.ActionID != task.CurrentAction.ActionID {
 				t.Fatalf("error=%v writes=%d observations=%d", err, memory.commits-beforeWrites, observer.calls-beforeObservations)
 			}
 		})
@@ -124,7 +124,7 @@ func TestMethodEvidenceFailurePathsAreZeroWrite(t *testing.T) {
 	invalidUTF8Payload := methodContractPayload(t, task, "requirements_ready", "", requirementsNodeResult("Goal", []string{"Accepted"}), invalidUTF8Evidence)
 	invalidUTF8Payload = bytes.ReplaceAll(invalidUTF8Payload, []byte("INVALID_UTF8_MARKER"), []byte{0xff})
 	beforeWrites, beforeObservations := memory.commits, observer.calls
-	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "invalid-utf8-method", invalidUTF8Payload)); err != domain.ErrInvalidArgument || memory.commits != beforeWrites || observer.calls != beforeObservations {
+	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "invalid-utf8-method", invalidUTF8Payload)); !errors.Is(err, domain.ErrInvalidArgument) || memory.commits != beforeWrites || observer.calls != beforeObservations {
 		t.Fatalf("invalid UTF-8 error=%v", err)
 	}
 
@@ -135,7 +135,7 @@ func TestMethodEvidenceFailurePathsAreZeroWrite(t *testing.T) {
 	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "invalid-node", methodContractPayload(t, task, "requirements_ready", "", invalidNode, complete))); !errors.Is(err, domain.ErrInvalidArgument) || memory.commits != beforeWrites || observer.calls != beforeObservations {
 		t.Fatalf("invalid node result error=%v", err)
 	}
-	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "invalid-transition", methodContractPayload(t, task, "design_ready", "", requirementsNodeResult("Goal", []string{"Accepted"}), complete))); err != domain.ErrTransitionNotAllowed || memory.commits != beforeWrites || observer.calls != beforeObservations {
+	if _, err := service.ApplyAction(context.Background(), methodApplyRequest(task, "invalid-transition", methodContractPayload(t, task, "design_ready", "", requirementsNodeResult("Goal", []string{"Accepted"}), complete))); !errors.Is(err, domain.ErrTransitionNotAllowed) || memory.commits != beforeWrites || observer.calls != beforeObservations {
 		t.Fatalf("invalid transition error=%v", err)
 	}
 }

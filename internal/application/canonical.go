@@ -14,11 +14,11 @@ func canonicalJSON(value any) ([]byte, error) {
 	encoder := json.NewEncoder(&buffer)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(value); err != nil {
-		return nil, err
+		return nil, domain.WithExplanation(domain.ErrInternal, "Core could not encode the operation data as canonical JSON.")
 	}
 	encoded := buffer.Bytes()
 	if len(encoded) == 0 || encoded[len(encoded)-1] != '\n' {
-		return nil, domain.ErrInternal
+		return nil, domain.WithExplanation(domain.ErrInternal, "The JSON encoder returned no complete JSON value.")
 	}
 	return append([]byte(nil), encoded[:len(encoded)-1]...), nil
 }

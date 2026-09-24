@@ -103,7 +103,7 @@ func TestGraphRecoveryPartialCreatesOneBlockerAndResolvesExactResume(t *testing.
 	badPayload, _ := json.Marshal(map[string]any{"blocker_id": "wrong-blocker", "condition": blocked.Task.Blocker.Condition, "observed_binding_digest": observer.binding.BindingDigest})
 	badResolve := currentActionApplyRequest(blocked.Task, "bad-resolve", badPayload)
 	commits = memory.commits
-	if _, err := service.ApplyAction(context.Background(), badResolve); err != domain.ErrRepositoryDrift || memory.commits != commits {
+	if _, err := service.ApplyAction(context.Background(), badResolve); !errors.Is(err, domain.ErrRepositoryDrift) || memory.commits != commits {
 		t.Fatalf("unrestored repository err=%v commits=%d", err, memory.commits-commits)
 	}
 
@@ -116,7 +116,7 @@ func TestGraphRecoveryPartialCreatesOneBlockerAndResolvesExactResume(t *testing.
 	badResolve = resolve
 	badResolve.RequestID = "wrong-blocker-resolve"
 	badResolve.Payload, _ = json.Marshal(map[string]any{"blocker_id": "wrong-blocker", "condition": blocked.Task.Blocker.Condition, "observed_binding_digest": task.Repository.BindingDigest})
-	if _, err := service.ApplyAction(context.Background(), badResolve); err != domain.ErrInvalidArgument || memory.commits != commits {
+	if _, err := service.ApplyAction(context.Background(), badResolve); !errors.Is(err, domain.ErrInvalidArgument) || memory.commits != commits {
 		t.Fatalf("wrong blocker err=%v commits=%d", err, memory.commits-commits)
 	}
 	resolved, err := service.ApplyAction(context.Background(), resolve)
@@ -127,7 +127,7 @@ func TestGraphRecoveryPartialCreatesOneBlockerAndResolvesExactResume(t *testing.
 		t.Fatalf("resolved task=%+v", resolved.Task)
 	}
 	commits = memory.commits
-	if _, err := service.ApplyAction(context.Background(), resolve); err != domain.ErrRevisionConflict || memory.commits != commits {
+	if _, err := service.ApplyAction(context.Background(), resolve); !errors.Is(err, domain.ErrRevisionConflict) || memory.commits != commits {
 		t.Fatalf("duplicate resolution err=%v commits=%d", err, memory.commits-commits)
 	}
 }
@@ -155,7 +155,7 @@ func TestGraphRecoveryTerminalAssessmentAndHostConflict(t *testing.T) {
 		t.Fatalf("terminal assessment=%+v", read.RecoveryAssessment)
 	}
 	observations = observer.calls
-	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostDeepSeek, TaskID: task.TaskID, OperationProbe: &probe}); err != domain.ErrHostOwnershipConflict || observer.calls != observations {
+	if _, err := service.GetTask(context.Background(), GetTaskRequest{Host: domain.HostDeepSeek, TaskID: task.TaskID, OperationProbe: &probe}); !errors.Is(err, domain.ErrHostOwnershipConflict) || observer.calls != observations {
 		t.Fatalf("ownership err=%v observations=%d", err, observer.calls-observations)
 	}
 }

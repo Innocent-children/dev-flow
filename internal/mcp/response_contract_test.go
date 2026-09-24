@@ -132,7 +132,7 @@ func TestSuccessRequiresAnActualResultAndErrorsUseFixedMessages(t *testing.T) {
 func TestHandshakeRejectsNonObjectArgumentsWithDetail(t *testing.T) {
 	for _, input := range []string{"null", "[]", "true", "{", ""} {
 		response := decodeEnvelope(t, (&Server{version: "test"}).dispatch(context.Background(), ToolServerInfo, "invalid-arguments", []byte(input)))
-		if response.OK || response.Error == nil || len(response.Error.Details) != 1 || response.Error.Details[0].Path != "arguments" || response.Error.Details[0].Rule != domain.RuleArgumentsObjectRequired {
+		if response.OK || response.Error == nil || len(response.Error.Details) != 1 || response.Error.Details[0].Path != "arguments" || (response.Error.Details[0].Rule != domain.RuleArgumentsObjectRequired && response.Error.Details[0].Rule != domain.RuleJSONMalformed) {
 			t.Fatalf("input=%q response=%+v", input, response)
 		}
 	}
@@ -161,7 +161,7 @@ func TestHistoryResolutionReportsEachInvalidMember(t *testing.T) {
 					if path == "history_resolution.choice" {
 						rule = domain.RuleEnumValueInvalid
 					}
-					if response.Error.Details[i] != domain.Violation(path, rule) {
+					if response.Error.Details[i].Path != path || response.Error.Details[i].Rule != rule || response.Error.Details[i].Message == "" {
 						t.Fatalf("wrong field: %s", encoded.JSON)
 					}
 				}

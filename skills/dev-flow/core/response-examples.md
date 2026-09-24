@@ -22,7 +22,7 @@ Implementation: `internal/mcp/skill_examples_test.go`; `internal/mcp/skill_error
       "requested": 6,
       "limit": 13
     },
-    "message": "The submitted evidence exceeds the current verification budget.",
+    "message": "verification.current_budget.max_automatic_commands: existing plus submitted automatic commands exceed the current limit",
     "details": [
       {
         "path": "verification.current_budget.max_automatic_commands",
@@ -49,7 +49,7 @@ Implementation: `internal/mcp/skill_examples_test.go`; `internal/mcp/skill_error
   "tool": "dev_flow_submit_test",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "node_result.budget_adjustment.additional_checks: additional_checks must include at least one check name and a specific explanation, including for a permission-only adjustment",
     "details": [
       {
         "path": "node_result.budget_adjustment.additional_checks",
@@ -79,7 +79,7 @@ Implementation: `internal/mcp/skill_examples_test.go`; `internal/mcp/skill_error
   "tool": "dev_flow_submit_test",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "implementation_failure_identified",
       "failures": [

@@ -36,7 +36,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_recover_action",
   "error": {
     "code": "TASK_NOT_FOUND",
-    "message": "The task was not found."
+    "message": "No saved Task matches the requested Task identity or workspace claim."
   },
   "recovery": {
     "retry_safe": false,
@@ -75,12 +75,12 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_resolve_blocker",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "reason: text must be non-empty, trimmed UTF-8 and at most 4096 bytes",
     "details": [
       {
         "path": "reason",
         "rule": "text_not_normalized",
-        "message": "text must be non-empty, trimmed and within the declared limit"
+        "message": "text must be non-empty, trimmed UTF-8 and at most 4096 bytes"
       }
     ]
   },
@@ -124,12 +124,12 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_resolve_blocker",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "reason: text must be non-empty, trimmed UTF-8 and at most 4096 bytes",
     "details": [
       {
         "path": "reason",
         "rule": "text_not_normalized",
-        "message": "text must be non-empty, trimmed and within the declared limit"
+        "message": "text must be non-empty, trimmed UTF-8 and at most 4096 bytes"
       }
     ]
   },
@@ -173,12 +173,12 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_resolve_blocker",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "reason: text must be non-empty, trimmed UTF-8 and at most 4096 bytes",
     "details": [
       {
         "path": "reason",
         "rule": "text_not_normalized",
-        "message": "text must be non-empty, trimmed and within the declared limit"
+        "message": "text must be non-empty, trimmed UTF-8 and at most 4096 bytes"
       }
     ]
   },
@@ -222,7 +222,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_resolve_blocker",
   "error": {
     "code": "TASK_NOT_FOUND",
-    "message": "The task was not found."
+    "message": "No saved Task matches the requested Task identity or workspace claim."
   },
   "recovery": {
     "retry_safe": false,
@@ -264,12 +264,12 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_resolve_blocker",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "history_resolution.reason: text must be non-empty, trimmed UTF-8 and at most 4096 bytes",
     "details": [
       {
         "path": "history_resolution.reason",
         "rule": "text_not_normalized",
-        "message": "text must be non-empty, trimmed and within the declared limit"
+        "message": "text must be non-empty, trimmed UTF-8 and at most 4096 bytes"
       }
     ]
   },

@@ -30,7 +30,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_server_info",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "host: the closed contract does not declare this member",
     "details": [
       {
         "path": "host",
@@ -99,7 +99,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_open_task",
   "error": {
     "code": "WORKTREE_PROVISIONING_REQUIRED",
-    "message": "A confirmed workspace origin is required before opening a Task.",
+    "message": "workspace_origin: workspace_origin must identify the confirmed workspace preparation and its receipt",
     "details": [
       {
         "path": "workspace_origin",
@@ -183,7 +183,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_open_task",
   "error": {
     "code": "WORKTREE_PROVISIONING_REQUIRED",
-    "message": "A confirmed workspace origin is required before opening a Task.",
+    "message": "workspace_origin: workspace_origin must identify the confirmed workspace preparation and its receipt",
     "details": [
       {
         "path": "workspace_origin",
@@ -226,7 +226,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_open_task",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "workspace_origin: resume omits workspace_origin, primary_repository_key and additional_repositories; creation includes new_task",
     "details": [
       {
         "path": "workspace_origin",
@@ -274,7 +274,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_get_task",
   "error": {
     "code": "TASK_NOT_FOUND",
-    "message": "The task was not found."
+    "message": "No saved Task matches the requested Task identity or workspace claim."
   },
   "recovery": {
     "retry_safe": false,
@@ -312,7 +312,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_get_next_action",
   "error": {
     "code": "TASK_NOT_FOUND",
-    "message": "The task was not found."
+    "message": "No saved Task matches the requested Task identity or workspace claim."
   },
   "recovery": {
     "retry_safe": false,

@@ -55,7 +55,7 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 			}
 			id, err := s.newRequestID()
 			if err != nil || !id.IsValid() {
-				encoded := fixedFallback()
+				encoded := failureFallback("", d.Name, "Core could not generate a valid request identity; the tool was not executed.")
 				return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: string(encoded.JSON)}}, StructuredContent: json.RawMessage(encoded.JSON), IsError: true}, nil
 			}
 			encoded := s.dispatch(ctx, d.Name, id, raw)
@@ -158,7 +158,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 }
 
 func resultEnvelopeRequestID(tool string, raw []byte, generated domain.ID) domain.ID {
-	if tool != ToolCancelTask || !generated.IsValid() || rejectDuplicateMembers(raw) != nil {
+	if tool != ToolCancelTask || !generated.IsValid() || workflow.ValidateRequestJSON("arguments", raw) != nil {
 		return generated
 	}
 	var object map[string]json.RawMessage

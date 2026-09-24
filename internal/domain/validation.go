@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -49,15 +50,17 @@ func normalizeOptionalText(value string, maxBytes int) (string, error) {
 }
 
 func requireNormalizedText(value string, maxBytes int, required bool) error {
-	var normalized string
-	var err error
-	if required {
-		normalized, err = normalizeRequiredText(value, maxBytes)
-	} else {
-		normalized, err = normalizeOptionalText(value, maxBytes)
+	if !utf8.ValidString(value) {
+		return WithExplanation(ErrInvalidArgument, "text must be valid UTF-8")
 	}
-	if err != nil || normalized != value {
-		return ErrInvalidArgument
+	if strings.TrimSpace(value) != value {
+		return WithExplanation(ErrInvalidArgument, "text must not have leading or trailing whitespace")
+	}
+	if required && value == "" {
+		return WithExplanation(ErrInvalidArgument, "text must not be empty")
+	}
+	if len(value) > maxBytes {
+		return WithExplanation(ErrInvalidArgument, fmt.Sprintf("text must contain at most %d UTF-8 bytes", maxBytes))
 	}
 	return nil
 }

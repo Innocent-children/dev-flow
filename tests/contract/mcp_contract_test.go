@@ -188,7 +188,7 @@ func TestMCPOpenTaskSingleAndMultiRepositoryInputBoundary(t *testing.T) {
 		[]byte(`{"host":"codex","repository_path":"/core",` + origin + `,"additional_repositories":[{"key":"docs","repository_path":"/docs",` + additionalOrigin + `,"unknown":true}],` + newTask + `}`),
 		tooMany,
 	} {
-		if err := core.ValidateToolInput(core.ToolOpenTask, raw); err != domain.ErrInvalidArgument {
+		if err := core.ValidateToolInput(core.ToolOpenTask, raw); !errors.Is(err, domain.ErrInvalidArgument) {
 			t.Fatalf("invalid multi repository input error=%v raw=%s", err, raw)
 		}
 	}

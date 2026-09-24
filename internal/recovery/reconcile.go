@@ -20,7 +20,7 @@ func CompareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (R
 
 func compareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (RepositoryRelation, RepositoryReason, error) {
 	if authoritative.Validate() != nil || fresh.Validate() != nil {
-		return "", "", domain.ErrInvalidArgument
+		return "", "", domain.WithExplanation(domain.ErrInvalidArgument, "Repository comparison requires valid saved and observed repository bindings.")
 	}
 	if authoritative.WorktreeInstanceDigest != fresh.WorktreeInstanceDigest || authoritative.IdentityDigest != fresh.IdentityDigest {
 		return RepositoryForbiddenChange, RepositoryReasonWorktreeInstance, nil
@@ -40,7 +40,7 @@ func compareRepositoryBindings(authoritative, fresh domain.RepositoryBinding) (R
 
 func CompareRepositoryScope(task domain.ProcessTask, observed RepositoryScopeObservation) (RepositoryScopeComparison, error) {
 	if workflow.ValidateProcessTask(task) != nil || observed.Primary.Validate() != nil || len(observed.Additional) != len(task.AdditionalRepositories) {
-		return RepositoryScopeComparison{}, domain.ErrInvalidArgument
+		return RepositoryScopeComparison{}, domain.WithExplanation(domain.ErrInvalidArgument, "Recovery observation must contain a valid primary binding and every repository in the saved Task scope.")
 	}
 	facts := make([]RepositoryFact, 0, len(task.AdditionalRepositories)+1)
 	relation := RepositoryExact
@@ -64,7 +64,7 @@ func CompareRepositoryScope(task domain.ProcessTask, observed RepositoryScopeObs
 	for i, entry := range task.AdditionalRepositories {
 		fresh := observed.Additional[i]
 		if fresh.Key != entry.Key || fresh.Binding.Validate() != nil {
-			return RepositoryScopeComparison{}, domain.ErrInvalidArgument
+			return RepositoryScopeComparison{}, domain.WithExplanation(domain.ErrInvalidArgument, "An additional repository observation has an unexpected key or invalid binding.")
 		}
 		if err := appendFact(entry.Key, entry.Binding, fresh.Binding); err != nil {
 			return RepositoryScopeComparison{}, err
@@ -80,14 +80,14 @@ func CompareRepositoryScope(task domain.ProcessTask, observed RepositoryScopeObs
 	}
 	digest, err := digestTask.EffectiveRepositoryBindingDigest()
 	if err != nil {
-		return RepositoryScopeComparison{}, domain.ErrInvalidArgument
+		return RepositoryScopeComparison{}, domain.WithExplanation(domain.ErrInvalidArgument, "The observed repository scope cannot produce a valid binding digest.")
 	}
 	return RepositoryScopeComparison{Relation: relation, Repositories: facts, ObservedDigest: digest, ObservedAt: observedAt}, nil
 }
 
 func BindingAcceptedForAction(action domain.ActionKind, relation RepositoryRelation) (bool, error) {
 	if !action.IsValid() || !relation.IsValid() {
-		return false, domain.ErrInvalidArgument
+		return false, domain.WithExplanation(domain.ErrInvalidArgument, "Repository-effect classification requires a supported Action kind and repository relation.")
 	}
 	switch action {
 	case domain.ActionCompleteImplementation, domain.ActionCompleteRefactor:
@@ -101,7 +101,7 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 	if !input.Host.IsValid() || workflow.ValidateProcessTask(input.Task) != nil ||
 		workflow.ValidateOperationReference(input.Operation) != nil ||
 		input.Task.OriginHost != input.Host || input.Task.Process != input.Operation.Process || len(input.Payload) == 0 {
-		return RecoveryDecision{}, domain.ErrInvalidArgument
+		return RecoveryDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "Recovery requires a valid operation reference, matching host and process, a valid Task and a retained payload member.")
 	}
 	observation, err := reconcileObservation(input)
 	if err != nil {
@@ -133,27 +133,27 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 		} else {
 			envelope, result, decodeErr := workflow.DecodeStandardPayload(input.Operation.SourceCursor, input.Payload)
 			if decodeErr != nil {
-				return RecoveryDecision{}, domain.ErrInvalidArgument
+				return RecoveryDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "The retained operation payload cannot be decoded for its source node.")
 			}
 			node, nodeErr := workflow.NodeDefinition(workflow.StandardProcess(), input.Operation.SourceCursor)
 			if nodeErr != nil || workflow.ValidatePayload(workflow.StandardProcess(), input.Operation.SourceCursor, envelope, result, node.SemanticMethodSteps) != nil {
-				return RecoveryDecision{}, domain.ErrInvalidArgument
+				return RecoveryDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "The retained payload does not satisfy the method and transition rules of its source node.")
 			}
 			canonical, err = workflow.CanonicalValidatedPayload(envelope, result)
 			if err != nil {
-				return RecoveryDecision{}, domain.ErrInvalidArgument
+				return RecoveryDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "The retained node result cannot be encoded into a canonical payload.")
 			}
 			effect, err = DeriveRepositoryEffect(input.Operation.SourceCursor, envelope, result)
 			if err != nil {
 				return RecoveryDecision{}, err
 			}
 			if !RepositoryEffectAllowed(node.AllowedEffects, effect) {
-				return RecoveryDecision{}, domain.ErrRepositoryDrift
+				return RecoveryDecision{}, domain.WithExplanation(domain.ErrRepositoryDrift, "The retained operation would produce repository effects forbidden by its source node.")
 			}
 		}
 		digest, digestErr := workflow.GraphOperationDigest(input.Host, input.Task.TaskID, input.Operation, canonical)
 		if digestErr != nil {
-			return RecoveryDecision{}, domain.ErrInvalidArgument
+			return RecoveryDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "The retained operation identity and payload cannot produce an operation digest.")
 		}
 		payloadDigest = &digest
 		if input.Operation.SourceCursor != domain.NodeBlocked {
@@ -164,7 +164,7 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 	lastRelation, proof := compareLastOperation(input.Task.LastOperation, input.Operation, payloadDigest, input.Task.Revision)
 	authoritativeDigest, err := input.Task.EffectiveRepositoryBindingDigest()
 	if err != nil {
-		return RecoveryDecision{}, domain.ErrInvalidArgument
+		return RecoveryDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "The saved Task repository scope cannot produce its authoritative binding digest.")
 	}
 	repositoryFacts := comparison.Repositories
 	if len(input.Task.AdditionalRepositories) == 0 {
@@ -201,12 +201,12 @@ func Reconcile(input ReconcileInput) (RecoveryDecision, error) {
 func reconcileObservation(input ReconcileInput) (RepositoryScopeObservation, error) {
 	if input.ObservedScope != nil {
 		if input.Observed.WorktreeInstanceDigest != "" {
-			return RepositoryScopeObservation{}, domain.ErrInvalidArgument
+			return RepositoryScopeObservation{}, domain.WithExplanation(domain.ErrInvalidArgument, "Recovery must supply either one observed binding or the complete observed scope, not both.")
 		}
 		return *input.ObservedScope, nil
 	}
 	if input.Observed.Validate() != nil || len(input.Task.AdditionalRepositories) != 0 {
-		return RepositoryScopeObservation{}, domain.ErrInvalidArgument
+		return RepositoryScopeObservation{}, domain.WithExplanation(domain.ErrInvalidArgument, "A single observed binding is invalid or cannot represent this multi-repository Task.")
 	}
 	return RepositoryScopeObservation{Primary: input.Observed}, nil
 }
@@ -301,7 +301,7 @@ func DeriveRepositoryEffect(source domain.NodeID, envelope workflow.StandardPayl
 		_ = value
 		return processArtifactEffect(envelope.Artifacts), nil
 	default:
-		return RepositoryEffect{}, domain.ErrInvalidArgument
+		return RepositoryEffect{}, domain.WithExplanation(domain.ErrInvalidArgument, "The decoded result has no defined repository effect for this process.")
 	}
 }
 
@@ -534,7 +534,7 @@ func rejectDuplicateMembers(raw []byte) error {
 				}
 				key := keyToken.(string)
 				if seen[key] {
-					return domain.ErrInvalidArgument
+					return domain.WithExplanation(domain.ErrInvalidArgument, "The retained JSON contains a duplicate object member.")
 				}
 				seen[key] = true
 				if err := walk(); err != nil {

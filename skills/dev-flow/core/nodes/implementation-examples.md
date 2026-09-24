@@ -63,7 +63,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_implementation",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "node_result.completed_work_item_ids: the closed contract requires this member",
     "details": [
       {
         "path": "node_result.completed_work_item_ids",
@@ -142,7 +142,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_implementation",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "implementation_exposes_design_gap",
       "failures": [
@@ -221,7 +221,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_implementation",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "material_requirement_gap",
       "failures": [
@@ -300,7 +300,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_implementation",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "implementation_complexity_identified",
       "failures": [

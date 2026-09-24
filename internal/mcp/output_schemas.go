@@ -119,7 +119,7 @@ func outputErrorSchema() map[string]any {
 	details := map[string]any{"type": "array", "minItems": 1, "items": outputViolationSchema()}
 	quantity := map[string]any{"type": "integer", "minimum": 0}
 	return obj([]string{"code", "message"}, map[string]any{
-		"code": str(), "message": str(), "details": details,
+		"code": str(), "message": map[string]any{"type": "string", "minLength": 1, "maxLength": 4096, "description": "Specific failed condition or bounded summary of details/guard failures. Unknown internal failures identify the known failing operation without publishing raw diagnostics."}, "details": details,
 		"guard":            obj([]string{"guard_id", "failures"}, map[string]any{"guard_id": str(), "failures": details}),
 		"repository_paths": list(),
 		"budget":           obj([]string{"used", "requested", "limit"}, map[string]any{"used": quantity, "requested": quantity, "limit": quantity}),

@@ -53,6 +53,15 @@ type ViolationRule string
 
 const (
 	RuleArgumentsObjectRequired        ViolationRule = "arguments_object_required"
+	RuleJSONMalformed                  ViolationRule = "json_malformed"
+	RuleUTF8Required                   ViolationRule = "utf8_required"
+	RuleDuplicateMember                ViolationRule = "duplicate_member"
+	RuleValueType                      ViolationRule = "value_type"
+	RuleValueRange                     ViolationRule = "value_range"
+	RuleValueFormat                    ViolationRule = "value_format"
+	RulePayloadTooLarge                ViolationRule = "payload_too_large"
+	RuleIdentifierInvalid              ViolationRule = "identifier_invalid"
+	RuleMemberDependency               ViolationRule = "member_dependency"
 	RuleEnumValueInvalid               ViolationRule = "enum_value_invalid"
 	RuleWorkspaceOriginRequired        ViolationRule = "workspace_origin_required"
 	RuleCreationMemberOnResume         ViolationRule = "creation_member_on_resume"
@@ -75,6 +84,7 @@ const (
 	RuleActionKindPayloadMismatch      ViolationRule = "action_kind_payload_mismatch"
 	RuleRequiredMemberMissing          ViolationRule = "required_member_missing"
 	RuleUnknownMember                  ViolationRule = "unknown_member"
+	RuleUnsafeMemberName               ViolationRule = "unsafe_member_name"
 	RuleTextNotNormalized              ViolationRule = "text_not_normalized"
 	RuleStringListDuplicate            ViolationRule = "string_list_duplicate"
 	RuleStringListTooLong              ViolationRule = "string_list_too_long"
@@ -96,6 +106,15 @@ const (
 
 var violationMessages = map[ViolationRule]string{
 	RuleArgumentsObjectRequired:        "MCP arguments must be a valid JSON object",
+	RuleJSONMalformed:                  "provide exactly one syntactically valid JSON value",
+	RuleUTF8Required:                   "JSON must contain valid UTF-8 text",
+	RuleDuplicateMember:                "an object must not contain the same member more than once",
+	RuleValueType:                      "the value must have the type required by this member",
+	RuleValueRange:                     "the value must be within this member's permitted bounds",
+	RuleValueFormat:                    "the value must match this member's required format",
+	RulePayloadTooLarge:                "the JSON payload exceeds the Core byte limit",
+	RuleIdentifierInvalid:              "the identifier must be non-empty, at most 128 bytes, and contain no whitespace",
+	RuleMemberDependency:               "this member does not satisfy the condition imposed by another member",
 	RuleEnumValueInvalid:               "use a value declared by the current request schema",
 	RuleWorkspaceOriginRequired:        "workspace_origin must identify the confirmed workspace preparation and its receipt",
 	RuleCreationMemberOnResume:         "resume omits workspace_origin, primary_repository_key and additional_repositories; creation includes new_task",
@@ -118,6 +137,7 @@ var violationMessages = map[ViolationRule]string{
 	RuleActionKindPayloadMismatch:      "action_kind must match the payload branch of the current node",
 	RuleRequiredMemberMissing:          "the closed contract requires this member",
 	RuleUnknownMember:                  "the closed contract does not declare this member",
+	RuleUnsafeMemberName:               "this object contains an undeclared member whose name cannot be returned as a safe field path",
 	RuleTextNotNormalized:              "text must be non-empty, trimmed and within the declared limit",
 	RuleStringListDuplicate:            "the bounded list must not repeat an item",
 	RuleStringListTooLong:              "the bounded list exceeds its item limit",
@@ -188,9 +208,10 @@ func (r GuardRule) Message() string { return guardMessages[r] }
 // relative to the request root; members use `.name` and array entries use
 // `[index]`.
 type ContractViolation struct {
-	Path    string        `json:"path"`
-	Rule    ViolationRule `json:"rule"`
-	Message string        `json:"message"`
+	Path        string        `json:"path"`
+	Rule        ViolationRule `json:"rule"`
+	Message     string        `json:"message"`
+	explanation string
 }
 
 // GuardFailure names the guard that was not satisfied plus its failing members.
@@ -208,9 +229,10 @@ type BudgetFailure struct {
 
 // Error is a stable, typed, non-sensitive domain failure.
 type Error struct {
-	Code    ErrorCode
-	Message string
-	Budget  *BudgetFailure
+	Code        ErrorCode
+	Message     string
+	explanation string
+	Budget      *BudgetFailure
 	// Violations is the closed field-level detail of a contract failure.
 	Violations []ContractViolation
 	// RepositoryPaths contains Core-observed paths missing from an artifact manifest.

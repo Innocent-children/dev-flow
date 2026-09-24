@@ -12,31 +12,31 @@ import (
 
 func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTaskResult, error) {
 	if !s.valid() || ctx == nil || !r.RequestID.IsValid() || !r.Host.IsValid() || !r.TaskID.IsValid() {
-		return CancelTaskResult{}, domain.ErrInvalidArgument
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The application service, request context or required request identity is invalid.")
 	}
 	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
 	if err != nil {
 		return CancelTaskResult{}, err
 	}
 	if task.CurrentNode.Terminal() {
-		return CancelTaskResult{}, domain.ErrTaskTerminal
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrTaskTerminal, "This operation requires an active Task, but the Task has already reached DONE or CANCELLED.")
 	}
 	if task.Revision != r.ExpectedRevision {
-		return CancelTaskResult{}, domain.ErrRevisionConflict
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrRevisionConflict, "The supplied revision does not match the saved Task revision.")
 	}
 	if !utf8.ValidString(r.Reason) || strings.TrimSpace(r.Reason) == "" || r.Reason != strings.TrimSpace(r.Reason) || len(r.Reason) > domain.MaxReasonBytes {
-		return CancelTaskResult{}, domain.ErrInvalidArgument
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "Cancellation reason must be non-empty, trimmed UTF-8 text of at most 4096 bytes.")
 	}
 	fresh, err := s.observeTaskRepositories(ctx, task)
 	if err != nil {
 		return CancelTaskResult{}, err
 	}
 	if scopeHasUnavailableWorkspace(task, fresh) {
-		return CancelTaskResult{}, domain.ErrWorkspaceUnavailable
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "An observed worktree is missing or no longer has the instance identity retained by the Task.")
 	}
 	comparison, err := recovery.CompareRepositoryScope(task, fresh)
 	if err != nil {
-		return CancelTaskResult{}, domain.ErrInternal
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrInternal, "The repository observations could not be compared with the Task repository scope.")
 	}
 	if comparison.Relation == recovery.RepositoryForbiddenChange {
 		return CancelTaskResult{}, repositoryDriftError(comparison)
@@ -44,7 +44,7 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	source := task.CurrentNode
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return CancelTaskResult{}, domain.ErrInternal
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	now := s.now().UTC()
 	next.CurrentNode = domain.NodeCancelled
@@ -62,12 +62,12 @@ func (s *Service) CancelTask(ctx context.Context, r CancelTaskRequest) (CancelTa
 	}
 	effectiveDigest, err := next.EffectiveRepositoryBindingDigest()
 	if err != nil {
-		return CancelTaskResult{}, domain.ErrInternal
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrInternal, "The Task repository bindings are invalid and cannot produce a binding digest.")
 	}
 	next.Outcome = &domain.ProcessOutcome{Status: domain.TerminalCancelled, Summary: r.Reason, RequirementsRevision: rev, FinalRepositoryDigest: effectiveDigest, CompletedAt: now}
 	digest, err := digestCanonical(r)
 	if err != nil {
-		return CancelTaskResult{}, domain.ErrInternal
+		return CancelTaskResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the cancellation request for its operation digest.")
 	}
 	next.LastOperation = &domain.LastOperation{OperationID: r.RequestID, Kind: domain.OperationCancelTask, FromRevision: r.ExpectedRevision, ToRevision: next.Revision, PayloadDigest: digest, CommittedAt: now}
 	eventID, err := s.id("event")

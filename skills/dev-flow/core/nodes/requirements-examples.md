@@ -74,7 +74,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_requirements",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "node_result.baseline.goal: the closed contract requires this member",
     "details": [
       {
         "path": "node_result.baseline.goal",

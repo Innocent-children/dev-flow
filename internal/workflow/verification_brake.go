@@ -17,25 +17,25 @@ func (d VerificationBrakeDecision) Triggered() bool {
 
 func EvaluateVerificationBrake(attempts []domain.VerificationAttempt, evidence []domain.EvidenceSummary) (VerificationBrakeDecision, error) {
 	if len(attempts) > domain.MaxRetainedVerificationAttempts {
-		return VerificationBrakeDecision{}, domain.ErrInvalidArgument
+		return VerificationBrakeDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "The saved verification attempts exceed the retention limit.")
 	}
 	byID := make(map[domain.ID]domain.EvidenceSummary, len(evidence))
 	for _, item := range evidence {
 		if item.Validate() != nil {
-			return VerificationBrakeDecision{}, domain.ErrInvalidArgument
+			return VerificationBrakeDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "A saved evidence record is invalid and cannot be used to classify repeated verification.")
 		}
 		if _, duplicate := byID[item.EvidenceID]; duplicate {
-			return VerificationBrakeDecision{}, domain.ErrInvalidArgument
+			return VerificationBrakeDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "The evidence set has duplicate identifiers.")
 		}
 		byID[item.EvidenceID] = item
 	}
 	for _, attempt := range attempts {
 		if attempt.Validate() != nil {
-			return VerificationBrakeDecision{}, domain.ErrInvalidArgument
+			return VerificationBrakeDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "A saved verification attempt has invalid plan, content, outcome, path or evidence references.")
 		}
 		for _, id := range attempt.EvidenceIDs {
 			if _, ok := byID[id]; !ok {
-				return VerificationBrakeDecision{}, domain.ErrInvalidArgument
+				return VerificationBrakeDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "A verification attempt refers to an evidence identifier that is absent from the retained evidence set.")
 			}
 		}
 	}

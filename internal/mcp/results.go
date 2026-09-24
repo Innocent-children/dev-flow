@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -52,32 +53,42 @@ type EncodedResult struct {
 	IsError bool
 }
 
-var fallbackBytes = mustEncode(Envelope{OK: false, RequestID: "request-unavailable", Tool: ToolServerInfo, Error: &ErrorResult{Code: domain.ErrorInternal, Message: "The Core could not complete the operation."}, Recovery: &RecoveryGuidance{RetrySafe: false, Action: "report_internal_error", Message: "Report the bounded failure and stop this operation."}})
-
 func EncodeSuccess(id, tool string, result any) EncodedResult {
 	value := reflect.ValueOf(result)
 	if !value.IsValid() || ((value.Kind() == reflect.Pointer || value.Kind() == reflect.Map || value.Kind() == reflect.Slice || value.Kind() == reflect.Interface) && value.IsNil()) {
-		return EncodeError(id, tool, domain.ErrInternal)
+		return failureFallback(id, tool, "Core produced no result for a successful operation.")
 	}
 	if !domain.ID(id).IsValid() || !isToolName(tool) {
-		return fixedFallback()
+		return failureFallback(id, tool, "Core could not identify the response request or tool.")
 	}
 	raw, err := encodeEnvelope(Envelope{OK: true, RequestID: id, Tool: tool, Result: result})
-	if err != nil || !WithinResultEnvelopeLimit(raw) {
-		return fixedFallback()
+	if err != nil {
+		return failureFallback(id, tool, "Core could not encode the operation result as JSON.")
+	}
+	if !WithinResultEnvelopeLimit(raw) {
+		return failureFallback(id, tool, "The encoded operation result exceeds the Core response byte limit.")
 	}
 	return EncodedResult{JSON: raw}
 }
 func EncodeError(id, tool string, err error) EncodedResult {
 	if !domain.ID(id).IsValid() || !isToolName(tool) {
-		return fixedFallback()
+		return failureFallback(id, tool, "Core could not identify the response request or tool.")
 	}
 	code := domain.ErrorInternal
 	var typed *domain.Error
-	if errors.As(err, &typed) && typed.Code.IsValid() {
+	if errors.As(err, &typed) && typed != nil && typed.Code.IsValid() {
 		code = typed.Code
 	}
 	message, action, guidance := publicFailure(code)
+	if typed != nil && typed.PublicExplanation() != "" {
+		message = typed.PublicExplanation()
+	} else if errors.Is(err, context.Canceled) {
+		message = "The operation was cancelled before Core could return a result."
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		message = "The operation deadline expired before Core could return a result."
+	} else if code == domain.ErrorInternal {
+		message = "Core encountered an unclassified internal failure; no safe underlying diagnostic is available."
+	}
 	if code == domain.ErrorRepositoryDrift && typed != nil && validRepositoryDriftMessage(typed.Message) {
 		message = typed.Message
 	}
@@ -93,10 +104,12 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		result.Message = message
 	}
 	result.Details = projectSubmissionViolationPaths(tool, publicViolations(code, typed))
-	result.RepositoryPaths = domain.ViolationRepositoryPaths(err)
-	if len(result.RepositoryPaths) != 0 {
-		result.Message = "The artifact manifest omits observed repository changes."
+	if len(result.Details) != 0 {
+		result.Message = violationSummary(result.Details)
+	} else if result.Guard != nil {
+		result.Message = violationSummary(result.Guard.Failures)
 	}
+	result.RepositoryPaths = domain.ViolationRepositoryPaths(err)
 	recoveryResult := &RecoveryGuidance{RetrySafe: false, Action: action, Message: guidance}
 	if paths := boundedCorrectionPaths(tool, typed); len(paths) != 0 {
 		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctCurrentAction, Message: boundedCorrectionMessage, AllowedPaths: paths}
@@ -104,10 +117,28 @@ func EncodeError(id, tool string, err error) EncodedResult {
 		recoveryResult = &RecoveryGuidance{RetrySafe: true, Action: correctRequest, Message: requestCorrectionMessage, AllowedPaths: paths}
 	}
 	raw, encodeErr := encodeEnvelope(Envelope{OK: false, RequestID: id, Tool: tool, Error: result, Recovery: recoveryResult})
-	if encodeErr != nil || !WithinResultEnvelopeLimit(raw) {
-		return fixedFallback()
+	if encodeErr != nil {
+		return failureFallback(id, tool, "Core could not encode the error response as JSON.")
+	}
+	if !WithinResultEnvelopeLimit(raw) {
+		return failureFallback(id, tool, "The encoded error details exceed the Core response byte limit.")
 	}
 	return EncodedResult{JSON: raw, IsError: true}
+}
+
+func violationSummary(details []domain.ContractViolation) string {
+	var parts []string
+	size := 0
+	for _, detail := range details {
+		part := detail.Path + ": " + detail.Message
+		if size+len(part) > domain.MaxErrorMessageBytes-64 {
+			parts = append(parts, "See details for the remaining failure conditions.")
+			break
+		}
+		parts = append(parts, part)
+		size += len(part) + 2
+	}
+	return strings.Join(parts, "; ")
 }
 
 func projectSubmissionViolationPaths(tool string, violations []domain.ContractViolation) []domain.ContractViolation {
@@ -155,11 +186,7 @@ func retainedViolations(violations []domain.ContractViolation) []domain.Contract
 		if !domain.ValidViolationPath(violation.Path) || violation.Message == "" {
 			continue
 		}
-		if violation.Rule.IsValid() {
-			violation.Message = violation.Rule.Message()
-		} else {
-			violation.Message = domain.GuardRule(violation.Rule).Message()
-		}
+		violation.Message = violation.PublicMessage()
 		out = append(out, violation)
 	}
 	if len(out) == 0 {
@@ -197,8 +224,17 @@ func validRepositoryDriftMessage(message string) bool {
 	}
 	return domain.RepositoryKey(parts[0]).IsValid() && recovery.RepositoryReason(parts[1]).IsValid()
 }
-func fixedFallback() EncodedResult {
-	return EncodedResult{JSON: append([]byte(nil), fallbackBytes...), IsError: true}
+func failureFallback(id, tool, explanation string) EncodedResult {
+	if !domain.ID(id).IsValid() {
+		id = "request-unavailable"
+	}
+	if !isToolName(tool) {
+		tool = ToolServerInfo
+	}
+	raw := mustEncode(Envelope{OK: false, RequestID: id, Tool: tool,
+		Error:    &ErrorResult{Code: domain.ErrorInternal, Message: explanation},
+		Recovery: &RecoveryGuidance{RetrySafe: false, Action: "report_internal_error", Message: "Report this failure. If a mutation was attempted, read its saved operation before deciding whether it may be retried."}})
+	return EncodedResult{JSON: raw, IsError: true}
 }
 func encodeEnvelope(v Envelope) ([]byte, error) {
 	var b bytes.Buffer
@@ -361,7 +397,7 @@ func requestCorrectionPaths(tool string, typed *domain.Error, result *ErrorResul
 			properties = schema.Properties
 		}
 	}
-	if properties == nil || len(result.Details) == 0 {
+	if properties == nil || len(result.Details) == 0 || len(result.Details) != len(typed.Violations) {
 		return nil
 	}
 	paths := make([]string, 0, len(result.Details))

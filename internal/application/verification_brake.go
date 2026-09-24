@@ -34,7 +34,7 @@ type verificationFailureFingerprint struct {
 
 func recordVerificationAttempt(task *domain.ProcessTask, transition domain.TransitionDefinition, result *workflow.TestResult, evidence []domain.EvidenceSummary, now time.Time) error {
 	if task.TaskPlan == nil || task.Implementation == nil {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "Recording a verification attempt requires the current Task Plan and implementation records.")
 	}
 	checks := verificationCheckFingerprints(result.Checks, false)
 	resultDigest, err := digestCanonical(verificationResultFingerprint{
@@ -46,7 +46,7 @@ func recordVerificationAttempt(task *domain.ProcessTask, transition domain.Trans
 		Findings:           sortedText(result.Findings),
 	})
 	if err != nil {
-		return domain.ErrInternal
+		return domain.WithExplanation(domain.ErrInternal, "Core could not encode the verification failure facts for their digest.")
 	}
 	// Known-failure acceptance completes TEST; the failure brake tracks remediation attempts.
 	failed := testFailureFactsPresent(result) && result.KnownFailureAcceptance == nil
@@ -59,7 +59,7 @@ func recordVerificationAttempt(task *domain.ProcessTask, transition domain.Trans
 			Findings:     sortedText(result.Findings),
 		})
 		if err != nil {
-			return domain.ErrInternal
+			return domain.WithExplanation(domain.ErrInternal, "Core could not encode the verification outcome for its digest.")
 		}
 	}
 	evidenceIDs := make([]domain.ID, len(evidence))
@@ -70,7 +70,7 @@ func recordVerificationAttempt(task *domain.ProcessTask, transition domain.Trans
 	sort.Strings(paths)
 	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
-		return domain.ErrInternal
+		return domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	attempt := domain.VerificationAttempt{
 		TaskRevision:           task.Revision + 1,
@@ -86,7 +86,7 @@ func recordVerificationAttempt(task *domain.ProcessTask, transition domain.Trans
 		RecordedAt:             now,
 	}
 	if attempt.Validate() != nil {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The verification attempt has invalid plan, content, outcome, path or evidence references.")
 	}
 	task.VerificationAttempts = append(task.VerificationAttempts, attempt)
 	if len(task.VerificationAttempts) > domain.MaxRetainedVerificationAttempts {
@@ -133,7 +133,7 @@ func (s *Service) verificationBrakeBlocker(task domain.ProcessTask, resume domai
 	}
 	workspace, err := task.EffectiveWorkspaceDigests()
 	if err != nil {
-		return nil, domain.ErrInternal
+		return nil, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	message := "Automatic brake paused the Task after three unchanged verification attempts."
 	switch decision.Cause {
@@ -144,7 +144,7 @@ func (s *Service) verificationBrakeBlocker(task domain.ProcessTask, resume domai
 	case domain.BlockerCauseUnchangedTestImplementationLoop:
 		message = "Automatic brake paused the Task because three TEST to IMPLEMENT cycles changed the same paths and produced the same failure."
 	default:
-		return nil, domain.ErrInternal
+		return nil, domain.WithExplanation(domain.ErrInternal, "The automatic verification brake returned an unsupported blocker cause.")
 	}
 	return &domain.ProcessBlocker{
 		BlockerID:             blockerID,

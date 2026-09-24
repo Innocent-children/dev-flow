@@ -390,14 +390,14 @@ func (s *SQLite) LoadActiveTaskByCanonicalRoot(ctx context.Context, root string)
 }
 func (s *SQLite) load(ctx context.Context, query, arg string) (domain.ProcessTask, error) {
 	if s == nil || s.db == nil {
-		return domain.ProcessTask{}, ErrStorageUnavailable
+		return domain.ProcessTask{}, domain.WithExplanation(ErrStorageUnavailable, "The Task store is not open.")
 	}
 	task, err := scanStoredTask(s.db.QueryRowContext(ctx, query, arg))
 	if errors.Is(err, sql.ErrNoRows) {
-		return domain.ProcessTask{}, ErrTaskNotFound
+		return domain.ProcessTask{}, domain.WithExplanation(ErrTaskNotFound, "No saved Task matches the requested Task identity or workspace claim.")
 	}
 	if err != nil {
-		return domain.ProcessTask{}, ErrStorageUnavailable
+		return domain.ProcessTask{}, storageFailure(err, "The Task row could not be read or decoded from storage.")
 	}
 	return task, nil
 }
@@ -419,13 +419,13 @@ func scanStoredTask(row rowScanner) (domain.ProcessTask, error) {
 		return domain.ProcessTask{}, err
 	}
 	if taskID != string(task.TaskID) || host != string(task.OriginHost) || processID != string(task.Process.ID) || digest != string(task.Process.DefinitionDigest) || node != string(task.CurrentNode) || revision != int64(task.Revision) || identity != string(task.Repository.WorktreeInstanceDigest) || created != formatTime(task.CreatedAt) || updated != formatTime(task.UpdatedAt) {
-		return domain.ProcessTask{}, ErrStorageUnavailable
+		return domain.ProcessTask{}, domain.WithExplanation(ErrStorageUnavailable, "The Task row identity, revision, workspace or timestamps disagree with its saved snapshot.")
 	}
 	return task, nil
 }
 func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 	if s == nil || s.db == nil || validateMutation(m) != nil {
-		return ErrInvalidArgument
+		return domain.WithExplanation(ErrInvalidArgument, "The Task mutation cannot be committed because the store is closed or the mutation is invalid.")
 	}
 	snapshot, err := encodeTask(m.Task)
 	if err != nil {
@@ -433,7 +433,7 @@ func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return ErrStorageUnavailable
+		return storageFailure(err, "The Task transaction could not be started.")
 	}
 	defer tx.Rollback()
 	if err := clearSupersededActionOperation(ctx, tx, m); err != nil {
@@ -443,7 +443,7 @@ func (s *SQLite) CommitTask(ctx context.Context, m TaskMutation) error {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
-		return ErrStorageUnavailable
+		return storageFailure(err, "The Task transaction commit did not return success; read the saved Task before retrying.")
 	}
 	return nil
 }
@@ -458,16 +458,16 @@ func clearSupersededActionOperation(ctx context.Context, tx *sql.Tx, mutation Ta
 	}
 	if operation.AppliedRevision == nil {
 		if mutation.Event.Kind != domain.OperationCancelTask && mutation.Event.Kind != domain.OperationAbandonTask {
-			return ErrRevisionConflict
+			return domain.WithExplanation(ErrRevisionConflict, "A pending Action operation must be recovered before this Task mutation can replace it.")
 		}
 	} else {
 		current, loadErr := scanStoredTask(tx.QueryRowContext(ctx, `SELECT task_id,origin_host,process_id,process_definition_digest,current_node,revision,worktree_instance_digest,snapshot,created_at,updated_at FROM tasks WHERE task_id=?`, mutation.Task.TaskID))
 		if loadErr != nil || !operation.RecordedBy(current) {
-			return ErrStorageUnavailable
+			return domain.WithExplanation(ErrStorageUnavailable, "The retained Action operation is not recorded by the current stored Task.")
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM action_operations WHERE task_id=?`, mutation.Task.TaskID); err != nil {
-		return ErrStorageUnavailable
+		return domain.WithExplanation(ErrStorageUnavailable, "The previous Action operation could not be removed from storage.")
 	}
 	return nil
 }
@@ -482,12 +482,12 @@ func writeTaskMutation(ctx context.Context, tx *sql.Tx, m TaskMutation, snapshot
 		if err == nil {
 			n, _ := result.RowsAffected()
 			if n != 1 {
-				return ErrRevisionConflict
+				return domain.WithExplanation(ErrRevisionConflict, "The Task revision changed before the snapshot update was written.")
 			}
 		}
 	}
 	if err != nil {
-		return ErrStorageUnavailable
+		return storageFailure(err, "The Task snapshot could not be inserted or updated in tasks.")
 	}
 	if err := insertEvent(ctx, tx, m.Event); err != nil {
 		return err
@@ -497,16 +497,16 @@ func writeTaskMutation(ctx context.Context, tx *sql.Tx, m TaskMutation, snapshot
 	}
 	if m.Event.Kind == domain.OperationPrepareTaskRelocation {
 		if m.Task.Relocation == nil {
-			return ErrInvalidArgument
+			return domain.WithExplanation(ErrInvalidArgument, "A relocation-preparation mutation must include its prepared relocation record.")
 		}
 		r := m.Task.Relocation
 		if _, err := tx.ExecContext(ctx, `INSERT INTO relocation_operations(task_id,relocation_id,request_id,source_binding_digest,prepared_at,resolved_revision) VALUES(?,?,?,?,?,NULL)`, m.Task.TaskID, r.RelocationID, m.Event.RequestID, r.SourceBindingDigest, formatTime(r.PreparedAt)); err != nil {
-			return ErrStorageUnavailable
+			return domain.WithExplanation(ErrStorageUnavailable, "The relocation preparation could not be inserted into relocation_operations.")
 		}
 	}
 	if m.Claim == ClaimReplace || m.Claim == ClaimRelease {
 		if _, err := tx.ExecContext(ctx, `UPDATE relocation_operations SET resolved_revision=? WHERE task_id=? AND resolved_revision IS NULL`, m.Task.Revision, m.Task.TaskID); err != nil {
-			return ErrStorageUnavailable
+			return domain.WithExplanation(ErrStorageUnavailable, "The relocation resolved revision could not be updated in relocation_operations.")
 		}
 	}
 	return nil
@@ -515,10 +515,10 @@ func writeTaskMutation(ctx context.Context, tx *sql.Tx, m TaskMutation, snapshot
 func insertEvent(ctx context.Context, tx *sql.Tx, e TaskEvent) error {
 	var duplicate int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM task_events WHERE task_id=? AND request_id=?`, e.TaskID, e.RequestID).Scan(&duplicate); err != nil {
-		return ErrStorageUnavailable
+		return storageFailure(err, "The event request identity could not be checked for an existing Task event.")
 	}
 	if duplicate != 0 {
-		return ErrRevisionConflict
+		return domain.WithExplanation(ErrRevisionConflict, "A Task event already exists for this request identity.")
 	}
 	var transition, reason, action, observedBinding any
 	if e.TransitionID != nil {
@@ -539,11 +539,11 @@ func insertEvent(ctx context.Context, tx *sql.Tx, e TaskEvent) error {
 	}
 	encodedPaths, err := json.Marshal(paths)
 	if err != nil {
-		return ErrInvalidArgument
+		return domain.WithExplanation(ErrInvalidArgument, "The changed repository paths could not be encoded for the Task event.")
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO task_events(event_id,task_id,revision,event_type,source_node,destination_node,transition_id,transition_reason,action_id,observed_binding_digest,repository_delta_paths,request_id,payload_digest,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.EventID, e.TaskID, e.Revision, e.Kind, e.SourceNode, e.DestinationNode, transition, reason, action, observedBinding, encodedPaths, e.RequestID, e.PayloadDigest, formatTime(e.CreatedAt))
 	if err != nil {
-		return ErrStorageUnavailable
+		return storageFailure(err, "The Task event could not be inserted into task_events.")
 	}
 	return nil
 }
@@ -553,39 +553,39 @@ func applyClaim(ctx context.Context, tx *sql.Tx, m TaskMutation) error {
 	case ClaimAcquire:
 		for _, claim := range repositoryClaims(m.Task) {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, claim.identity, claim.root, m.Task.TaskID, m.Task.OriginHost, formatTime(m.Event.CreatedAt)); err != nil {
-				return ErrActiveTaskConflict
+				return domain.WithExplanation(ErrActiveTaskConflict, "The workspace claim could not be acquired in repository_claims; an existing claim or a storage write failure prevented insertion.")
 			}
 		}
 	case ClaimRetain:
 		if err := validateClaimSet(ctx, tx, m.Task, identities); err != nil {
-			return ErrStorageUnavailable
+			return storageFailure(err, "The saved repository claims do not match the Task scope being retained.")
 		}
 	case ClaimRelease:
 		if err := validateClaimSet(ctx, tx, m.Task, identities); err != nil {
-			return ErrStorageUnavailable
+			return storageFailure(err, "The saved repository claims do not match the Task scope being released.")
 		}
 		result, err := tx.ExecContext(ctx, `DELETE FROM repository_claims WHERE task_id=?`, m.Task.TaskID)
 		if err != nil {
-			return ErrStorageUnavailable
+			return storageFailure(err, "The Task repository claims could not be deleted.")
 		}
 		n, _ := result.RowsAffected()
 		if n != int64(len(identities)) {
-			return ErrStorageUnavailable
+			return domain.WithExplanation(ErrStorageUnavailable, "The number of deleted repository claims differs from the Task repository count.")
 		}
 	case ClaimReplace:
 		if len(m.PreviousClaims) == 0 || validateClaimSet(ctx, tx, m.Task, m.PreviousClaims) != nil {
-			return ErrStorageUnavailable
+			return domain.WithExplanation(ErrStorageUnavailable, "Replacing repository claims requires the complete original claim set to match storage.")
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM repository_claims WHERE task_id=?`, m.Task.TaskID); err != nil {
-			return ErrStorageUnavailable
+			return domain.WithExplanation(ErrStorageUnavailable, "The original repository claims could not be removed during relocation.")
 		}
 		for _, claim := range repositoryClaims(m.Task) {
 			if _, err := tx.ExecContext(ctx, `INSERT INTO repository_claims(worktree_instance_digest,canonical_worktree_root,task_id,origin_host,claimed_at) VALUES(?,?,?,?,?)`, claim.identity, claim.root, m.Task.TaskID, m.Task.OriginHost, formatTime(m.Event.CreatedAt)); err != nil {
-				return ErrActiveTaskConflict
+				return domain.WithExplanation(ErrActiveTaskConflict, "The destination workspace claim could not be acquired; an existing claim or a storage write failure prevented insertion.")
 			}
 		}
 	default:
-		return ErrInvalidArgument
+		return domain.WithExplanation(ErrInvalidArgument, "The mutation specifies an unsupported repository-claim operation.")
 	}
 	return nil
 }
@@ -593,19 +593,19 @@ func applyClaim(ctx context.Context, tx *sql.Tx, m TaskMutation) error {
 func validateClaimSet(ctx context.Context, tx *sql.Tx, task domain.ProcessTask, expected []domain.Digest) error {
 	rows, err := tx.QueryContext(ctx, `SELECT worktree_instance_digest,origin_host FROM repository_claims WHERE task_id=? ORDER BY worktree_instance_digest`, task.TaskID)
 	if err != nil {
-		return ErrStorageUnavailable
+		return storageFailure(err, "The Task repository claims could not be read.")
 	}
 	defer rows.Close()
 	actual := make([]string, 0, len(expected))
 	for rows.Next() {
 		var identity, host string
 		if rows.Scan(&identity, &host) != nil || host != string(task.OriginHost) {
-			return ErrStorageUnavailable
+			return domain.WithExplanation(ErrStorageUnavailable, "A repository claim could not be decoded or its host differs from the Task owner.")
 		}
 		actual = append(actual, identity)
 	}
 	if rows.Err() != nil || rows.Close() != nil || len(actual) != len(expected) {
-		return ErrStorageUnavailable
+		return domain.WithExplanation(ErrStorageUnavailable, "The repository claim rows could not be read completely or their count differs from the expected scope.")
 	}
 	want := make([]string, len(expected))
 	for i, identity := range expected {
@@ -614,50 +614,50 @@ func validateClaimSet(ctx context.Context, tx *sql.Tx, task domain.ProcessTask, 
 	sort.Strings(want)
 	for i := range want {
 		if want[i] != actual[i] {
-			return ErrStorageUnavailable
+			return domain.WithExplanation(ErrStorageUnavailable, "A saved workspace claim identity does not match the expected Task repository scope.")
 		}
 	}
 	return nil
 }
 func validateMutation(m TaskMutation) error {
 	if workflow.ValidateProcessTask(m.Task) != nil || m.Task.Revision != m.ExpectedRevision+1 || m.Event.TaskID != m.Task.TaskID || m.Event.Revision != m.Task.Revision || m.Event.DestinationNode != m.Task.CurrentNode || !m.Event.SourceNode.IsValid() || !m.Event.DestinationNode.IsValid() || m.Event.EventID == "" || m.Event.RequestID == "" || !m.Event.PayloadDigest.IsValid() {
-		return ErrInvalidArgument
+		return domain.WithExplanation(ErrInvalidArgument, "The proposed Task and event must agree on identity, revision, node and operation digest.")
 	}
 	op := m.Task.LastOperation
 	if op == nil || op.Validate() != nil || op.OperationID != m.Event.RequestID || op.Kind != m.Event.Kind || op.FromRevision != m.ExpectedRevision || op.ToRevision != m.Task.Revision || op.PayloadDigest != m.Event.PayloadDigest || !op.CommittedAt.Equal(m.Event.CreatedAt) || !sameOptionalID(op.ActionID, m.Event.ActionID) {
-		return ErrInvalidArgument
+		return domain.WithExplanation(ErrInvalidArgument, "The Task last_operation does not match the event identity, revision, digest, time or Action.")
 	}
 	if m.Event.TransitionID != nil {
 		definition := workflow.StandardProcess()
 		transition, err := workflow.TransitionFor(definition, m.Event.SourceNode, *m.Event.TransitionID)
 		if err != nil || transition.Destination != m.Event.DestinationNode || (transition.ReasonRequired != (m.Event.TransitionReason != "")) {
-			return ErrInvalidArgument
+			return domain.WithExplanation(ErrInvalidArgument, "The event transition, destination or required reason does not match the process definition.")
 		}
 	}
 	if m.Event.ObservedBindingDigest != nil && !m.Event.ObservedBindingDigest.IsValid() {
-		return ErrInvalidArgument
+		return domain.WithExplanation(ErrInvalidArgument, "The event observed binding digest is not a valid SHA-256 digest.")
 	}
 	if len(m.Event.RepositoryDeltaPaths) > domain.MaxRepositoryDeltaPaths {
-		return ErrInvalidArgument
+		return domain.WithExplanation(ErrInvalidArgument, "The event exceeds the maximum number of repository delta paths.")
 	}
 	for index, path := range m.Event.RepositoryDeltaPaths {
 		if m.Task.ValidateRepositoryPath(path) != nil || index > 0 && m.Event.RepositoryDeltaPaths[index-1] >= path {
-			return ErrInvalidArgument
+			return domain.WithExplanation(ErrInvalidArgument, "Event repository paths must be in the Task scope, sorted and unique.")
 		}
 	}
 	if m.Claim == ClaimReplace {
 		if len(m.PreviousClaims) != len(repositoryClaimIdentities(m.Task)) {
-			return ErrInvalidArgument
+			return domain.WithExplanation(ErrInvalidArgument, "A claim replacement must include one previous claim for each Task repository.")
 		}
 		seen := map[domain.Digest]bool{}
 		for _, identity := range m.PreviousClaims {
 			if !identity.IsValid() || seen[identity] {
-				return ErrInvalidArgument
+				return domain.WithExplanation(ErrInvalidArgument, "Previous workspace claim identities must be valid and unique.")
 			}
 			seen[identity] = true
 		}
 	} else if len(m.PreviousClaims) != 0 {
-		return ErrInvalidArgument
+		return domain.WithExplanation(ErrInvalidArgument, "Previous workspace claims are only accepted for claim replacement.")
 	}
 	return nil
 }

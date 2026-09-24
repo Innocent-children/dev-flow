@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -37,20 +38,20 @@ func TestMethodEvidenceExactRequiredCoverage(t *testing.T) {
 
 	for _, status := range []MethodStepStatus{MethodStepUnavailable, MethodStepNotRun} {
 		evidence := methodContractEvidence(steps, status, "missing-capability")
-		if err := ValidateMethodEvidence(evidence, steps); err != ErrTransitionNotAllowed {
+		if err := ValidateMethodEvidence(evidence, steps); !errors.Is(err, ErrTransitionNotAllowed) {
 			t.Fatalf("status=%s error=%v", status, err)
 		}
 	}
-	if err := ValidateMethodEvidence(nil, steps); err != ErrTransitionNotAllowed {
+	if err := ValidateMethodEvidence(nil, steps); !errors.Is(err, ErrTransitionNotAllowed) {
 		t.Fatalf("empty evidence error=%v", err)
 	}
 	missing := methodContractEvidence(steps[:2], MethodStepPlainFallback, "")
-	if err := ValidateMethodEvidence(missing, steps); err != ErrTransitionNotAllowed {
+	if err := ValidateMethodEvidence(missing, steps); !errors.Is(err, ErrTransitionNotAllowed) {
 		t.Fatalf("missing evidence error=%v", err)
 	}
 	outOfOrder := methodContractEvidence(steps, MethodStepPlainFallback, "")
 	outOfOrder[0], outOfOrder[1] = outOfOrder[1], outOfOrder[0]
-	if err := ValidateMethodEvidence(outOfOrder, steps); err != ErrTransitionNotAllowed {
+	if err := ValidateMethodEvidence(outOfOrder, steps); !errors.Is(err, ErrTransitionNotAllowed) {
 		t.Fatalf("out-of-order evidence error=%v", err)
 	}
 }
@@ -87,7 +88,7 @@ func TestMethodEvidenceMalformedUnknownAndDuplicate(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			items := append([]MethodEvidence(nil), valid...)
-			if err := ValidateMethodEvidence(tc.mutate(items), steps); err != ErrInvalidArgument {
+			if err := ValidateMethodEvidence(tc.mutate(items), steps); !errors.Is(err, ErrInvalidArgument) {
 				t.Fatalf("error=%v", err)
 			}
 		})

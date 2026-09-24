@@ -65,7 +65,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_refactor",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "node_result.simplifications: the closed contract requires this member",
     "details": [
       {
         "path": "node_result.simplifications",
@@ -142,7 +142,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_refactor",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "refactor_design_change_required",
       "failures": [
@@ -219,7 +219,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_submit_refactor",
   "error": {
     "code": "TRANSITION_NOT_ALLOWED",
-    "message": "The transition guard was not satisfied.",
+    "message": "node_result.findings: findings must not be empty when problem_class is not none",
     "guard": {
       "guard_id": "refactor_requirement_change_required",
       "failures": [

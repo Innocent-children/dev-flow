@@ -16,7 +16,7 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 	operation := operationFromApply(r)
 	if !s.valid() || ctx == nil || !r.RequestID.IsValid() || !r.Host.IsValid() || !r.TaskID.IsValid() ||
 		!validApplyIdentity(operation) || len(r.Payload) == 0 || !json.Valid(r.Payload) {
-		return ApplyActionResult{}, domain.ErrInvalidArgument
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The application service, request context or required request identity is invalid.")
 	}
 	if r.RecoveryApply != nil {
 		// Recovery reconciliation cannot prove that the original mutation left no
@@ -25,14 +25,14 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 		return result, domain.WithoutZeroWriteProof(err)
 	}
 	if bytes.Equal(bytes.TrimSpace(r.Payload), []byte("null")) {
-		return ApplyActionResult{}, domain.ErrInvalidArgument
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "An ordinary Action submission requires a payload object; null is only allowed for a recovery probe.")
 	}
 	task, err := s.loadOwned(ctx, r.Host, r.TaskID)
 	if err != nil {
 		return ApplyActionResult{}, err
 	}
 	if task.CurrentNode.Terminal() {
-		return ApplyActionResult{}, domain.ErrTaskTerminal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrTaskTerminal, "This operation requires an active Task, but the Task has already reached DONE or CANCELLED.")
 	}
 	if task.CurrentNode == domain.NodeBlocked {
 		return s.resolveBlocker(ctx, r, task)
@@ -46,10 +46,10 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 	}
 	comparison, err := recovery.CompareRepositoryScope(task, fresh)
 	if err != nil {
-		return ApplyActionResult{}, domain.ErrInternal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "The repository observations could not be compared with the Task repository scope.")
 	}
 	if scopeHasUnavailableWorkspace(task, fresh) {
-		return ApplyActionResult{}, domain.ErrWorkspaceUnavailable
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "An observed worktree is missing or no longer has the instance identity retained by the Task.")
 	}
 	if scopeHasHistoryConflict(fresh) {
 		blocked, blockErr := s.createWorkspaceHistoryBlocker(ctx, task, fresh, r.RequestID)
@@ -66,7 +66,7 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 		return ApplyActionResult{}, err
 	} else if len(outside) != 0 {
 		if task.TaskPlan == nil || task.CurrentNode != domain.NodeImplement && task.CurrentNode != domain.NodeRefactor {
-			return ApplyActionResult{}, domain.ErrRepositoryDrift
+			return ApplyActionResult{}, domain.WithExplanation(domain.ErrRepositoryDrift, "Observed changes fall outside the approved scope and this node cannot open a file-scope decision.")
 		}
 		blocked, blockErr := s.createObservedFileScopeBlocker(ctx, task, fresh, outside, r.RequestID)
 		return ApplyActionResult{Task: blocked}, blockErr
@@ -76,10 +76,10 @@ func (s *Service) ApplyAction(ctx context.Context, r ApplyActionRequest) (ApplyA
 
 func (s *Service) applyRecovery(ctx context.Context, r ApplyActionRequest, operation domain.OperationReference) (ApplyActionResult, error) {
 	if r.RecoveryApply.OperationID != r.RequestID || r.RecoveryApply.SourceCursor != r.SourceCursor {
-		return ApplyActionResult{}, domain.ErrInvalidArgument
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "Recovery operation_id and source_cursor must match the original saved request.")
 	}
 	if workflow.ValidateOperationReference(operation) != nil {
-		return ApplyActionResult{}, domain.ErrInvalidArgument
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The recovery operation reference is invalid for the current process definition.")
 	}
 	if err := validateRecoveryPayload(r.SourceCursor, r.Payload); err != nil {
 		return ApplyActionResult{}, err
@@ -112,33 +112,33 @@ func (s *Service) applyRecovery(ctx context.Context, r ApplyActionRequest, opera
 		}
 		comparison, comparisonErr := recovery.CompareRepositoryScope(task, fresh)
 		if comparisonErr != nil {
-			return ApplyActionResult{}, domain.ErrInternal
+			return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "The repository observations could not be compared with the Task repository scope.")
 		}
 		return s.applyStandardMutation(ctx, r, task, fresh, comparison)
 	case recovery.DirectiveCreateBlocker:
 		return s.createRecoveryBlocker(ctx, r, task, fresh, decision)
 	case recovery.DirectiveRevisionConflict:
-		return ApplyActionResult{}, domain.ErrRevisionConflict
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrRevisionConflict, "The recovery operation revision conflicts with the saved Task revision.")
 	case recovery.DirectiveActionStale:
-		return ApplyActionResult{}, domain.ErrActionStale
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrActionStale, "The recovery operation does not match the current Action identity.")
 	default:
-		return ApplyActionResult{}, domain.ErrInternal
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrInternal, "Recovery returned a directive that this Core cannot execute.")
 	}
 }
 
 func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.ProcessTask) error {
 	if task.CurrentAction == nil || task.Revision != r.ExpectedRevision {
-		return domain.ErrRevisionConflict
+		return domain.WithExplanation(domain.ErrRevisionConflict, "The supplied revision does not match the saved Task revision.")
 	}
 	if r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
-		return domain.ErrProcessUnsupported
+		return domain.WithExplanation(domain.ErrProcessUnsupported, "The submitted process identity or definition digest differs from the saved Task.")
 	}
 	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
 	if err != nil {
-		return domain.ErrInternal
+		return domain.WithExplanation(domain.ErrInternal, "The Task repository bindings are invalid and cannot produce a binding digest.")
 	}
 	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || effectiveDigest != r.RepositoryBindingDigest || task.CurrentAction.IssuanceIdentityDigest != r.IssuanceIdentityDigest || task.CurrentAction.IssuanceHistoryDigest != r.IssuanceHistoryDigest || task.CurrentAction.IssuanceContentDigest != r.IssuanceContentDigest {
-		return domain.ErrActionStale
+		return domain.WithExplanation(domain.ErrActionStale, "The node, Action identity or issuance workspace digests differ from the current Action.")
 	}
 	// Everything below is deterministic validation that runs before any Task,
 	// Event, Claim or Evidence write, so a structured failure produced here is a
@@ -149,7 +149,7 @@ func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.Proces
 	}
 	transition, err := workflow.TransitionFor(workflow.StandardProcess(), task.CurrentNode, envelope.TransitionID)
 	if err != nil {
-		return domain.ErrTransitionNotAllowed
+		return domain.WithExplanation(domain.ErrTransitionNotAllowed, "transition_id is not an outgoing transition of the current node.")
 	}
 	if err := workflow.ValidatePayload(workflow.StandardProcess(), task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps); err != nil {
 		return err
@@ -173,17 +173,17 @@ func (s *Service) applyStandardMutation(ctx context.Context, r ApplyActionReques
 
 func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, comparison recovery.RepositoryScopeComparison) (store.TaskMutation, error) {
 	if task.CurrentAction == nil || task.Revision != r.ExpectedRevision {
-		return store.TaskMutation{}, domain.ErrRevisionConflict
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrRevisionConflict, "The supplied revision does not match the saved Task revision.")
 	}
 	if r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
-		return store.TaskMutation{}, domain.ErrProcessUnsupported
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrProcessUnsupported, "The submitted process identity or definition digest differs from the saved Task.")
 	}
 	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Task repository bindings are invalid and cannot produce a binding digest.")
 	}
 	if r.SourceCursor != task.CurrentNode || task.CurrentAction.ActionID != r.ActionID || task.CurrentAction.Kind != r.ActionKind || effectiveDigest != r.RepositoryBindingDigest || task.CurrentAction.IssuanceIdentityDigest != r.IssuanceIdentityDigest || task.CurrentAction.IssuanceHistoryDigest != r.IssuanceHistoryDigest || task.CurrentAction.IssuanceContentDigest != r.IssuanceContentDigest {
-		return store.TaskMutation{}, domain.ErrActionStale
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrActionStale, "The node, Action identity or issuance workspace digests differ from the current Action.")
 	}
 	// This is the mutation path and it is also reachable from recovery
 	// reconciliation, so it never claims a zero-write proof. The ordinary route
@@ -196,7 +196,7 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 	definition := workflow.StandardProcess()
 	transition, err := workflow.TransitionFor(definition, task.CurrentNode, envelope.TransitionID)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrTransitionNotAllowed
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrTransitionNotAllowed, "transition_id is not an outgoing transition of the current node.")
 	}
 	if err := workflow.ValidatePayload(definition, task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps); err != nil {
 		return store.TaskMutation{}, domain.WithoutZeroWriteProof(err)
@@ -206,10 +206,10 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 	if transition.TransitionID == "tasks_ready" {
 		current, digestErr := scopeWorkspaceDigests(task, fresh)
 		if digestErr != nil {
-			return store.TaskMutation{}, domain.ErrInternal
+			return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The observed repository scope is invalid and cannot produce workspace digests.")
 		}
 		if current.Content != task.CurrentAction.IssuanceContentDigest {
-			return store.TaskMutation{}, domain.ErrTransitionNotAllowed
+			return store.TaskMutation{}, domain.WithExplanation(domain.ErrTransitionNotAllowed, "The workspace content changed after the current Action was issued.")
 		}
 	}
 	effect, err := recovery.DeriveRepositoryEffect(task.CurrentNode, envelope, result)
@@ -225,15 +225,15 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 	effect.Paths = recovery.RepositoryScopeDeltaPaths(task, fresh)
 	canonicalPayload, err := workflow.CanonicalValidatedPayload(envelope, result)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The validated node result could not be encoded into a canonical Action payload.")
 	}
 	operationDigest, err := workflow.GraphOperationDigest(r.Host, r.TaskID, operationFromApply(r), canonicalPayload)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Action identity or canonical payload could not be encoded into an operation digest.")
 	}
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	now := s.now().UTC()
 	rebindProcessAuthorities(&next, fresh)
@@ -265,7 +265,7 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 		if errors.Is(err, domain.ErrTransitionNotAllowed) || errors.Is(err, domain.ErrRepositoryDrift) || errors.Is(err, domain.ErrVerificationBudgetExceeded) || errors.Is(err, domain.ErrVerificationNotAllowed) {
 			return store.TaskMutation{}, domain.WithoutZeroWriteProof(err)
 		}
-		return store.TaskMutation{}, domain.ErrInvalidArgument
+		return store.TaskMutation{}, domain.WithoutZeroWriteProof(err)
 	}
 	if err := consumeFileScopeAuthorizations(&next, effect.Paths, r.ActionID); err != nil {
 		return store.TaskMutation{}, err
@@ -296,18 +296,18 @@ func (s *Service) planStandardMutation(r ApplyActionRequest, task domain.Process
 		}
 		nextWorkspace, digestErr := next.EffectiveWorkspaceDigests()
 		if digestErr != nil {
-			return store.TaskMutation{}, domain.ErrInternal
+			return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 		}
 		action, err := workflow.BuildProcessActionForWorkspace(definition, next.CurrentNode, next.TaskID, next.Revision, nextWorkspace, next.Intent.MethodProfile, nextID, now)
 		if err != nil {
-			return store.TaskMutation{}, domain.ErrInternal
+			return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 		}
 		next.CurrentAction = &action
 	}
 	actionID := r.ActionID
 	next.LastOperation = &domain.LastOperation{OperationID: r.RequestID, Kind: domain.OperationApplyAction, ActionID: &actionID, FromRevision: r.ExpectedRevision, ToRevision: next.Revision, PayloadDigest: operationDigest, CommittedAt: now}
 	if workflow.ValidateProcessTask(next) != nil {
-		return store.TaskMutation{}, domain.ErrInvalidArgument
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInvalidArgument, "The proposed Task state does not satisfy the current process definition and saved-record rules.")
 	}
 	eventID, err := s.id("event")
 	if err != nil {
@@ -337,7 +337,7 @@ func validatedRepositoryEffect(task domain.ProcessTask, raw json.RawMessage, fre
 	actual := recovery.RepositoryScopeDeltaPaths(task, fresh)
 	authorized := append([]string(nil), effect.Paths...)
 	if task.CurrentAction == nil || !recovery.RepositoryEffectAllowed(task.CurrentAction.AllowedEffects, effect) {
-		return recovery.RepositoryEffect{}, nil, domain.ErrRepositoryDrift
+		return recovery.RepositoryEffect{}, nil, domain.WithExplanation(domain.ErrRepositoryDrift, "The current Action does not permit the observed repository effect.")
 	}
 	outside := []string{}
 	if effect.Kind == recovery.EffectProductFileChange {
@@ -407,11 +407,11 @@ func (s *Service) createRecoveryBlocker(ctx context.Context, r ApplyActionReques
 
 func (s *Service) planRecoveryBlocker(r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, decision recovery.RecoveryDecision) (store.TaskMutation, error) {
 	if task.CurrentAction == nil || task.CurrentNode != r.SourceCursor || task.Revision != r.ExpectedRevision || decision.Assessment.UnblockCondition == nil {
-		return store.TaskMutation{}, domain.ErrActionStale
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrActionStale, "The supplied revision does not match the saved Task revision.")
 	}
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	blockerID, err := s.id("blocker")
 	if err != nil {
@@ -434,11 +434,11 @@ func (s *Service) planRecoveryBlocker(r ApplyActionRequest, task domain.ProcessT
 	next.Blocker = &domain.ProcessBlocker{BlockerID: blockerID, Code: domain.ErrorTaskBlocked, Cause: domain.BlockerCause(decision.Assessment.Classification), Message: "The uncertain graph mutation requires exact repository restoration before work can continue.", ResumeNode: resume, ObservedBindingDigest: decision.Assessment.ObservedBindingDigest, Condition: *decision.Assessment.UnblockCondition, RequiredResolution: "Restore the exact repository binding recorded when the original action was issued.", CreatedAt: now}
 	workspace, err := next.EffectiveWorkspaceDigests()
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeBlocked, next.TaskID, next.Revision, workspace, next.Intent.MethodProfile, actionID, now)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 	}
 	next.CurrentAction = &action
 	canonical := decision.CanonicalPayload
@@ -447,14 +447,14 @@ func (s *Service) planRecoveryBlocker(r ApplyActionRequest, task domain.ProcessT
 	}
 	digest, err := workflow.GraphOperationDigest(r.Host, r.TaskID, operationFromApply(r), canonical)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Action identity or canonical payload could not be encoded into an operation digest.")
 	}
 	originalActionID := r.ActionID
 	next.LastOperation = &domain.LastOperation{OperationID: r.RequestID, Kind: domain.OperationApplyAction, ActionID: &originalActionID, FromRevision: r.ExpectedRevision, ToRevision: next.Revision, PayloadDigest: digest, CommittedAt: now}
 	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: resume, DestinationNode: domain.NodeBlocked, TransitionReason: "Recovery blocker created for the uncertain graph mutation.", ActionID: &originalActionID, RepositoryDeltaPaths: observedTaskDeltaPaths(task, fresh), RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
 	mutation := store.TaskMutation{ExpectedRevision: r.ExpectedRevision, Task: next, Event: event, Claim: store.ClaimRetain}
 	if validateErr := workflow.ValidateProcessTask(next); validateErr != nil {
-		return store.TaskMutation{}, domain.ErrInvalidArgument
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInvalidArgument, "The proposed Task state does not satisfy the current process definition and saved-record rules.")
 	}
 	return mutation, nil
 }
@@ -463,11 +463,11 @@ func (s *Service) resolveBlocker(ctx context.Context, r ApplyActionRequest, task
 	if task.Blocker == nil || task.ResumeNode == nil || task.CurrentAction == nil || r.SourceCursor != domain.NodeBlocked ||
 		task.Revision != r.ExpectedRevision || task.CurrentAction.ActionID != r.ActionID || r.ActionKind != domain.ActionResolveBlocker ||
 		r.ProcessID != task.Process.ID || r.ProcessDefinitionDigest != task.Process.DefinitionDigest {
-		return ApplyActionResult{}, domain.ErrActionStale
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrActionStale, "The supplied revision does not match the saved Task revision.")
 	}
 	effectiveDigest, err := task.EffectiveRepositoryBindingDigest()
 	if err != nil || r.RepositoryBindingDigest != effectiveDigest || task.CurrentAction.IssuanceIdentityDigest != r.IssuanceIdentityDigest || task.CurrentAction.IssuanceHistoryDigest != r.IssuanceHistoryDigest || task.CurrentAction.IssuanceContentDigest != r.IssuanceContentDigest {
-		return ApplyActionResult{}, domain.ErrActionStale
+		return ApplyActionResult{}, domain.WithExplanation(domain.ErrActionStale, "The Task repository bindings are invalid and cannot produce a binding digest.")
 	}
 	payload, canonical, err := recovery.DecodeBlockerResolutionPayload(r.Payload)
 	if err != nil {
@@ -497,7 +497,7 @@ func (s *Service) resolveBlockerMutation(ctx context.Context, r ApplyActionReque
 func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, payload recovery.BlockerResolutionPayload, canonical json.RawMessage) (store.TaskMutation, error) {
 	comparison, err := recovery.CompareRepositoryScope(task, fresh)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The repository observations could not be compared with the Task repository scope.")
 	}
 	fileScopeBlocker := task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseFileScopeDecision
 	historyBlocker := task.Blocker != nil && task.Blocker.Cause == domain.BlockerCauseWorkspaceHistoryConflict
@@ -509,7 +509,7 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	}
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	now := s.now().UTC()
 	destination := *task.ResumeNode
@@ -523,7 +523,7 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 			}
 		}
 		if fileScopeRecordIndex < 0 {
-			return store.TaskMutation{}, domain.ErrInvalidArgument
+			return store.TaskMutation{}, domain.WithExplanation(domain.ErrInvalidArgument, "No saved file-scope request matches the current blocker condition.")
 		}
 		record := &next.FileScopeRecords[fileScopeRecordIndex]
 		record.Decision = payload.FileScopeDecision.Choice
@@ -537,7 +537,7 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 				rebindProcessAuthorities(&next, fresh)
 				states, stateErr := next.FileScopePathStates(record.Paths)
 				if stateErr != nil {
-					return store.TaskMutation{}, domain.ErrInternal
+					return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The approved file-scope paths could not be matched to the observed Task files.")
 				}
 				record.AcceptedPathStates = states
 			}
@@ -551,7 +551,7 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 				return store.TaskMutation{}, err
 			}
 			if next.TaskPlan == nil {
-				return store.TaskMutation{}, domain.ErrInvalidArgument
+				return store.TaskMutation{}, domain.WithExplanation(domain.ErrInvalidArgument, "Expanding file scope requires the Task Plan that was active when the blocker was created.")
 			}
 			if err := appendBaselineHistory(&next, taskPlanReference(*next.TaskPlan)); err != nil {
 				return store.TaskMutation{}, err
@@ -559,18 +559,18 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 			next.TaskPlan, next.Implementation, next.Test, next.Comprehension = nil, nil, nil, nil
 			destination = domain.NodeTasks
 		default:
-			return store.TaskMutation{}, domain.ErrInvalidArgument
+			return store.TaskMutation{}, domain.WithExplanation(domain.ErrInvalidArgument, "The saved file-scope decision is not allow_once, expand_scope or reject.")
 		}
 	}
 	if historyBlocker {
 		before, err := task.EffectiveWorkspaceDigests()
 		if err != nil {
-			return store.TaskMutation{}, domain.ErrInternal
+			return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 		}
 		rebindProcessAuthorities(&next, fresh)
 		after, err := next.EffectiveWorkspaceDigests()
 		if err != nil {
-			return store.TaskMutation{}, domain.ErrInternal
+			return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 		}
 		if before.Content != after.Content && next.Implementation != nil {
 			next.Implementation, next.Test, next.Comprehension = nil, nil, nil
@@ -586,11 +586,11 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	}
 	workspace, err := next.EffectiveWorkspaceDigests()
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), destination, next.TaskID, next.Revision, workspace, next.Intent.MethodProfile, nextActionID, now)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 	}
 	next.CurrentAction = &action
 	if fileScopeRecordIndex >= 0 && next.FileScopeRecords[fileScopeRecordIndex].Decision == domain.FileScopeAllowOnce {
@@ -599,7 +599,7 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	}
 	digest, err := workflow.GraphOperationDigest(r.Host, r.TaskID, operationFromApply(r), canonical)
 	if err != nil {
-		return store.TaskMutation{}, domain.ErrInternal
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInternal, "The Action identity or canonical payload could not be encoded into an operation digest.")
 	}
 	resolvedActionID := r.ActionID
 	next.LastOperation = &domain.LastOperation{OperationID: r.RequestID, Kind: domain.OperationApplyAction, ActionID: &resolvedActionID, FromRevision: r.ExpectedRevision, ToRevision: next.Revision, PayloadDigest: digest, CommittedAt: now}
@@ -613,21 +613,18 @@ func (s *Service) planResolveBlockerMutation(r ApplyActionRequest, task domain.P
 	}
 	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationApplyAction, SourceNode: domain.NodeBlocked, DestinationNode: destination, TransitionReason: eventReason, ActionID: &resolvedActionID, RepositoryDeltaPaths: observedTaskDeltaPaths(task, fresh), RequestID: r.RequestID, PayloadDigest: digest, CreatedAt: now}
 	if workflow.ValidateProcessTask(next) != nil {
-		return store.TaskMutation{}, domain.ErrInvalidArgument
+		return store.TaskMutation{}, domain.WithExplanation(domain.ErrInvalidArgument, "The proposed Task state does not satisfy the current process definition and saved-record rules.")
 	}
 	return store.TaskMutation{ExpectedRevision: r.ExpectedRevision, Task: next, Event: event, Claim: store.ClaimRetain}, nil
 }
 
 func repositoryDriftError(comparison recovery.RepositoryScopeComparison) error {
-	if len(comparison.Repositories) <= 1 {
-		return domain.ErrRepositoryDrift
-	}
 	for _, fact := range comparison.Repositories {
 		if fact.Relation != recovery.RepositoryExact {
 			return domain.NewError(domain.ErrorRepositoryDrift, `Repository "`+string(fact.RepositoryKey)+`" has repository drift: `+string(fact.Reason)+`.`)
 		}
 	}
-	return domain.ErrRepositoryDrift
+	return domain.WithExplanation(domain.ErrRepositoryDrift, "The repository comparison did not establish an allowed effect for this operation.")
 }
 
 func validateRecoveryPayload(source domain.NodeID, payload json.RawMessage) error {
@@ -639,7 +636,7 @@ func validateRecoveryPayload(source domain.NodeID, payload json.RawMessage) erro
 		return err
 	}
 	if err := workflow.ValidateRetainedPayload(source, payload); err != nil {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The retained payload does not satisfy the contract of its original process node.")
 	}
 	return nil
 }

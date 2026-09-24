@@ -19,11 +19,11 @@ func EvaluateVerificationBudget(
 	manualHandoffItems []string,
 ) error {
 	if budget.Validate() != nil || taskPlanRevision == 0 || len(incoming) > domain.MaxEvidencePerAction {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "Budget evaluation requires a valid current budget, a positive plan revision and no more than 32 incoming checks.")
 	}
 	normalizedManualItems, err := normalizePayloadList(manualHandoffItems, false)
 	if err != nil || !sameStrings(manualHandoffItems, normalizedManualItems) {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "manual_handoff_items must contain bounded, normalized, unique non-empty text entries.")
 	}
 	if len(existing)+len(incoming) > domain.MaxRetainedEvidenceItems {
 		return budgetExceeded("verification.usage.evidence_items", domain.RuleEvidenceCapacityExceeded, len(existing), len(incoming), domain.MaxRetainedEvidenceItems)
@@ -33,10 +33,10 @@ func EvaluateVerificationBudget(
 	existingIDs := make(map[domain.ID]struct{}, len(existing))
 	for _, item := range existing {
 		if item.Validate() != nil {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "An existing evidence record is invalid and cannot be counted against the budget.")
 		}
 		if _, duplicate := existingIDs[item.EvidenceID]; duplicate {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "The retained evidence set contains a duplicate evidence identifier.")
 		}
 		existingIDs[item.EvidenceID] = struct{}{}
 		if item.TaskPlanRevision != taskPlanRevision {
@@ -53,10 +53,10 @@ func EvaluateVerificationBudget(
 	incomingNames := make(map[string]struct{}, len(incoming))
 	for _, item := range incoming {
 		if validateNormalizedEvidenceInput(item) != nil {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "An incoming check violates the source, status, text or command-count requirements.")
 		}
 		if _, duplicate := incomingNames[item.Name]; duplicate {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "Incoming checks must have unique names.")
 		}
 		incomingNames[item.Name] = struct{}{}
 		if item.Source == domain.EvidenceSourceAutomated {
@@ -88,37 +88,37 @@ func ValidateComprehensionConfirmation(existing []domain.EvidenceSummary, input 
 	seen := make(map[domain.ID]bool, len(existing))
 	for _, item := range existing {
 		if item.Validate() != nil || seen[item.EvidenceID] {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "Existing evidence must be valid and have unique identifiers before recording comprehension confirmation.")
 		}
 		seen[item.EvidenceID] = true
 	}
 	if validateNormalizedEvidenceInput(input) != nil || input.Source != domain.EvidenceSourceUser || input.Status != domain.EvidencePassed {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "Comprehension confirmation requires a valid passed check whose source is user.")
 	}
 	return nil
 }
 
 func normalizeRequiredPayloadText(value string, max int) (string, error) {
 	if !utf8.ValidString(value) {
-		return "", domain.ErrInvalidArgument
+		return "", domain.WithExplanation(domain.ErrInvalidArgument, "Payload text must be valid UTF-8.")
 	}
 	normalized := strings.TrimSpace(value)
 	if normalized == "" || len(normalized) > max {
-		return "", domain.ErrInvalidArgument
+		return "", domain.WithExplanation(domain.ErrInvalidArgument, "Payload text must be non-empty and within its byte limit.")
 	}
 	return normalized, nil
 }
 
 func normalizePayloadList(items []string, required bool) ([]string, error) {
 	if required && len(items) == 0 || len(items) > domain.MaxBoundedStringListItems {
-		return nil, domain.ErrInvalidArgument
+		return nil, domain.WithExplanation(domain.ErrInvalidArgument, "The payload list is missing required items or exceeds its item limit.")
 	}
 	out := make([]string, len(items))
 	seen := map[string]bool{}
 	for i, item := range items {
 		normalized, err := normalizeRequiredPayloadText(item, domain.MaxEvidenceSummaryBytes)
 		if err != nil || seen[normalized] {
-			return nil, domain.ErrInvalidArgument
+			return nil, domain.WithExplanation(domain.ErrInvalidArgument, "Payload list items must be valid non-empty text and unique after trimming.")
 		}
 		seen[normalized] = true
 		out[i] = normalized
@@ -128,7 +128,7 @@ func normalizePayloadList(items []string, required bool) ([]string, error) {
 
 func validateNormalizedEvidenceInput(input NormalizedEvidenceInput) error {
 	if len(evidenceRuleFailures(input)) != 0 {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The evidence input violates its source, status, text, command-count or full-suite rules.")
 	}
 	return nil
 }

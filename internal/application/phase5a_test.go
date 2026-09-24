@@ -250,7 +250,7 @@ func TestBaselineHistoryLimitIsEnforced(t *testing.T) {
 		task.BaselineHistory = append(task.BaselineHistory, domain.BaselineReference{Kind: domain.BaselineRequirements, Revision: uint32(i), Digest: digestOf("a"), Summary: fmt.Sprintf("revision %d", i), CreatedAt: now})
 	}
 	err := appendBaselineHistory(&task, domain.BaselineReference{Kind: domain.BaselineRequirements, Revision: 33, Digest: digestOf("b"), Summary: "revision 33", CreatedAt: now})
-	if err != domain.ErrInvalidArgument || len(task.BaselineHistory) != domain.MaxRetainedBaselineReferences {
+	if !errors.Is(err, domain.ErrInvalidArgument) || len(task.BaselineHistory) != domain.MaxRetainedBaselineReferences {
 		t.Fatal("baseline history limit was not enforced")
 	}
 }

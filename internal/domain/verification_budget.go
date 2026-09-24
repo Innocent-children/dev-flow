@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // VerificationBudget bounds evidence the host may submit for one Task Plan revision.
 type VerificationBudget struct {
@@ -11,9 +14,11 @@ type VerificationBudget struct {
 }
 
 func (b VerificationBudget) Validate() error {
-	if !b.Level.IsValid() || b.MaxAutomaticCommands < 0 ||
-		b.MaxAutomaticCommands > MaxTotalAutomaticVerificationCommands {
-		return ErrInvalidArgument
+	if !b.Level.IsValid() {
+		return InvalidArgumentViolations(ExplainedViolation("level", RuleEnumValueInvalid, "level must be minimal, targeted or full"))
+	}
+	if b.MaxAutomaticCommands < 0 || b.MaxAutomaticCommands > MaxTotalAutomaticVerificationCommands {
+		return InvalidArgumentViolations(ExplainedViolation("max_automatic_commands", RuleValueRange, fmt.Sprintf("max_automatic_commands must be between 0 and %d", MaxTotalAutomaticVerificationCommands)))
 	}
 	return nil
 }
@@ -24,11 +29,10 @@ type VerificationPlanCheck struct {
 }
 
 func (c VerificationPlanCheck) Validate() error {
-	if requireNormalizedText(c.Name, MaxEvidenceNameBytes, true) != nil ||
-		requireNormalizedText(c.Rationale, MaxEvidenceSummaryBytes, true) != nil {
-		return ErrInvalidArgument
+	if err := requireNormalizedText(c.Name, MaxEvidenceNameBytes, true); err != nil {
+		return AtField("name", err)
 	}
-	return nil
+	return AtField("rationale", requireNormalizedText(c.Rationale, MaxEvidenceSummaryBytes, true))
 }
 
 type VerificationPlan struct {
@@ -39,14 +43,23 @@ type VerificationPlan struct {
 }
 
 func (p VerificationPlan) Validate() error {
-	if len(p.Checks) == 0 || len(p.Checks) > MaxBoundedStringListItems ||
-		p.InitialBudget.Validate() != nil || p.FullSuiteExpected != p.InitialBudget.AllowFullSuite {
-		return ErrInvalidArgument
+	if len(p.Checks) == 0 || len(p.Checks) > MaxBoundedStringListItems {
+		return InvalidArgumentViolations(ExplainedViolation("checks", RuleValueRange, fmt.Sprintf("checks must contain 1 to %d entries", MaxBoundedStringListItems)))
+	}
+	if err := p.InitialBudget.Validate(); err != nil {
+		return AtField("initial_budget", err)
+	}
+	if p.FullSuiteExpected != p.InitialBudget.AllowFullSuite {
+		return InvalidArgumentViolations(ExplainedViolation("full_suite_expected", RuleMemberDependency, "full_suite_expected must equal initial_budget.allow_full_suite"))
 	}
 	seen := make(map[string]bool, len(p.Checks))
-	for _, check := range p.Checks {
-		if check.Validate() != nil || seen[check.Name] {
-			return ErrInvalidArgument
+	for index, check := range p.Checks {
+		member := fmt.Sprintf("checks[%d]", index)
+		if err := check.Validate(); err != nil {
+			return AtField(member, err)
+		}
+		if seen[check.Name] {
+			return InvalidArgumentViolations(Violation(member+".name", RuleStringListDuplicate))
 		}
 		seen[check.Name] = true
 	}

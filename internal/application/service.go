@@ -27,7 +27,7 @@ func NewService(s store.Store, o repository.RepositoryObserver) (*Service, error
 }
 func newService(s store.Store, o repository.RepositoryObserver, now func() time.Time, id idGenerator) (*Service, error) {
 	if nilPort(s) || nilPort(o) || now == nil || id == nil {
-		return nil, domain.ErrInvalidArgument
+		return nil, domain.WithExplanation(domain.ErrInvalidArgument, "Creating the application service requires a Task store, repository observer, clock and identity generator.")
 	}
 	return &Service{taskStore: s, repositoryObserver: o, now: now, newID: id}, nil
 }
@@ -51,42 +51,34 @@ func randomID(prefix string) (domain.ID, error) {
 func (s *Service) id(prefix string) (domain.ID, error) {
 	id, err := s.newID(prefix)
 	if err != nil || !id.IsValid() {
-		return "", domain.ErrInternal
+		return "", domain.WithExplanation(domain.ErrInternal, "The identity generator failed or returned an invalid Core identifier.")
 	}
 	return id, nil
 }
 func mapStoreError(err error) error {
-	switch {
-	case errors.Is(err, store.ErrInvalidArgument):
-		return domain.ErrInvalidArgument
-	case errors.Is(err, store.ErrTaskNotFound):
-		return domain.ErrTaskNotFound
-	case errors.Is(err, store.ErrActiveTaskConflict):
-		return domain.ErrActiveTaskConflict
-	case errors.Is(err, store.ErrRevisionConflict):
-		return domain.ErrRevisionConflict
-	case errors.Is(err, store.ErrTaskTerminal):
-		return domain.ErrTaskTerminal
-	case errors.Is(err, store.ErrSchemaUnsupported):
-		return domain.ErrSchemaUnsupported
-	case errors.Is(err, store.ErrProcessUnsupported):
-		return domain.ErrProcessUnsupported
-	case errors.Is(err, store.ErrStorageUnavailable):
-		return domain.ErrStorageUnavailable
-	default:
-		return domain.ErrInternal
+	var failure *domain.Error
+	if errors.As(err, &failure) && failure != nil && failure.Code.IsValid() {
+		return domain.WithoutZeroWriteProof(failure)
 	}
+	if errors.Is(err, context.Canceled) {
+		return domain.WithExplanation(domain.ErrInternal, "The storage operation was cancelled before it returned a result.")
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return domain.WithExplanation(domain.ErrInternal, "The storage operation exceeded its deadline.")
+	}
+	return domain.WithExplanation(domain.ErrInternal, "The Task store returned an unclassified failure; its raw diagnostic cannot be safely published.")
 }
+
 func (s *Service) loadOwned(ctx context.Context, host domain.Host, id domain.ID) (domain.ProcessTask, error) {
 	task, err := s.taskStore.LoadTask(ctx, id)
 	if err != nil {
 		return domain.ProcessTask{}, mapStoreError(err)
 	}
 	if task.OriginHost != host {
-		return domain.ProcessTask{}, domain.ErrHostOwnershipConflict
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrHostOwnershipConflict, "The requested host does not match the host that owns this Task.")
 	}
 	if workflow.ValidateProcessTask(task) != nil {
-		return domain.ProcessTask{}, domain.ErrStorageUnavailable
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrStorageUnavailable, "The stored Task does not satisfy the current process definition or saved-record rules.")
 	}
 	return task, nil
 }

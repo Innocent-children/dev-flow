@@ -9,7 +9,7 @@ import (
 
 func (s *Service) GetNextAction(ctx context.Context, r GetNextActionRequest) (NextActionResult, error) {
 	if !s.valid() || ctx == nil || !r.Host.IsValid() || !r.TaskID.IsValid() {
-		return NextActionResult{}, domain.ErrInvalidArgument
+		return NextActionResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The application service, request context or required request identity is invalid.")
 	}
 	read, err := s.GetTask(ctx, GetTaskRequest{Host: r.Host, TaskID: r.TaskID, OperationProbe: r.OperationProbe})
 	if err != nil {

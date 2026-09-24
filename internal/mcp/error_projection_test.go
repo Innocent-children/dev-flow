@@ -57,7 +57,7 @@ func TestApplyErrorDetailsProjectClosedFieldViolations(t *testing.T) {
 	if envelope.Error == nil || envelope.Error.Code != domain.ErrorInvalidArgument {
 		t.Fatalf("error=%#v", envelope.Error)
 	}
-	if envelope.Error.Message != "The request does not match the closed Core contract." {
+	if envelope.Error.Message != "node_result.checks[3].command_count: command_count must equal 0 when source is user, static or host_observed" {
 		t.Fatalf("message=%q", envelope.Error.Message)
 	}
 	if len(envelope.Error.Details) != 1 {
@@ -88,7 +88,7 @@ func TestApplyErrorGuardProjectsClosedGuardFailure(t *testing.T) {
 	if envelope.Error == nil || envelope.Error.Code != domain.ErrorTransitionNotAllowed {
 		t.Fatalf("error=%#v", envelope.Error)
 	}
-	if envelope.Error.Message != "The transition guard was not satisfied." {
+	if envelope.Error.Message != "node_result.findings: findings must be empty when problem_class is none" {
 		t.Fatalf("message=%q", envelope.Error.Message)
 	}
 	if envelope.Error.Guard == nil || envelope.Error.Guard.GuardID != "implementation_report_complete" {

@@ -36,7 +36,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_prepare_task_relocation",
   "error": {
     "code": "TASK_NOT_FOUND",
-    "message": "The task was not found."
+    "message": "No saved Task matches the requested Task identity or workspace claim."
   },
   "recovery": {
     "retry_safe": false,
@@ -80,7 +80,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_resolve_blocker",
   "error": {
     "code": "INVALID_ARGUMENT",
-    "message": "The request does not match the closed Core contract.",
+    "message": "relocation_destinations: the current transition requires at least one item",
     "details": [
       {
         "path": "relocation_destinations",
@@ -131,7 +131,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_cancel_task",
   "error": {
     "code": "TASK_NOT_FOUND",
-    "message": "The task was not found."
+    "message": "No saved Task matches the requested Task identity or workspace claim."
   },
   "recovery": {
     "retry_safe": false,
@@ -171,7 +171,7 @@ Implementation: `internal/mcp/tools.go` — `ValidateToolInput`;
   "tool": "dev_flow_abandon_task",
   "error": {
     "code": "TASK_NOT_FOUND",
-    "message": "The task was not found."
+    "message": "No saved Task matches the requested Task identity or workspace claim."
   },
   "recovery": {
     "retry_safe": false,

@@ -2,8 +2,6 @@ package workflow
 
 import (
 	"encoding/json"
-	"sort"
-	"unicode/utf8"
 
 	"github.com/Innocent-children/dev-flow/internal/domain"
 )
@@ -149,61 +147,10 @@ func ValidateSubmissionNodeResult(kind domain.ActionKind, raw json.RawMessage) e
 	if err != nil {
 		return err
 	}
-	if violations := unknownSubmissionMembers("node_result", raw, schema); len(violations) != 0 {
-		return domain.InvalidArgumentViolations(violations...)
-	}
-	if violations := requiredMemberViolations("node_result", raw, schema); len(violations) != 0 {
+	if violations := RequestStructureViolations("node_result", raw, schema); len(violations) != 0 {
 		return domain.InvalidArgumentViolations(violations...)
 	}
 	return nil
-}
-
-// unknownSubmissionMembers walks the closed Host schema so Core-owned nested
-// members are rejected before Application adds the canonical values.
-func unknownSubmissionMembers(path string, raw json.RawMessage, schema map[string]any) []domain.ContractViolation {
-	if schema == nil || isJSONNull(raw) {
-		return nil
-	}
-	for _, keyword := range []string{"anyOf", "oneOf"} {
-		if alternatives := schemaAlternatives(schema, keyword); alternatives != nil {
-			valueType := rawJSONType(raw)
-			for _, alternative := range alternatives {
-				candidate, ok := alternative.(map[string]any)
-				if ok && unionAlternativeMatches(candidate, valueType) {
-					return unknownSubmissionMembers(path, raw, candidate)
-				}
-			}
-			return nil
-		}
-	}
-	members, ok := jsonObjectMembers(raw)
-	if !ok {
-		return nil
-	}
-	properties, _ := schema["properties"].(map[string]any)
-	names := make([]string, 0, len(members))
-	for name := range members {
-		if _, known := properties[name]; !known {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-	violations := make([]domain.ContractViolation, 0, len(names))
-	for _, name := range names {
-		violations = append(violations, domain.Violation(path+"."+name, domain.RuleUnknownMember))
-	}
-	knownNames := make([]string, 0, len(members))
-	for name := range members {
-		if _, known := properties[name]; known {
-			knownNames = append(knownNames, name)
-		}
-	}
-	sort.Strings(knownNames)
-	for _, name := range knownNames {
-		member, _ := properties[name].(map[string]any)
-		violations = append(violations, unknownSubmissionMembers(path+"."+name, members[name], member)...)
-	}
-	return violations
 }
 
 // ValidateSubmissionNodeResultSyntax rejects malformed or ambiguous JSON before
@@ -211,10 +158,10 @@ func unknownSubmissionMembers(path string, raw json.RawMessage, schema map[strin
 // into maps, so duplicate members must be rejected first instead of being
 // silently collapsed during re-marshaling.
 func ValidateSubmissionNodeResultSyntax(raw json.RawMessage) error {
-	if len(raw) == 0 || len(raw) > domain.MaxActionPayloadBytes || !utf8.Valid(raw) || !json.Valid(raw) || rejectDuplicateMembers(raw) != nil {
-		return domain.ErrInvalidArgument
+	if len(raw) > domain.MaxActionPayloadBytes {
+		return domain.InvalidArgumentViolations(domain.Violation("node_result", domain.RulePayloadTooLarge))
 	}
-	return nil
+	return ValidateRequestJSON("node_result", raw)
 }
 
 // nullableObjectSchema unwraps the closed null/object union of one optional

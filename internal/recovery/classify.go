@@ -53,7 +53,7 @@ func Classify(facts ClassificationFacts) (RecoveryDecision, error) {
 	case facts.OperationEvidence == OperationEvidenceNone && facts.RepositoryRelation == RepositoryExact:
 		classification = domain.RecoveryNotStarted
 	default:
-		return RecoveryDecision{}, domain.ErrInvalidArgument
+		return RecoveryDecision{}, domain.WithExplanation(domain.ErrInvalidArgument, "The observed recovery facts do not match any supported recovery classification.")
 	}
 	assessment := RecoveryAssessment{
 		Classification:             classification,
@@ -91,25 +91,25 @@ func (facts ClassificationFacts) validate() error {
 		!facts.AuthoritativeBindingDigest.IsValid() || !facts.ObservedBindingDigest.IsValid() ||
 		!facts.RepositoryRelation.IsValid() || !facts.LastOperationRelation.IsValid() ||
 		!facts.OperationEvidence.IsValid() || !validUTC(facts.ObservedAt) {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "Recovery facts contain an invalid operation, Task revision, relation, evidence state or observation time.")
 	}
 	if facts.PayloadRetained != (facts.OperationPayloadDigest != nil) {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "Payload retention and operation_payload_digest presence must agree.")
 	}
 	if facts.OperationPayloadDigest != nil && !facts.OperationPayloadDigest.IsValid() {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The retained operation payload digest is not a SHA-256 digest.")
 	}
 	if facts.LastOperationRelation == LastOperationExact {
 		if facts.CommittedProof == nil || facts.CommittedProof.Validate() != nil {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "An exact last-operation match requires a valid committed-operation proof.")
 		}
 	} else if facts.CommittedProof != nil {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "A committed-operation proof is only valid for an exact last-operation match.")
 	}
 	previous := domain.RepositoryKey("")
 	for _, fact := range facts.Repositories {
 		if !fact.RepositoryKey.IsValid() || !fact.Relation.IsValid() || !fact.Reason.IsValid() || previous != "" && fact.RepositoryKey <= previous {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "Recovery repository facts must use valid unique keys in sorted order and known relation and reason values.")
 		}
 		previous = fact.RepositoryKey
 	}

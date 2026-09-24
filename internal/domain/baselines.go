@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"path"
 	"strings"
 	"time"
@@ -51,10 +52,16 @@ type ArtifactReference struct {
 }
 
 func (r ArtifactReference) Validate() error {
-	if !r.Role.IsValid() || ValidateRepositoryContractPath(r.Path) != nil || !r.Digest.IsValid() || requireNormalizedText(r.Summary, MaxEvidenceSummaryBytes, true) != nil {
-		return ErrInvalidArgument
+	if !r.Role.IsValid() {
+		return InvalidArgumentViolations(Violation("role", RuleEnumValueInvalid))
 	}
-	return nil
+	if err := ValidateRepositoryContractPath(r.Path); err != nil {
+		return AtField("path", err)
+	}
+	if !r.Digest.IsValid() {
+		return InvalidArgumentViolations(ExplainedViolation("digest", RuleValueFormat, "digest must contain exactly 64 lowercase hexadecimal characters"))
+	}
+	return AtField("summary", requireNormalizedText(r.Summary, MaxEvidenceSummaryBytes, true))
 }
 
 type RequirementsBaseline struct {
@@ -97,15 +104,26 @@ type DesignBaseline struct {
 }
 
 func (b DesignBaseline) Validate() error {
-	if b.Revision == 0 || b.RequirementsRevision == 0 || !b.Digest.IsValid() || requireNormalizedText(b.Approach, MaxGuidanceBytes, true) != nil || len(b.Decisions) == 0 || validateUTC(b.CreatedAt) != nil || validateArtifacts(b.ArtifactRefs) != nil {
-		return ErrInvalidArgument
+	if b.Revision == 0 || b.RequirementsRevision == 0 || !b.Digest.IsValid() || validateUTC(b.CreatedAt) != nil {
+		return WithExplanation(ErrInvalidArgument, "the design record requires positive revisions, a SHA-256 digest and a UTC creation time")
 	}
-	for _, list := range [][]string{b.Components, b.Decisions, b.RejectedAlternatives, b.ComplexityJustification, b.Risks} {
-		if validateNormalizedList(list) != nil {
-			return ErrInvalidArgument
+	if err := requireNormalizedText(b.Approach, MaxGuidanceBytes, true); err != nil {
+		return AtField("approach", err)
+	}
+	if len(b.Decisions) == 0 {
+		return InvalidArgumentViolations(Violation("decisions", RuleRequiredCollectionNonEmpty))
+	}
+	for _, list := range []struct {
+		name   string
+		values []string
+	}{
+		{"components", b.Components}, {"decisions", b.Decisions}, {"rejected_alternatives", b.RejectedAlternatives}, {"complexity_justification", b.ComplexityJustification}, {"risks", b.Risks},
+	} {
+		if err := validateNormalizedList(list.values); err != nil {
+			return AtField(list.name, err)
 		}
 	}
-	return nil
+	return AtField("artifact_refs", validateArtifacts(b.ArtifactRefs))
 }
 
 type WorkItem struct {
@@ -129,8 +147,25 @@ type PlanConfirmation struct {
 }
 
 func (c PlanConfirmation) Validate() error {
-	if c.Source != EvidenceSourceUser || c.Status != EvidencePassed || requireNormalizedText(c.Summary, MaxEvidenceSummaryBytes, true) != nil || !c.RequirementsDigest.IsValid() || !c.DesignDigest.IsValid() || !c.TaskPlanDigest.IsValid() || c.TaskPlanRevision == 0 {
-		return ErrInvalidArgument
+	if c.Source != EvidenceSourceUser {
+		return InvalidArgumentViolations(ExplainedViolation("source", RuleEnumValueInvalid, "confirmation source must be user"))
+	}
+	if c.Status != EvidencePassed {
+		return InvalidArgumentViolations(ExplainedViolation("status", RuleEnumValueInvalid, "confirmation status must be passed"))
+	}
+	if err := requireNormalizedText(c.Summary, MaxEvidenceSummaryBytes, true); err != nil {
+		return AtField("summary", err)
+	}
+	for _, value := range []struct {
+		name   string
+		digest Digest
+	}{{"requirements_digest", c.RequirementsDigest}, {"design_digest", c.DesignDigest}, {"task_plan_digest", c.TaskPlanDigest}} {
+		if !value.digest.IsValid() {
+			return InvalidArgumentViolations(ExplainedViolation(value.name, RuleValueFormat, "digest must contain exactly 64 lowercase hexadecimal characters"))
+		}
+	}
+	if c.TaskPlanRevision == 0 {
+		return InvalidArgumentViolations(ExplainedViolation("task_plan_revision", RuleValueRange, "task_plan_revision must be positive"))
 	}
 	return nil
 }
@@ -153,54 +188,89 @@ type TaskPlanBaseline struct {
 
 func (b TaskPlanBaseline) Validate() error {
 	if (b.Confirmation == nil) != (b.ConfirmedAt == nil) {
-		return ErrInvalidArgument
+		return WithExplanation(ErrInvalidArgument, "confirmation and confirmed_at must be present together")
 	}
-	if b.Confirmation != nil && (b.Confirmation.Validate() != nil || b.Confirmation.TaskPlanDigest != b.Digest || b.Confirmation.TaskPlanRevision != b.Revision || validateUTC(*b.ConfirmedAt) != nil) {
-		return ErrInvalidArgument
+	if b.Confirmation != nil {
+		if err := b.Confirmation.Validate(); err != nil {
+			return AtField("confirmation", err)
+		}
+		if b.Confirmation.TaskPlanDigest != b.Digest || b.Confirmation.TaskPlanRevision != b.Revision || validateUTC(*b.ConfirmedAt) != nil {
+			return WithExplanation(ErrInvalidArgument, "the confirmation must refer to this plan digest and revision and have a UTC confirmation time")
+		}
 	}
-	if b.Revision == 0 || b.DesignRevision == 0 || !b.Digest.IsValid() || len(b.WorkItems) == 0 || len(b.WorkItems) > MaxWorkItemsPerTaskPlan || b.VerificationPlan.Validate() != nil || validateUTC(b.CreatedAt) != nil || validateArtifacts(b.ArtifactRefs) != nil {
-		return ErrInvalidArgument
+	if b.Revision == 0 || b.DesignRevision == 0 || !b.Digest.IsValid() || validateUTC(b.CreatedAt) != nil {
+		return WithExplanation(ErrInvalidArgument, "the plan record requires positive revisions, a SHA-256 digest and a UTC creation time")
+	}
+	if len(b.WorkItems) == 0 || len(b.WorkItems) > MaxWorkItemsPerTaskPlan {
+		return InvalidArgumentViolations(ExplainedViolation("work_items", RuleValueRange, fmt.Sprintf("work_items must contain 1 to %d entries", MaxWorkItemsPerTaskPlan)))
+	}
+	if err := b.VerificationPlan.Validate(); err != nil {
+		return AtField("verification_plan", err)
+	}
+	if err := validateArtifacts(b.ArtifactRefs); err != nil {
+		return AtField("artifact_refs", err)
 	}
 	known := map[ID]bool{}
-	for _, item := range b.WorkItems {
-		if validateID(item.WorkItemID) != nil || known[item.WorkItemID] || requireNormalizedText(item.Summary, MaxEvidenceSummaryBytes, true) != nil || len(item.Dependencies) > MaxDependenciesPerWorkItem {
-			return ErrInvalidArgument
+	for index, item := range b.WorkItems {
+		member := fmt.Sprintf("work_items[%d]", index)
+		if !item.WorkItemID.IsValid() {
+			return InvalidArgumentViolations(Violation(member+".work_item_id", RuleIdentifierInvalid))
+		}
+		if known[item.WorkItemID] {
+			return InvalidArgumentViolations(Violation(member+".work_item_id", RuleStringListDuplicate))
 		}
 		known[item.WorkItemID] = true
+		if err := requireNormalizedText(item.Summary, MaxEvidenceSummaryBytes, true); err != nil {
+			return AtField(member+".summary", err)
+		}
+		if len(item.Dependencies) > MaxDependenciesPerWorkItem {
+			return InvalidArgumentViolations(ExplainedViolation(member+".dependencies", RuleValueRange, fmt.Sprintf("at most %d dependencies are allowed", MaxDependenciesPerWorkItem)))
+		}
 		paths := map[string]bool{}
-		for _, p := range item.ExpectedPaths {
-			if ValidateRepositoryContractPath(p) != nil || paths[p] {
-				return ErrInvalidArgument
+		for index, p := range item.ExpectedPaths {
+			path := fmt.Sprintf("%s.expected_paths[%d]", member, index)
+			if err := ValidateRepositoryContractPath(p); err != nil {
+				return AtField(path, err)
+			}
+			if paths[p] {
+				return InvalidArgumentViolations(Violation(path, RuleStringListDuplicate))
 			}
 			paths[p] = true
 		}
-		if len(item.VerificationSteps) == 0 || validateNormalizedList(item.VerificationSteps) != nil {
-			return ErrInvalidArgument
+		if len(item.VerificationSteps) == 0 {
+			return InvalidArgumentViolations(Violation(member+".verification_steps", RuleRequiredCollectionNonEmpty))
+		}
+		if err := validateNormalizedList(item.VerificationSteps); err != nil {
+			return AtField(member+".verification_steps", err)
 		}
 		acceptance := map[uint32]bool{}
-		for _, index := range item.AcceptanceIndexes {
-			if acceptance[index] {
-				return ErrInvalidArgument
+		for index, criterion := range item.AcceptanceIndexes {
+			if acceptance[criterion] {
+				return InvalidArgumentViolations(Violation(fmt.Sprintf("%s.acceptance_indexes[%d]", member, index), RuleStringListDuplicate))
 			}
-			acceptance[index] = true
+			acceptance[criterion] = true
 		}
 		dependencies := map[ID]bool{}
-		for _, dependency := range item.Dependencies {
+		for index, dependency := range item.Dependencies {
 			if dependencies[dependency] {
-				return ErrInvalidArgument
+				return InvalidArgumentViolations(Violation(fmt.Sprintf("%s.dependencies[%d]", member, index), RuleStringListDuplicate))
 			}
 			dependencies[dependency] = true
 		}
 	}
-	for _, item := range b.WorkItems {
-		for _, dep := range item.Dependencies {
-			if !known[dep] || dep == item.WorkItemID {
-				return ErrInvalidArgument
+	for index, item := range b.WorkItems {
+		for depIndex, dep := range item.Dependencies {
+			member := fmt.Sprintf("work_items[%d].dependencies[%d]", index, depIndex)
+			if !known[dep] {
+				return InvalidArgumentViolations(Violation(member, RuleKnownIdentifierRequired))
+			}
+			if dep == item.WorkItemID {
+				return InvalidArgumentViolations(ExplainedViolation(member, RuleMemberDependency, "a work item cannot depend on itself"))
 			}
 		}
 	}
 	if hasDependencyCycle(b.WorkItems) {
-		return ErrInvalidArgument
+		return InvalidArgumentViolations(ExplainedViolation("work_items", RuleMemberDependency, "work item dependencies must not form a cycle"))
 	}
 	return nil
 }
@@ -209,7 +279,7 @@ func validateRepositoryRelativePath(value string) error {
 	if !utf8.ValidString(value) || value == "" || strings.Contains(value, repositoryPathSeparator) ||
 		strings.Contains(value, `\`) || path.IsAbs(value) || path.Clean(value) != value ||
 		value == ".." || strings.HasPrefix(value, "../") {
-		return ErrInvalidArgument
+		return WithExplanation(ErrInvalidArgument, "paths must be normalized, relative to the repository, and must not contain backslashes or parent traversal")
 	}
 	return nil
 }
@@ -220,7 +290,7 @@ func ValidateRepositoryContractPath(value string) error {
 		return validateRepositoryRelativePath(value)
 	}
 	if !RepositoryKey(key).IsValid() || validateRepositoryRelativePath(relative) != nil {
-		return ErrInvalidArgument
+		return WithExplanation(ErrInvalidArgument, "scoped paths require a valid repository key followed by :: and a normalized repository-relative path")
 	}
 	return nil
 }
@@ -337,17 +407,21 @@ func validateArtifacts(items []ArtifactReference) error {
 }
 func validateNormalizedList(items []string) error {
 	if len(items) > MaxBoundedStringListItems {
-		return ErrInvalidArgument
+		return WithExplanation(ErrInvalidArgument, fmt.Sprintf("the list must contain at most %d items", MaxBoundedStringListItems))
 	}
 	seen := map[string]bool{}
 	for _, item := range items {
-		if requireNormalizedText(item, MaxEvidenceSummaryBytes, true) != nil || seen[item] {
-			return ErrInvalidArgument
+		if err := requireNormalizedText(item, MaxEvidenceSummaryBytes, true); err != nil {
+			return err
+		}
+		if seen[item] {
+			return WithExplanation(ErrInvalidArgument, "the list must not contain duplicate text items")
 		}
 		seen[item] = true
 	}
 	return nil
 }
+
 func hasDependencyCycle(items []WorkItem) bool {
 	deps := map[ID][]ID{}
 	for _, i := range items {

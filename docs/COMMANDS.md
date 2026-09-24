@@ -701,3 +701,5 @@ DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill �
 `allow_manual_handoff` 仅限制待办人工检查；已完成用户检查和独立验收可如实记录。仅调整权限时 additional_automatic_commands 可以为 0，additional_checks 仍需说明涉及的检查。恢复探针复制保存的完整操作；其工具 Schema 压缩部分必填声明以保留字段结构，Core 仍核对全部身份和 payload，不能用省略字段重建操作。
 
 MCP 参数纠错分为 `correct_current_action`（普通节点提交）和 `correct_request`（握手、读取、创建及生命周期请求）。二者均要求 Core 确认零写入，并用 allowed_paths 限定本次纠正。`correct_request` 保留原请求身份和已有授权，不要求先取得一个尚不存在的 Action。四个 Host Skill 为每个请求提供完整成功响应的链接，以及经过代码比对的具体错误响应与实现位置。历史恢复分别在 `history_resolution.choice` 和 `history_resolution.reason` 上报告枚举错误和文本错误。
+
+所有 17 个工具的 `error.message` 直接说明具体失败条件；字段错误同时返回路径、规则和要求，多个原因保留在 `details` 或 `guard.failures`。JSON 语法、类型、重复成员、状态限制、仓库观察、存储和响应编码失败分别说明。编码失败保留实际工具和已有请求 ID，未知底层原因会明确说明，具体规则见 [Core 响应规范](CORE-RESPONSES.md)。

@@ -107,12 +107,12 @@ func (i VerificationBudgetAdjustmentInput) Validate() error {
 	if !i.Basis.IsValid() || len(i.AdditionalChecks) == 0 || len(i.AdditionalChecks) > domain.MaxBoundedStringListItems ||
 		i.AdditionalAutomaticCommands < 0 || i.AdditionalAutomaticCommands > domain.MaxAutomaticVerificationCommands ||
 		(i.AdditionalAutomaticCommands == 0 && !i.AllowFullSuite && !i.AllowManualHandoff) {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "A budget adjustment requires a valid basis, 1 to 64 explained checks, 0 to 20 additional commands and an actual requested capacity or permission increase.")
 	}
 	seen := make(map[string]bool, len(i.AdditionalChecks))
 	for _, check := range i.AdditionalChecks {
 		if check.Validate() != nil || seen[check.Name] {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "Budget adjustment checks must have unique names and valid non-empty names and rationales.")
 		}
 		seen[check.Name] = true
 	}
@@ -161,12 +161,16 @@ type DeliveryResult struct {
 }
 
 func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any, error) {
-	if len(raw) > domain.MaxActionPayloadBytes || !utf8.Valid(raw) || rejectDuplicateMembers(raw) != nil {
-		return StandardPayload{}, nil, domain.ErrInvalidArgument
+	if len(raw) > domain.MaxActionPayloadBytes {
+		return StandardPayload{}, nil, domain.InvalidArgumentViolations(domain.Violation("payload", domain.RulePayloadTooLarge))
 	}
+	if err := ValidateRequestJSON("payload", raw); err != nil {
+		return StandardPayload{}, nil, err
+	}
+
 	schema, ok := payloadSchema(node)
 	if !ok {
-		return StandardPayload{}, nil, domain.ErrInvalidArgument
+		return StandardPayload{}, nil, domain.WithExplanation(domain.ErrInvalidArgument, "The selected node has no standard Action payload contract.")
 	}
 	if violations := requiredMemberViolations("payload", raw, schema); len(violations) != 0 {
 		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
@@ -176,7 +180,7 @@ func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any
 	}
 	var envelope StandardPayload
 	if err := decodeClosed(raw, &envelope); err != nil {
-		return StandardPayload{}, nil, domain.ErrInvalidArgument
+		return StandardPayload{}, nil, payloadDecodeFailure("payload", raw, schema, err)
 	}
 	var result any
 	switch node {
@@ -197,13 +201,13 @@ func DecodeStandardPayload(node domain.NodeID, raw []byte) (StandardPayload, any
 	case domain.NodeDelivery:
 		result = &DeliveryResult{}
 	default:
-		return StandardPayload{}, nil, domain.ErrInvalidArgument
+		return StandardPayload{}, nil, domain.WithExplanation(domain.ErrInvalidArgument, "The selected node has no supported node-result decoder.")
 	}
 	if violations := unknownMemberViolations("payload.node_result", envelope.NodeResult, reflect.TypeOf(result)); len(violations) != 0 {
 		return StandardPayload{}, nil, domain.InvalidArgumentViolations(violations...)
 	}
 	if err := decodeClosed(envelope.NodeResult, result); err != nil {
-		return StandardPayload{}, nil, domain.ErrInvalidArgument
+		return StandardPayload{}, nil, payloadDecodeFailure("payload.node_result", envelope.NodeResult, schema["properties"].(map[string]any)["node_result"].(map[string]any), err)
 	}
 	return envelope, result, nil
 }
@@ -375,10 +379,20 @@ func rawJSONType(raw []byte) string {
 		return "array"
 	case bytes.HasPrefix(trimmed, []byte(`"`)):
 		return "string"
+	case bytes.Equal(trimmed, []byte("null")):
+		return "null"
 	case bytes.Equal(trimmed, []byte("true")), bytes.Equal(trimmed, []byte("false")):
 		return "boolean"
 	default:
-		return "integer"
+		var integer int64
+		if json.Unmarshal(trimmed, &integer) == nil {
+			return "integer"
+		}
+		var unsigned uint64
+		if json.Unmarshal(trimmed, &unsigned) == nil {
+			return "integer"
+		}
+		return "number"
 	}
 }
 
@@ -426,12 +440,10 @@ func unknownMemberViolations(path string, raw []byte, target reflect.Type) []dom
 		sort.Strings(names)
 		var violations []domain.ContractViolation
 		for _, name := range names {
-			childPath := path + "." + name
+			childPath := requestMemberPath(path, name)
 			fieldType, known := fields[name]
 			if !known {
-				if violation := domain.Violation(childPath, domain.RuleUnknownMember); violation.Path != "" {
-					violations = append(violations, violation)
-				}
+				violations = append(violations, unknownRequestViolation(path, name))
 				continue
 			}
 			violations = append(violations, unknownMemberViolations(childPath, object[name], fieldType)...)
@@ -461,7 +473,7 @@ func ValidateRetainedPayload(node domain.NodeID, raw []byte) error {
 	definition := StandardProcess()
 	nodeDefinition, err := NodeDefinition(definition, node)
 	if err != nil {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The retained payload source is not a node in the supported process definition.")
 	}
 	return ValidatePayload(definition, node, envelope, result, nodeDefinition.SemanticMethodSteps)
 }
@@ -486,12 +498,15 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		return domain.InvalidArgumentViolations(envelopeViolations...)
 	}
 	if len(envelope.Artifacts) > domain.MaxArtifactReferencesPerAction || len(envelope.MethodEvidence) > domain.MaxMethodEvidencePerAction {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The payload exceeds the artifact-reference or method-evidence count limit.")
 	}
 	artifactPaths := map[string]bool{}
-	for _, item := range envelope.Artifacts {
-		if item.Validate() != nil || artifactPaths[item.Path] {
-			return domain.ErrInvalidArgument
+	for index, item := range envelope.Artifacts {
+		if err := item.Validate(); err != nil {
+			return domain.AtField(fmt.Sprintf("payload.artifacts[%d]", index), err)
+		}
+		if artifactPaths[item.Path] {
+			return domain.InvalidArgumentViolations(domain.Violation(fmt.Sprintf("payload.artifacts[%d].path", index), domain.RuleStringListDuplicate))
 		}
 		artifactPaths[item.Path] = true
 	}
@@ -501,7 +516,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 	switch value := result.(type) {
 	case *RequirementsResult:
 		if source != domain.NodeRequirements || value.Baseline == nil {
-			return domain.ErrInvalidArgument
+			return domain.InvalidArgumentViolations(domain.ExplainedViolation("payload.node_result.baseline", domain.RuleMemberDependency, "REQUIREMENTS requires a non-null requirements baseline"))
 		}
 		violations := stringListViolations(map[string][]string{
 			"baseline.scope": value.Baseline.Scope, "baseline.out_of_scope": value.Baseline.OutOfScope,
@@ -519,7 +534,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		}
 	case *DesignResult:
 		if source != domain.NodeDesign || ((envelope.TransitionID == "design_ready") != (value.Baseline != nil)) {
-			return domain.ErrInvalidArgument
+			return domain.InvalidArgumentViolations(domain.ExplainedViolation("payload.node_result.baseline", domain.RuleMemberDependency, "design_ready requires a baseline; other DESIGN transitions require baseline to be null"))
 		}
 		violations := stringListViolations(map[string][]string{"findings": value.Findings})
 		if len(violations) != 0 {
@@ -527,27 +542,31 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		}
 	case *TasksResult:
 		if source != domain.NodeTasks || ((envelope.TransitionID == "tasks_plan_saved") != (value.Baseline != nil)) {
-			return domain.ErrInvalidArgument
+			return domain.InvalidArgumentViolations(domain.ExplainedViolation("payload.node_result.baseline", domain.RuleMemberDependency, "tasks_plan_saved requires a baseline; other TASKS transitions require baseline to be null"))
 		}
 		if envelope.TransitionID != "tasks_ready" && value.UserConfirmation != nil {
-			return domain.ErrInvalidArgument
+			return domain.InvalidArgumentViolations(domain.ExplainedViolation("payload.node_result.user_confirmation", domain.RuleMemberDependency, "user_confirmation is only accepted with tasks_ready"))
 		}
-		if value.UserConfirmation != nil && value.UserConfirmation.Validate() != nil {
-			return domain.ErrInvalidArgument
+		if value.UserConfirmation != nil {
+			if err := value.UserConfirmation.Validate(); err != nil {
+				return domain.AtField("payload.node_result.user_confirmation", err)
+			}
 		}
 		violations := stringListViolations(map[string][]string{"findings": value.Findings})
 		if value.Baseline != nil && !validWorkItemPaths(value.Baseline.WorkItems) {
 			violations = append(violations, domain.Violation("payload.node_result.baseline.work_items", domain.RuleRepositoryPathInvalid))
 		}
-		if value.Baseline != nil && value.Baseline.VerificationPlan.Validate() != nil {
-			return domain.ErrInvalidArgument
+		if value.Baseline != nil {
+			if err := value.Baseline.VerificationPlan.Validate(); err != nil {
+				return domain.AtField("payload.node_result.baseline.verification_plan", err)
+			}
 		}
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
 	case *ImplementationResult:
 		if source != domain.NodeImplement {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "The node-result type does not match the current process node.")
 		}
 		violations := stringListViolations(map[string][]string{"deviations": value.Deviations, "findings": value.Findings})
 		if len(violations) != 0 {
@@ -555,7 +574,7 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		}
 	case *TestResult:
 		if source != domain.NodeTest {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "The node-result type does not match the current process node.")
 		}
 		violations := stringListViolations(map[string][]string{"failed_items": value.FailedItems, "unverified_items": value.UnverifiedItems, "manual_handoff_items": value.ManualHandoffItems, "findings": value.Findings})
 		seen := map[string]bool{}
@@ -594,11 +613,11 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 					domain.GuardViolation("payload.node_result.findings", domain.GuardCollectionMustBeEmpty))
 			}
 		} else if value.BudgetAdjustment != nil {
-			return domain.ErrInvalidArgument
+			return domain.InvalidArgumentViolations(domain.ExplainedViolation("payload.node_result.budget_adjustment", domain.RuleMemberDependency, "budget_adjustment is only accepted with verification_budget_increased"))
 		}
 	case *ComprehensionResult:
 		if source != domain.NodeComprehensionReview {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "The node-result type does not match the current process node.")
 		}
 		violations := stringListViolations(map[string][]string{
 			"explained_components": value.ExplainedComponents, "unresolved_questions": value.UnresolvedQuestions,
@@ -608,13 +627,23 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 			return domain.InvalidArgumentViolations(violations...)
 		}
 		if value.UserConfirmation != nil {
-			if !value.UserConfirmation.Source.IsValid() || !value.UserConfirmation.Status.IsValid() || !validText(value.UserConfirmation.Summary, domain.MaxEvidenceSummaryBytes) {
-				return domain.ErrInvalidArgument
+			var violations []domain.ContractViolation
+			if !value.UserConfirmation.Source.IsValid() {
+				violations = append(violations, domain.Violation("payload.node_result.user_confirmation.source", domain.RuleEvidenceSourceInvalid))
+			}
+			if !value.UserConfirmation.Status.IsValid() {
+				violations = append(violations, domain.Violation("payload.node_result.user_confirmation.status", domain.RuleEvidenceStatusInvalid))
+			}
+			if !validText(value.UserConfirmation.Summary, domain.MaxEvidenceSummaryBytes) {
+				violations = append(violations, domain.Violation("payload.node_result.user_confirmation.summary", domain.RuleTextNotNormalized))
+			}
+			if len(violations) != 0 {
+				return domain.InvalidArgumentViolations(violations...)
 			}
 		}
 	case *RefactorResult:
 		if source != domain.NodeRefactor {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "The node-result type does not match the current process node.")
 		}
 		violations := stringListViolations(map[string][]string{"simplifications": value.Simplifications, "findings": value.Findings})
 		if len(violations) != 0 {
@@ -622,32 +651,32 @@ func ValidatePayload(definition domain.ProcessDefinition, source domain.NodeID, 
 		}
 	case *DeliveryResult:
 		if source != domain.NodeDelivery {
-			return domain.ErrInvalidArgument
+			return domain.WithExplanation(domain.ErrInvalidArgument, "The node-result type does not match the current process node.")
 		}
 		violations := stringListViolations(map[string][]string{"unverified_items": value.UnverifiedItems, "risks": value.Risks, "findings": value.Findings})
 		if len(violations) != 0 {
 			return domain.InvalidArgumentViolations(violations...)
 		}
-		for _, criterion := range value.Acceptance {
-			if criterion.Validate() != nil {
-				return domain.ErrInvalidArgument
+		for index, criterion := range value.Acceptance {
+			if err := criterion.Validate(); err != nil {
+				return domain.AtField(fmt.Sprintf("payload.node_result.acceptance[%d]", index), err)
 			}
 		}
 		for _, ids := range [][]domain.ID{value.AutomatedEvidenceIDs, value.ManualEvidenceIDs} {
 			for _, id := range ids {
 				if !id.IsValid() {
-					return domain.ErrInvalidArgument
+					return domain.WithExplanation(domain.ErrInvalidArgument, "Delivery evidence references must be non-empty identifiers of at most 128 bytes without whitespace.")
 				}
 			}
 		}
 		if value.TestRecordID != "" && !value.TestRecordID.IsValid() {
-			return domain.ErrInvalidArgument
+			return domain.InvalidArgumentViolations(domain.Violation("payload.node_result.test_record_id", domain.RuleIdentifierInvalid))
 		}
 		if value.ComprehensionRecordID != "" && !value.ComprehensionRecordID.IsValid() {
-			return domain.ErrInvalidArgument
+			return domain.InvalidArgumentViolations(domain.Violation("payload.node_result.comprehension_record_id", domain.RuleIdentifierInvalid))
 		}
 	default:
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The node result type is not supported by the current process.")
 	}
 	return nil
 }
@@ -725,14 +754,14 @@ func KnownTransitionGuard(guard domain.TransitionGuardID) bool {
 func validateProblemClass(source domain.NodeID, transition domain.TransitionDefinition, result any) error {
 	class, findings, ok := resultProblemClass(result)
 	if !ok {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The node result has no supported problem_class and findings contract.")
 	}
 	if !problemClassValidForNode(source, class) {
 		return domain.InvalidArgumentViolations(domain.Violation("payload.node_result.problem_class", domain.RuleProblemClassNotValidForNode))
 	}
 	expected, known := problemClassByTransition[transition.TransitionID]
 	if !known {
-		return domain.ErrTransitionNotAllowed
+		return domain.WithExplanation(domain.ErrTransitionNotAllowed, "The selected transition has no defined problem-class condition.")
 	}
 	if class != expected {
 		return domain.TransitionGuardFailure(transition.Guard, domain.GuardViolation("payload.node_result.problem_class", domain.GuardProblemClassTransitionMismatch))
@@ -852,7 +881,7 @@ func decodeClosed(raw []byte, destination any) error {
 		return err
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return domain.ErrInvalidArgument
+		return domain.WithExplanation(domain.ErrInvalidArgument, "The payload contains trailing data after the first JSON value.")
 	}
 	return nil
 }

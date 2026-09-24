@@ -28,7 +28,7 @@ var supportedFileChangeTools = map[domain.Host]map[string]bool{
 func (s *Service) PrepareFileChange(ctx context.Context, request PrepareFileChangeRequest) (PrepareFileChangeResult, error) {
 	if !s.valid() || ctx == nil || !request.Host.IsValid() || !supportedFileChangeTools[request.Host][request.ToolName] ||
 		!validRepositoryPathInput(request.RepositoryPath) || !request.IntentDigest.IsValid() {
-		return PrepareFileChangeResult{}, domain.ErrInvalidArgument
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The application service, request context or required request identity is invalid.")
 	}
 	root := filepath.Clean(request.RepositoryPath)
 	if absolute, absoluteErr := filepath.Abs(root); absoluteErr == nil {
@@ -65,7 +65,7 @@ func (s *Service) PrepareFileChange(ctx context.Context, request PrepareFileChan
 	}
 	if errors.Is(err, store.ErrTaskNotFound) {
 		if identifyErr != nil && !errors.Is(identifyErr, repository.ErrNotGitRepository) {
-			return PrepareFileChangeResult{}, domain.ErrWorkspaceUnavailable
+			return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "The requested worktree could not be identified while checking the active file-scope claim.")
 		}
 		return PrepareFileChangeResult{Decision: FileChangeAllow}, nil
 	}
@@ -73,13 +73,13 @@ func (s *Service) PrepareFileChange(ctx context.Context, request PrepareFileChan
 		return PrepareFileChangeResult{}, mapStoreError(err)
 	}
 	if identifyErr != nil || !taskContainsWorkspaceInstance(task, root, instance) {
-		return PrepareFileChangeResult{}, domain.ErrWorkspaceUnavailable
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "The requested directory no longer identifies the original worktree instance retained by the active Task.")
 	}
 	if task.OriginHost != request.Host {
 		return denyFileChange(task, nil, "The active Dev Flow Task belongs to another Host."), nil
 	}
 	if workflow.ValidateProcessTask(task) != nil {
-		return PrepareFileChangeResult{}, domain.ErrStorageUnavailable
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrStorageUnavailable, "The stored Task does not satisfy the current process definition or saved-record rules.")
 	}
 	if task.CurrentNode == domain.NodeBlocked {
 		return denyFileChange(task, nil, task.Blocker.Message), nil
@@ -118,7 +118,7 @@ func (s *Service) createFileScopeBlocker(ctx context.Context, task domain.Proces
 	}
 	comparison, err := recovery.CompareRepositoryScope(task, fresh)
 	if err != nil {
-		return PrepareFileChangeResult{}, domain.ErrInternal
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrInternal, "The repository observations could not be compared with the Task repository scope.")
 	}
 	if comparison.Relation == recovery.RepositoryForbiddenChange {
 		return PrepareFileChangeResult{}, repositoryDriftError(comparison)
@@ -141,7 +141,7 @@ func (s *Service) createFileScopeBlocker(ctx context.Context, task domain.Proces
 	}
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return PrepareFileChangeResult{}, domain.ErrInternal
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	now := s.now().UTC()
 	source := task.CurrentNode
@@ -163,11 +163,11 @@ func (s *Service) createFileScopeBlocker(ctx context.Context, task domain.Proces
 	}
 	workspace, err := next.EffectiveWorkspaceDigests()
 	if err != nil {
-		return PrepareFileChangeResult{}, domain.ErrInternal
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeBlocked, next.TaskID, next.Revision, workspace, next.Intent.MethodProfile, actionID, now)
 	if err != nil {
-		return PrepareFileChangeResult{}, domain.ErrInternal
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not construct an Action from the current node, Task revision and workspace.")
 	}
 	next.CurrentAction = &action
 	payloadDigest, err := digestCanonical(struct {
@@ -179,12 +179,12 @@ func (s *Service) createFileScopeBlocker(ctx context.Context, task domain.Proces
 		TaskPlanRevision uint32        `json:"task_plan_revision"`
 	}{task.OriginHost, task.TaskID, sourceActionID, paths, intent, task.TaskPlan.Revision})
 	if err != nil {
-		return PrepareFileChangeResult{}, domain.ErrInternal
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the file-scope request identity.")
 	}
 	next.LastOperation = &domain.LastOperation{OperationID: requestID, Kind: domain.OperationPrepareFileChange, ActionID: &sourceActionID, FromRevision: task.Revision, ToRevision: next.Revision, PayloadDigest: payloadDigest, CommittedAt: now}
 	event := store.TaskEvent{EventID: eventID, TaskID: next.TaskID, Revision: next.Revision, Kind: domain.OperationPrepareFileChange, SourceNode: source, DestinationNode: domain.NodeBlocked, TransitionReason: next.Blocker.Message, ActionID: &sourceActionID, RequestID: requestID, PayloadDigest: payloadDigest, CreatedAt: now}
 	if workflow.ValidateProcessTask(next) != nil {
-		return PrepareFileChangeResult{}, domain.ErrInvalidArgument
+		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrInvalidArgument, "The proposed Task state does not satisfy the current process definition and saved-record rules.")
 	}
 	if err := s.taskStore.CommitTask(ctx, store.TaskMutation{ExpectedRevision: task.Revision, Task: next, Event: event, Claim: store.ClaimRetain}); err != nil {
 		return PrepareFileChangeResult{}, mapStoreError(err)
@@ -196,7 +196,7 @@ func (s *Service) createFileScopeBlocker(ctx context.Context, task domain.Proces
 // not pass through a Host pre-write hook.
 func (s *Service) createObservedFileScopeBlocker(ctx context.Context, task domain.ProcessTask, fresh recovery.RepositoryScopeObservation, paths []string, operationID domain.ID) (domain.ProcessTask, error) {
 	if task.CurrentAction == nil || task.TaskPlan == nil || len(paths) == 0 || len(task.FileScopeRecords) >= domain.MaxFileScopeRecords {
-		return domain.ProcessTask{}, domain.ErrInvalidArgument
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInvalidArgument, "Opening a file-scope blocker requires a current Action, Task Plan and changed paths, and available space in the saved file-scope records.")
 	}
 	requestID, err := s.id("scope")
 	if err != nil {
@@ -216,7 +216,7 @@ func (s *Service) createObservedFileScopeBlocker(ctx context.Context, task domai
 	}
 	observed, err := scopeWorkspaceDigests(task, fresh)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The observed repository scope is invalid and cannot produce workspace digests.")
 	}
 	intent, err := digestCanonical(struct {
 		ActionID domain.ID     `json:"action_id"`
@@ -224,11 +224,11 @@ func (s *Service) createObservedFileScopeBlocker(ctx context.Context, task domai
 		Content  domain.Digest `json:"content_digest"`
 	}{task.CurrentAction.ActionID, paths, observed.Content})
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the observed file-scope request.")
 	}
 	next, err := cloneProcessTask(task)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The saved Task could not be decoded into a working copy for this operation.")
 	}
 	now := s.now().UTC()
 	source := task.CurrentNode
@@ -253,7 +253,7 @@ func (s *Service) createObservedFileScopeBlocker(ctx context.Context, task domai
 	workspace, _ := next.EffectiveWorkspaceDigests()
 	action, err := workflow.BuildProcessActionForWorkspace(workflow.StandardProcess(), domain.NodeBlocked, next.TaskID, next.Revision, workspace, next.Intent.MethodProfile, actionID, now)
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "The Task repository scope is invalid and cannot produce workspace digests.")
 	}
 	next.CurrentAction = &action
 	payloadDigest, err := digestCanonical(struct {
@@ -262,7 +262,7 @@ func (s *Service) createObservedFileScopeBlocker(ctx context.Context, task domai
 		Paths          []string  `json:"paths"`
 	}{task.TaskID, requestID, paths})
 	if err != nil {
-		return domain.ProcessTask{}, domain.ErrInternal
+		return domain.ProcessTask{}, domain.WithExplanation(domain.ErrInternal, "Core could not encode the file-scope blocker event.")
 	}
 	next.LastOperation = &domain.LastOperation{OperationID: operationID, Kind: domain.OperationObserveWorkspace, ActionID: &sourceActionID, FromRevision: task.Revision, ToRevision: next.Revision, PayloadDigest: payloadDigest, CommittedAt: now}
 	event := store.TaskEvent{EventID: eventID, TaskID: task.TaskID, Revision: next.Revision, Kind: domain.OperationObserveWorkspace, SourceNode: source, DestinationNode: domain.NodeBlocked, TransitionReason: next.Blocker.Message, ActionID: &sourceActionID, RepositoryDeltaPaths: observedTaskDeltaPaths(task, fresh), RequestID: operationID, PayloadDigest: payloadDigest, CreatedAt: now}
@@ -370,7 +370,7 @@ func consumeFileScopeAuthorizations(task *domain.ProcessTask, paths []string, ac
 		if record.Decision == domain.FileScopeAllowOnce && !record.Consumed && record.AllowedActionID != nil && *record.AllowedActionID == actionID && containsAll(paths, record.Paths) {
 			states, err := task.FileScopePathStates(record.Paths)
 			if err != nil {
-				return domain.ErrInternal
+				return domain.WithExplanation(domain.ErrInternal, "The approved paths could not be matched to the current observed file states.")
 			}
 			record.Consumed = true
 			record.AcceptedPathStates = states

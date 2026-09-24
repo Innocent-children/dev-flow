@@ -35,6 +35,13 @@ and `result`; failure requires `ok:false`, `request_id`, `tool`, `error`, `recov
 The output schema validates both branches. Core owns error classification and permitted recovery;
 Host instructions own retaining the response and executing that recovery.
 
+`error.message` directly states the failed condition or summarizes the field failures. Read the full
+`details`/`guard.failures` when the message is a bounded summary. JSON syntax, member types, duplicate
+members, state restrictions and storage/encoding failures retain their specific reasons. Unknown
+lower-level diagnostics are identified as unknown; do not infer a cause from the error code alone.
+Response-encoding failures retain the actual tool and valid request identity; request-ID generation
+failure uses `request-unavailable` and states that the tool was not executed.
+
 `error.details[]` gives `path`, `rule`, `message` for identified field failures. Guard failures instead
 use `error.guard.guard_id` and `failures[]`. Read these fields before deciding what to change.
 `VERIFICATION_BUDGET_EXCEEDED` describes actual quantities: `error.budget.used`, `requested`, `limit`.

@@ -76,11 +76,7 @@ func ValidateCurrentSubmission(action domain.ProcessAction, blocker *domain.Proc
 	if err != nil {
 		return err
 	}
-	if rawJSONType(raw) != "object" {
-		return domain.ErrInvalidArgument
-	}
-	violations := unknownSubmissionMembers("payload", raw, schema)
-	violations = append(violations, requiredMemberViolations("payload", raw, schema)...)
+	violations := RequestStructureViolations("payload", raw, schema)
 	if len(violations) != 0 {
 		return domain.InvalidArgumentViolations(violations...)
 	}
