@@ -135,6 +135,18 @@ content change; the existing workspace guard handles both.
 
 Finalize requirements, design and plan documents before saving the TASKS draft. Show exact expected files and the reasons for directory ranges. After tasks_plan_saved, retain the complete saved plan and its returned content identifiers. Any revision requires another plan save and current user confirmation; submitting a verdict is not an opportunity to edit the plan being approved.
 
+When the Task declares additional repositories, qualify every submitted repository path, including
+the primary repository's, with its key. A plan for a Task whose primary repository is `core` and
+which also declares `docs` writes both sides of the change:
+
+```json
+{"work_item_id":"work-endpoint","summary":"Return the field and update the shared guide.","expected_paths":["core::src/endpoint.js","docs::guides/endpoint.md"],"acceptance_indexes":[0],"verification_steps":["Run endpoint-check."],"dependencies":[]}
+```
+
+The same qualification applies to `artifacts.current` and `artifacts.other_process` entries. A path
+without its key, and a key the Task does not declare, both fail with `repository_path_invalid` on the
+exact submitted member. A single-repository Task writes plain paths and refuses a keyed one.
+
 ## Confirmed carried content
 
 

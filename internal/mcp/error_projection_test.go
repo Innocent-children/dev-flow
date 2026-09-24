@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -329,4 +330,60 @@ func TestApplyToolBoundaryReportsFieldViolations(t *testing.T) {
 		t.Fatalf("unknown member recovery=%#v", envelope.Recovery)
 	}
 
+}
+
+// TestApplyErrorRepositoryPathDetailNamesTheExactMember proves a repository
+// scope failure on a submission tool returns the failing member with the path
+// rule instead of an uninformative envelope, without offering correction.
+func TestApplyErrorRepositoryPathDetailNamesTheExactMember(t *testing.T) {
+	failure := domain.InvalidArgumentViolations(
+		domain.Violation("payload.node_result.baseline.work_items[0].expected_paths[0]", domain.RuleRepositoryPathInvalid),
+		domain.Violation("payload.artifacts.current[0].path", domain.RuleRepositoryPathInvalid),
+	)
+	envelope := decodeEnvelope(t, EncodeError("request-path-scope", ToolSubmitTasks, failure))
+	if envelope.Error == nil || envelope.Error.Code != domain.ErrorInvalidArgument {
+		t.Fatalf("error=%#v", envelope.Error)
+	}
+	want := []string{"artifacts.current[0].path", "node_result.baseline.work_items[0].expected_paths[0]"}
+	if len(envelope.Error.Details) != len(want) {
+		t.Fatalf("details=%#v", envelope.Error.Details)
+	}
+	for index, path := range want {
+		detail := envelope.Error.Details[index]
+		if detail.Path != path || detail.Rule != domain.RuleRepositoryPathInvalid || detail.Message != domain.RuleRepositoryPathInvalid.Message() {
+			t.Fatalf("detail %d=%#v", index, detail)
+		}
+	}
+	if envelope.Recovery == nil || envelope.Recovery.RetrySafe || envelope.Recovery.Action == correctCurrentAction || len(envelope.Recovery.AllowedPaths) != 0 {
+		t.Fatalf("a repository scope failure offered a correction: %#v", envelope.Recovery)
+	}
+}
+
+// TestRepositoryPathDetailsFitTheResultEnvelope checks the largest path-detail
+// set allowed by the current plan and artifact schemas against the MCP limit.
+func TestRepositoryPathDetailsFitTheResultEnvelope(t *testing.T) {
+	violations := make([]domain.ContractViolation, 0, domain.MaxWorkItemsPerTaskPlan*domain.MaxBoundedStringListItems+domain.MaxArtifactReferencesPerAction)
+	for itemIndex := 0; itemIndex < domain.MaxWorkItemsPerTaskPlan; itemIndex++ {
+		for pathIndex := 0; pathIndex < domain.MaxBoundedStringListItems; pathIndex++ {
+			violations = append(violations, domain.Violation(
+				fmt.Sprintf("payload.node_result.baseline.work_items[%d].expected_paths[%d]", itemIndex, pathIndex),
+				domain.RuleRepositoryPathInvalid,
+			))
+		}
+	}
+	for artifactIndex := 0; artifactIndex < domain.MaxArtifactReferencesPerAction; artifactIndex++ {
+		violations = append(violations, domain.Violation(
+			fmt.Sprintf("payload.artifacts.current[%d].path", artifactIndex),
+			domain.RuleRepositoryPathInvalid,
+		))
+	}
+	encoded := EncodeError("request-all-repository-paths", ToolSubmitTasks, domain.InvalidArgumentViolations(violations...))
+	if !encoded.IsError || !WithinResultEnvelopeLimit(encoded.JSON) {
+		t.Fatalf("encoded result exceeds the envelope: bytes=%d", len(encoded.JSON))
+	}
+	envelope := decodeEnvelope(t, encoded)
+	if envelope.Error == nil || len(envelope.Error.Details) != len(violations) {
+		t.Fatalf("repository path details=%d want=%d", len(envelope.Error.Details), len(violations))
+	}
+	validateSkillSchema(t, mustSchemaJSON(t, toolOutputSchema(ToolSubmitTasks)), encoded.JSON)
 }

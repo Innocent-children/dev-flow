@@ -23,7 +23,8 @@ method evidence.
 Code discovery may span only repositories already present in the immutable Core Repository Scope.
 For a multi-repository Task, keep the repository key attached to every discovered symbol, artifact,
 expected path, and changed surface. Discovery results never add repositories, change permissions,
-or establish Core progress.
+or establish Core progress. The key is part of each submitted repository path, not only of local
+notes; see [Artifact references](#artifact-references) for the exact format.
 
 The Adapter must not derive or select a transition or destination outside the complete current
 Action. A command result, artifact checkbox, proposal status, verification status, or archive status
@@ -148,8 +149,12 @@ internal `MethodEvidence` items in Action order and fills their `step_id` and `s
 Put current-node artifacts in `artifacts.current` when the live schema exposes that slot, and related
 method artifacts in `artifacts.other_process`. Each entry contains only contract `path`, `digest`,
 and `summary`; Core assigns `role` from the slot and current node. A single-repository Task uses an
-ordinary repository-relative path; a multi-repository Task uses
-`<repository-key>::<repository-relative-path>`. Refer
+ordinary repository-relative path. A multi-repository Task qualifies every submitted repository
+path as `<repository-key>::<repository-relative-path>`, including the primary repository, which uses
+its `primary_repository_key`; a plan work item's `expected_paths` follows the same rule. A path
+without its key is refused with `repository_path_invalid`, and a key the Task does not declare is
+refused the same way. A single-repository Task refuses a keyed path, so add the prefix only for a
+Task that declares additional repositories. Refer
 only to a file actually observed by the Host. Never submit full contents, command output, prompts,
 token data, runtime configuration, or private locations. An artifact digest does not replace the
 repository binding. File existence, checkboxes, validation, sync, or archive status never advances

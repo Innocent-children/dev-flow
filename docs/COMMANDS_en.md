@@ -684,7 +684,7 @@ On fresh-session resume, a retained `recovery_assessment` takes precedence over 
 
 `read_next_action` consumes a guarded Action already returned by open/next-action lookup; an advice from saved-state `get_task` requires one guarded lookup. A retained completed assessment does not cause repeated queries.
 
-Task Plan `expected_paths` supports exact paths and a directory suffix `/**`, not general globs; `src` does not cover every file below that directory. Multi-repository paths use `key::relative-path`. `acceptance_indexes` starts at 0 in the current Requirements `acceptance_criteria` array; `dependencies` refers to work-item IDs in the same plan.
+Task Plan `expected_paths` supports exact paths and a directory suffix `/**`, not general globs; `src` does not cover every file below that directory. In a Task that declares additional repositories, every path is written as `key::relative-path`, including the primary repository's paths, which use `primary_repository_key`; a missing key or an undeclared key fails with `repository_path_invalid` on the exact member. A single-repository Task uses plain relative paths. `acceptance_indexes` starts at 0 in the current Requirements `acceptance_criteria` array; `dependencies` refers to work-item IDs in the same plan.
 
 `host-launch prepare` generates `launch_id` when it is omitted and uses that ID for receipt checks. Retry with the returned `receipt.launch_id` to resume the same launch; a receipt already in `prepared` skips fetch. An explicit ID must match the saved receipt.
 

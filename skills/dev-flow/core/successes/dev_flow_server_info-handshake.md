@@ -77,7 +77,7 @@ Complete response:
       "dev_flow_abandon_task"
     ],
     "transport": "stdio",
-    "version": "0.18.0"
+    "version": "0.18.1"
   },
   "tool": "dev_flow_server_info"
 }

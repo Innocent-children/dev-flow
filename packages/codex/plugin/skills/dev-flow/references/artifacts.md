@@ -80,7 +80,9 @@ patch needs its own decision. A failed/invalid internal check exits 2 and stops 
 Nonmatching events and a missing default data store are skipped by the Hook. Do not claim interception
 when the Hook is disabled/untrusted/unavailable. Host policy stops the supported write in that case.
 Bash, external programs and specialized tools are outside this parser; Core can discover their
-Git-visible changes later. Additional authorized repositories use repository-qualified paths.
+Git-visible changes later. In a Task that declares additional repositories, every reported path
+carries its repository key, including the primary repository's paths; the shared
+[artifact contract](artifact-contract.md#planning-files-and-confirmation) shows the exact format.
 
 
 ## Collect and prepare

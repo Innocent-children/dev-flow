@@ -30,7 +30,11 @@ require findings, a reason, `baseline:null` and `user_confirmation:null`.
 
 Core fills baseline.design_revision only for plan saving. Work-item acceptance_indexes are zero-based
 indexes into current requirements.acceptance_criteria. expected_paths supports exact paths or directory/**,
-including repository-qualified paths. The saved verification_plan owns the initial budget.
+not general globs. In a Task that declares additional repositories, every expected path is written as
+`<repository-key>::<repository-relative-path>`, including paths in the primary repository, which use
+`primary_repository_key`; a path without its key, or with a key the Task does not declare, is refused
+with `repository_path_invalid`. A single-repository Task writes plain repository-relative paths and a
+keyed path is refused. The saved verification_plan owns the initial budget.
 
 ## Calls and returned Actions
 

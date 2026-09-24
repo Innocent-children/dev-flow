@@ -7,6 +7,48 @@ import (
 	"github.com/Innocent-children/dev-flow/internal/workflow"
 )
 
+// validateRepositoryScopedPaths compares submitted repository paths with the
+// current Task repository scope before any write. Payload validation only checks
+// path syntax, while the Task scope decides which repository keys and prefixes a
+// path may use, so a path that omits its required key or names an unknown
+// repository is reported here with its exact work item or artifact member.
+func validateRepositoryScopedPaths(task domain.ProcessTask, envelope workflow.StandardPayload, result any) error {
+	var violations []domain.ContractViolation
+	if value, ok := result.(*workflow.TasksResult); ok && value.Baseline != nil {
+		for itemIndex, item := range value.Baseline.WorkItems {
+			for pathIndex, path := range item.ExpectedPaths {
+				if task.ValidateRepositoryPath(path) != nil {
+					violations = append(violations, domain.Violation(
+						fmt.Sprintf("payload.node_result.baseline.work_items[%d].expected_paths[%d]", itemIndex, pathIndex),
+						domain.RuleRepositoryPathInvalid,
+					))
+				}
+			}
+		}
+	}
+	primaryRole, primaryAllowed := workflow.PrimaryArtifactRoleForNode(task.CurrentNode)
+	currentIndex, otherIndex := 0, 0
+	for _, artifact := range envelope.Artifacts {
+		slot, index := "other_process", otherIndex
+		if primaryAllowed && artifact.Role == primaryRole {
+			slot, index = "current", currentIndex
+			currentIndex++
+		} else {
+			otherIndex++
+		}
+		if task.ValidateRepositoryPath(artifact.Path) != nil {
+			violations = append(violations, domain.Violation(
+				fmt.Sprintf("payload.artifacts.%s[%d].path", slot, index),
+				domain.RuleRepositoryPathInvalid,
+			))
+		}
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+	return domain.InvalidArgumentViolations(violations...)
+}
+
 // validateActionResultAgainstTask checks LLM-supplied semantic references before
 // SubmitAction stages an Action operation. The apply functions keep their checks as
 // mutation-boundary defenses; this preflight provides safe field detail while

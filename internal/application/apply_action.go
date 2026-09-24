@@ -154,6 +154,9 @@ func validateStandardRequestAgainstTask(r ApplyActionRequest, task domain.Proces
 	if err := workflow.ValidatePayload(workflow.StandardProcess(), task.CurrentNode, envelope, result, task.CurrentAction.SemanticMethodSteps); err != nil {
 		return err
 	}
+	if err := validateRepositoryScopedPaths(task, envelope, result); err != nil {
+		return err
+	}
 	return validateActionResultAgainstTask(task, transition, result)
 }
 

@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_最后核对：2026 年 9 月 20 日。_
+_最后核对：2026 年 9 月 24 日。_
 
 Dev Flow 仍是一个早期开源项目。本页区分已经稳定发布、只在 beta 或源码中出现、尚未验证，以及
 产品仍需改进的内容。源码可构建或测试通过不会自动扩大稳定支持。
@@ -53,6 +53,19 @@ Windows 真实 Host 验收仍须完成插件 UI 安装与启用、新会话加�
 macOS 实机验证留待后续：在 arm64 Mac 安装最终包，核验 executable 权限与路径，重复上述 UI、Hook 和任务流程，再检查维护、两阶段移除以及保留无关配置和 Task 数据。Windows 检查、交叉编译和 macOS 平台分支模拟均不能完成这份清单。操作入口见 [ZCode 指南](ZCODE.md)。
 
 ## 验证记录
+
+### 2026-09-24：仓库路径校验详情
+
+环境：macOS arm64、Go 1.27.0。检查当前源码，未发布安装包，未操作真实用户数据。
+
+| 检查 | 实际结果与范围 |
+| --- | --- |
+| Core 路径预检 | Application 定向检查通过；多仓库任务缺少 `key::` 前缀、使用未声明 key、单仓库任务误加前缀三种输入均返回带 `repository_path_invalid` 和具体成员路径的零写入 `INVALID_ARGUMENT`。同一提交中的 80 条错误工作项路径和 2 条错误 artifact 路径均被上报 |
+| MCP 端到端 | 临时 SQLite、两仓库 fixture 与真实 dispatch 路径：计划提交返回 `details[0].path=node_result.baseline.work_items[0].expected_paths[0]` 且不提供自动纠正，Task revision 与 TaskPlan 均未写入；带前缀的同一计划提交成功 |
+| 响应容量 | 按当前 Schema 最多 64 个 work item、每项 64 条路径以及 16 个 artifact，生成 4112 条路径错误详情；MCP 响应保留全部详情、符合输出 Schema，且未超过 1 MiB 上限 |
+| 受影响包 | `internal/application`、`internal/mcp`、`internal/domain`、`internal/workflow`、`internal/recovery` 五个包完整检查通过 |
+
+代表性入口为 `go test ./internal/application ./internal/mcp ./internal/domain ./internal/workflow ./internal/recovery`。以上为源码级检查，未运行全仓库套件，也未做真实 Host 会话验证。
 
 ### 2026-09-20：ZCode Windows 本地包
 

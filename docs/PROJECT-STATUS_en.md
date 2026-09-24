@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_Last checked: September 20, 2026._
+_Last checked: September 24, 2026._
 
 Dev Flow remains an early open-source project. This page separates stable releases, beta or source
 capabilities, unverified claims, and product gaps. A buildable source tree or passing tests do not
@@ -55,6 +55,19 @@ Windows Host acceptance still requires UI plugin installation and enablement, Sk
 Native macOS validation remains deferred: install the final package on an arm64 Mac, verify executable permissions and paths, repeat those UI, Hook and Task workflows, then check maintenance, two-stage removal and retention of unrelated configuration and Task data. Windows checks, cross-compilation and simulated macOS platform branches cannot complete this checklist. See the [ZCode guide](ZCODE_en.md) for entrypoints.
 
 ## Verification records
+
+### 2026-09-24: Repository path failure detail
+
+Environment: macOS arm64, Go 1.27.0. Checks used current source; no package was published and no real user data was changed.
+
+| Check | Actual result and scope |
+| --- | --- |
+| Core path preflight | Targeted Application checks passed; a multi-repository plan path that omits its `key::` prefix, one that names an undeclared key, and a single-repository plan path that adds a prefix all return a zero-write `INVALID_ARGUMENT` naming `repository_path_invalid` and the exact member. One submission reported all 80 invalid work-item paths and both invalid artifact paths |
+| MCP end to end | Temporary SQLite, a two-repository fixture and the real dispatch path: the plan submission returned `details[0].path=node_result.baseline.work_items[0].expected_paths[0]` with no automatic correction, and neither the Task revision nor its TaskPlan changed; the same plan with qualified paths then submitted successfully |
+| Response capacity | At the current Schema maximum of 64 work items with 64 paths each and 16 artifacts, 4,112 path failure details were generated; the MCP response retained them all, matched the output Schema, and remained below the 1 MiB limit |
+| Affected packages | The complete `internal/application`, `internal/mcp`, `internal/domain`, `internal/workflow` and `internal/recovery` package checks passed |
+
+The representative entrypoint is `go test ./internal/application ./internal/mcp ./internal/domain ./internal/workflow ./internal/recovery`. These are source-level checks; no full repository suite and no real Host session were run.
 
 ### 2026-09-20: Local ZCode package on Windows
 

@@ -564,7 +564,7 @@ func additionalRepositoryPathSchema(repositoryKey map[string]any) map[string]any
 func actionSubmissionDescription(kind domain.ActionKind) string {
 	description := "Submit the result of the current " + string(kind) + " Action. Core fills the complete Action identity, artifact roles, method step identities and payload envelope."
 	if kind == domain.ActionCompleteTasks {
-		description += " expected_paths supports exact repository-relative paths or a directory followed by /**, not general globs. Multi-repository paths use key::relative-path. acceptance_indexes are zero-based indexes into current requirements.acceptance_criteria."
+		description += " expected_paths supports exact repository-relative paths or a directory followed by /**, not general globs. A multi-repository Task writes every expected path and artifact path as key::relative-path, including the primary repository, which uses primary_repository_key; a single-repository Task uses plain paths. acceptance_indexes are zero-based indexes into current requirements.acceptance_criteria."
 	}
 	if kind == domain.ActionCompleteTest {
 		description += " The Task Plan owns the initial verification budget. A justified verification_budget_increased transition stays in TEST. Automated command_count is 1 to 20; user, static and host_observed use command_count 0 and full_suite false. Every full-suite check records its current reason."
