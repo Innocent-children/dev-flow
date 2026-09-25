@@ -27,7 +27,7 @@
 | Windows/Host 定向测试 | 20 项通过，0 失败、0 跳过；包含中文路径评估、真实临时 Git 仓库、工作树准备、失败 fetch、单次 dispatch 记录、Codex CLI 参数解析、两个 Adapter 的原生 Core 预检、hook 在 cmd/PowerShell 的调用及可恢复清理 |
 | Windows WebUI 原生进程 | 1 项通过；中文空格数据目录、start、重复 start 复用 PID、HTTP 状态、status、stop、停止后重新打开 SQLite |
 | Windows 验证归档 | 1 项通过；三个包分别暂存、压缩、解包，逐文件比对 manifest 所列内容，加载平台模块，执行 Codex/统一入口版本命令和 DeepSeek Core 预检 |
-| Go 定向 package | internal/repository、internal/webui、cmd/dev-flow、internal/store、internal/mcp、internal/version 均通过；仅 Windows 本机执行 |
+| Go 定向 package | internal/repository、internal/webui、cmd/taskbelay、internal/store、internal/mcp、internal/version 均通过；仅 Windows 本机执行 |
 | 平台结构约束 | 3 项通过；Core 语义层无系统判断，Host 消费平台策略，两个平台目录不互相导入或重新选择操作系统 |
 | 安装包元数据 | Codex manifest 闭合清单、DeepSeek manifest 闭合清单与源码归档清单检查通过 |
 | 工具与版本 | npm --version 经实际 Windows 启动器成功；版本同步检查通过 |
@@ -37,13 +37,13 @@ Windows 验证归档只包含 Windows Core，用于验证模块装配与本机�
 
 ## 复现方式
 
-准备好当前 Windows Core，并设置 DEV_FLOW_WINDOWS_CORE 为其仓库外绝对路径。Go 需在当前 PowerShell 的 PATH 中。
+准备好当前 Windows Core，并设置 TASKBELAY_WINDOWS_CORE 为其仓库外绝对路径。Go 需在当前 PowerShell 的 PATH 中。
 
 ~~~powershell
-$env:DEV_FLOW_WINDOWS_CORE = "C:\verification\dev-flow.exe"
-node --test packages/codex/tests/windows-support.test.mjs packages/codex/tests/windows-command.test.mjs packages/codex/tests/task-admission.test.mjs packages/codex/tests/task-launch.test.mjs packages/deepseek/tests/windows-support.test.mjs packages/deepseek/tests/workspace-coordinator.test.mjs packages/dev-flow/tests/windows-support.test.mjs
+$env:TASKBELAY_WINDOWS_CORE = "C:\verification\taskbelay.exe"
+node --test packages/codex/tests/windows-support.test.mjs packages/codex/tests/windows-command.test.mjs packages/codex/tests/task-admission.test.mjs packages/codex/tests/task-launch.test.mjs packages/deepseek/tests/windows-support.test.mjs packages/deepseek/tests/workspace-coordinator.test.mjs packages/taskbelay/tests/windows-support.test.mjs
 node --test packages/codex/tests/windows-webui.test.mjs packages/codex/tests/windows-package.test.mjs
-go test ./internal/repository ./internal/webui ./cmd/dev-flow ./internal/store ./internal/mcp ./internal/version
+go test ./internal/repository ./internal/webui ./cmd/taskbelay ./internal/store ./internal/mcp ./internal/version
 go test ./tests/contract -run 'TestCoreSemanticPackagesContainNoOperatingSystemDecision|TestNodeConsumersUseClosedPlatformImplementations|TestHostPlatformImplementationsRemainSeparate'
 node scripts/check-versions.mjs
 ~~~
@@ -78,8 +78,8 @@ Windows 实现位于 packages/desktop-pet/windows，运行时依赖仅在该目�
 
 统一入口检查使用包含两个完整 Adapter 包与 Windows 桌面程序的本地分发包。
 
-已用独立的 npm 前缀、CODEX_HOME、DSH_HOME 和产品数据目录调用真实 Codex、DSH 与 dev-flow 命令，完成 install、pet start、重复启动、宠物运行中 reinstall、doctor、uninstall 和再次 install。注册与安装没有使用手工补写。卸载后的设置保留已检查。首次宠物启动约 1.25 秒返回，重复启动约 0.69 秒返回，修复了此前依赖超时才能返回的问题。
+已用独立的 npm 前缀、CODEX_HOME、DSH_HOME 和产品数据目录调用真实 Codex、DSH 与 taskbelay 命令，完成 install、pet start、重复启动、宠物运行中 reinstall、doctor、uninstall 和再次 install。注册与安装没有使用手工补写。卸载后的设置保留已检查。首次宠物启动约 1.25 秒返回，重复启动约 0.69 秒返回，修复了此前依赖超时才能返回的问题。
 
-本机真实配置随后同样使用 npm 引导统一入口，再执行 dev-flow install --host all --profile web --yes、status 和 pet start。检查时 Codex、DeepSeek web 均为 ready，宠物成功运行。安装器在 Windows 按目标包的实际可执行路径、命令和进程创建时间停止占用文件的 MCP 实例；这是统一流程的代码，不是手工终止步骤。
+本机真实配置随后同样使用 npm 引导统一入口，再执行 taskbelay install --host all --profile web --yes、status 和 pet start。检查时 Codex、DeepSeek web 均为 ready，宠物成功运行。安装器在 Windows 按目标包的实际可执行路径、命令和进程创建时间停止占用文件的 MCP 实例；这是统一流程的代码，不是手工终止步骤。
 
 完整包不再缺少 Mac Core 文件；只做交叉编译与制包检查，没有运行 Mac 程序或 Mac 测试。本轮没有发布 npm 或修改公开稳定版本。

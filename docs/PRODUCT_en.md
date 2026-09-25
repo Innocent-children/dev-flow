@@ -1,14 +1,16 @@
-# Dev Flow Product Definition
+# TaskBelay Product Definition
 
 [中文](PRODUCT.md) | [English](PRODUCT_en.md)
 
 ## Product position
 
-**Long-running AI coding, under control.**
+**Long-running AI coding, on belay.**
 
-Your coding agent decides what to do next. Dev Flow keeps the task under control.
+In climbing, a belayer manages the rope while the climber chooses the route. TaskBelay applies that idea to coding: the agent makes technical decisions, while TaskBelay checks approved scope and verification limits and uses saved records to recover from failures or uncertain results. It is neither a sandbox nor another coding agent.
 
-The Host / coding agent—Codex, DeepSeek, Claude Code or ZCode—understands requirements, reads code, reasons about technical solutions, chooses the next action, edits code and runs commands. Dev Flow does not replace that reasoning. It maintains a durable control boundary around the engineering task:
+Your coding agent decides what to do next. TaskBelay keeps the task under control.
+
+The Host / coding agent—Codex, DeepSeek, Claude Code or ZCode—understands requirements, reads code, reasons about technical solutions, chooses the next action, edits code and runs commands. TaskBelay does not replace that reasoning. It maintains a durable control boundary around the engineering task:
 
 - **Explicit Scope:** check actual changes against the approved plan. Unplanned files need a recorded decision; expanding the plan requires renewed approval.
 - **Bounded Verification:** plan relevant checks and effort limits. Additional verification needs a concrete recorded reason; spare capacity alone does not justify wider testing.
@@ -21,15 +23,15 @@ A Task is a persisted development job; an Action is an operation Core issues for
 
 The product serves developers using Codex, DeepSeek, Claude Code or ZCode on real repositories over multiple sessions or days. It fits public-interface, persistence, multi-component and recovery-sensitive changes, as well as work requiring explicit file scope and verification effort.
 
-Other changes in a shared checkout can obscure ownership. Chat history alone may not establish whether tests remain valid, an operation succeeded, or work remains after an interruption. Dev Flow defaults to a new branch in the current directory, also supports the current branch or a dedicated worktree, and retains requirements, plans, check results, blocker reasons and recovery information.
+Other changes in a shared checkout can obscure ownership. Chat history alone may not establish whether tests remain valid, an operation succeeded, or work remains after an interruption. TaskBelay defaults to a new branch in the current directory, also supports the current branch or a dedicated worktree, and retains requirements, plans, check results, blocker reasons and recovery information.
 
 Direct Host use is usually simpler for one-off questions, explanations, status queries and small mechanical edits. A few explicitly selected repositories may share one Task, but multi-repository work and worktree handoff are advanced capabilities, not the primary use case.
 
 ## Task creation and resume
 
-A new request receives a read-only assessment of discovered impact, unknowns and a recommendation. The developer chooses direct work, Dev Flow or clarification; an explicit selector does not skip assessment. Before selection there is no Task creation, Git mutation or development-session dispatch.
+A new request receives a read-only assessment of discovered impact, unknowns and a recommendation. The developer chooses direct work, TaskBelay or clarification; an explicit selector does not skip assessment. Before selection there is no Task creation, Git mutation or development-session dispatch.
 
-After choosing Dev Flow, the default creates a task branch from the current HEAD in the current
+After choosing TaskBelay, the default creates a task branch from the current HEAD in the current
 directory. Explicit alternatives retain the current branch or create a dedicated worktree. Local modes
 reuse dependencies, local configuration and build outputs, continuing the same session when it has all
 required directory permissions. The Host shows directories, current branches and initial changes and
@@ -56,11 +58,11 @@ Explicit resume returns to the original working-directory instance and saved sta
 
 ## Planning discussion before implementation
 
-The Host shows the requirements and acceptance criteria, the design and its impact, and the complete work, expected-file and verification plan, then discusses the developer's changes. Separate approval at every stage is unnecessary, but implementation requires explicit approval of the complete plan. Choosing Dev Flow or workspace parameters does not approve an unseen plan.
+The Host shows the requirements and acceptance criteria, the design and its impact, and the complete work, expected-file and verification plan, then discusses the developer's changes. Separate approval at every stage is unnecessary, but implementation requires explicit approval of the complete plan. Choosing TaskBelay or workspace parameters does not approve an unseen plan.
 
 Core saves the draft and stays in task planning while waiting. Approval references the exact current requirements, design, plan content and planning round. Revisions invalidate earlier approval; a resumed session can continue from the same saved draft. Prefer exact files and explain the purpose and coverage of directory ranges. Expanding scope requires saving and confirming a revised plan.
 
-Codex launch preparation requires the complete impact assessment and the developer's mode choice. Missing data or unresolved unknowns prevent worktree preparation. Still-valid choices, explicit task resume and confirmed launch continuation remain effective. The Host owns actual presentation and user replies; Core cannot authenticate conversation content or intercept editing that never calls Dev Flow.
+Codex launch preparation requires the complete impact assessment and the developer's mode choice. Missing data or unresolved unknowns prevent worktree preparation. Still-valid choices, explicit task resume and confirmed launch continuation remain effective. The Host owns actual presentation and user replies; Core cannot authenticate conversation content or intercept editing that never calls TaskBelay.
 
 ## Change and verification rules
 
@@ -105,7 +107,7 @@ DONE or CANCELLED ends the Task and releases repository claims without automatic
 
 When there are no tasks to display, only the character remains; task bubbles and the task count control are hidden. Bubbles return when tasks appear. Clicking the character still opens the task list.
 
-The formal `@imotong/dev-flow` npm package includes the macOS arm64 and Windows 10/11 x64 desktop apps and default artwork. A configured Adapter supplies Core. Maintenance commands refresh the app copy while preserving settings and appearances. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.
+The formal `@imotong/taskbelay` npm package includes the macOS arm64 and Windows 10/11 x64 desktop apps and default artwork. A configured Adapter supplies Core. Maintenance commands refresh the app copy while preserving settings and appearances. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.
 
 ## Product boundaries
 

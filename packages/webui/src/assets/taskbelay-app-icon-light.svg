@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">TaskBelay light app icon</title>
+  <desc id="desc">TaskBelay mark centered on a rounded square with clear space on every side.</desc>
+  <rect x="32" y="32" width="960" height="960" rx="220" fill="#F1F5FF"/>
+<svg x="0" y="0" width="1024" height="1024" viewBox="0 0 512 512">
+  <title id="mark-title">TaskBelay primary mark</title>
+  <desc id="mark-desc">A coding-agent terminal advances along a continuous road between blue guardrails. A gentle upper-right fork joins the main road underneath the right guardrail.</desc>
+  <defs>
+    <linearGradient id="mark-rail" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#4FC8F5"/>
+      <stop offset="1" stop-color="#3F6FFF"/>
+    </linearGradient>
+    <linearGradient id="mark-agent" x1="0" y1="1" x2="0.82" y2="0">
+      <stop offset="0" stop-color="#4FC8F5"/>
+      <stop offset="1" stop-color="#3F6FFF"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(-6 -3)">
+    <path id="mark-road-surface" d="M154 428 C177 334 201 215 208 110 Q209 98 221 98 H291 Q303 98 304 110 C305.75 136.25 308.5625 163.375 312.15625 190.76563 C316.9 226.92125 374.27757 187.12178 409.27757 126.5 A17 17 0 0 1 438.72243 143.5 C393.72243 221.44229 324.08178 270.27633 332.3345 312.15001 C340.3756 352.95 349.26 392.28 358 428 Q360 436 350 436 H162 Q152 436 154 428 Z" fill="#12213F"/>
+    <g fill="#FFFFFF">
+      <rect x="248" y="360" width="16" height="46" rx="8"/>
+      <rect x="249" y="311" width="14" height="29" rx="7"/>
+    </g>
+    <path d="M256 164 V125 M236 145 L256 125 L276 145" fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g fill="none" stroke-linecap="round">
+      <path d="M105 418 C139 324 167 204 174 100" stroke="#1B2E59" stroke-width="46"/>
+      <path d="M407 418 C373 324 345 204 338 100" stroke="#1B2E59" stroke-width="46"/>
+      <path d="M105 418 C139 324 167 204 174 100" stroke="url(#mark-rail)" stroke-width="26"/>
+      <path d="M407 418 C373 324 345 204 338 100" stroke="url(#mark-rail)" stroke-width="26"/>
+    </g>
+    <g transform="translate(397 177)" fill="none" stroke-linecap="round">
+      <path d="M-14 -14 L14 14 M14 -14 L-14 14" stroke="#793646" stroke-width="16"/>
+      <path d="M-14 -14 L14 14 M14 -14 L-14 14" stroke="#F2767D" stroke-width="10"/>
+    </g>
+    <g transform="translate(256 237) rotate(-7)">
+      <rect x="-36" y="-36" width="72" height="72" rx="22" fill="url(#mark-agent)" stroke="#FFFFFF" stroke-width="6.5"/>
+      <path d="M-17 -10 L-6 0 L-17 10 M6 11 H20" fill="none" stroke="#FFFFFF" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+</svg>
+</svg>

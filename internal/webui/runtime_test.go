@@ -9,7 +9,7 @@ import (
 
 func TestRuntimeReceiptReuseAndServeLifecycle(t *testing.T) {
 	dataDirectory := t.TempDir()
-	coreIdentity := "dev-flow/test"
+	coreIdentity := "taskbelay/test"
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- Serve(ctx, dataDirectory, coreIdentity) }()
@@ -55,12 +55,12 @@ func TestStatusRejectsMismatchedLiveCoreIdentity(t *testing.T) {
 	dataDirectory := t.TempDir()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- Serve(ctx, dataDirectory, "dev-flow/one") }()
+	go func() { done <- Serve(ctx, dataDirectory, "taskbelay/one") }()
 	t.Cleanup(func() { cancel(); <-done })
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		state, _ := Status(context.Background(), dataDirectory, "dev-flow/two")
+		state, _ := Status(context.Background(), dataDirectory, "taskbelay/two")
 		if state.Readiness == ReadinessIncompatible {
 			return
 		}

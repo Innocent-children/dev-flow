@@ -5,7 +5,7 @@
 ## Use case
 
 Developers can reuse the dependencies, local configuration and build outputs in an existing directory
-while Dev Flow retains development progress. The default creates a task branch from the current HEAD
+while TaskBelay retains development progress. The default creates a task branch from the current HEAD
 in the current directory. Explicit alternatives retain the current branch or create a dedicated worktree.
 The Host shows the actual directories, branches and initial changes, and retains valid user choices.
 

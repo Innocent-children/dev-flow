@@ -1,4 +1,4 @@
-# Dev Flow Architecture
+# TaskBelay Architecture
 
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
@@ -8,7 +8,7 @@
 
 ## Core rule
 
-Dev Flow stores business state once. Go Core owns the Task, node, legal transitions, scope,
+TaskBelay stores business state once. Go Core owns the Task, node, legal transitions, scope,
 verification, Recovery, blockers, claims, and outcome. Codex, DeepSeek, Claude Code, ZCode, and WebUI are Host Adapters.
 Core observes Git read-only; only a Host may perform developer-confirmed fetch, branch, worktree,
 relaunch, handoff, and cleanup operations.
@@ -17,7 +17,7 @@ relaunch, handoff, and cleanup operations.
 flowchart TB
     U[Developer] --> H[Codex / DeepSeek / Claude Code / ZCode Adapter]
     H --> A[Read-only change assessment]
-    A --> C{Choose Dev Flow?}
+    A --> C{Choose TaskBelay?}
     C -->|No| D[Direct work · no Core Task]
     C -->|Yes| P[Confirm source/base/target/carry]
     P --> W[Host launch receipt + prepared workspace]
@@ -51,7 +51,7 @@ persistence_or_state_flags
 host_or_platform_flags
 verification_shape
 unknowns
-recommendation: direct | dev_flow | clarify
+recommendation: direct | taskbelay | clarify
 reasons
 ```
 
@@ -63,7 +63,7 @@ Bootstrap reuses the saved assessment and confirmations, but still checks the re
 phase, destination worktree identity, and permissions before choosing initialization, Task creation,
 or Task resume.
 
-After choosing Dev Flow, `workspace_mode` defaults to `new_branch`, creating a branch from current
+After choosing TaskBelay, `workspace_mode` defaults to `new_branch`, creating a branch from current
 HEAD in the existing directory. Explicit alternatives are `current_branch` and `dedicated_worktree`.
 Core retains the same choice in `WorkspaceOrigin.mode`. Local modes use the local source, starting
 current branch and HEAD. The Host owns branch creation; Core checks read-only. `carry_changes` accepts
@@ -143,7 +143,7 @@ new Codex session.
 
 ## WorkspaceOrigin and RepositoryBinding
 
-For new Task creation, `dev_flow_open_task` retains the request, initial bounds, known acceptance,
+For new Task creation, `taskbelay_open_task` retains the request, initial bounds, known acceptance,
 and method profile, but accepts no final verification budget. It also accepts a primary
 `workspace_origin` and the same member on each additional repository:
 
@@ -212,7 +212,7 @@ differences still affect the digest. Observation does not write the index.
 
 ## Observation and blockers
 
-Explicit resume through `dev_flow_open_task` and `dev_flow_get_next_action` observe every Task root
+Explicit resume through `taskbelay_open_task` and `taskbelay_get_next_action` observe every Task root
 before returning substantive work. Normal Action submission, Recovery, and cancellation use the same
 observation/classification path.
 
@@ -344,14 +344,14 @@ unrelated historical issues stay outside the current review, Task work, and deli
 Workspace relocation requires all repositories to use `dedicated_worktree`. Local modes are rejected
 before BLOCKED and retain the original directory; terminal local cleanup is not applicable.
 
-`dev_flow_prepare_task_relocation` moves the Task to `BLOCKED` and retains relocation ID, source
+`taskbelay_prepare_task_relocation` moves the Task to `BLOCKED` and retains relocation ID, source
 bindings, base, content, surface, and resume node while source claims remain active. The Host performs
-one same-machine handoff. `dev_flow_resolve_blocker` then supplies relocation ID and destination
+one same-machine handoff. `taskbelay_resolve_blocker` then supplies relocation ID and destination
 repository paths. Core verifies repository group, base, equivalent surface, and claims, atomically
 replaces every binding/claim, and resumes.
 
-Ordinary `dev_flow_cancel_task` still observes the worktree. When the exact instance is genuinely gone,
-only `dev_flow_abandon_task(host, task_id, revision, reason)` may retain the last known binding, enter
+Ordinary `taskbelay_cancel_task` still observes the worktree. When the exact instance is genuinely gone,
+only `taskbelay_abandon_task(host, task_id, revision, reason)` may retain the last known binding, enter
 CANCELLED, and release claims. It never accesses or deletes Git resources.
 
 DONE/CANCELLED end the Task and release claims only. Terminal projection shows source/base/base commit,
@@ -364,23 +364,23 @@ separate authorization.
 The fixed MCP tool list contains seventeen tools:
 
 ```text
-dev_flow_server_info
-dev_flow_open_task
-dev_flow_get_task
-dev_flow_get_next_action
-dev_flow_submit_requirements
-dev_flow_submit_design
-dev_flow_submit_tasks
-dev_flow_submit_implementation
-dev_flow_submit_test
-dev_flow_submit_comprehension
-dev_flow_submit_refactor
-dev_flow_submit_delivery
-dev_flow_resolve_blocker
-dev_flow_recover_action
-dev_flow_cancel_task
-dev_flow_prepare_task_relocation
-dev_flow_abandon_task
+taskbelay_server_info
+taskbelay_open_task
+taskbelay_get_task
+taskbelay_get_next_action
+taskbelay_submit_requirements
+taskbelay_submit_design
+taskbelay_submit_tasks
+taskbelay_submit_implementation
+taskbelay_submit_test
+taskbelay_submit_comprehension
+taskbelay_submit_refactor
+taskbelay_submit_delivery
+taskbelay_resolve_blocker
+taskbelay_recover_action
+taskbelay_cancel_task
+taskbelay_prepare_task_relocation
+taskbelay_abandon_task
 ```
 
 Store implements one current SQLite Schema, strict snapshot codec, Action operation, append-only
@@ -421,7 +421,7 @@ Claude Write/Edit/NotebookEdit inputs supply complete targets and original-input
 
 `packages/zcode/` owns the native ZCode plugin, MCP/Hook transport, local preparation records and workspace continuation guidance. The distinct `zcode` identity participates in Core, MCP schemas, configuration preferences and Task ownership checks. It does not reuse another Host identity or change the SQLite layout, process definition, nodes or edges.
 
-The package root contains `.zcode-plugin/plugin.json`, `marketplace.json`, `.mcp.json`, `skills/dev-flow/`, `hooks/hooks.json`, CLI and both Core runtimes as one self-contained artifact. ZCode's process executor uses separate command/args and `ZCODE_PLUGIN_ROOT`; hooks are discovered in the standard directory. Write/Edit provide the complete `tool_input.file_path` and original-input digest to Core. Explicit Core denial outputs `permissionDecision=deny` and exits 0; event parsing or check execution errors exit 2 to reject the protected operation. Exit 0 alone does not establish write permission. Shell and external writes remain subject to later observation.
+The package root contains `.zcode-plugin/plugin.json`, `marketplace.json`, `.mcp.json`, `skills/taskbelay/`, `hooks/hooks.json`, CLI and both Core runtimes as one self-contained artifact. ZCode's process executor uses separate command/args and `ZCODE_PLUGIN_ROOT`; hooks are discovered in the standard directory. Write/Edit provide the complete `tool_input.file_path` and original-input digest to Core. Explicit Core denial outputs `permissionDecision=deny` and exits 0; event parsing or check execution errors exit 2 to reject the protected operation. Exit 0 alone does not establish write permission. Shell and external writes remain subject to later observation.
 
 The Adapter validates local files and Core before saving preparation records. The manager's `hosts/zcode.mjs` owns package discovery, lifecycle and Core candidates. These records establish only the local source, without observing UI installation, cache or enablement, so the result is `action_required`. Actual Host loading and model-session checks are recorded separately. Ordinary uninstall retains the Adapter and `removal_required` record; after UI removal and session closure, `remove --confirm-host-removed` clears the record before package removal. A remaining package or record blocks shared-data reset because source-package process checks cannot establish that all cached Core processes stopped.
 
@@ -431,8 +431,8 @@ Git workspace operations reuse `packages/host-workspace/`, and command invocatio
 
 Core, Codex, DeepSeek, Claude, ZCode, and the unified lifecycle package have independent versions. `CORE_VERSION` is
 the machine-readable Core version file; npm versions remain in each `package.json`, and ordinary product
-work performs no release. Host packages carry exact `darwin-arm64/dev-flow` and
-`win32-x64/dev-flow.exe` runtime pairs.
+work performs no release. Host packages carry exact `darwin-arm64/taskbelay` and
+`win32-x64/taskbelay.exe` runtime pairs.
 
 | Path | Responsibility |
 | --- | --- |
@@ -452,7 +452,7 @@ Source, machine-readable schemas, package manifests, CLI parsers, and executable
 
 ## Desktop pet responsibilities
 
-`packages/dev-flow/lib/pet.mjs` reuses installed Adapter Core selection and WebUI commands; macOS
+`packages/taskbelay/lib/pet.mjs` reuses installed Adapter Core selection and WebUI commands; macOS
 invocation lives in `lib/platform/macos/pet.mjs`. `packages/desktop-pet/macos` owns AppKit windows,
 read-only HTTP, presentation, process identity, the single instance, and preferences. Each observation
 checks the same Core and service identities; cancellation invalidates old responses. Each round pages through blocked and active tasks and deduplicates by task ID. Detail reads confirm the state of previously observed tasks that disappear from the lists and of the pinned task. List absence alone does not mean completion. Failed reads retain the last successful collection, and stale responses cannot overwrite a newer choice. The chooser pages on demand.
@@ -462,9 +462,9 @@ checks the same Core and service identities; cancellation invalidates old respon
 The macOS pet derives `process_start_identity` from the kernel's process creation seconds and microseconds, stored as a decimal `seconds:microseconds` string independent of locale and timezone. Restore and stop also verify the PID, owning user and executable path; failed native reads leave the process unidentified. Stop the old instance before replacing the application; the new instance writes a runtime record in the current format.
 Core data, the process graph, and MCP tools retain their owners.
 
-`PetMenuBarIcon` draws the 18 pt Dev Flow mark using AppKit paths and supplies a template image. `PetMenu` installs it on the menu bar button, and macOS applies the appearance color.
+`PetMenuBarIcon` draws the 18 pt TaskBelay mark using AppKit paths and supplies a template image. `PetMenu` installs it on the menu bar button, and macOS applies the appearance color.
 
-`scripts/build-desktop-pet.mjs` owns macOS compilation, resources and ad-hoc signing; `scripts/build-desktop-pet-windows.mjs` owns Windows application assembly. Local development packages reuse those functions. `release/dev-flow/prepare.mjs` stages the source file list, builds the macOS application and assembles the locked Windows x64 Electron distribution. It packs both runtime directories, checks application versions and default artwork, preserves executable permissions and compares every extracted file before writing release records. The formal package contains no local Adapter archives; configured Adapters provide Core.
+`scripts/build-desktop-pet.mjs` owns macOS compilation, resources and ad-hoc signing; `scripts/build-desktop-pet-windows.mjs` owns Windows application assembly. Local development packages reuse those functions. `release/taskbelay/prepare.mjs` stages the source file list, builds the macOS application and assembles the locked Windows x64 Electron distribution. It packs both runtime directories, checks application versions and default artwork, preserves executable permissions and compares every extracted file before writing release records. The formal package contains no local Adapter archives; configured Adapters provide Core.
 
 `plan.mjs` adds an explicit pet installation action for confirmed maintenance when the package provides an app, including when no Adapter update is needed. `lifecycle.mjs` stops the pet before maintenance and executes the action. Platform installers stage and replace the app directory while retaining settings and appearances. Startup prefers the user-directory app, then the bundled app. See the [desktop pet guide](DESKTOP-PETS_en.md#updating-the-program-and-artwork).
 
@@ -472,7 +472,7 @@ User appearances live in `productRoot/pet/appearances/<id>`. `PetAppearanceStore
 reads, validation, and replacement. Complete converted packs pass the same checks as loading in a
 temporary directory before installation. `AppearanceImages` checks memory estimates from image
 dimensions and bit depth before decoding pixels. `CodexPetImporter` crops standard Codex format 1/2
-atlases and Dev Flow's own high-resolution extension during import, preserving all nine clips, 57 frames,
+atlases and TaskBelay's own high-resolution extension during import, preserving all nine clips, 57 frames,
 and cell resolution. `AnimationCatalog` defines five required task clips and four optional additional
 clips, validating every supplied clip;
 `PetAppearanceSelection` keeps successful loading and saved selection consistent; `PetCharacterView`
@@ -510,29 +510,29 @@ Windows Codex registration validates marketplace `name` and `root` together with
 
 ## Windows desktop responsibilities
 
-`packages/desktop-pet/windows/` owns the Electron window, tray, renderer, local observation and artwork handling; macOS retains Swift/AppKit. Both read Core state. `scripts/build-desktop-pet-windows.mjs` assembles the Windows desktop distribution with the Codex, DeepSeek, Claude and ZCode Adapter packages. The launcher verifies bundled hashes and manages application replacement while preserving settings and artwork in `%LOCALAPPDATA%\dev-flow\pet`.
+`packages/desktop-pet/windows/` owns the Electron window, tray, renderer, local observation and artwork handling; macOS retains Swift/AppKit. Both read Core state. `scripts/build-desktop-pet-windows.mjs` assembles the Windows desktop distribution with the Codex, DeepSeek, Claude and ZCode Adapter packages. The launcher verifies bundled hashes and manages application replacement while preserving settings and artwork in `%LOCALAPPDATA%\taskbelay\pet`.
 
 The Windows path implementation resolves existing AppData directories to actual paths, including aliases supplied by packaged desktop hosts, while rejecting symbolic links. GUI launch uses `Start-Process` and a per-launch acknowledgment, so the persistent desktop process does not retain the invoking terminal’s output handles. Platform maintenance identifies Core by full executable path, command and creation time before stopping instances for replacement.
 
 ## Current DSH interface
 
-The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/dev-flow`, worktree confirmations, and structured file writes; Core continues to own Task state.
+The current source DeepSeek Adapter requires DSH `>=0.1.2-rc.1`. It reads the current turn and direct user input through Session `snapshotEvents()` to check `/taskbelay`, worktree confirmations, and structured file writes; Core continues to own Task state.
 
 The workspace command runner, `runClosedCommand()`, returns complete results after the child process exits and stdout/stderr close, so incomplete Git output cannot determine repository identity or content. Timeout, cancellation, or output overflow stops collection and rejects success, with bounded completion even when descendants retain output pipes after the parent exits. Mutating commands that have started report an uncertain outcome in these cases so the Host can preserve resources and recover.
 
 ## Lifecycle CLI responsibilities
 
-`packages/dev-flow/lib/cli.mjs` parses arguments and organizes menus; `terminal.mjs` retains input across one interactive session, and `presentation.mjs` renders plans, progress and results. `plan.mjs` creates maintenance actions and confirmation requirements. `lifecycle.mjs` observes state, resolves target versions, presents the plan and obtains confirmation before executing and recording results. It calls drivers for the explicitly selected Host/Profile and recreates them after installation paths are canonicalized, so subsequent operations use the same paths. `diagnostics.mjs` collects installation and user-configuration checks. Retries observe actual installation state; installation records do not determine Core Task state.
+`packages/taskbelay/lib/cli.mjs` parses arguments and organizes menus; `terminal.mjs` retains input across one interactive session, and `presentation.mjs` renders plans, progress and results. `plan.mjs` creates maintenance actions and confirmation requirements. `lifecycle.mjs` observes state, resolves target versions, presents the plan and obtains confirmation before executing and recording results. It calls drivers for the explicitly selected Host/Profile and recreates them after installation paths are canonicalized, so subsequent operations use the same paths. `diagnostics.mjs` collects installation and user-configuration checks. Retries observe actual installation state; installation records do not determine Core Task state.
 
 The DeepSeek driver reads a single artifact report from the list or package-name map returned by `npm pack --json` and checks its package name, version and filename before changing a Profile. Claude and ZCode CLI entrypoints compare real file paths to detect direct execution, including npm-generated command symlinks. Their manager drivers validate the JSON and expected state returned by `setup` before recording the registration step as complete, then read the installation back through `status`. Errors for empty output or invalid JSON identify the command.
 
 | Module | Responsibility |
 | --- | --- |
-| `packages/dev-flow/lib/hosts/` | Codex, DeepSeek, Claude and ZCode drivers each own package discovery and private installation records; DeepSeek also owns Profile rules. Each driver executes confirmed Adapter operations. `runtimeCandidates()` supplies startup candidates; `maintenanceTargets()` supplies package and Core locations for registered installations and packages left by interrupted installation. |
-| `packages/dev-flow/lib/core-runtime.mjs` | Check the common packaged runtime layout, package identity, canonical paths, executable file and Core version. |
-| `packages/dev-flow/lib/core-maintenance.mjs` | Coordinate the known Core service locations for reset and use the existing WebUI status/stop protocol; platform implementations own process inspection and termination. |
-| `packages/dev-flow/lib/runtime.mjs` | Collect driver candidates and call shared validation, select by Core version and source, prepare the data directory, and forward startup arguments and signals. |
-| `packages/dev-flow/lib/platform/` | Receive resolved package and Core executable locations, then handle system paths, permissions, process shutdown, cleanup and command argument quoting. Windows maintenance identifies processes to stop by the actual executable, command and creation time. |
+| `packages/taskbelay/lib/hosts/` | Codex, DeepSeek, Claude and ZCode drivers each own package discovery and private installation records; DeepSeek also owns Profile rules. Each driver executes confirmed Adapter operations. `runtimeCandidates()` supplies startup candidates; `maintenanceTargets()` supplies package and Core locations for registered installations and packages left by interrupted installation. |
+| `packages/taskbelay/lib/core-runtime.mjs` | Check the common packaged runtime layout, package identity, canonical paths, executable file and Core version. |
+| `packages/taskbelay/lib/core-maintenance.mjs` | Coordinate the known Core service locations for reset and use the existing WebUI status/stop protocol; platform implementations own process inspection and termination. |
+| `packages/taskbelay/lib/runtime.mjs` | Collect driver candidates and call shared validation, select by Core version and source, prepare the data directory, and forward startup arguments and signals. |
+| `packages/taskbelay/lib/platform/` | Receive resolved package and Core executable locations, then handle system paths, permissions, process shutdown, cleanup and command argument quoting. Windows maintenance identifies processes to stop by the actual executable, command and creation time. |
 
 Reset keeps shared-service shutdown separate from executable replacement. After confirmation the manager
 retains the managed Adapter locations, stops the pet, WebUI and identified STDIO Core instances, removes
@@ -558,7 +558,7 @@ The manager's `resolveManagerPaths()` obtains permission policy from the platfor
 
 ## Artifact preparation
 
-Before ordinary submission, Codex runs `dev-flow-codex artifacts collect` and `dev-flow-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
+Before ordinary submission, Codex runs `taskbelay-codex artifacts collect` and `taskbelay-codex artifacts prepare`, reusing Core’s complete Git observation for the current Action. Codex supplies file purpose and summary; preparation checks the collection against the current observation and generates artifact arrays. Missing process files receive exact paths and one correction limited to artifact fields. Real repository failures retain their existing recovery rules. See [artifact collection and submission](ARTIFACTS_en.md).
 
 ## Host interface descriptions and recovery entry points
 

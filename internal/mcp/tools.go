@@ -10,9 +10,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 type openWire struct {

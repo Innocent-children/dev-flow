@@ -1,21 +1,23 @@
 <p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow 图标" />
+  <img src="packages/webui/src/assets/taskbelay-app-icon-light.svg" width="112" height="112" alt="TaskBelay 图标" />
 </p>
 
-<h1 align="center">Dev Flow</h1>
+<h1 align="center">TaskBelay</h1>
 
-<p align="center"><strong>长时 AI 编程，始终有界。</strong></p>
+<p align="center"><strong>长时 AI 编程，始终有人保护。</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## Dev Flow 能帮你做什么
+## TaskBelay 能帮你做什么
 
 技术判断，交给 Agent。<br />
-任务边界，交给 Dev Flow。
+任务边界，交给 TaskBelay。
 
 配合 Codex、DeepSeek、Claude Code 或 ZCode 使用。
+
+Belay 是攀岩中的绳索保护：攀登者自己选择路线，保护者控制绳索并在失误时阻止坠落。TaskBelay 沿用这个分工：Agent 做技术判断，TaskBelay 核对已批准范围和验证额度，并依据持久记录处理失败或结果不确定的操作。它不是沙箱，也不是另一个 Coding Agent。
 
 - **范围明确：** 按已确认的文件核对改动。计划外的工作，另作决定。
 - **验证有度：** 检查有计划、有上限。增加验证，先说明理由。
@@ -29,18 +31,16 @@
 
 > 使用 Node.js `>=24`，并先安装所使用的 Host。版本要求和已验证平台见[支持矩阵](docs/SUPPORT-MATRIX.md)。
 
-### 1. 安装 Dev Flow
+### 1. 安装 TaskBelay
 
-下方公开安装入口用于已发布的 Codex、DeepSeek 集成。Claude Code 请按[源码安装指南](docs/CLAUDE.md)操作；旧版公开 CLI 不会安装仅在源码中提供的 Adapter。
-
-ZCode 同样使用[源码安装指南](docs/ZCODE.md)。本地包面向 Windows x64 与 macOS arm64，macOS 的 ZCode 实机验证待后续完成。
+以下 npm 命令使用 TaskBelay 包名，需要相应包完成发布。首次发布前使用[源码本地安装](scripts/README.md#本地安装测试)，再按 [Codex](packages/codex/README.md)、[DeepSeek](packages/deepseek/README.md)、[Claude Code](docs/CLAUDE.md) 或 [ZCode](docs/ZCODE.md) 指南启用对应 Host。本地包面向 Windows x64 和 macOS arm64；macOS ZCode 实机验证仍待完成。
 
 ```sh
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
-在所用安装入口中选择对应 Host。Codex 安装后在 `/hooks` 中检查并信任 Dev Flow hook；DeepSeek 重启所选 Profile；Claude Code 重载插件或开始新会话，并按提示审阅权限。
+在所用安装入口中选择对应 Host。Codex 安装后在 `/hooks` 中检查并信任 TaskBelay hook；DeepSeek 重启所选 Profile；Claude Code 重载插件或开始新会话，并按提示审阅权限。
 
 ZCode 需在 Settings → Plugins 中完成插件安装和启用，再开始新会话使 Hook 生效。本地包准备完成不代表 ZCode 已加载插件。
 
@@ -51,32 +51,32 @@ ZCode 需在 Settings → Plugins 中完成插件安装和启用，再开始新�
 **Codex**
 
 ```text
-$dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
+$taskbelay-codex:taskbelay 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
 ```
 
 **DeepSeek Harness**
 
 ```text
-/dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
+/taskbelay 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
 ```
 
 **Claude Code**
 
 ```text
-/dev-flow-claude:dev-flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
+/taskbelay-claude:taskbelay 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
 ```
 
 **ZCode**
 
-在输入框的 `/` → Skills 中选择 `dev-flow`，再描述任务。
+在输入框的 `/` → Skills 中选择 `taskbelay`，再描述任务。
 
 ```text
-使用 Dev Flow 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
+使用 TaskBelay 增加登录失败限流。只修改认证相关文件，最多运行 4 项定向检查。
 ```
 
 这些消息发送到对话中，不在终端执行。尽量写清目标、验收条件、文件范围和测试上限。
 
-首次回复会评估请求，并询问直接开发还是使用 Dev Flow。选择 Dev Flow 后，默认从当前 HEAD
+首次回复会评估请求，并询问直接开发还是使用 TaskBelay。选择 TaskBelay 后，默认从当前 HEAD
 在当前目录新建任务分支。确认新分支及是否将已有未提交修改纳入任务；现有依赖、本地配置、文件和
 暂存状态保留。当前会话能访问全部参与目录时，直接在原会话继续。
 
@@ -86,27 +86,27 @@ $dev-flow-codex:dev-flow 增加登录失败限流。只修改认证相关文件�
 同一目录只能有一个活动 Task。手工或其他工具的本地编辑也会被观察，任务中切分支会暂停流程。
 本地目录和分支在任务结束后保留；开始下一任务时仍需明确未提交修改的归属。
 
-实现前，先查看并讨论需求、方案、任务、预计文件和验证安排。完整计划得到你的明确认可后才开始开发；方案修订或文件范围扩大后需要再次确认。选择 Dev Flow 或工作树参数不代替方案确认。
+实现前，先查看并讨论需求、方案、任务、预计文件和验证安排。完整计划得到你的明确认可后才开始开发；方案修订或文件范围扩大后需要再次确认。选择 TaskBelay 或工作树参数不代替方案确认。
 
 ### 3. 恢复和查看进度
 
-会话重启后，回到任务的原工作目录，明确请求继续该任务。Dev Flow 会从已保存的进度继续。
+会话重启后，回到任务的原工作目录，明确请求继续该任务。TaskBelay 会从已保存的进度继续。
 原工作目录丢失或被替换时，任务会暂停，直到你恢复它或明确放弃任务。
 
-在 DeepSeek Harness 中，继续任务的消息也要带上 `/dev-flow`。
+在 DeepSeek Harness 中，继续任务的消息也要带上 `/taskbelay`。
 
-Claude 用户应回到原工作目录和会话，使用 `/dev-flow-claude:dev-flow` 明确继续已保存的任务。
+Claude 用户应回到原工作目录和会话，使用 `/taskbelay-claude:taskbelay` 明确继续已保存的任务。
 
-ZCode 用户应重新打开原工作目录，选择 Dev Flow Skill 并请求继续已保存的任务；准备新目录时按返回的工作区打开说明接续。
+ZCode 用户应重新打开原工作目录，选择 TaskBelay Skill 并请求继续已保存的任务；准备新目录时按返回的工作区打开说明接续。
 
 下列命令使用已安装的全局管理器；源码体验请使用指南中的对应入口。
 
 ```bash
 # 查看已安装的集成
-dev-flow status --host all
+taskbelay status --host all
 
 # 打开本机任务界面
-dev-flow webui start
+taskbelay webui start
 ```
 
 非交互安装、自定义 DSH Profile、升级、修复和移除方式见[命令参考](docs/COMMANDS.md)。
@@ -118,8 +118,8 @@ dev-flow webui start
 桌面宠物通过叠加气泡展示多个任务，并可分别打开对应 WebUI。它优先展示受阻任务，当前任务完成后自动关注其他未完成任务，也支持固定关注。你可以自定义形象、控制动画、调整大小，以及独立启动或停止宠物。
 
 ```bash
-dev-flow pet start
-dev-flow pet stop
+taskbelay pet start
+taskbelay pet stop
 ```
 
 桌面应用面向 macOS arm64 和 Windows 10/11 x64。安装与操作见[桌面宠物指南](docs/DESKTOP-PETS.md)，
@@ -127,7 +127,7 @@ dev-flow pet stop
 
 ## 使用限制
 
-Dev Flow 管理任务流程，不接管系统权限，也不拦截每次文件操作或命令执行。
+TaskBelay 管理任务流程，不接管系统权限，也不拦截每次文件操作或命令执行。
 
 专属工作树用于分开代码改动。进程、网络、凭据和外部服务仍与当前环境共享。
 

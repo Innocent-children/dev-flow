@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "dev-flow": {
+    "taskbelay": {
       "type": "stdio",
       "command": "node",
-      "args": ["${ZCODE_PLUGIN_ROOT}/bin/dev-flow-zcode.mjs", "mcp"]
+      "args": ["${ZCODE_PLUGIN_ROOT}/bin/taskbelay-zcode.mjs", "mcp"]
     }
   }
 }

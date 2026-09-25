@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/store"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/recovery"
+	"github.com/Innocent-children/taskbelay/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 func TestRecoveryFiveClassDecisionTableAndPrecedence(t *testing.T) {
@@ -115,7 +115,7 @@ func TestRecoveryFiveClassDecisionTableAndPrecedence(t *testing.T) {
 
 func TestStorageBootstrapReopenAndCorruptionAreBounded(t *testing.T) {
 	ctx := context.Background()
-	databasePath := filepath.Join(t.TempDir(), "data", "dev-flow.db")
+	databasePath := filepath.Join(t.TempDir(), "data", "taskbelay.db")
 	if err := os.MkdirAll(filepath.Dir(databasePath), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestRepositoryTestSurfacesHaveExecutableCoverage(t *testing.T) {
 		"deterministic journeys":   {"tests/journeys/*_test.go", "tests/journeys/**/*.test.mjs"},
 		"Codex adapter":            {"packages/codex/tests/*.test.mjs"},
 		"DeepSeek adapter":         {"packages/deepseek/tests/*.test.mjs"},
-		"lifecycle manager":        {"packages/dev-flow/tests/*.test.mjs"},
+		"lifecycle manager":        {"packages/taskbelay/tests/*.test.mjs"},
 		"build and release":        {"scripts/*.test.mjs", "release/*.test.mjs", "tests/release_workflow.test.mjs"},
 	}
 	for surface, globs := range patterns {
@@ -251,7 +251,7 @@ func TestWebUIAndReleaseSafetyBoundariesRemainExplicit(t *testing.T) {
 }
 
 func TestPackageAndRuntimeAuthoritiesRemainMachineReadable(t *testing.T) {
-	for _, relative := range []string{"packages/codex/package.json", "packages/deepseek/package.json", "packages/dev-flow/package.json", "packages/webui/package.json"} {
+	for _, relative := range []string{"packages/codex/package.json", "packages/deepseek/package.json", "packages/taskbelay/package.json", "packages/webui/package.json"} {
 		manifest := decodeJSONObject(t, readRepositoryFile(t, relative))
 		if manifest["name"] == "" || manifest["scripts"] == nil {
 			t.Fatalf("%s is missing name or scripts", relative)
@@ -261,7 +261,7 @@ func TestPackageAndRuntimeAuthoritiesRemainMachineReadable(t *testing.T) {
 			t.Fatalf("%s is not stable machine-readable JSON", relative)
 		}
 	}
-	for _, relative := range []string{"packages/codex/lib/platform.mjs", "packages/deepseek/lib/platform.mjs", "packages/dev-flow/lib/platform.mjs", "scripts/build-core-runtimes.mjs"} {
+	for _, relative := range []string{"packages/codex/lib/platform.mjs", "packages/deepseek/lib/platform.mjs", "packages/taskbelay/lib/platform.mjs", "scripts/build-core-runtimes.mjs"} {
 		source := string(readRepositoryFile(t, relative))
 		for _, runtimeKey := range []string{"darwin-arm64", "win32-x64"} {
 			if strings.Count(source, runtimeKey) == 0 {

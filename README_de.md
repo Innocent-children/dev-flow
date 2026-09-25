@@ -1,21 +1,23 @@
 <p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow Symbol" />
+  <img src="packages/webui/src/assets/taskbelay-app-icon-light.svg" width="112" height="112" alt="TaskBelay Symbol" />
 </p>
 
-<h1 align="center">Dev Flow</h1>
+<h1 align="center">TaskBelay</h1>
 
-<p align="center"><strong>Lange KI-Coding-Aufgaben, unter Kontrolle.</strong></p>
+<p align="center"><strong>Lange KI-Coding-Aufgaben, am sicheren Seil.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## Was du mit Dev Flow tun kannst
+## Was du mit TaskBelay tun kannst
 
 Dein Coding-Agent wählt den nächsten technischen Schritt.<br />
-Dev Flow hält die Aufgabe unter Kontrolle.
+TaskBelay hält die Aufgabe unter Kontrolle.
 
-Nutze es mit Codex, DeepSeek, Claude Code oder ZCode. Der Agent beurteilt den Code; Dev Flow bewahrt Umfang, Prüfgrenzen, Aufgabenstand und Wiederherstellungsdaten.
+Nutze es mit Codex, DeepSeek, Claude Code oder ZCode. Der Agent beurteilt den Code; TaskBelay bewahrt Umfang, Prüfgrenzen, Aufgabenstand und Wiederherstellungsdaten.
+
+Beim Klettern wählt die kletternde Person die Route; die sichernde Person führt das Seil und fängt einen Sturz ab. TaskBelay überträgt diese Rollen auf die Programmierung: Der Agent trifft technische Entscheidungen, TaskBelay prüft den genehmigten Umfang und die Prüfgrenzen und nutzt gespeicherte Daten zur Wiederaufnahme nach Fehlern oder unklaren Ergebnissen. Es ist weder eine Sandbox noch ein weiterer Coding-Agent.
 
 - **Klarer Umfang:** Gleiche tatsächliche Änderungen mit genehmigten Dateien ab. Arbeit außerhalb des Plans braucht eine Entscheidung.
 - **Begrenzte Prüfung:** Plane relevante Prüfungen und ihre Grenzen. Weitere Prüfungen brauchen einen konkreten Grund.
@@ -30,18 +32,16 @@ gespeicherten Fortschritt ist die direkte Nutzung von Codex, DeepSeek, Claude Co
 
 > Installiere Node.js `>=24` und den gewünschten Host. Die nötigen Versionen und geprüften Plattformen stehen in der [Support-Matrix](docs/SUPPORT-MATRIX_en.md).
 
-### 1. Dev Flow installieren
+### 1. TaskBelay installieren
 
-Die folgende öffentliche Installation gilt für die veröffentlichten Codex- und DeepSeek-Integrationen. Für Claude Code gilt die [Installationsanleitung aus dem Quellcode](docs/CLAUDE_en.md); die bisherige öffentliche CLI installiert keinen Adapter, der nur im Quellcode vorliegt.
-
-Auch ZCode verwendet eine [Installationsanleitung aus dem Quellcode](docs/ZCODE_en.md). Die lokalen Pakete sind für Windows x64 und macOS arm64 ausgelegt; die Prüfung von ZCode auf einem Mac steht noch aus.
+Diese npm-Befehle verwenden die TaskBelay-Paketnamen und setzen veröffentlichte Pakete voraus. Bis zur ersten Veröffentlichung nutze das [lokale Installationsprogramm aus dem Quellcode](scripts/README_en.md#local-installation-testing) und dann die Anleitungen zur Aktivierung für [Codex](docs/CODEX_en.md), [DeepSeek](docs/DEEPSEEK_en.md), [Claude Code](docs/CLAUDE_en.md) oder [ZCode](docs/ZCODE_en.md). Lokale Pakete zielen auf Windows x64 und macOS arm64; die native Prüfung von ZCode unter macOS steht noch aus.
 
 ```sh
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
-Wähle deinen Host aus den Optionen des verwendeten Installers. Prüfe und bestätige in Codex den Dev-Flow-Hook unter `/hooks`; starte in DeepSeek das gewählte Profile neu. Lade in Claude Code die Plugins neu oder beginne eine neue Unterhaltung und prüfe die angeforderten Berechtigungen.
+Wähle deinen Host aus den Optionen des verwendeten Installers. Prüfe und bestätige in Codex den TaskBelay-Hook unter `/hooks`; starte in DeepSeek das gewählte Profile neu. Lade in Claude Code die Plugins neu oder beginne eine neue Unterhaltung und prüfe die angeforderten Berechtigungen.
 
 Installiere und aktiviere das Plugin in ZCode unter Settings → Plugins und starte eine neue Unterhaltung, damit die Hooks wirksam werden. Ein lokal vorbereitetes Paket bestätigt noch nicht, dass ZCode es geladen hat.
 
@@ -52,34 +52,34 @@ Sende nach der jeweiligen Installation eine dieser Nachrichten in der Unterhaltu
 **Codex**
 
 ```text
-$dev-flow-codex:dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
+$taskbelay-codex:taskbelay Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
 ```
 
 **DeepSeek Harness**
 
 ```text
-/dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
+/taskbelay Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
 ```
 
 **Claude Code**
 
 ```text
-/dev-flow-claude:dev-flow Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
+/taskbelay-claude:taskbelay Füge eine Rate-Limitierung für fehlgeschlagene Anmeldungen hinzu. Ändere nur Auth-Dateien und führe höchstens 4 gezielte Prüfungen aus.
 ```
 
 **ZCode**
 
-Wähle im Eingabefeld unter `/` → Skills den Eintrag `dev-flow` und beschreibe die Aufgabe.
+Wähle im Eingabefeld unter `/` → Skills den Eintrag `taskbelay` und beschreibe die Aufgabe.
 
 ```text
-Nutze Dev Flow, um fehlgeschlagene Anmeldungen zu begrenzen. Ändere nur Authentifizierungsdateien und führe höchstens 4 gezielte Prüfungen aus.
+Nutze TaskBelay, um fehlgeschlagene Anmeldungen zu begrenzen. Ändere nur Authentifizierungsdateien und führe höchstens 4 gezielte Prüfungen aus.
 ```
 
 Sende diese Nachrichten im Gespräch, nicht im Terminal. Beschreibe Ziel, Abnahmekriterien,
 Dateiumfang und Testgrenze.
 
-Die erste Antwort bewertet die Anfrage und fragt, ob du direkt oder mit Dev Flow arbeiten möchtest.
-Bei Dev Flow wird standardmäßig im aktuellen Verzeichnis ein neuer Aufgabenbranch vom aktuellen HEAD
+Die erste Antwort bewertet die Anfrage und fragt, ob du direkt oder mit TaskBelay arbeiten möchtest.
+Bei TaskBelay wird standardmäßig im aktuellen Verzeichnis ein neuer Aufgabenbranch vom aktuellen HEAD
 erstellt. Bestätige den Branch und ob vorhandene, noch nicht committete Änderungen zur Aufgabe gehören.
 Abhängigkeiten, lokale Konfiguration, Dateien und Index bleiben erhalten. Die Sitzung wird fortgesetzt,
 wenn sie auf alle beteiligten Verzeichnisse zugreifen kann.
@@ -93,28 +93,28 @@ Werkzeuge werden erfasst; ein Branchwechsel während der Aufgabe hält den Ablau
 und Branches bleiben nach Abschluss erhalten. Noch nicht committete Änderungen müssen beim Start der
 nächsten Aufgabe berücksichtigt werden.
 
-Besprich vor der Implementierung die Anforderungen, den Entwurf, die Arbeitsschritte, die vorgesehenen Dateien und den Prüfplan. Die Entwicklung beginnt erst nach deiner ausdrücklichen Zustimmung zum gesamten Plan. Änderungen am Plan oder ein erweiterter Dateiumfang erfordern eine erneute Zustimmung. Die Wahl von Dev Flow oder eines Worktrees ersetzt diese Zustimmung nicht.
+Besprich vor der Implementierung die Anforderungen, den Entwurf, die Arbeitsschritte, die vorgesehenen Dateien und den Prüfplan. Die Entwicklung beginnt erst nach deiner ausdrücklichen Zustimmung zum gesamten Plan. Änderungen am Plan oder ein erweiterter Dateiumfang erfordern eine erneute Zustimmung. Die Wahl von TaskBelay oder eines Worktrees ersetzt diese Zustimmung nicht.
 
 ### 3. Fortsetzen und Fortschritt ansehen
 
 Kehre nach einem Sitzungsneustart zum ursprünglichen Verzeichnis zurück und bitte darum, die Aufgabe
-fortzusetzen. Dev Flow arbeitet ab dem gespeicherten Fortschritt weiter. Fehlt das Verzeichnis oder
+fortzusetzen. TaskBelay arbeitet ab dem gespeicherten Fortschritt weiter. Fehlt das Verzeichnis oder
 wurde es ersetzt, pausiert die Aufgabe, bis du es wiederherstellst oder die Aufgabe ausdrücklich aufgibst.
 
-Füge in DeepSeek Harness auch der Nachricht zum Fortsetzen `/dev-flow` hinzu.
+Füge in DeepSeek Harness auch der Nachricht zum Fortsetzen `/taskbelay` hinzu.
 
-Öffne in Claude das ursprüngliche Arbeitsverzeichnis und die ursprüngliche Unterhaltung und fordere mit `/dev-flow-claude:dev-flow` ausdrücklich die Fortsetzung der gespeicherten Aufgabe an.
+Öffne in Claude das ursprüngliche Arbeitsverzeichnis und die ursprüngliche Unterhaltung und fordere mit `/taskbelay-claude:taskbelay` ausdrücklich die Fortsetzung der gespeicherten Aufgabe an.
 
-Öffne in ZCode das ursprüngliche Arbeitsverzeichnis, wähle die Dev Flow Skill und bitte um Fortsetzung der gespeicherten Aufgabe. Wird ein neues Verzeichnis vorbereitet, folge den zurückgegebenen Anweisungen zum Öffnen des Arbeitsbereichs.
+Öffne in ZCode das ursprüngliche Arbeitsverzeichnis, wähle die TaskBelay Skill und bitte um Fortsetzung der gespeicherten Aufgabe. Wird ein neues Verzeichnis vorbereitet, folge den zurückgegebenen Anweisungen zum Öffnen des Arbeitsbereichs.
 
 Diese Befehle verwenden den installierten globalen Manager. Bei einer Quellinstallation gilt der entsprechende Einstieg aus der Anleitung.
 
 ```bash
 # Installierte Integrationen anzeigen
-dev-flow status --host all
+taskbelay status --host all
 
 # Lokale Aufgabenansicht öffnen
-dev-flow webui start
+taskbelay webui start
 ```
 
 Nichtinteraktive Installation, eigene DSH Profiles, Updates, Reparatur und Entfernung beschreibt
@@ -127,8 +127,8 @@ Das Maskottchen benötigt einen eingerichteten Adapter und die installierte Desk
 Das Desktop-Maskottchen zeigt mehrere Aufgaben in gestapelten Sprechblasen und öffnet die jeweilige WebUI. Blockierte Aufgaben haben Vorrang. Nach Abschluss einer Aufgabe wechselt es automatisch zu einer noch offenen Aufgabe; du kannst auch eine Aufgabe anheften. Du kannst das Aussehen anpassen, Animationen steuern, die Größe ändern und das Maskottchen unabhängig starten oder stoppen.
 
 ```bash
-dev-flow pet start
-dev-flow pet stop
+taskbelay pet start
+taskbelay pet stop
 ```
 
 Die Desktop-Anwendungen sind für macOS arm64 und Windows 10/11 x64 vorgesehen. Installation und
@@ -137,7 +137,7 @@ in der [Support-Matrix](docs/SUPPORT-MATRIX_en.md).
 
 ## Nutzungsgrenzen
 
-Dev Flow steuert den Aufgabenablauf, nicht die Betriebssystemrechte. Es fängt nicht jeden Dateizugriff oder Shell-Befehl ab.
+TaskBelay steuert den Aufgabenablauf, nicht die Betriebssystemrechte. Es fängt nicht jeden Dateizugriff oder Shell-Befehl ab.
 
 Ein eigener Worktree trennt Codeänderungen. Prozesse, Netzwerkzugriff, Zugangsdaten und externe
 Dienste bleiben mit deiner Umgebung geteilt.

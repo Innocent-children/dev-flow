@@ -1,21 +1,23 @@
 <p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow アイコン" />
+  <img src="packages/webui/src/assets/taskbelay-app-icon-light.svg" width="112" height="112" alt="TaskBelay アイコン" />
 </p>
 
-<h1 align="center">Dev Flow</h1>
+<h1 align="center">TaskBelay</h1>
 
-<p align="center"><strong>長時間の AI コーディングに、明確な境界を。</strong></p>
+<p align="center"><strong>長時間の AI コーディングに、ビレイの支えを。</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## Dev Flow でできること
+## TaskBelay でできること
 
 技術的な判断は、Agent に。<br />
-タスクの範囲と進行は、Dev Flow で。
+タスクの範囲と進行は、TaskBelay で。
 
 Codex、DeepSeek、Claude Code、ZCode と組み合わせて使います。コードを読み解き、次の技術的な行動を選ぶのは Agent です。
+
+クライミングのビレイでは、登る人がルートを選び、確保する人がロープを管理して墜落を防ぎます。TaskBelay も同じ役割分担です。技術的な判断は Agent に任せ、承認された範囲と検証の上限を確認し、失敗や結果が不明な操作には保存済みの記録を使って対処します。サンドボックスでも、別のコーディング Agent でもありません。
 
 - **明確な範囲:** 実際の変更を承認済みのファイルと照合。計画外の作業には判断が必要です。
 - **検証の上限:** 必要な検証と上限を計画。追加する場合は具体的な理由を記録します。
@@ -29,18 +31,16 @@ Codex、DeepSeek、Claude Code、ZCode と組み合わせて使います。コ�
 
 > Node.js `>=24` と利用する Host を先にインストールしてください。必要なバージョンと検証済み環境は[サポート表](docs/SUPPORT-MATRIX_en.md)を参照してください。
 
-### 1. Dev Flow をインストールする
+### 1. TaskBelay をインストールする
 
-以下の公開パッケージは、公開済みの Codex と DeepSeek の連携用です。Claude Code は[ソースからのインストール手順](docs/CLAUDE_en.md)を利用してください。従来の公開 CLI では、ソース版のみの Adapter はインストールされません。
-
-ZCode も[ソースからのインストール手順](docs/ZCODE_en.md)を利用します。対象は Windows x64 と macOS arm64 で、macOS 上の ZCode の実機検証は今後行います。
+以下の npm コマンドは TaskBelay のパッケージ名を使用するため、各パッケージの公開後に利用できます。初回公開までは[ローカルのソースインストーラー](scripts/README_en.md#local-installation-testing)を使い、[Codex](docs/CODEX_en.md)、[DeepSeek](docs/DEEPSEEK_en.md)、[Claude Code](docs/CLAUDE_en.md)、[ZCode](docs/ZCODE_en.md) の有効化手順に従ってください。ローカルパッケージは Windows x64 と macOS arm64 を対象とし、macOS 上の ZCode の実機検証は未完了です。
 
 ```sh
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
-利用するインストーラーの選択肢から対応する Host を選びます。Codex は `/hooks` で Dev Flow hook を確認して信頼し、DeepSeek は選択した Profile を再起動します。Claude Code はプラグインを再読み込みするか新しい会話を開始し、権限の案内を確認してください。
+利用するインストーラーの選択肢から対応する Host を選びます。Codex は `/hooks` で TaskBelay hook を確認して信頼し、DeepSeek は選択した Profile を再起動します。Claude Code はプラグインを再読み込みするか新しい会話を開始し、権限の案内を確認してください。
 
 ZCode では Settings → Plugins でプラグインをインストールして有効にし、新しい会話を開始して Hook を反映させます。ローカルの準備完了だけでは、ZCode がプラグインを読み込んだことは確認できません。
 
@@ -51,32 +51,32 @@ ZCode では Settings → Plugins でプラグインをインストールして�
 **Codex**
 
 ```text
-$dev-flow-codex:dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
+$taskbelay-codex:taskbelay ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
 ```
 
 **DeepSeek Harness**
 
 ```text
-/dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
+/taskbelay ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
 ```
 
 **Claude Code**
 
 ```text
-/dev-flow-claude:dev-flow ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
+/taskbelay-claude:taskbelay ログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
 ```
 
 **ZCode**
 
-入力欄の `/` → Skills から `dev-flow` を選択し、タスクを説明してください。
+入力欄の `/` → Skills から `taskbelay` を選択し、タスクを説明してください。
 
 ```text
-Dev Flow を使ってログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
+TaskBelay を使ってログイン失敗のレート制限を追加してください。認証関連のファイルだけを変更し、対象を絞った確認を最大 4 件実行してください。
 ```
 
 これらはターミナルではなく会話に送信します。目標、受け入れ条件、ファイル範囲、テスト上限を具体的に記載してください。
 
-最初の応答では依頼を評価し、直接作業するか Dev Flow を使うかを尋ねます。Dev Flow を選ぶと、
+最初の応答では依頼を評価し、直接作業するか TaskBelay を使うかを尋ねます。TaskBelay を選ぶと、
 既定では現在のディレクトリで現在の HEAD から新しいタスクブランチを作成します。新しいブランチと、
 既存の未コミット変更をタスクに含めるかを確認します。依存関係、ローカル設定、ファイル、ステージ状態を
 維持し、すべての対象ディレクトリにアクセスできる場合は同じセッションで続行します。
@@ -89,27 +89,27 @@ Dev Flow を使ってログイン失敗のレート制限を追加してくだ�
 ブランチ切り替えは進行を一時停止します。完了後もローカルのディレクトリとブランチを残します。次のタスクを
 開始する際には、残っている未コミット変更の扱いを確認します。
 
-実装前に、要件、設計、作業項目、変更予定のファイル、検証計画を確認して話し合います。計画全体への明確な承認後に開発を開始します。計画の修正やファイル範囲の拡大には再承認が必要です。Dev Flow やワークツリーの選択は計画の承認とは別です。
+実装前に、要件、設計、作業項目、変更予定のファイル、検証計画を確認して話し合います。計画全体への明確な承認後に開発を開始します。計画の修正やファイル範囲の拡大には再承認が必要です。TaskBelay やワークツリーの選択は計画の承認とは別です。
 
 ### 3. 再開して進捗を確認する
 
-セッションを再起動したら、タスクの元の作業ディレクトリに戻り、続行を明示的に依頼してください。Dev Flow は保存済みの
+セッションを再起動したら、タスクの元の作業ディレクトリに戻り、続行を明示的に依頼してください。TaskBelay は保存済みの
 進捗から再開します。元の作業ディレクトリが消失または置換された場合、復元するかタスクの放棄を明示するまで停止します。
 
-DeepSeek Harness では、再開を依頼するメッセージにも `/dev-flow` を含めてください。
+DeepSeek Harness では、再開を依頼するメッセージにも `/taskbelay` を含めてください。
 
-Claude では元の作業ディレクトリと会話を開き、`/dev-flow-claude:dev-flow` で保存済みタスクの再開を明示してください。
+Claude では元の作業ディレクトリと会話を開き、`/taskbelay-claude:taskbelay` で保存済みタスクの再開を明示してください。
 
-ZCode では元の作業ディレクトリを開き、Dev Flow Skill を選択して保存済みタスクの再開を依頼します。新しいディレクトリを準備した場合は、返されたワークスペースの開き方に従ってください。
+ZCode では元の作業ディレクトリを開き、TaskBelay Skill を選択して保存済みタスクの再開を依頼します。新しいディレクトリを準備した場合は、返されたワークスペースの開き方に従ってください。
 
 以下はインストール済みのグローバル管理コマンドです。ソース版では、ガイドに記載された対応する入口を使ってください。
 
 ```bash
 # インストール済みの連携を確認
-dev-flow status --host all
+taskbelay status --host all
 
 # ローカルのタスク画面を開く
-dev-flow webui start
+taskbelay webui start
 ```
 
 非対話形式のインストール、独自の DSH Profile、更新、修復、削除については
@@ -122,8 +122,8 @@ dev-flow webui start
 デスクトップペットは複数のタスクを重ねた吹き出しで表示し、それぞれの WebUI を開けます。ブロック中のタスクを優先し、完了後は別の未完了タスクに自動で切り替わります。特定のタスクを固定することもできます。外観の変更、アニメーションの制御、サイズ変更、個別の起動と停止に対応しています。
 
 ```bash
-dev-flow pet start
-dev-flow pet stop
+taskbelay pet start
+taskbelay pet stop
 ```
 
 デスクトップアプリの対象は macOS arm64 と Windows 10/11 x64 です。インストールと操作は
@@ -131,7 +131,7 @@ dev-flow pet stop
 
 ## 利用上の制限
 
-Dev Flow が管理するのはタスクの進行です。OS の権限は管理せず、すべてのファイル操作やシェルコマンドを遮断する仕組みではありません。
+TaskBelay が管理するのはタスクの進行です。OS の権限は管理せず、すべてのファイル操作やシェルコマンドを遮断する仕組みではありません。
 
 専用の作業ツリーはコードの変更を分離します。プロセス、ネットワーク、認証情報、外部サービスは現在の環境と共有されます。
 

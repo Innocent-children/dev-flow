@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 func TestProcessBlockerSnapshotCloseReopenEquality(t *testing.T) {

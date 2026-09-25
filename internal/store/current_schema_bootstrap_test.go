@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 func TestFreshCurrentSchemaBootstrapIsDirectAndExact(t *testing.T) {

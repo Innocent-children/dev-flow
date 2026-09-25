@@ -1,4 +1,4 @@
-// Package version reads the Dev Flow product version from the repository checkout.
+// Package version reads the TaskBelay product version from the repository checkout.
 package version
 
 import (
@@ -12,7 +12,7 @@ import (
 
 // buildVersion is populated for detached release binaries with:
 //
-//	-ldflags "-X github.com/Innocent-children/dev-flow/internal/version.buildVersion=<version>"
+//	-ldflags "-X github.com/Innocent-children/taskbelay/internal/version.buildVersion=<version>"
 //
 // An empty value preserves source-checkout behavior for development and tests.
 var buildVersion string

@@ -262,7 +262,7 @@ async function readJSON<T>(path: string, signal?: AbortSignal): Promise<T> {
 }
 
 function sessionValue(): string {
-  const value = document.querySelector<HTMLMetaElement>('meta[name="dev-flow-session"]')?.content;
+  const value = document.querySelector<HTMLMetaElement>('meta[name="taskbelay-session"]')?.content;
   if (value === undefined || value === "") throw new Error(translateCurrent("api.session"));
   return value;
 }

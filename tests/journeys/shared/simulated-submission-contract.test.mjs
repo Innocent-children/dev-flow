@@ -12,10 +12,10 @@ import { DeterministicCoreHost } from "../deepseek/fake-core.mjs";
 const execFile = promisify(execFileCallback);
 const repositoryRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const packageRoot = join(repositoryRoot, "packages", "codex");
-const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
+const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "taskbelay");
 
 test("shared simulated MCP client omits system-state revisions for a Codex-owned Task", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-shared-submission-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-shared-submission-")));
   let core;
   t.after(async () => {
     await core?.stop();
@@ -29,7 +29,7 @@ test("shared simulated MCP client omits system-state revisions for a Codex-owned
   core = new DeterministicCoreHost({ runtimePath, dataDirectory, packageRoot, useSourceRuntime: true });
   await core.start();
 
-  const opened = await core.call(tool("dev_flow_open_task"), {
+  const opened = await core.call(tool("taskbelay_open_task"), {
     host: "codex",
     repository_path: repository,
     workspace_origin: workspaceOrigin,
@@ -130,7 +130,7 @@ async function submit(core, task, transition, nodeResult) {
 }
 
 function tool(name) {
-  return `mcp__dev_flow__${name}`;
+  return `mcp__taskbelay__${name}`;
 }
 
 async function initializeGit(root, repository) {

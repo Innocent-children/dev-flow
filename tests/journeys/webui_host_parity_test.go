@@ -44,7 +44,7 @@ func TestWebUIHostParityJourney(t *testing.T) {
 	if output, err := exec.Command("tar", "-xzf", archives[0], "-C", extractRoot).CombinedOutput(); err != nil {
 		t.Fatalf("install Host A: %v\n%s", err, output)
 	}
-	codexRuntime := filepath.Join(extractRoot, "package", "runtime", "darwin-arm64", "dev-flow")
+	codexRuntime := filepath.Join(extractRoot, "package", "runtime", "darwin-arm64", "taskbelay")
 	runtimeOutput := filepath.Join(buildRoot, "deepseek-runtimes")
 	deepseekBuild := exec.Command(
 		"node",
@@ -77,10 +77,10 @@ func TestWebUIHostParityJourney(t *testing.T) {
 	}
 	openMarker := filepath.Join(buildRoot, "opened-url")
 	openScript := filepath.Join(fakeBin, "open")
-	if err := os.WriteFile(openScript, []byte("#!/bin/sh\nprintf '%s' \"$1\" >\"$DEV_FLOW_OPEN_MARKER\"\n"), 0o700); err != nil {
+	if err := os.WriteFile(openScript, []byte("#!/bin/sh\nprintf '%s' \"$1\" >\"$TASKBELAY_OPEN_MARKER\"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	environment := append(os.Environ(), "DEV_FLOW_DATA_DIR="+dataDirectory, "DEV_FLOW_OPEN_MARKER="+openMarker, "PATH="+fakeBin+":"+os.Getenv("PATH"))
+	environment := append(os.Environ(), "TASKBELAY_DATA_DIR="+dataDirectory, "TASKBELAY_OPEN_MARKER="+openMarker, "PATH="+fakeBin+":"+os.Getenv("PATH"))
 
 	start := runWebUIJourneyCommand(t, codexRuntime, environment, "start", "--no-open", "--json")
 	t.Cleanup(func() {

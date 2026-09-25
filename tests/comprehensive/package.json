@@ -1,5 +1,5 @@
 {
-  "name": "@dev-flow/comprehensive-tests",
+  "name": "@taskbelay/comprehensive-tests",
   "private": true,
   "type": "module",
   "scripts": {

@@ -29,7 +29,7 @@ export function registerFileScopeGate(ctx, {
       const request = preparedWrite(execution, workspaceRoot);
       result = await runCoreCheck(request, { runtimePath, dataDirectory, spawnImpl });
     } catch {
-      return { kind: "deny", reason: "Dev Flow file-scope check was unavailable; the write was stopped." };
+      return { kind: "deny", reason: "TaskBelay file-scope check was unavailable; the write was stopped." };
     }
     if (result.decision === "allow") return next();
     if (result.decision === "deny") {
@@ -37,10 +37,10 @@ export function registerFileScopeGate(ctx, {
         kind: "deny",
         reason: typeof result.reason === "string" && result.reason.trim() !== ""
           ? result.reason
-          : "Dev Flow stopped this write before execution.",
+          : "TaskBelay stopped this write before execution.",
       };
     }
-    return { kind: "deny", reason: "Dev Flow file-scope check returned an unknown decision; the write was stopped." };
+    return { kind: "deny", reason: "TaskBelay file-scope check returned an unknown decision; the write was stopped." };
   });
 }
 
@@ -51,7 +51,7 @@ export function preparedWrite(execution, workspaceRoot) {
   const complete = typeof rawPath === "string" && rawPath.trim() !== "" && rawPath === rawPath.trim() && !rawPath.includes("\0");
   const absolute = complete
     ? resolve(workspaceRoot, rawPath)
-    : resolve(workspaceRoot, ".dev-flow-unresolved-path");
+    : resolve(workspaceRoot, ".taskbelay-unresolved-path");
   const normalizedArguments = stableJSON(execution?.arguments ?? {});
   return {
     host: "deepseek",
@@ -83,7 +83,7 @@ function existingTargetDirectory(path) {
 async function runCoreCheck(request, { runtimePath, dataDirectory, spawnImpl }) {
   const child = spawnImpl(runtimePath, ["host-check", "pre-file-write"], {
     cwd: dirname(runtimePath),
-    env: { ...process.env, DEV_FLOW_DATA_DIR: dataDirectory },
+    env: { ...process.env, TASKBELAY_DATA_DIR: dataDirectory },
     stdio: ["pipe", "pipe", "pipe"],
     shell: false,
     windowsHide: true,

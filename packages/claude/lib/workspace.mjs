@@ -39,7 +39,7 @@ export async function inspect(input, { runGit = defaultRunGit } = {}) {
 }
 export async function prepare(input, options = {}) {
   exact(input, ["request", "assessment", "user_choice", "repositories", "handoff"]);
-  if (input.user_choice?.source !== "user" || input.user_choice.mode !== "dev_flow" || !input.user_choice.summary?.trim()) throw new Error("Explicit Dev Flow selection required");
+  if (input.user_choice?.source !== "user" || input.user_choice.mode !== "taskbelay" || !input.user_choice.summary?.trim()) throw new Error("Explicit TaskBelay selection required");
   const a = input.assessment;
   if (!a || !["small", "standard", "large"].includes(a.change_level) || !Array.isArray(a.unknowns) || a.unknowns.length) throw new Error("Complete resolved assessment required");
   for (const name of ["candidate_components", "candidate_paths", "public_contract_flags", "persistence_or_state_flags", "host_or_platform_flags", "verification_shape", "reasons"]) if (!Array.isArray(a[name]) || a[name].some(v => typeof v !== "string")) throw new Error("Missing assessment " + name);
@@ -197,7 +197,7 @@ export async function session(id, operation, input, options = {}) {
     if (operation === "launch") { r.session = { id: randomUUID(), phase: "launch_requested" }; await save(); }
     const retained = join(await directory(r.launch_id, options.environment), "receipt.json");
     const taskInstruction = r.core_task_id ? " Read the saved Core Task " + r.core_task_id + " by ID, handle its blocker/recovery before work, and never create another Task for this launch." : " Resume an existing matching Core Task, and create only after establishing that no prior Core creation occurred. After a successful open, record its actual task_id with host-launch bind-task.";
-    const prompt = "Continue this Dev Flow task in the prepared workspace. First read the entire retained request and original discussion at " + retained + ". Read dev-flow-claude host-launch status and scope for launch " + r.launch_id + ". Preserve existing content. Perform server_info." + taskInstruction + " Retain all original requirements and corrections from the saved discussion.";
+    const prompt = "Continue this TaskBelay task in the prepared workspace. First read the entire retained request and original discussion at " + retained + ". Read taskbelay-claude host-launch status and scope for launch " + r.launch_id + ". Preserve existing content. Perform server_info." + taskInstruction + " Retain all original requirements and corrections from the saved discussion.";
     const args = [operation === "resume" ? "--resume" : "--session-id", r.session.id];
     for (const repo of r.repositories.slice(1)) args.push("--add-dir", repo.worktree_path);
     args.push("--", prompt);

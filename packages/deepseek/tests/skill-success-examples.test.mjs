@@ -9,7 +9,7 @@ import { registerWorkspaceCoordinator } from "../lib/workspace-tool.mjs";
 import { WORKSPACE_COORDINATOR_TOOL, workspaceConfirmationText, workspaceCleanupText, workspaceResumeText } from "../lib/workspace-coordinator.mjs";
 import { readExamples, exampleNormalizer, verifySuccessExample } from "../../../tests/skills/executed-examples.mjs";
 
-const root = fileURLToPath(new URL("../skills/dev-flow/", import.meta.url));
+const root = fileURLToPath(new URL("../skills/taskbelay/", import.meta.url));
 const examples = await readExamples(root, "workspace");
 const launch = "11111111-1111-4111-8111-111111111111";
 function execution(text, input) {
@@ -28,7 +28,7 @@ function execution(text, input) {
 
 for (const example of examples) {
   test(`complete Skill response workspace/${example.name}`, async (t) => {
-    const dir = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-skill-deepseek-")));
+    const dir = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-skill-deepseek-")));
     t.after(() => rm(dir, { recursive: true, force: true }));
     const source = join(dir, "source"), data = join(dir, "data");
     await mkdir(data, { mode: 0o700 });

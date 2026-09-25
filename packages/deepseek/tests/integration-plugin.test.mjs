@@ -12,8 +12,8 @@ import {
   name,
 } from "../lib/index.mjs";
 import {
-  DEV_FLOW_QUALIFIED_TOOL_NAMES,
-  DEV_FLOW_TOOL_NAMESPACE_PREFIX,
+  TASKBELAY_QUALIFIED_TOOL_NAMES,
+  TASKBELAY_TOOL_NAMESPACE_PREFIX,
   assertQualifiedToolCatalog,
 } from "../lib/tool-names.mjs";
 import { WORKSPACE_COORDINATOR_TOOL } from "../lib/workspace-coordinator.mjs";
@@ -24,44 +24,44 @@ const currentVersion = (await readFile(join(repositoryRoot, "CORE_VERSION"), "ut
 const fixturePlatform = process.platform === "win32" ? "win32" : "darwin";
 const fixtureArch = process.platform === "win32" ? "x64" : "arm64";
 const fixtureRuntimeKey = `${fixturePlatform}-${fixtureArch}`;
-const fixtureExecutable = fixturePlatform === "win32" ? "dev-flow.exe" : "dev-flow";
+const fixtureExecutable = fixturePlatform === "win32" ? "taskbelay.exe" : "taskbelay";
 
 test("plugin identity and injection surface are fixed", () => {
-  assert.equal(name, "dev-flow-deepseek");
+  assert.equal(name, "taskbelay-deepseek");
   assert.deepEqual(inject, ["skills", "tools"]);
   assert.equal(typeof apply, "function");
-  assert.equal(DEV_FLOW_TOOL_NAMESPACE_PREFIX, "mcp__dev_flow__");
-  assert.deepEqual(DEV_FLOW_QUALIFIED_TOOL_NAMES, [
-    "mcp__dev_flow__dev_flow_server_info",
-    "mcp__dev_flow__dev_flow_open_task",
-    "mcp__dev_flow__dev_flow_get_task",
-    "mcp__dev_flow__dev_flow_get_next_action",
-    "mcp__dev_flow__dev_flow_submit_requirements",
-    "mcp__dev_flow__dev_flow_submit_design",
-    "mcp__dev_flow__dev_flow_submit_tasks",
-    "mcp__dev_flow__dev_flow_submit_implementation",
-    "mcp__dev_flow__dev_flow_submit_test",
-    "mcp__dev_flow__dev_flow_submit_comprehension",
-    "mcp__dev_flow__dev_flow_submit_refactor",
-    "mcp__dev_flow__dev_flow_submit_delivery",
-    "mcp__dev_flow__dev_flow_prepare_task_relocation",
-    "mcp__dev_flow__dev_flow_resolve_blocker",
-    "mcp__dev_flow__dev_flow_recover_action",
-    "mcp__dev_flow__dev_flow_cancel_task",
-    "mcp__dev_flow__dev_flow_abandon_task",
+  assert.equal(TASKBELAY_TOOL_NAMESPACE_PREFIX, "mcp__taskbelay__");
+  assert.deepEqual(TASKBELAY_QUALIFIED_TOOL_NAMES, [
+    "mcp__taskbelay__taskbelay_server_info",
+    "mcp__taskbelay__taskbelay_open_task",
+    "mcp__taskbelay__taskbelay_get_task",
+    "mcp__taskbelay__taskbelay_get_next_action",
+    "mcp__taskbelay__taskbelay_submit_requirements",
+    "mcp__taskbelay__taskbelay_submit_design",
+    "mcp__taskbelay__taskbelay_submit_tasks",
+    "mcp__taskbelay__taskbelay_submit_implementation",
+    "mcp__taskbelay__taskbelay_submit_test",
+    "mcp__taskbelay__taskbelay_submit_comprehension",
+    "mcp__taskbelay__taskbelay_submit_refactor",
+    "mcp__taskbelay__taskbelay_submit_delivery",
+    "mcp__taskbelay__taskbelay_prepare_task_relocation",
+    "mcp__taskbelay__taskbelay_resolve_blocker",
+    "mcp__taskbelay__taskbelay_recover_action",
+    "mcp__taskbelay__taskbelay_cancel_task",
+    "mcp__taskbelay__taskbelay_abandon_task",
   ]);
 });
 
 test("registers one model-visible assessment Skill, guarded workspace coordinator, and the official MCP child config", async (t) => {
   const dataDirectory = await temporaryDirectory(t, "data");
   const packageRoot = await temporaryPackage(t, "integration package-工具");
-  const fake = createFakeContext({ packageRoot, initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
+  const fake = createFakeContext({ packageRoot, initialToolNames: TASKBELAY_QUALIFIED_TOOL_NAMES });
 
   await activateDeepSeekIntegration(fake.ctx, {
     packageRoot,
     platform: fixturePlatform,
     arch: fixtureArch,
-    environment: { DEV_FLOW_DATA_DIR: dataDirectory },
+    environment: { TASKBELAY_DATA_DIR: dataDirectory },
   });
 
   assert.equal(fake.skills.length, 1);
@@ -69,19 +69,19 @@ test("registers one model-visible assessment Skill, guarded workspace coordinato
     modelInvocable: true,
     userInvocable: true,
   });
-  assert.equal(fake.skills[0].name, "dev-flow");
-  assert.equal(fake.skills[0].provider, "dev-flow-deepseek");
+  assert.equal(fake.skills[0].name, "taskbelay");
+  assert.equal(fake.skills[0].provider, "taskbelay-deepseek");
   assert.equal(fake.skills[0].resourceBase.kind, "directory");
-  assert.match(fake.skills[0].content, /# Dev Flow/u);
+  assert.match(fake.skills[0].content, /# TaskBelay/u);
   assert.equal(fake.guards.length, 2);
   assert.equal(fake.children.length, 1);
   assert.equal(fake.children[0].plugin.name, "mcp-client");
   assert.deepEqual(fake.children[0].config, {
     transport: "stdio",
-    serverName: "dev_flow",
+    serverName: "taskbelay",
     command: join(fake.packageRoot, "runtime", fixtureRuntimeKey, fixtureExecutable),
     args: ["mcp", "--stdio"],
-    env: { DEV_FLOW_DATA_DIR: dataDirectory },
+    env: { TASKBELAY_DATA_DIR: dataDirectory },
     cwd: fake.packageRoot,
     toolCallTimeoutMs: 60_000,
     failOnStartupError: false,
@@ -92,13 +92,13 @@ test("registers one model-visible assessment Skill, guarded workspace coordinato
       maxAttempts: 10,
     },
   });
-  assert.deepEqual(assertQualifiedToolCatalog(fake.toolNames()), DEV_FLOW_QUALIFIED_TOOL_NAMES);
+  assert.deepEqual(assertQualifiedToolCatalog(fake.toolNames()), TASKBELAY_QUALIFIED_TOOL_NAMES);
   assert.equal(fake.toolNames().includes(WORKSPACE_COORDINATOR_TOOL), true);
 
   await fake.dispose();
   assert.equal(fake.skills.length, 0);
   assert.equal(fake.guards.length, 0);
-  assert.equal(fake.toolNames().some((toolName) => toolName.startsWith("mcp__dev_flow__")), false);
+  assert.equal(fake.toolNames().some((toolName) => toolName.startsWith("mcp__taskbelay__")), false);
   assert.equal(fake.children[0].disposed, true);
 });
 
@@ -110,7 +110,7 @@ test("ordinary host tools remain executable and reconnect restores the exact cat
     packageRoot,
     platform: fixturePlatform,
     arch: fixtureArch,
-    environment: { DEV_FLOW_DATA_DIR: dataDirectory },
+    environment: { TASKBELAY_DATA_DIR: dataDirectory },
   });
 
   let unrelatedDispatches = 0;
@@ -120,31 +120,31 @@ test("ordinary host tools remain executable and reconnect restores the exact cat
   if (unrelatedDenial === undefined) unrelatedDispatches += 1;
   assert.equal(unrelatedDispatches, 1);
 
-  fake.replaceMcpCatalog(DEV_FLOW_QUALIFIED_TOOL_NAMES);
+  fake.replaceMcpCatalog(TASKBELAY_QUALIFIED_TOOL_NAMES);
   await nextMicrotask();
-  assert.deepEqual(assertQualifiedToolCatalog(fake.toolNames()), DEV_FLOW_QUALIFIED_TOOL_NAMES);
+  assert.deepEqual(assertQualifiedToolCatalog(fake.toolNames()), TASKBELAY_QUALIFIED_TOOL_NAMES);
   assert.equal(fake.children[0].disposed, false);
 });
 
 test("missing or extra connected namespace tools fail compatibility and dispose the MCP child", async (t) => {
   const dataDirectory = await temporaryDirectory(t, "catalog-data");
   const packageRoot = await temporaryPackage(t, "catalog-package");
-  const fake = createFakeContext({ packageRoot, initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
+  const fake = createFakeContext({ packageRoot, initialToolNames: TASKBELAY_QUALIFIED_TOOL_NAMES });
   await activateDeepSeekIntegration(fake.ctx, {
     packageRoot,
     platform: fixturePlatform,
     arch: fixtureArch,
-    environment: { DEV_FLOW_DATA_DIR: dataDirectory },
+    environment: { TASKBELAY_DATA_DIR: dataDirectory },
   });
 
-  fake.replaceMcpCatalog(DEV_FLOW_QUALIFIED_TOOL_NAMES.slice(0, 5));
+  fake.replaceMcpCatalog(TASKBELAY_QUALIFIED_TOOL_NAMES.slice(0, 5));
   await nextMicrotask();
   assert.equal(fake.children[0].disposed, true);
-  assert.equal(fake.toolNames().some((toolName) => toolName.startsWith(DEV_FLOW_TOOL_NAMESPACE_PREFIX)), false);
+  assert.equal(fake.toolNames().some((toolName) => toolName.startsWith(TASKBELAY_TOOL_NAMESPACE_PREFIX)), false);
   assert.equal(fake.errors.some((message) => message.includes("catalog mismatch")), true);
 
   assert.throws(
-    () => assertQualifiedToolCatalog([...DEV_FLOW_QUALIFIED_TOOL_NAMES, "mcp__dev_flow__future_tool"]),
+    () => assertQualifiedToolCatalog([...TASKBELAY_QUALIFIED_TOOL_NAMES, "mcp__taskbelay__future_tool"]),
     /catalog mismatch/,
   );
 });
@@ -152,11 +152,11 @@ test("missing or extra connected namespace tools fail compatibility and dispose 
 test("preflight failure contributes no Skill, guard, or MCP child", async (t) => {
   const dataDirectory = await temporaryDirectory(t, "unsupported-data");
   const packageRoot = await temporaryPackage(t, "unsupported-package");
-  const fake = createFakeContext({ packageRoot, initialToolNames: DEV_FLOW_QUALIFIED_TOOL_NAMES });
+  const fake = createFakeContext({ packageRoot, initialToolNames: TASKBELAY_QUALIFIED_TOOL_NAMES });
   await assert.rejects(
     activateDeepSeekIntegration(fake.ctx, {
       packageRoot,
-      environment: { DEV_FLOW_DATA_DIR: dataDirectory },
+      environment: { TASKBELAY_DATA_DIR: dataDirectory },
       platform: "linux",
       arch: "arm64",
     }),
@@ -268,7 +268,7 @@ function createFakeContext({ packageRoot, initialToolNames, unrelatedToolNames =
 }
 
 async function temporaryDirectory(t, name) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-integration-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-integration-")));
   const directory = join(root, name);
   await mkdir(directory, { recursive: true });
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -276,19 +276,19 @@ async function temporaryDirectory(t, name) {
 }
 
 async function temporaryPackage(t, name) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-package-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-package-")));
   const packageRoot = join(root, name);
   const runtimePath = join(packageRoot, "runtime", fixtureRuntimeKey, fixtureExecutable);
-  const skillRoot = join(packageRoot, "skills", "dev-flow");
+  const skillRoot = join(packageRoot, "skills", "taskbelay");
   await mkdir(dirname(runtimePath), { recursive: true });
   await mkdir(join(skillRoot, "references"), { recursive: true });
   await writeFile(join(packageRoot, "package.json"), `${JSON.stringify({
-    name: "dev-flow-deepseek",
+    name: "taskbelay-deepseek",
     version: currentVersion,
   })}\n`);
-  await copyFile(join(sourcePackageRoot, "skills", "dev-flow", "SKILL.md"), join(skillRoot, "SKILL.md"));
+  await copyFile(join(sourcePackageRoot, "skills", "taskbelay", "SKILL.md"), join(skillRoot, "SKILL.md"));
   for (const directory of ["references", "scripts"]) {
-    await cp(join(sourcePackageRoot, "skills", "dev-flow", directory), join(skillRoot, directory), { recursive: true });
+    await cp(join(sourcePackageRoot, "skills", "taskbelay", directory), join(skillRoot, directory), { recursive: true });
   }
   if (fixturePlatform === "win32") {
     try {
@@ -298,14 +298,14 @@ async function temporaryPackage(t, name) {
     }
     await writeFile(
       join(dirname(runtimePath), "version"),
-      `process.stdout.write('dev-flow ${currentVersion}\\n');\n`,
+      `process.stdout.write('taskbelay ${currentVersion}\\n');\n`,
       "utf8",
     );
   } else {
     await writeFile(runtimePath, [
       "#!/bin/sh",
       "if [ \"$1\" = \"version\" ]; then",
-      `  printf 'dev-flow ${currentVersion}\\n'`,
+      `  printf 'taskbelay ${currentVersion}\\n'`,
       "  exit 0",
       "fi",
       "exit 1",

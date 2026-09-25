@@ -4,19 +4,19 @@ import assert from "node:assert/strict";
 import { readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 
-const confirmation = process.env.DEV_FLOW_CODEX_NATIVE_CONFIRM ?? "";
-const evidencePath = process.env.DEV_FLOW_CODEX_NATIVE_EVIDENCE ?? "";
+const confirmation = process.env.TASKBELAY_CODEX_NATIVE_CONFIRM ?? "";
+const evidencePath = process.env.TASKBELAY_CODEX_NATIVE_EVIDENCE ?? "";
 
 if (confirmation !== "worktree-first-native") {
   process.stdout.write(`${JSON.stringify({
     status: "skipped",
     evidence_type: "native_codex_app",
-    reason: "set DEV_FLOW_CODEX_NATIVE_CONFIRM=worktree-first-native and DEV_FLOW_CODEX_NATIVE_EVIDENCE to validate an explicitly run Codex App journey",
+    reason: "set TASKBELAY_CODEX_NATIVE_CONFIRM=worktree-first-native and TASKBELAY_CODEX_NATIVE_EVIDENCE to validate an explicitly run Codex App journey",
   })}\n`);
   process.exit(0);
 }
 if (!isAbsolute(evidencePath) || resolve(evidencePath) !== evidencePath) {
-  throw new Error("DEV_FLOW_CODEX_NATIVE_EVIDENCE must be a normalized absolute path");
+  throw new Error("TASKBELAY_CODEX_NATIVE_EVIDENCE must be a normalized absolute path");
 }
 const canonicalEvidence = await realpath(evidencePath);
 if (!(await stat(canonicalEvidence)).isFile()) throw new Error("native evidence path must be a file");

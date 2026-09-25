@@ -11,7 +11,7 @@ import { dataPathPolicy } from "../../lib/platform.mjs";
 
 const MAX_INPUT_BYTES = 1024 * 1024;
 const PATCH_HEADERS = ["*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "];
-const HOST_CHECK_LAUNCHER = fileURLToPath(new URL("../../bin/dev-flow-codex.mjs", import.meta.url));
+const HOST_CHECK_LAUNCHER = fileURLToPath(new URL("../../bin/taskbelay-codex.mjs", import.meta.url));
 
 export function preparedWriteFromHook(value) {
   if (!isObject(value) || value.hook_event_name !== "PreToolUse" || value.tool_name !== "apply_patch" ||
@@ -52,7 +52,7 @@ export function hookDecision(result) {
   if (result.decision === "allow") return null;
   const reason = typeof result.reason === "string" && result.reason.trim() !== ""
     ? result.reason
-    : "Dev Flow stopped this write before execution.";
+    : "TaskBelay stopped this write before execution.";
   return {
     systemMessage: reason,
     hookSpecificOutput: {
@@ -77,14 +77,14 @@ export function runHook({
     raw = readInput();
     if (typeof raw !== "string" || Buffer.byteLength(raw) > MAX_INPUT_BYTES) throw new Error("invalid input");
   } catch {
-    error.write("Dev Flow could not read the Codex PreToolUse event.\n");
+    error.write("TaskBelay could not read the Codex PreToolUse event.\n");
     return 2;
   }
   let event;
   try {
     event = JSON.parse(raw);
   } catch {
-    error.write("Dev Flow received an invalid Codex PreToolUse event.\n");
+    error.write("TaskBelay received an invalid Codex PreToolUse event.\n");
     return 2;
   }
   const request = preparedWriteFromHook(event);
@@ -92,12 +92,12 @@ export function runHook({
   const dataPaths = dataPathPolicy(platform, arch);
   const homeDirectory = dataPaths.homeDirectory({ environment, fallback: homedir() });
   const applicationData = dataPaths.applicationData({ homeDirectory, environment });
-  const defaultDataDirectory = join(applicationData.path, "dev-flow", "data");
-  const dataDirectory = environment.DEV_FLOW_DATA_DIR || defaultDataDirectory;
+  const defaultDataDirectory = join(applicationData.path, "taskbelay", "data");
+  const dataDirectory = environment.TASKBELAY_DATA_DIR || defaultDataDirectory;
   if (!existsSync(dataDirectory)) return 0;
   const child = spawn(process.execPath, [HOST_CHECK_LAUNCHER, "host-check", "pre-file-write"], {
     cwd: request.repository_path,
-    env: { ...environment, DEV_FLOW_DATA_DIR: dataDirectory },
+    env: { ...environment, TASKBELAY_DATA_DIR: dataDirectory },
     input: `${JSON.stringify(request)}\n`,
     encoding: "utf8",
     maxBuffer: 1024 * 1024,
@@ -105,19 +105,19 @@ export function runHook({
     windowsHide: true,
   });
   if (child.status !== 0 || child.error !== undefined) {
-    error.write("Dev Flow file-scope check was unavailable; the write was stopped.\n");
+    error.write("TaskBelay file-scope check was unavailable; the write was stopped.\n");
     return 2;
   }
   let result;
   try {
     result = JSON.parse(child.stdout);
   } catch {
-    error.write("Dev Flow file-scope check returned an invalid result; the write was stopped.\n");
+    error.write("TaskBelay file-scope check returned an invalid result; the write was stopped.\n");
     return 2;
   }
   const decision = hookDecision(result);
   if (decision === undefined) {
-    error.write("Dev Flow file-scope check returned an unknown decision; the write was stopped.\n");
+    error.write("TaskBelay file-scope check returned an unknown decision; the write was stopped.\n");
     return 2;
   }
   if (decision !== null) output.write(`${JSON.stringify(decision)}\n`);

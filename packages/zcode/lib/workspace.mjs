@@ -39,7 +39,7 @@ export async function inspect(input, { runGit = defaultRunGit } = {}) {
 }
 export async function prepare(input, options = {}) {
   exact(input, ["request", "assessment", "user_choice", "repositories", "handoff"]);
-  if (input.user_choice?.source !== "user" || input.user_choice.mode !== "dev_flow" || !input.user_choice.summary?.trim()) throw new Error("Explicit Dev Flow selection required");
+  if (input.user_choice?.source !== "user" || input.user_choice.mode !== "taskbelay" || !input.user_choice.summary?.trim()) throw new Error("Explicit TaskBelay selection required");
   const a = input.assessment;
   if (!a || !["small", "standard", "large"].includes(a.change_level) || !Array.isArray(a.unknowns) || a.unknowns.length) throw new Error("Complete resolved assessment required");
   for (const name of ["candidate_components", "candidate_paths", "public_contract_flags", "persistence_or_state_flags", "host_or_platform_flags", "verification_shape", "reasons"]) if (!Array.isArray(a[name]) || a[name].some(v => typeof v !== "string")) throw new Error("Missing assessment " + name);
@@ -204,14 +204,14 @@ export async function session(id, operation, options = {}) {
   const taskInstruction = receipt.core_task_id
     ? `Read the saved Core Task ${receipt.core_task_id} by ID with host=zcode, handle its blocker/recovery before work, and never create another Task for this launch.`
     : "Check Core for an existing Task in these exact repositories before creation. An unbound launch receipt does not prove that Core creation never occurred. If a previous open result is uncertain, recover it first. After a successful open, save the actual task_id with host-launch bind-task.";
-  const prompt = `Continue this Dev Flow task in its prepared workspace. First read the entire retained request, assessment and original discussion at ${receiptPath}. Read dev-flow-zcode host-launch status and scope for launch ${id}; verify every actual workspace and its permissions, and preserve existing content. Discover the actual plugin MCP tools and perform server_info before work. ${taskInstruction} Follow the saved Core Action and preserve the user's requirements and corrections.`;
+  const prompt = `Continue this TaskBelay task in its prepared workspace. First read the entire retained request, assessment and original discussion at ${receiptPath}. Read taskbelay-zcode host-launch status and scope for launch ${id}; verify every actual workspace and its permissions, and preserve existing content. Discover the actual plugin MCP tools and perform server_info before work. ${taskInstruction} Follow the saved Core Action and preserve the user's requirements and corrections.`;
   return {
     operation, status: "action_required", host: "zcode", launch_id: id,
     receipt_path: receiptPath, task_id: receipt.core_task_id ?? null,
     workspace_paths: receipt.repositories.map(repo => repo.worktree_path), prompt,
     next_steps: [
       "In ZCode, open the listed prepared workspace directories and grant only the required workspace permissions. If the current session already has access to all of them, continue there.",
-      "Use the installed Dev Flow Skill in that workspace and provide the complete prompt above. This command has not opened or resumed a ZCode session.",
+      "Use the installed TaskBelay Skill in that workspace and provide the complete prompt above. This command has not opened or resumed a ZCode session.",
     ],
   };
 }

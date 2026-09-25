@@ -163,7 +163,7 @@ func TestCurrentStorageLifecycleHasNoTaskDataResetCapability(t *testing.T) {
 			t.Fatalf("Core reset implementation remains at %s", relative)
 		}
 	}
-	for _, relative := range []string{"cmd/dev-flow/main.go", "internal/webui/types.go"} {
+	for _, relative := range []string{"cmd/taskbelay/main.go", "internal/webui/types.go"} {
 		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 		if err != nil {
 			t.Fatal(err)
@@ -175,7 +175,7 @@ func TestCurrentStorageLifecycleHasNoTaskDataResetCapability(t *testing.T) {
 	lifecyclePaths := []string{
 		"packages/codex/lib/lifecycle.mjs",
 		"packages/codex/lib/paths.mjs",
-		"packages/codex/bin/dev-flow-codex.mjs",
+		"packages/codex/bin/taskbelay-codex.mjs",
 	}
 	for _, relative := range lifecyclePaths {
 		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))

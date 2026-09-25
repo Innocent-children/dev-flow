@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
 )
 
 func TestCRLFStagingAndCommitPreserveImplementation(t *testing.T) {
@@ -52,7 +52,7 @@ func TestCRLFStagingAndCommitPreserveImplementation(t *testing.T) {
 			write([]byte("initial\r\n"))
 			git("add", ".")
 			git("commit", "-m", "Initial content")
-			database, err := store.Open(ctx, filepath.Join(t.TempDir(), "dev-flow.db"))
+			database, err := store.Open(ctx, filepath.Join(t.TempDir(), "taskbelay.db"))
 			if err != nil {
 				t.Fatal(err)
 			}

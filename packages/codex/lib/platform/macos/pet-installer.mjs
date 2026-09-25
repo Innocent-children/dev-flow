@@ -2,10 +2,10 @@ import { chmod, cp, lstat, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 export async function ensureCodexPetInstalled(paths) {
-  const sourceApp = join(paths.packageRoot, "runtime", "darwin-arm64", "DevFlowPet.app");
+  const sourceApp = join(paths.packageRoot, "runtime", "darwin-arm64", "TaskBelayPet.app");
   const petDirectory = paths.petDirectory ?? join(paths.productSupportRoot, "pet");
-  const targetApp = join(petDirectory, "DevFlowPet.app");
-  const targetExecutable = join(targetApp, "Contents", "MacOS", "DevFlowPet");
+  const targetApp = join(petDirectory, "TaskBelayPet.app");
+  const targetExecutable = join(targetApp, "Contents", "MacOS", "TaskBelayPet");
 
   try {
     const info = await lstat(targetExecutable);
@@ -15,7 +15,7 @@ export async function ensureCodexPetInstalled(paths) {
   }
 
   try {
-    const sourceExecutable = join(sourceApp, "Contents", "MacOS", "DevFlowPet");
+    const sourceExecutable = join(sourceApp, "Contents", "MacOS", "TaskBelayPet");
     const sourceInfo = await lstat(sourceExecutable);
     if (!sourceInfo.isFile() || sourceInfo.isSymbolicLink()) return;
     await mkdir(petDirectory, { recursive: true, mode: 0o700 });

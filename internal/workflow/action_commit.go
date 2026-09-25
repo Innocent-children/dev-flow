@@ -3,7 +3,7 @@ package workflow
 import (
 	"bytes"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 func ValidateActionCommit(task domain.ProcessTask, commit domain.ActionCommit) error {

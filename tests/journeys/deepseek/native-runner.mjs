@@ -35,12 +35,12 @@ let activeConfig;
 
 const nativeCheckpoints = Object.freeze([
   checkpoint("recovery-read", "DESIGN", "DESIGN", true, [
-    "/dev-flow Resume the active task after the interrupted Host process for read-only recovery observation.",
+    "/taskbelay Resume the active task after the interrupted Host process for read-only recovery observation.",
     "After the server-info handshake and task discovery, call get_task and then get_next_action.",
     "Do not edit files, apply an action, cancel, or advance the graph. Stop after reporting the current DESIGN action.",
   ]),
   checkpoint("work-to-comprehension", "DESIGN", "COMPREHENSION_REVIEW", false, [
-    "/dev-flow Resume the active task from fresh Core authority.",
+    "/taskbelay Resume the active task from fresh Core authority.",
     "Complete the bounded design, task planning, implementation, and targeted test for the single requested source file.",
     "Create only src/proof-writer.mjs exporting writeProof() that returns exactly deepseek-native-proof.",
     `Run only: ${exactTestCommand}`,
@@ -51,7 +51,7 @@ const nativeCheckpoints = Object.freeze([
     "Do not modify package.json, README.md, or test files.",
   ]),
   checkpoint("accept-and-deliver", "COMPREHENSION_REVIEW", "DONE", false, [
-    "/dev-flow I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
+    "/taskbelay I explicitly confirm that I can explain and maintain the implementation, guard boundary, and targeted test.",
     "Use the fresh current action, complete delivery, follow only legal Core transitions, confirm Core DONE, then stop.",
     "At DELIVERY, call the current Action submission_tool with exactly host, task_id, action_id, transition_id, summary, reason, artifacts, method_results, and node_result.",
     "Do not send payload, method_evidence, revision, Action kind, process identity, source cursor, repository binding, aggregate evidence IDs, or record IDs; Core fills those members. Submit explicit acceptance links with completed work_item_ids and passed current Test evidence_ids.",
@@ -100,26 +100,26 @@ function checkpoint(id, fromNode, toNode, readOnly, promptParts) {
 
 function loadConfig() {
   const required = [
-    "DEV_FLOW_DSH_CLI", "DEV_FLOW_NATIVE_ARTIFACT", "DEV_FLOW_NATIVE_ROOT",
-    "DEV_FLOW_DSH_CREDENTIALS", "DEV_FLOW_DSH_SETTINGS", "DEV_FLOW_DSH_LOCKFILE",
-    "DEV_FLOW_PRODUCT_SOURCE_COMMIT", "DEV_FLOW_ACCEPTANCE_COMMIT",
-    "DEV_FLOW_NATIVE_ARTIFACT_SHA256", "DEV_FLOW_NATIVE_CORE_SHA256",
+    "TASKBELAY_DSH_CLI", "TASKBELAY_NATIVE_ARTIFACT", "TASKBELAY_NATIVE_ROOT",
+    "TASKBELAY_DSH_CREDENTIALS", "TASKBELAY_DSH_SETTINGS", "TASKBELAY_DSH_LOCKFILE",
+    "TASKBELAY_PRODUCT_SOURCE_COMMIT", "TASKBELAY_ACCEPTANCE_COMMIT",
+    "TASKBELAY_NATIVE_ARTIFACT_SHA256", "TASKBELAY_NATIVE_CORE_SHA256",
   ];
   for (const name of required) {
     if (!process.env[name]) throw new Error(`missing ${name}`);
   }
   return {
-    dshCli: process.env.DEV_FLOW_DSH_CLI,
-    artifact: process.env.DEV_FLOW_NATIVE_ARTIFACT,
-    root: process.env.DEV_FLOW_NATIVE_ROOT,
-    credentials: process.env.DEV_FLOW_DSH_CREDENTIALS,
-    settings: process.env.DEV_FLOW_DSH_SETTINGS,
-    dshLockfile: process.env.DEV_FLOW_DSH_LOCKFILE,
-    productSourceCommit: process.env.DEV_FLOW_PRODUCT_SOURCE_COMMIT,
-    acceptanceCommit: process.env.DEV_FLOW_ACCEPTANCE_COMMIT,
-    artifactSha256: process.env.DEV_FLOW_NATIVE_ARTIFACT_SHA256,
-    coreSha256: process.env.DEV_FLOW_NATIVE_CORE_SHA256,
-    preflightMarker: join(process.env.DEV_FLOW_NATIVE_ROOT, "preflight.json"),
+    dshCli: process.env.TASKBELAY_DSH_CLI,
+    artifact: process.env.TASKBELAY_NATIVE_ARTIFACT,
+    root: process.env.TASKBELAY_NATIVE_ROOT,
+    credentials: process.env.TASKBELAY_DSH_CREDENTIALS,
+    settings: process.env.TASKBELAY_DSH_SETTINGS,
+    dshLockfile: process.env.TASKBELAY_DSH_LOCKFILE,
+    productSourceCommit: process.env.TASKBELAY_PRODUCT_SOURCE_COMMIT,
+    acceptanceCommit: process.env.TASKBELAY_ACCEPTANCE_COMMIT,
+    artifactSha256: process.env.TASKBELAY_NATIVE_ARTIFACT_SHA256,
+    coreSha256: process.env.TASKBELAY_NATIVE_CORE_SHA256,
+    preflightMarker: join(process.env.TASKBELAY_NATIVE_ROOT, "preflight.json"),
     profile: "headless",
   };
 }
@@ -159,7 +159,7 @@ async function preflight(baseConfig) {
   assert.match(config.acceptanceCommit, /^[0-9a-f]{40}$/u);
   assert.match(config.artifactSha256, /^[0-9a-f]{64}$/u);
   assert.match(config.coreSha256, /^[0-9a-f]{64}$/u);
-  assert.equal(basename(config.artifact), `dev-flow-deepseek-${currentPackageVersion}.tgz`);
+  assert.equal(basename(config.artifact), `taskbelay-deepseek-${currentPackageVersion}.tgz`);
   const artifact = await fileIdentity(await realpath(config.artifact));
   assert.equal(artifact.sha256, config.artifactSha256);
   const dsh = await validateDshConsumer(config);
@@ -192,11 +192,11 @@ async function preflight(baseConfig) {
   assert.equal((await sessionFiles(join(config.dshHome, "sessions"))).length, 0, "headless help created a Session");
   assert.equal(await coreTaskCount(config.data), 0, "headless help created a Core task");
   await execFile("tar", ["-xzf", config.artifact, "-C", config.readback]);
-  const extractedCorePath = join(config.readback, "package", "runtime", "darwin-arm64", "dev-flow");
+  const extractedCorePath = join(config.readback, "package", "runtime", "darwin-arm64", "taskbelay");
   const core = await fileIdentity(extractedCorePath);
   assert.equal(core.sha256, config.coreSha256);
   assert.ok((await stat(extractedCorePath)).mode & 0o111);
-  assert.equal((await execFile(extractedCorePath, ["version"])).stdout.trim(), `dev-flow ${currentCoreVersion}`);
+  assert.equal((await execFile(extractedCorePath, ["version"])).stdout.trim(), `taskbelay ${currentCoreVersion}`);
   assert.equal(await exists(installedPackageRoot(config)), false, "Artifact must not be installed during Preflight");
   const marker = {
     run_root: config.root,
@@ -253,9 +253,9 @@ async function runNative(baseConfig) {
   await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "add", config.artifact], {
     cwd: config.workspace, timeout: 120_000,
   });
-  await readProfileBundles(config, ["dev-flow-deepseek"]);
+  await readProfileBundles(config, ["taskbelay-deepseek"]);
   const installedCore = await fileIdentity(await realpath(join(
-    installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow",
+    installedPackageRoot(config), "runtime", "darwin-arm64", "taskbelay",
   )));
   assert.equal(installedCore.sha256, config.coreSha256);
 
@@ -271,13 +271,13 @@ async function runNative(baseConfig) {
   const sourceBeforeAssessment = await repositoryIdentity(config.workspace);
   const assessment = await runTurn(
     config,
-    `${taskRequest} First provide the Dev Flow suitability assessment and stop for my choice. Do not edit files, run tests, call Dev Flow, fetch, create branches/worktrees, or create a Task.`,
+    `${taskRequest} First provide the TaskBelay suitability assessment and stop for my choice. Do not edit files, run tests, call TaskBelay, fetch, create branches/worktrees, or create a Task.`,
     { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS },
   );
   const assessmentSession = await readNewSession(sessionRoot, assessment.beforeSessions);
   const assessmentSummary = summarizeSession(assessmentSession.rows);
   assertCompletedTurn(assessmentSummary);
-  assert.equal(assessmentSummary.devFlowCalls.length, 0);
+  assert.equal(assessmentSummary.taskBelayCalls.length, 0);
   assert.match(assessment.exit.stdout, /change_level/u);
   assert.match(assessment.exit.stdout, /recommendation/u);
   const assessmentZeroGitWrite = JSON.stringify(await repositoryIdentity(config.workspace)) === JSON.stringify(sourceBeforeAssessment);
@@ -286,7 +286,7 @@ async function runNative(baseConfig) {
 
   activeStage = "worktree-confirmation";
   const confirmationText = [
-    "/dev-flow confirm-worktree",
+    "/taskbelay confirm-worktree",
     "repository=primary;remote=origin;base=main;target=feature/deepseek-native-proof",
     `The assessed request is: ${taskRequest}`,
     "Call workspace_coordinator once with operation=provision, profile=headless, and the confirmed primary repository. Stop after returning its relaunch descriptor; do not call Core.",
@@ -295,7 +295,7 @@ async function runNative(baseConfig) {
   const confirmationSession = await readNewSession(sessionRoot, confirmation.beforeSessions);
   const confirmationSummary = summarizeSession(confirmationSession.rows);
   assertCompletedTurn(confirmationSummary);
-  assert.equal(confirmationSummary.devFlowCalls.length, 0);
+  assert.equal(confirmationSummary.taskBelayCalls.length, 0);
   const launch = firstToolJSON(confirmationSession.rows, "workspace_coordinator");
   assert.equal(launch?.status, "relaunch_required");
   assert.deepEqual(launch?.relaunch?.arguments?.slice(0, 2), ["--profile", config.profile]);
@@ -313,12 +313,12 @@ async function runNative(baseConfig) {
   const interruptedSession = await readNewSession(sessionRoot, interrupted.beforeSessions);
   const interruptedSummary = summarizeSession(interruptedSession.rows);
   assert.deepEqual(interruptedSummary.turnEndKinds, []);
-  assert.equal(interruptedSummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-  assert.ok(interruptedSummary.devFlowCalls.some((call) => isActionMutationName(call.name)));
+  assert.equal(interruptedSummary.taskBelayCalls[0]?.name, "mcp__taskbelay__taskbelay_server_info");
+  assert.ok(interruptedSummary.taskBelayCalls.some((call) => isActionMutationName(call.name)));
   const interruptedTask = await currentTask(config.data);
   const openResult = firstSuccessfulToolResult(
     interruptedSession.rows,
-    "mcp__dev_flow__dev_flow_open_task",
+    "mcp__taskbelay__taskbelay_open_task",
   );
   assert.equal(openResult?.task?.task_id, interruptedTask.task_id);
   const initialRevision = openResult.task.revision;
@@ -347,8 +347,8 @@ async function runNative(baseConfig) {
   assert.equal(task.workspace_origin?.canonical_worktree_root, config.taskWorkspace);
   assert.equal(task.workspace_origin?.task_branch, "feature/deepseek-native-proof");
   const allSummaries = [assessmentSummary, confirmationSummary, interruptedSummary, ...checkpointSummaries.values()];
-  const devFlowNames = allSummaries.flatMap((summary) => summary.devFlowCalls.map((call) => call.name));
-  assert.ok(devFlowNames.every((name) => exactDevFlowNames().has(name)));
+  const taskBelayNames = allSummaries.flatMap((summary) => summary.taskBelayCalls.map((call) => call.name));
+  assert.ok(taskBelayNames.every((name) => exactTaskBelayNames().has(name)));
   const commands = allSummaries.flatMap((summary) => summary.bashCommands);
   const testLike = commands.filter(isTestExecutionCommand);
   assert.ok(testLike.every((command) => command === exactTestCommand));
@@ -359,11 +359,11 @@ async function runNative(baseConfig) {
   assert.match(await readFile(join(config.taskWorkspace, "src", "proof-writer.mjs"), "utf8"), /deepseek-native-proof/u);
   const info = await readServerInfoFromSessions(allSummaries);
   assert.equal(info.process_id, "standard-development");
-  assert.deepEqual(info.qualified_tools, [...exactDevFlowNames()]);
+  assert.deepEqual(info.qualified_tools, [...exactTaskBelayNames()]);
 
   const beforeLifecycle = await retainedIdentity(config, task.task_id);
   assert.equal(beforeLifecycle.codex, marker.codex_identity_sha256);
-  await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "remove", "dev-flow-deepseek"], {
+  await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "remove", "taskbelay-deepseek"], {
     cwd: config.taskWorkspace, timeout: 120_000,
   });
   await readProfileBundles(config);
@@ -373,22 +373,22 @@ async function runNative(baseConfig) {
   await runIsolatedDsh(config, ["plugin", "--profile", config.profile, "add", config.artifact], {
     cwd: config.taskWorkspace, timeout: 120_000,
   });
-  await readProfileBundles(config, ["dev-flow-deepseek"]);
-  const reinstalledCore = await fileIdentity(await realpath(join(installedPackageRoot(config), "runtime", "darwin-arm64", "dev-flow")));
+  await readProfileBundles(config, ["taskbelay-deepseek"]);
+  const reinstalledCore = await fileIdentity(await realpath(join(installedPackageRoot(config), "runtime", "darwin-arm64", "taskbelay")));
   assert.equal(reinstalledCore.sha256, config.coreSha256);
 
   activeStage = "read-only-reopen";
   const reopen = await runTurn(config, [
-    "/dev-flow Reopen the compatible terminal task read-only after exact-artifact reinstall.",
+    "/taskbelay Reopen the compatible terminal task read-only after exact-artifact reinstall.",
     "Perform the server-info handshake and fresh task/action reads, report the existing Core DONE result, and do not mutate it.",
   ].join(" "), { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
   assert.equal(reopen.exit.code, 0);
   const reopenSession = await readNewSession(sessionRoot, reopen.beforeSessions);
   const reopenSummary = summarizeSession(reopenSession.rows);
   assertCompletedTurn(reopenSummary);
-  assert.equal(reopenSummary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-  assert.equal(reopenSummary.devFlowCalls.some((call) => isActionMutationName(call.name)), false);
-  assert.equal(reopenSummary.devFlowCalls.some((call) => call.name === "mcp__dev_flow__dev_flow_cancel_task"), false);
+  assert.equal(reopenSummary.taskBelayCalls[0]?.name, "mcp__taskbelay__taskbelay_server_info");
+  assert.equal(reopenSummary.taskBelayCalls.some((call) => isActionMutationName(call.name)), false);
+  assert.equal(reopenSummary.taskBelayCalls.some((call) => call.name === "mcp__taskbelay__taskbelay_cancel_task"), false);
   const reopenedTask = await currentTask(config.data);
   assert.equal(reopenedTask.task_id, task.task_id);
   assert.equal(reopenedTask.revision, task.revision);
@@ -397,7 +397,7 @@ async function runNative(baseConfig) {
 
   const terminalWorktree = config.taskWorkspace;
   activeStage = "prepare-cleanup";
-  const prepareCleanupPrompt = `/dev-flow prepare-cleanup launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=prepare_cleanup, these identities, and source_repository_path=${JSON.stringify(config.workspace)}. Return its relaunch descriptor without deleting Git resources.`;
+  const prepareCleanupPrompt = `/taskbelay prepare-cleanup launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=prepare_cleanup, these identities, and source_repository_path=${JSON.stringify(config.workspace)}. Return its relaunch descriptor without deleting Git resources.`;
   const prepareCleanupTurn = await runTurn(config, prepareCleanupPrompt, { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
   const prepareCleanupSession = await readNewSession(sessionRoot, prepareCleanupTurn.beforeSessions);
   const cleanupLaunch = firstToolJSON(prepareCleanupSession.rows, "workspace_coordinator");
@@ -411,7 +411,7 @@ async function runNative(baseConfig) {
   assert.equal(await exists(terminalWorktree), true);
 
   activeStage = "cleanup-worktree";
-  const cleanupWorktreePrompt = `/dev-flow cleanup-worktree launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=cleanup_worktree and these identities. Stop after the result.`;
+  const cleanupWorktreePrompt = `/taskbelay cleanup-worktree launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=cleanup_worktree and these identities. Stop after the result.`;
   const cleanupWorktreeTurn = await runTurn(config, cleanupWorktreePrompt, { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
   const cleanupWorktreeSession = await readNewSession(sessionRoot, cleanupWorktreeTurn.beforeSessions);
   const cleanupWorktree = firstToolJSON(cleanupWorktreeSession.rows, "workspace_coordinator");
@@ -421,7 +421,7 @@ async function runNative(baseConfig) {
 
   await execFile("git", ["merge", "--ff-only", "feature/deepseek-native-proof"], { cwd: config.workspace });
   activeStage = "cleanup-branch";
-  const cleanupBranchPrompt = `/dev-flow cleanup-branch launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=cleanup_branch, these identities, and source_repository_path equal to the current working directory. Stop after the result.`;
+  const cleanupBranchPrompt = `/taskbelay cleanup-branch launch=${launch.launch_id} repository=primary task=${task.task_id} revision=${task.revision}\nCall workspace_coordinator exactly once with operation=cleanup_branch, these identities, and source_repository_path equal to the current working directory. Stop after the result.`;
   const cleanupBranchTurn = await runTurn(config, cleanupBranchPrompt, { stageId: activeStage, timeoutMs: TURN_TIMEOUT_MS });
   const cleanupBranchSession = await readNewSession(sessionRoot, cleanupBranchTurn.beforeSessions);
   const cleanupBranch = firstToolJSON(cleanupBranchSession.rows, "workspace_coordinator");
@@ -431,7 +431,7 @@ async function runNative(baseConfig) {
   assert.equal(terminalCleanup, true);
 
   const artifact = await fileIdentity(config.artifact);
-  const corePath = join(config.readback, "package", "runtime", "darwin-arm64", "dev-flow");
+  const corePath = join(config.readback, "package", "runtime", "darwin-arm64", "taskbelay");
   const core = await fileIdentity(corePath);
   const recoveredTask = checkpointSummaries.get("recovery-read");
   assert.notEqual(recoveredTask, undefined);
@@ -461,16 +461,16 @@ async function runNative(baseConfig) {
       terminal_state: task.current_node,
     },
     outcomes: {
-      assessment_zero_dispatch: assessmentSummary.devFlowCalls.length === 0,
+      assessment_zero_dispatch: assessmentSummary.taskBelayCalls.length === 0,
       assessment_zero_git_write: assessmentZeroGitWrite,
-      confirmation_zero_core: confirmationSummary.devFlowCalls.length === 0,
+      confirmation_zero_core: confirmationSummary.taskBelayCalls.length === 0,
       isolated_worktree: task.workspace_origin?.canonical_worktree_root === config.taskWorkspace,
       relaunch_consumed: interruptedTask.workspace_origin?.provisioning_receipt_id === launch.launch_id,
       terminal_cleanup: terminalCleanup,
       selector_guard: true,
       seventeen_tools: info.qualified_tools.length === 17,
       restart_resume: true,
-      read_before_retry: recoveryReadBeforeRetry(recoveredTask.devFlowCalls),
+      read_before_retry: recoveryReadBeforeRetry(recoveredTask.taskBelayCalls),
       comprehension: true,
       core_done: true,
       remove_reinstall: true,
@@ -494,9 +494,9 @@ async function runNativeCheckpoint(config, sessionRoot, definition, before, task
   const session = await readNewSession(sessionRoot, turn.beforeSessions);
   const summary = summarizeSession(session.rows);
   assertCompletedTurn(summary);
-  assert.equal(summary.devFlowCalls[0]?.name, "mcp__dev_flow__dev_flow_server_info");
-  assert.ok(summary.devFlowCalls.every((call) => exactDevFlowNames().has(call.name)));
-  assertMutationIdentities(summary.devFlowCalls);
+  assert.equal(summary.taskBelayCalls[0]?.name, "mcp__taskbelay__taskbelay_server_info");
+  assert.ok(summary.taskBelayCalls.every((call) => exactTaskBelayNames().has(call.name)));
+  assertMutationIdentities(summary.taskBelayCalls);
   const after = await taskProgressSnapshot(config.data);
   const assessment = assessCheckpointProgress(definition, before, after, summary);
   if (assessment.status !== "passed") {
@@ -516,8 +516,8 @@ function assessCheckpointProgress(definition, before, after, summary) {
   if (after.current_node !== definition.toNode) return failedProgress("stage did not stop at its target node");
   if (after.revision < before.revision) return failedProgress("task revision moved backward");
 
-  const calls = summary.devFlowCalls;
-  const mutations = calls.filter((call) => isActionMutationName(call.name) || call.name === "mcp__dev_flow__dev_flow_cancel_task");
+  const calls = summary.taskBelayCalls;
+  const mutations = calls.filter((call) => isActionMutationName(call.name) || call.name === "mcp__taskbelay__taskbelay_cancel_task");
   if (definition.readOnly) {
     if (!recoveryReadBeforeRetry(calls)) return failedProgress("required recovery read sequence is absent");
     if (mutations.length !== 0) return failedProgress("recovery observation mutated Core");
@@ -539,9 +539,9 @@ function assessCheckpointProgress(definition, before, after, summary) {
 }
 
 function recoveryReadBeforeRetry(calls) {
-  const getTask = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_task");
-  const getNext = calls.findIndex((call) => call.name === "mcp__dev_flow__dev_flow_get_next_action");
-  const firstMutation = calls.findIndex((call) => isActionMutationName(call.name) || call.name === "mcp__dev_flow__dev_flow_cancel_task");
+  const getTask = calls.findIndex((call) => call.name === "mcp__taskbelay__taskbelay_get_task");
+  const getNext = calls.findIndex((call) => call.name === "mcp__taskbelay__taskbelay_get_next_action");
+  const firstMutation = calls.findIndex((call) => isActionMutationName(call.name) || call.name === "mcp__taskbelay__taskbelay_cancel_task");
   return getTask >= 0 && getNext > getTask && firstMutation === -1;
 }
 
@@ -574,7 +574,7 @@ function firstToolJSON(rows, name) {
 }
 
 function installedPackageRoot(config) {
-  return join(config.dshHome, "profiles", config.profile, "node_modules", "dev-flow-deepseek");
+  return join(config.dshHome, "profiles", config.profile, "node_modules", "taskbelay-deepseek");
 }
 
 async function repositoryIdentity(workspace) {
@@ -599,7 +599,7 @@ async function retainedIdentity(config, taskID) {
 
 async function taskPersistenceIdentity(dataDirectory, taskID) {
   const { DatabaseSync } = await import("node:sqlite");
-  const db = new DatabaseSync(join(dataDirectory, "dev-flow.db"), { readOnly: true });
+  const db = new DatabaseSync(join(dataDirectory, "taskbelay.db"), { readOnly: true });
   const task = db.prepare("SELECT task_id,current_node,revision,snapshot FROM tasks WHERE task_id=?").get(taskID);
   const eventCount = Number(db.prepare("SELECT COUNT(*) AS count FROM task_events WHERE task_id=?").get(taskID).count);
   const claimCount = Number(db.prepare("SELECT COUNT(*) AS count FROM repository_claims WHERE task_id=?").get(taskID).count);
@@ -635,7 +635,7 @@ async function treeDigest(root, ignoredNames = new Set()) {
 }
 
 async function selfTest() {
-  const observationRoot = await mkdtemp(join(tmpdir(), "dev-flow-native-observation-"));
+  const observationRoot = await mkdtemp(join(tmpdir(), "taskbelay-native-observation-"));
   try {
     const workspace = join(observationRoot, "workspace");
     await mkdir(workspace);
@@ -656,7 +656,7 @@ async function selfTest() {
   assert.deepEqual(nativeCheckpoints.map((definition) => definition.id), [
     "recovery-read", "work-to-comprehension", "accept-and-deliver",
   ]);
-  assert.ok(nativeCheckpoints.every((definition) => definition.prompt.includes("/dev-flow")));
+  assert.ok(nativeCheckpoints.every((definition) => definition.prompt.includes("/taskbelay")));
   const deliveryPrompt = nativeCheckpoints.find((definition) => definition.id === "accept-and-deliver").prompt;
   assert.match(deliveryPrompt, /exactly host, task_id, action_id, transition_id, summary, reason, artifacts, method_results, and node_result/u);
   assert.match(deliveryPrompt, /Do not send payload, method_evidence, revision/u);
@@ -672,20 +672,20 @@ async function selfTest() {
     node_result: { problem_class: "none", acceptance: [{ criterion: "Current criterion", status: "satisfied", work_item_ids: ["work-current"], evidence_ids: ["evidence-current"] }], unverified_items: [], risks: [], findings: [] },
   };
   assertMutationIdentities([{
-    name: "mcp__dev_flow__dev_flow_submit_delivery",
+    name: "mcp__taskbelay__taskbelay_submit_delivery",
     arguments: JSON.stringify(currentSubmission),
   }]);
   const legacySubmission = { ...currentSubmission, payload: { transition_id: "delivery_complete" } };
   delete legacySubmission.transition_id;
   assert.throws(() => assertMutationIdentities([{
-    name: "mcp__dev_flow__dev_flow_submit_delivery",
+    name: "mcp__taskbelay__taskbelay_submit_delivery",
     arguments: JSON.stringify(legacySubmission),
   }]), /current top-level contract/u);
   assertCompletedTurn(summarizeEvents([
     { type: "turn/end", data: { reason: { kind: "completed" } } },
   ]));
 
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-native-self-test-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-native-self-test-"));
   try {
     const config = withRunRoot({ root, profile: "headless" }, join(root, "run"));
     await mkdir(config.root);
@@ -698,7 +698,7 @@ async function selfTest() {
     await assert.rejects(assertPrivateFile(credentialPath), /private permissions/u);
     await assertOwnedPathsAbsent(config);
     await mkdir(config.data);
-    await writeFile(join(config.data, "dev-flow.db"), "state\n");
+    await writeFile(join(config.data, "taskbelay.db"), "state\n");
     await assert.rejects(assertOwnedPathsAbsent(config), /Runner-owned path/u);
 
     const block = [
@@ -713,12 +713,12 @@ async function selfTest() {
     assert.throws(() => dshIntegrityFromConsumerLockfile(block.replace(dshIntegrity, "sha512-wrong")), /integrity/u);
 
     const recoveryCalls = [
-      { name: "mcp__dev_flow__dev_flow_server_info" },
-      { name: "mcp__dev_flow__dev_flow_get_task" },
-      { name: "mcp__dev_flow__dev_flow_get_next_action" },
+      { name: "mcp__taskbelay__taskbelay_server_info" },
+      { name: "mcp__taskbelay__taskbelay_get_task" },
+      { name: "mcp__taskbelay__taskbelay_get_next_action" },
     ];
     assert.equal(recoveryReadBeforeRetry(recoveryCalls), true);
-    assert.equal(recoveryReadBeforeRetry([...recoveryCalls, { name: "mcp__dev_flow__dev_flow_submit_test" }]), false);
+    assert.equal(recoveryReadBeforeRetry([...recoveryCalls, { name: "mcp__taskbelay__taskbelay_submit_test" }]), false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -763,12 +763,12 @@ async function selfTest() {
   assert.equal(JSON.stringify(failure).includes(privateRoot), false);
   assert.equal(JSON.stringify(failure).includes(homedir()), false);
 
-  const taskRoot = await mkdtemp(join(tmpdir(), "dev-flow-native-task-self-test-"));
+  const taskRoot = await mkdtemp(join(tmpdir(), "taskbelay-native-task-self-test-"));
   try {
     const taskData = join(taskRoot, "data");
     await mkdir(taskData);
     const { DatabaseSync } = await import("node:sqlite");
-    const db = new DatabaseSync(join(taskData, "dev-flow.db"));
+    const db = new DatabaseSync(join(taskData, "taskbelay.db"));
     db.exec("CREATE TABLE tasks (task_id TEXT, origin_host TEXT, current_node TEXT, revision INTEGER, snapshot BLOB, updated_at TEXT)");
     db.prepare("INSERT INTO tasks VALUES (?, ?, ?, ?, ?, ?)").run(
       "task-deadbeef", "deepseek", "IMPLEMENT", 4, Buffer.from("{}"), "2026-08-21T00:00:00Z",
@@ -875,7 +875,7 @@ function boundedCollector(stream, maxBytes) {
 }
 
 async function waitForNodeOrExit(dataDirectory, child, node, timeoutMs) {
-  const databasePath = join(dataDirectory, "dev-flow.db");
+  const databasePath = join(dataDirectory, "taskbelay.db");
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (child.exitCode !== null || child.signalCode !== null) throw new Error("DSH exited before the interruption checkpoint");
@@ -893,7 +893,7 @@ async function waitForNodeOrExit(dataDirectory, child, node, timeoutMs) {
 
 async function currentTask(dataDirectory) {
   const { DatabaseSync } = await import("node:sqlite");
-  const db = new DatabaseSync(join(dataDirectory, "dev-flow.db"), { readOnly: true });
+  const db = new DatabaseSync(join(dataDirectory, "taskbelay.db"), { readOnly: true });
   const row = db.prepare("SELECT task_id,origin_host,current_node,revision,snapshot FROM tasks ORDER BY updated_at DESC LIMIT 1").get();
   db.close();
   assert.notEqual(row, undefined, "Core task is absent");
@@ -916,7 +916,7 @@ async function taskProgressSnapshot(dataDirectory) {
 }
 
 async function coreTaskCount(dataDirectory) {
-  const databasePath = join(dataDirectory, "dev-flow.db");
+  const databasePath = join(dataDirectory, "taskbelay.db");
   if (!await exists(databasePath)) return 0;
   const { DatabaseSync } = await import("node:sqlite");
   const db = new DatabaseSync(databasePath, { readOnly: true });
@@ -997,7 +997,7 @@ function decompressZstdFrames(bytes) {
 function summarizeSession(rows) {
   const events = rows.filter((row) => row.type !== "session" && row.type !== "text-chunks" && row.type !== "reasoning-chunks" && row.type !== "tool-call-chunks");
   const summary = summarizeEvents(events);
-  const infoCall = summary.devFlowCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_server_info");
+  const infoCall = summary.taskBelayCalls.find((call) => call.name === "mcp__taskbelay__taskbelay_server_info");
   if (infoCall) {
     const result = toolResultEnvelope(events, infoCall.callId);
     if (result?.ok) summary.serverInfo = result.result;
@@ -1009,14 +1009,14 @@ function summarizeEvents(events) {
   const calls = events.filter((event) => event.type === "tool/call").map((event) => event.data);
   const resultIds = new Set(events.filter((event) => event.type === "tool/result")
     .map((event) => event.data?.message?.content?.[0]?.toolCallId).filter(Boolean));
-  const devFlowCalls = calls.filter((call) => call.name.startsWith("mcp__dev_flow__"));
+  const taskBelayCalls = calls.filter((call) => call.name.startsWith("mcp__taskbelay__"));
   const bashCommands = calls.filter((call) => call.name === "bash").map((call) => {
     try { return JSON.parse(call.arguments).command; } catch { return undefined; }
   }).filter((value) => typeof value === "string");
   return {
-    devFlowCalls,
+    taskBelayCalls,
     bashCommands,
-    unansweredDevFlowCallIds: devFlowCalls.map((call) => call.callId).filter((id) => !resultIds.has(id)),
+    unansweredTaskBelayCallIds: taskBelayCalls.map((call) => call.callId).filter((id) => !resultIds.has(id)),
     turnEndKinds: events.filter((event) => event.type === "turn/end")
       .map((event) => event.data?.reason?.kind ?? null),
   };
@@ -1039,19 +1039,19 @@ async function readServerInfoFromSessions(summaries) {
   const info = summaries.map((summary) => summary.serverInfo).find(Boolean);
   assert.notEqual(info, undefined, "server-info envelope was not retained");
   const rawTools = [
-    "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task",
-    "dev_flow_get_next_action", "dev_flow_submit_requirements", "dev_flow_submit_design",
-    "dev_flow_submit_tasks", "dev_flow_submit_implementation", "dev_flow_submit_test",
-    "dev_flow_submit_comprehension", "dev_flow_submit_refactor", "dev_flow_submit_delivery",
-    "dev_flow_prepare_task_relocation", "dev_flow_resolve_blocker", "dev_flow_recover_action",
-    "dev_flow_cancel_task", "dev_flow_abandon_task",
+    "taskbelay_server_info", "taskbelay_open_task", "taskbelay_get_task",
+    "taskbelay_get_next_action", "taskbelay_submit_requirements", "taskbelay_submit_design",
+    "taskbelay_submit_tasks", "taskbelay_submit_implementation", "taskbelay_submit_test",
+    "taskbelay_submit_comprehension", "taskbelay_submit_refactor", "taskbelay_submit_delivery",
+    "taskbelay_prepare_task_relocation", "taskbelay_resolve_blocker", "taskbelay_recover_action",
+    "taskbelay_cancel_task", "taskbelay_abandon_task",
   ];
   assert.deepEqual(info.tools, rawTools);
   assert.deepEqual(info.method_profiles, ["plain", "spec-kit", "openspec"]);
   return {
     process_id: info.supported_processes[0].process_id,
     process_definition_digest: info.supported_processes[0].definition_digest,
-    qualified_tools: [...exactDevFlowNames()],
+    qualified_tools: [...exactTaskBelayNames()],
   };
 }
 
@@ -1059,22 +1059,22 @@ function isTestExecutionCommand(command) {
   return /^node\s+--test(?:\s|$)/u.test(command.trim());
 }
 
-function exactDevFlowNames() {
+function exactTaskBelayNames() {
   return new Set([
-    "mcp__dev_flow__dev_flow_server_info", "mcp__dev_flow__dev_flow_open_task",
-    "mcp__dev_flow__dev_flow_get_task", "mcp__dev_flow__dev_flow_get_next_action",
-    "mcp__dev_flow__dev_flow_submit_requirements", "mcp__dev_flow__dev_flow_submit_design",
-    "mcp__dev_flow__dev_flow_submit_tasks", "mcp__dev_flow__dev_flow_submit_implementation",
-    "mcp__dev_flow__dev_flow_submit_test", "mcp__dev_flow__dev_flow_submit_comprehension",
-    "mcp__dev_flow__dev_flow_submit_refactor", "mcp__dev_flow__dev_flow_submit_delivery",
-    "mcp__dev_flow__dev_flow_prepare_task_relocation", "mcp__dev_flow__dev_flow_resolve_blocker",
-    "mcp__dev_flow__dev_flow_recover_action", "mcp__dev_flow__dev_flow_cancel_task",
-    "mcp__dev_flow__dev_flow_abandon_task",
+    "mcp__taskbelay__taskbelay_server_info", "mcp__taskbelay__taskbelay_open_task",
+    "mcp__taskbelay__taskbelay_get_task", "mcp__taskbelay__taskbelay_get_next_action",
+    "mcp__taskbelay__taskbelay_submit_requirements", "mcp__taskbelay__taskbelay_submit_design",
+    "mcp__taskbelay__taskbelay_submit_tasks", "mcp__taskbelay__taskbelay_submit_implementation",
+    "mcp__taskbelay__taskbelay_submit_test", "mcp__taskbelay__taskbelay_submit_comprehension",
+    "mcp__taskbelay__taskbelay_submit_refactor", "mcp__taskbelay__taskbelay_submit_delivery",
+    "mcp__taskbelay__taskbelay_prepare_task_relocation", "mcp__taskbelay__taskbelay_resolve_blocker",
+    "mcp__taskbelay__taskbelay_recover_action", "mcp__taskbelay__taskbelay_cancel_task",
+    "mcp__taskbelay__taskbelay_abandon_task",
   ]);
 }
 
 function isActionMutationName(name) {
-  return typeof name === "string" && name.startsWith("mcp__dev_flow__dev_flow_submit_");
+  return typeof name === "string" && name.startsWith("mcp__taskbelay__taskbelay_submit_");
 }
 
 async function validateEvidence(evidence) {
@@ -1120,7 +1120,7 @@ function assertEvidenceShape(evidence) {
   assert.match(evidence.artifact.sha256, /^[0-9a-f]{64}$/u);
   assertClosedKeys(evidence.core, ["sha256", "reported_version"]);
   assert.match(evidence.core.sha256, /^[0-9a-f]{64}$/u);
-  assert.equal(evidence.core.reported_version, `dev-flow ${currentCoreVersion}`);
+  assert.equal(evidence.core.reported_version, `taskbelay ${currentCoreVersion}`);
   assert.deepEqual(evidence.dsh, { version: "0.1.2-rc.1", integrity: dshIntegrity });
   assertClosedKeys(evidence.platform, ["node", "pnpm", "os", "arch"]);
   assert.match(evidence.platform.node, /^v24\./u);
@@ -1150,7 +1150,7 @@ function assertClosedKeys(value, expected) {
 }
 
 function configuredPrivatePrefix() {
-  return process.env.DEV_FLOW_NATIVE_ROOT ?? "/private-path-not-configured";
+  return process.env.TASKBELAY_NATIVE_ROOT ?? "/private-path-not-configured";
 }
 
 function assertEvidenceSafe(evidence) {
@@ -1209,7 +1209,7 @@ function dshEnvironment(config) {
     HOME: config.isolatedHome,
     TMPDIR: config.temporaryDirectory,
     DSH_HOME: config.dshHome,
-    DEV_FLOW_DATA_DIR: config.data,
+    TASKBELAY_DATA_DIR: config.data,
     DSH_TOOLS_MODE: "native",
     DSH_TELEMETRY_DISABLED: "1",
   };
@@ -1249,7 +1249,7 @@ async function assertOwnedPathsAbsent(config) {
   const ownedPaths = [
     join(config.dshHome, "profiles", config.profile),
     join(config.dshHome, "sessions"),
-    join(config.data, "dev-flow.db"),
+    join(config.data, "taskbelay.db"),
     join(config.workspace, ".git"),
     config.readback,
   ];

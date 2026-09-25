@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	coremcp "github.com/Innocent-children/taskbelay/internal/mcp"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 func TestMCPGeneratedCatalogMatchesProcessAndClosedSchemas(t *testing.T) {
@@ -26,7 +26,7 @@ func TestMCPGeneratedCatalogMatchesProcessAndClosedSchemas(t *testing.T) {
 			t.Fatalf("catalog order or uniqueness failed at %s", tool.Name)
 		}
 		seen[tool.Name] = true
-		if strings.HasPrefix(tool.Name, "dev_flow_submit_") {
+		if strings.HasPrefix(tool.Name, "taskbelay_submit_") {
 			submissionTools++
 		}
 		var schema any
@@ -157,7 +157,7 @@ func TestMCPSubmissionSchemasRemainActionSpecificAndHostBounded(t *testing.T) {
 	wantRequired := []string{"host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"}
 	coreOwned := []string{"request_id", "revision", "action_kind", "process_id", "process_definition_digest", "source_cursor", "repository_binding_digest", "issuance_identity_digest", "issuance_history_digest", "issuance_content_digest", "payload", "destination"}
 	for _, tool := range coremcp.ToolCatalog() {
-		if !strings.HasPrefix(tool.Name, "dev_flow_submit_") {
+		if !strings.HasPrefix(tool.Name, "taskbelay_submit_") {
 			continue
 		}
 		schema := decodeJSONObject(t, tool.InputSchema)
@@ -188,17 +188,17 @@ func TestMCPSubmissionSchemasRemainActionSpecificAndHostBounded(t *testing.T) {
 }
 
 func TestMCPErrorResultsAreBoundedAndRedacted(t *testing.T) {
-	private := "/Users/private/dev-flow.db SELECT * FROM tasks token=secret"
+	private := "/Users/private/taskbelay.db SELECT * FROM tasks token=secret"
 	encoded := coremcp.EncodeError("request-comprehensive", coremcp.ToolGetTask, fmt.Errorf("%s", private))
 	if bytes.Contains(encoded.JSON, []byte(private)) || !bytes.Contains(encoded.JSON, []byte(`"code":"INTERNAL_ERROR"`)) {
 		t.Fatal(string(encoded.JSON))
 	}
-	for _, forbidden := range []string{"/Users/", "dev-flow.db", "SELECT *", "token=secret"} {
+	for _, forbidden := range []string{"/Users/", "taskbelay.db", "SELECT *", "token=secret"} {
 		if bytes.Contains(encoded.JSON, []byte(forbidden)) {
 			t.Fatalf("error result leaked %q", forbidden)
 		}
 	}
-	if coremcp.ValidateToolInput("dev_flow_unknown", []byte(`{}`)) != domain.ErrInvalidArgument {
+	if coremcp.ValidateToolInput("taskbelay_unknown", []byte(`{}`)) != domain.ErrInvalidArgument {
 		t.Fatal("unknown MCP tool was not rejected")
 	}
 }
@@ -210,7 +210,7 @@ func FuzzMCPInputBoundaryNeverAcceptsUnknownTools(f *testing.F) {
 	}{
 		{coremcp.ToolServerInfo, []byte(`{}`)},
 		{coremcp.ToolGetTask, []byte(`{"host":"codex","task_id":"task"}`)},
-		{"dev_flow_unknown", []byte(`{}`)},
+		{"taskbelay_unknown", []byte(`{}`)},
 		{"", []byte(`{"host":"codex"}`)},
 		{coremcp.ToolOpenTask, []byte{0xff, 0xfe}},
 	} {

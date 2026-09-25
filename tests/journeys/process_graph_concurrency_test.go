@@ -7,10 +7,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
 )
 
 func TestProcessGraphConcurrencyJourney(t *testing.T) {

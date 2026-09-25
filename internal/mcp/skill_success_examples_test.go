@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
-	"github.com/Innocent-children/dev-flow/internal/version"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/version"
 )
 
 // These scenarios execute the documented calls through dispatch and the real
@@ -47,7 +47,7 @@ func TestSkillSuccessExamplesMatchExecution(t *testing.T) {
 }
 
 func TestSkillSuccessExampleLineEndings(t *testing.T) {
-	t.Setenv("DEV_FLOW_UPDATE_SKILL_EXAMPLES", "")
+	t.Setenv("TASKBELAY_UPDATE_SKILL_EXAMPLES", "")
 	scenario := newSkillScenario(t, "codex", readSkillExamples(t, "codex"))
 	example := scenario.example("handshake")
 	input := scenario.bind(example)
@@ -434,8 +434,8 @@ func verifySkillSuccessFile(t *testing.T, host string, e skillExample, input, ou
 	if strings.Contains(filepath.ToSlash(e.Path), "/nodes/") {
 		path = filepath.Join(filepath.Dir(e.Path), "..", "successes", name)
 	}
-	if os.Getenv("DEV_FLOW_UPDATE_SKILL_EXAMPLES") == "1" && host == "codex" {
-		source := filepath.Join("..", "..", "skills", "dev-flow", "core", "successes", name)
+	if os.Getenv("TASKBELAY_UPDATE_SKILL_EXAMPLES") == "1" && host == "codex" {
+		source := filepath.Join("..", "..", "skills", "taskbelay", "core", "successes", name)
 		text := "# " + e.Tool + ": " + e.Name + "\n\nImplementation: `internal/mcp/server.go` — `dispatch`; `internal/application/submit_action.go` — `SubmitAction`.\n\nComplete successful call from the documented scenario. The repository observer is a fixed test fixture;\nHost authorization and Git operations are not executed here. Runtime IDs and timestamps use stable\nexample values, and operation digests use a sample digest. All other fields are compared with the\nactual Core response. The resolved request below shows the current Task values substituted for the\nidentity and confirmation placeholders in the calling reference.\n\nResolved request:\n\n<!-- example:resolved-mcp " + e.Tool + " " + e.Name + " -->\n```json\n" + string(input) + "\n```\n\nComplete response:\n\n<!-- example:mcp-success " + e.Tool + " " + e.Name + " -->\n```json\n" + string(output) + "\n```\n"
 		for _, key := range []string{"host", "origin_host"} {
 			text = strings.ReplaceAll(text, `"`+key+`": "codex"`, `"`+key+`": "{{host}}"`)
@@ -448,7 +448,7 @@ func verifySkillSuccessFile(t *testing.T, host string, e skillExample, input, ou
 		}
 		return
 	}
-	if os.Getenv("DEV_FLOW_UPDATE_SKILL_EXAMPLES") == "1" {
+	if os.Getenv("TASKBELAY_UPDATE_SKILL_EXAMPLES") == "1" {
 		return
 	}
 	guide, err := os.ReadFile(e.Path)
@@ -475,7 +475,7 @@ func verifySkillSuccessFile(t *testing.T, host string, e skillExample, input, ou
 			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("success example %s block %d differs from execution; regenerate with DEV_FLOW_UPDATE_SKILL_EXAMPLES=1: %s", path, i, skillValueDifference(got, want, "$"))
+			t.Fatalf("success example %s block %d differs from execution; regenerate with TASKBELAY_UPDATE_SKILL_EXAMPLES=1: %s", path, i, skillValueDifference(got, want, "$"))
 		}
 	}
 }

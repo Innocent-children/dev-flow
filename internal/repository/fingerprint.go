@@ -16,20 +16,20 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 var ErrInvalidBindingDigests = errors.New("repository binding digests are inconsistent")
 
 const (
-	commonDirectoryDigestDomain      = "dev-flow/git-common-dir"
-	worktreeGitDirectoryDigestDomain = "dev-flow/git-worktree-dir"
-	worktreeInstanceDigestDomain     = "dev-flow/worktree-instance"
-	workspaceIdentityDigestDomain    = "dev-flow/workspace-identity"
-	workspaceHistoryDigestDomain     = "dev-flow/workspace-history"
-	workspaceContentDigestDomain     = "dev-flow/workspace-content"
-	repositoryBindingDomain          = "dev-flow/repository-binding"
-	pathContentDigestDomain          = "dev-flow/path-content"
+	commonDirectoryDigestDomain      = "taskbelay/git-common-dir"
+	worktreeGitDirectoryDigestDomain = "taskbelay/git-worktree-dir"
+	worktreeInstanceDigestDomain     = "taskbelay/worktree-instance"
+	workspaceIdentityDigestDomain    = "taskbelay/workspace-identity"
+	workspaceHistoryDigestDomain     = "taskbelay/workspace-history"
+	workspaceContentDigestDomain     = "taskbelay/workspace-content"
+	repositoryBindingDomain          = "taskbelay/repository-binding"
+	pathContentDigestDomain          = "taskbelay/path-content"
 )
 
 type porcelainRecord struct {

@@ -41,7 +41,7 @@ async function handleMessage(request) {
       result: {
         protocolVersion: request.params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "dev-flow-fake-core", version: coreVersion },
+        serverInfo: { name: "taskbelay-fake-core", version: coreVersion },
         instructions: "Test-only Core current Core contract fixture server.",
       },
     });
@@ -67,7 +67,7 @@ async function handleMessage(request) {
   }
   state.calls.push({ number: state.calls.length + 1, session, name: params.name, arguments: structuredClone(params.arguments) });
   await writeState();
-  if (params.name.startsWith("dev_flow_submit_")) {
+  if (params.name.startsWith("taskbelay_submit_")) {
     await handleApply(request.id, params.arguments);
     return;
   }
@@ -94,13 +94,13 @@ async function handleApply(id, arguments_) {
     return;
   }
   await writeState();
-  writeToolResult(id, await envelopeFor("dev_flow_submit_requirements", arguments_));
+  writeToolResult(id, await envelopeFor("taskbelay_submit_requirements", arguments_));
 }
 
 async function envelopeFor(tool, arguments_) {
-  if (tool === "dev_flow_server_info") {
+  if (tool === "taskbelay_server_info") {
     return success(tool, {
-      product: "dev-flow",
+      product: "taskbelay",
       version: coreVersion,
       transport: "stdio",
       health: "ready",
@@ -114,7 +114,7 @@ async function envelopeFor(tool, arguments_) {
       tools: tools.map((toolDefinition) => toolDefinition.name),
     });
   }
-  if (tool === "dev_flow_open_task") {
+  if (tool === "taskbelay_open_task") {
     if (selectedCase === "conflict") return failure(tool, "ACTIVE_TASK_CONFLICT");
     if (selectedCase === "host-conflict") return failure(tool, "HOST_OWNERSHIP_CONFLICT");
     const created = state.opened !== true;
@@ -131,10 +131,10 @@ async function envelopeFor(tool, arguments_) {
     await writeState();
     return success(tool, { created, task: currentTask(), recovery_assessment: null });
   }
-  if (tool === "dev_flow_get_task") {
+  if (tool === "taskbelay_get_task") {
     return success(tool, { task: currentTask(), recovery_assessment: recoveryAssessment() });
   }
-  if (tool === "dev_flow_get_next_action") {
+  if (tool === "taskbelay_get_next_action") {
     const task = currentTask();
     return success(tool, {
       task_id: task.task_id,
@@ -148,22 +148,22 @@ async function envelopeFor(tool, arguments_) {
       recovery_assessment: recoveryAssessment(),
     });
   }
-  if (tool === "dev_flow_cancel_task") {
+  if (tool === "taskbelay_cancel_task") {
     state.cancelled = true;
     await writeState();
     return success(tool, { task: currentTask(), claim_released: true });
   }
-  if (tool === "dev_flow_prepare_task_relocation") {
+  if (tool === "taskbelay_prepare_task_relocation") {
     state.blocked = true;
     await writeState();
     return success(tool, { task: currentTask(), relocation_id: "relocation-0001" });
   }
-  if (tool === "dev_flow_abandon_task") {
+  if (tool === "taskbelay_abandon_task") {
     state.cancelled = true;
     await writeState();
     return success(tool, { task: currentTask(), claim_released: true });
   }
-  if (tool.startsWith("dev_flow_submit_")) {
+  if (tool.startsWith("taskbelay_submit_")) {
     if (selectedCase === "domain-error") return failure(tool, "ACTION_STALE", state.operationId);
     if (selectedCase === "budget") return failure(tool, "VERIFICATION_BUDGET_EXCEEDED", state.operationId);
     if (selectedCase === "blocker") state.blocked = true;
@@ -171,7 +171,7 @@ async function envelopeFor(tool, arguments_) {
     await writeState();
     return success(tool, { task: currentTask(), recovery_assessment: null }, state.operationId);
   }
-  if (tool === "dev_flow_recover_action" || tool === "dev_flow_resolve_blocker") {
+  if (tool === "taskbelay_recover_action" || tool === "taskbelay_resolve_blocker") {
     return success(tool, { task: currentTask(), recovery_assessment: recoveryAssessment() }, state.operationId);
   }
   throw new Error(`unsupported tool ${tool}`);
@@ -310,9 +310,9 @@ function action(revision, kind, node, payloadContract, availableTransitions) {
 
 function submissionTool(kind) {
   return {
-    COMPLETE_REQUIREMENTS: "dev_flow_submit_requirements",
-    COMPLETE_DESIGN: "dev_flow_submit_design",
-    RESOLVE_BLOCKER: "dev_flow_resolve_blocker",
+    COMPLETE_REQUIREMENTS: "taskbelay_submit_requirements",
+    COMPLETE_DESIGN: "taskbelay_submit_design",
+    RESOLVE_BLOCKER: "taskbelay_resolve_blocker",
   }[kind];
 }
 
@@ -372,27 +372,27 @@ function writeToolResult(id, envelope) {
 function toolDefinitions() {
 	const submissionRequired = ["host", "task_id", "action_id", "transition_id", "summary", "reason", "artifacts", "method_results", "node_result"];
 	const metadata = [
-    ["dev_flow_server_info", [], [] , true, false, true],
-    ["dev_flow_open_task", ["host", "repository_path"], ["host", "repository_path", "primary_repository_key", "additional_repositories", "new_task"], false, false, false],
-    ["dev_flow_get_task", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
-    ["dev_flow_get_next_action", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
-    ["dev_flow_submit_requirements", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_submit_design", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_submit_tasks", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_submit_implementation", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_submit_test", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_submit_comprehension", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_submit_refactor", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_submit_delivery", submissionRequired, submissionRequired, false, false, true],
-    ["dev_flow_prepare_task_relocation", ["host", "task_id", "revision"], ["host", "task_id", "revision"], false, false, true],
-    ["dev_flow_resolve_blocker", ["host", "task_id", "action_id"], ["host", "task_id", "action_id", "choice", "reason", "relocation_id", "relocation_destinations", "history_resolution"], false, false, true],
-    ["dev_flow_recover_action", ["host", "task_id", "action_id"], ["host", "task_id", "action_id"], false, false, true],
-    ["dev_flow_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
-    ["dev_flow_abandon_task", ["host", "task_id", "revision", "reason"], ["host", "task_id", "revision", "reason"], false, true, false],
+    ["taskbelay_server_info", [], [] , true, false, true],
+    ["taskbelay_open_task", ["host", "repository_path"], ["host", "repository_path", "primary_repository_key", "additional_repositories", "new_task"], false, false, false],
+    ["taskbelay_get_task", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
+    ["taskbelay_get_next_action", ["host", "task_id"], ["host", "task_id", "operation_probe"], true, false, true],
+    ["taskbelay_submit_requirements", submissionRequired, submissionRequired, false, false, true],
+    ["taskbelay_submit_design", submissionRequired, submissionRequired, false, false, true],
+    ["taskbelay_submit_tasks", submissionRequired, submissionRequired, false, false, true],
+    ["taskbelay_submit_implementation", submissionRequired, submissionRequired, false, false, true],
+    ["taskbelay_submit_test", submissionRequired, submissionRequired, false, false, true],
+    ["taskbelay_submit_comprehension", submissionRequired, submissionRequired, false, false, true],
+    ["taskbelay_submit_refactor", submissionRequired, submissionRequired, false, false, true],
+    ["taskbelay_submit_delivery", submissionRequired, submissionRequired, false, false, true],
+    ["taskbelay_prepare_task_relocation", ["host", "task_id", "revision"], ["host", "task_id", "revision"], false, false, true],
+    ["taskbelay_resolve_blocker", ["host", "task_id", "action_id"], ["host", "task_id", "action_id", "choice", "reason", "relocation_id", "relocation_destinations", "history_resolution"], false, false, true],
+    ["taskbelay_recover_action", ["host", "task_id", "action_id"], ["host", "task_id", "action_id"], false, false, true],
+    ["taskbelay_cancel_task", ["request_id", "host", "task_id", "revision", "reason"], ["request_id", "host", "task_id", "revision", "reason"], false, true, false],
+    ["taskbelay_abandon_task", ["host", "task_id", "revision", "reason"], ["host", "task_id", "revision", "reason"], false, true, false],
   ];
   return metadata.map(([name, required, properties, readOnlyHint, destructiveHint, idempotentHint]) => {
     const inputSchema = closedSchema(required, properties);
-    if (name === "dev_flow_open_task") {
+    if (name === "taskbelay_open_task") {
       inputSchema.properties.workspace_origin = workspaceOriginSchema();
       inputSchema.properties.primary_repository_key = {
         type: "string",
@@ -409,7 +409,7 @@ function toolDefinitions() {
         },
       };
     }
-    if (name === "dev_flow_resolve_blocker") {
+    if (name === "taskbelay_resolve_blocker") {
       inputSchema.properties.relocation_destinations = {
         type: "array",
         items: {

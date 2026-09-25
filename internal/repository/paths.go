@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 func validateRepositoryPath(path string) error {

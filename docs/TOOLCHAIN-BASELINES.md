@@ -31,7 +31,7 @@ Windows CI 使用 `pnpm/action-setup` 的 `standalone` 模式提供原生 `pnpm.
 | `github.com/modelcontextprotocol/go-sdk` | `>=v1.7.0 <v2.0.0`；提供本地 STDIO Tools 接入 |
 | `modernc.org/sqlite` | `v1`；通过 `database/sql` 提供无需 CGo 的 SQLite |
 
-在兼容范围内选择符合最低 Go 要求的稳定依赖，由 `go.mod` 和 `go.sum` 记录实际版本。运行时不按精确 SDK 或驱动补丁号判断 Dev Flow 兼容性。Dev Flow 的工具、字段与行为以当前 Core 接口为准；SDK 提供的其他能力不自动成为产品功能。
+在兼容范围内选择符合最低 Go 要求的稳定依赖，由 `go.mod` 和 `go.sum` 记录实际版本。运行时不按精确 SDK 或驱动补丁号判断 TaskBelay 兼容性。TaskBelay 的工具、字段与行为以当前 Core 接口为准；SDK 提供的其他能力不自动成为产品功能。
 
 ## Host 兼容与重新验证
 

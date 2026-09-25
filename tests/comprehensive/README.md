@@ -1,6 +1,6 @@
 # Comprehensive automated tests
 
-This directory is the large-change test suite for cross-layer Dev Flow contracts. It reads the current
+This directory is the large-change test suite for cross-layer TaskBelay contracts. It reads the current
 Core process, MCP catalog, package manifests, platform implementations, build scripts, and workflow
 definitions instead of maintaining another workflow or runtime catalog.
 
@@ -23,7 +23,7 @@ boundaries.
 Run the deterministic large-change qualification locally with:
 
 ```bash
-DEV_FLOW_RUN_LOCAL_QUALIFICATION=1 node --test tests/comprehensive/qualification.test.mjs
+TASKBELAY_RUN_LOCAL_QUALIFICATION=1 node --test tests/comprehensive/qualification.test.mjs
 ```
 
 It runs the uncached complete Go suite, all three public package suites, and the WebUI typecheck/build.
@@ -34,7 +34,7 @@ Real Host, Windows, browser, race, fuzz, mutation, or long-running checks requir
 environment. Supply commands as arrays so the runner never invokes a shell:
 
 ```bash
-export DEV_FLOW_QUALIFICATION_COMMANDS='{
+export TASKBELAY_QUALIFICATION_COMMANDS='{
   "codex":["node","path/to/codex-qualification.mjs"],
   "deepseek":["node","path/to/deepseek-qualification.mjs"],
   "windows":["pwsh","-File","path/to/windows-qualification.ps1"],

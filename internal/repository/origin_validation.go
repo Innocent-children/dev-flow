@@ -1,6 +1,6 @@
 package repository
 
-import "github.com/Innocent-children/dev-flow/internal/domain"
+import "github.com/Innocent-children/taskbelay/internal/domain"
 
 /**
  * WorkspaceOriginViolations explains the same source and branch rules used by

@@ -3,7 +3,7 @@ package workflow
 import (
 	"encoding/json"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 // ActionSubmissionSchema describes the semantic input shared by MCP and HTTP adapters.

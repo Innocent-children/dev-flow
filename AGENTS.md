@@ -1,8 +1,8 @@
-# Dev Flow Repository Instructions
+# TaskBelay Repository Instructions
 
 This file defines how AI agents maintain this repository. Put repository-specific AI instructions,
 implementation constraints, and documentation-update rules here. `CONTRIBUTING*` guides human
-contributors; product README files guide users. The shipped Dev Flow Skills govern Host interaction
+contributors; product README files guide users. The shipped TaskBelay Skills govern Host interaction
 with the product and remain in the locations listed under Skill Maintenance.
 
 ## Authority
@@ -35,7 +35,7 @@ to them from user guides when needed.
 | Document | Reader and responsibility |
 | --- | --- |
 | `AGENTS.md` | Repository AI agents: instruction priority, scope, architecture constraints, implementation, review, validation, documentation maintenance, and release boundaries. |
-| Root `README*.md` | End users: what Dev Flow does, suitable tasks, prerequisites, installation, starting and resuming work, common operations, necessary usage limits, and links to further help. |
+| Root `README*.md` | End users: what TaskBelay does, suitable tasks, prerequisites, installation, starting and resuming work, common operations, necessary usage limits, and links to further help. |
 | `packages/*/README.md`, `docs/CODEX_en.md`, `docs/DEEPSEEK_en.md`, `docs/CLAUDE*`, `docs/ZCODE*` | Users of that package or Host: setup, supported operations, troubleshooting, maintenance, removal, and Host-specific limitations. |
 | `docs/PRODUCT*` | Product readers: target users, problems, business functionality, user workflows, product scope, and non-goals. |
 | `docs/DEMO*`, `docs/WEBUI*`, `docs/DESKTOP-PETS*` | Users following a walkthrough or operating a specific interface; detailed interface and artwork guidance stays here. |
@@ -49,7 +49,7 @@ to them from user guides when needed.
 | `internal/README*`, `scripts/README*`, `tests/**/README.md`, `protocol/fixtures/README.md` | Maintainers of those directories: local structure, development commands, test procedures, and fixture usage. |
 | `release/**/README.md`, `docs/RELEASE-STRATEGY.md`, `docs/VERSIONING.md`, `docs/TOOLCHAIN-BASELINES*` | Maintainers: build environments, version policy, artifact preparation, verification, and publication procedures. |
 | `SECURITY.md` | Users and researchers reporting vulnerabilities and checking the security reporting policy. |
-| `skills/dev-flow/core/` and Host Skill directories | Agents using the installed product: maintained Core interaction instructions and Host-specific authorization, workspace, and tool operations. |
+| `skills/taskbelay/core/` and Host Skill directories | Agents using the installed product: maintained Core interaction instructions and Host-specific authorization, workspace, and tool operations. |
 
 ### README content
 
@@ -103,20 +103,20 @@ Translate narrative text and example task descriptions naturally. Do not leave p
 translations, untranslated sections, or whole-section English fallbacks. Incomplete required
 translations mean the change is not ready to merge.
 
-Public npm installation examples use `@imotong/dev-flow@latest`, `dev-flow-codex@latest`, or
-`dev-flow-deepseek@latest` as appropriate. Exact Core, Codex, DeepSeek, Claude, ZCode, and Dev Flow CLI release
+Public npm installation examples use `@imotong/taskbelay@latest`, `taskbelay-codex@latest`, or
+`taskbelay-deepseek@latest` as appropriate. Exact Core, Codex, DeepSeek, Claude, ZCode, and TaskBelay CLI release
 versions belong in machine-readable version files, package metadata, Release Tags, artifact digests,
 and release records. A version-only release updates those records rather than README prose.
 
 Check documented commands against their executable implementation:
 
 - package names, `bin` entries, and platform constraints: the relevant `package.json`;
-- unified lifecycle commands: `packages/dev-flow/lib/cli.mjs` and `packages/dev-flow/bin/dev-flow.mjs`;
-- Codex commands: `packages/codex/bin/dev-flow-codex.mjs`;
-- Claude commands: `packages/claude/bin/dev-flow-claude.mjs`;
-- ZCode commands: `packages/zcode/bin/dev-flow-zcode.mjs`;
+- unified lifecycle commands: `packages/taskbelay/lib/cli.mjs` and `packages/taskbelay/bin/taskbelay.mjs`;
+- Codex commands: `packages/codex/bin/taskbelay-codex.mjs`;
+- Claude commands: `packages/claude/bin/taskbelay-claude.mjs`;
+- ZCode commands: `packages/zcode/bin/taskbelay-zcode.mjs`;
 - DeepSeek installation, inspection, and removal: lifecycle and final-artifact end-to-end tests;
-- packaged Core commands: `cmd/dev-flow/main.go`;
+- packaged Core commands: `cmd/taskbelay/main.go`;
 - MCP tools: the fixed tool list under `internal/mcp/`.
 
 For documentation-only changes, check affected links, Markdown structure, retained command
@@ -200,16 +200,16 @@ Judge the resulting design by these outcomes:
 
 ## Skill Maintenance
 
-Core interaction instructions and examples have one maintained source: `skills/dev-flow/core/`.
+Core interaction instructions and examples have one maintained source: `skills/taskbelay/core/`.
 Host-specific instructions and helpers are maintained in:
 
-- Codex: `packages/codex/plugin/skills/dev-flow/`;
-- DeepSeek: `packages/deepseek/skills/dev-flow/`;
-- Claude Code: `packages/claude/plugin/skills/dev-flow/`;
-- ZCode: `packages/zcode/skills/dev-flow/`.
+- Codex: `packages/codex/plugin/skills/taskbelay/`;
+- DeepSeek: `packages/deepseek/skills/taskbelay/`;
+- Claude Code: `packages/claude/plugin/skills/taskbelay/`;
+- ZCode: `packages/zcode/skills/taskbelay/`.
 
 The four Host directories each contain an authored `SKILL.md` entrypoint, Host-specific references
-and helpers, and generated Core reference copies. Files marked `Generated from skills/dev-flow/core/`
+and helpers, and generated Core reference copies. Files marked `Generated from skills/taskbelay/core/`
 are generated copies; edit their shared source instead of editing any generated package copy by hand.
 Keep shared Core semantics in the shared source and actual Host authorization, workspace operations,
 tool invocation and response transport in the corresponding adapter instructions. Every interaction

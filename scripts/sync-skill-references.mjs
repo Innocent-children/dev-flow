@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = resolve(dirname(scriptPath), "..");
-const skillDirectories = Object.freeze({ codex: "packages/codex/plugin/skills/dev-flow", deepseek: "packages/deepseek/skills/dev-flow", claude: "packages/claude/plugin/skills/dev-flow", zcode: "packages/zcode/skills/dev-flow" });
+const skillDirectories = Object.freeze({ codex: "packages/codex/plugin/skills/taskbelay", deepseek: "packages/deepseek/skills/taskbelay", claude: "packages/claude/plugin/skills/taskbelay", zcode: "packages/zcode/skills/taskbelay" });
 
 async function referenceFiles(directory, prefix = "") {
   const files = [];
@@ -20,10 +20,10 @@ async function referenceFiles(directory, prefix = "") {
 // Build owns Host substitutions and packaged copies; Core owns the described contracts.
 export async function sharedSkillReferences({ root = repositoryRoot, host } = {}) {
   if (!Object.hasOwn(skillDirectories, host)) throw new Error("Skill host must be codex, deepseek, claude or zcode");
-  const sourceRoot = join(root, "skills/dev-flow/core");
+  const sourceRoot = join(root, "skills/taskbelay/core");
   const references = new Map();
   for (const path of await referenceFiles(sourceRoot)) {
-    const source = `skills/dev-flow/core/${path}`;
+    const source = `skills/taskbelay/core/${path}`;
     const content = (await readFile(join(sourceRoot, path), "utf8"))
       .replace(/\r\n?/gu, "\n").replaceAll("{{host}}", host);
     if (/\{\{[^}]+\}\}/u.test(content)) throw new Error(`Unknown Skill substitution in ${source}`);

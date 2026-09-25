@@ -16,7 +16,7 @@ available. If it is unavailable, open a public Issue containing only:
 
 ```text
 Security contact requested
-Affected product: Core | dev-flow-codex | dev-flow-deepseek
+Affected product: Core | taskbelay-codex | taskbelay-deepseek
 Affected version: <version>
 ```
 
@@ -44,10 +44,10 @@ unredacted transcripts before sharing evidence.
 - normal product behavior committing secrets or private repository content into evidence.
 
 A user-authorized Host changing files within its granted sandbox, model output that is merely wrong,
-or behavior on an unsupported platform is not by itself a Dev Flow vulnerability.
+or behavior on an unsupported platform is not by itself a TaskBelay vulnerability.
 
 ## Security boundaries
 
-Dev Flow protects task process state; it is not a general sandbox around Codex, DeepSeek Harness, the
+TaskBelay protects task process state; it is not a general sandbox around Codex, DeepSeek Harness, the
 shell, or the operating system. See the [Threat Model](docs/THREAT-MODEL_en.md) for the trust boundary,
 main mitigations, and residual risks.

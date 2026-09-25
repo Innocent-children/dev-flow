@@ -9,11 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/userconfig"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/recovery"
+	"github.com/Innocent-children/taskbelay/internal/userconfig"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 type Envelope struct {

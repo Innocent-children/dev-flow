@@ -16,7 +16,7 @@ import {
 } from "../lib/provisioning-receipt.mjs";
 
 test("provisioning receipts use one closed secret-free shape and immutable launch identity", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-receipt-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-receipt-")));
   const support = join(root, "support");
   await mkdir(support);
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -77,7 +77,7 @@ test("provisioning receipts use one closed secret-free shape and immutable launc
 });
 
 test("provisioning receipt writes reject symbolic-link parents", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-receipt-link-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-receipt-link-")));
   const support = join(root, "support");
   const outside = join(root, "outside");
   await Promise.all([mkdir(support), mkdir(outside)]);

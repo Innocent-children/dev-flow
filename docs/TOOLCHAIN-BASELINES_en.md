@@ -31,7 +31,7 @@ Windows CI uses `pnpm/action-setup` in `standalone` mode to provide native `pnpm
 | `github.com/modelcontextprotocol/go-sdk` | `>=v1.7.0 <v2.0.0`; local STDIO Tools integration |
 | `modernc.org/sqlite` | `v1`; SQLite through `database/sql` without CGo |
 
-Select stable dependencies within these ranges that support the minimum Go version, and record actual versions in `go.mod` and `go.sum`. Runtime compatibility does not require an exact SDK or driver patch. Current Core interfaces define Dev Flow tools, fields and behavior; additional SDK capabilities do not automatically become product features.
+Select stable dependencies within these ranges that support the minimum Go version, and record actual versions in `go.mod` and `go.sum`. Runtime compatibility does not require an exact SDK or driver patch. Current Core interfaces define TaskBelay tools, fields and behavior; additional SDK capabilities do not automatically become product features.
 
 ## Host compatibility and revalidation
 

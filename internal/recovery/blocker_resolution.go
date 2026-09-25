@@ -1,6 +1,6 @@
 package recovery
 
-import "github.com/Innocent-children/dev-flow/internal/domain"
+import "github.com/Innocent-children/taskbelay/internal/domain"
 
 /**
  * Ordinary submission and recovery validate the same saved decision against

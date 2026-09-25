@@ -7,7 +7,7 @@ import * as codexPlatform from "../../packages/codex/lib/platform.mjs";
 import { hookDecision, preparedWriteFromHook } from "../../packages/codex/plugin/hooks/pre-tool-use.mjs";
 import { hasDirectUserSelector } from "../../packages/deepseek/lib/authorization.mjs";
 import * as deepseekPlatform from "../../packages/deepseek/lib/platform.mjs";
-import * as managerPlatform from "../../packages/dev-flow/lib/platform.mjs";
+import * as managerPlatform from "../../packages/taskbelay/lib/platform.mjs";
 
 const repositoryRoot = join(import.meta.dirname, "../..");
 const runtimeKeys = ["darwin-arm64", "win32-x64"];
@@ -17,8 +17,8 @@ const readJSON = async (relative) => JSON.parse(await readFile(join(repositoryRo
 test("all public packages select the same closed runtime pair set", () => {
   for (const implementation of [codexPlatform, deepseekPlatform, managerPlatform]) {
     assert.deepEqual(implementation.SUPPORTED_RUNTIME_KEYS, runtimeKeys);
-    assert.equal(implementation.runtimeDescriptor("darwin", "arm64").runtimeExecutable, "dev-flow");
-    assert.equal(implementation.runtimeDescriptor("win32", "x64").runtimeExecutable, "dev-flow.exe");
+    assert.equal(implementation.runtimeDescriptor("darwin", "arm64").runtimeExecutable, "taskbelay");
+    assert.equal(implementation.runtimeDescriptor("win32", "x64").runtimeExecutable, "taskbelay.exe");
     for (const [platform, arch] of [["darwin", "x64"], ["win32", "arm64"], ["win32", "ia32"], ["linux", "x64"]]) {
       assert.throws(() => implementation.runtimeDescriptor(platform, arch), /unsupported platform/u);
     }
@@ -28,14 +28,14 @@ test("all public packages select the same closed runtime pair set", () => {
 test("package manifests expose complete test and runtime contracts", async () => {
   const codex = await readJSON("packages/codex/package.json");
   const deepseek = await readJSON("packages/deepseek/package.json");
-  const manager = await readJSON("packages/dev-flow/package.json");
+  const manager = await readJSON("packages/taskbelay/package.json");
   const webui = await readJSON("packages/webui/package.json");
 
   for (const manifest of [codex, deepseek]) {
     assert.deepEqual(manifest.os, ["darwin", "win32"]);
     assert.deepEqual(manifest.cpu, ["arm64", "x64"]);
     assert.match(manifest.scripts.test, /node --test tests\/\*\.test\.mjs/u);
-    for (const file of ["runtime/darwin-arm64/dev-flow", "runtime/win32-x64/dev-flow.exe"]) {
+    for (const file of ["runtime/darwin-arm64/taskbelay", "runtime/win32-x64/taskbelay.exe"]) {
       assert.ok(manifest.files.includes(file), `${manifest.name} omits ${file}`);
     }
   }
@@ -51,7 +51,7 @@ test("repository validation has deterministic Core, contract, package, and relea
     "go test -p 1 ./...",
     "release/publish.test.mjs",
     "tests/release_workflow.test.mjs",
-    "packages/dev-flow/tests/*.test.mjs",
+    "packages/taskbelay/tests/*.test.mjs",
   ]) {
     assert.match(validation, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
   }
@@ -71,13 +71,13 @@ test("Codex and DeepSeek structured admission boundaries are conservative", () =
     source: { kind },
     content: [{ type: "text", text }],
   });
-  for (const text of ["/dev-flow", "please /dev-flow continue", "line one\n/dev-flow\nline three"]) {
+  for (const text of ["/taskbelay", "please /taskbelay continue", "line one\n/taskbelay\nline three"]) {
     assert.equal(hasDirectUserSelector(directUserMessage(text)), true, text);
   }
-  for (const text of ["/dev-flow,", "/dev-flowx", "path/dev-flow", "ordinary request"]) {
+  for (const text of ["/taskbelay,", "/taskbelayx", "path/taskbelay", "ordinary request"]) {
     assert.equal(hasDirectUserSelector(directUserMessage(text)), false, text);
   }
-  assert.equal(hasDirectUserSelector(directUserMessage("/dev-flow", "plugin")), false);
+  assert.equal(hasDirectUserSelector(directUserMessage("/taskbelay", "plugin")), false);
 
   const patch = preparedWriteFromHook({
     hook_event_name: "PreToolUse",

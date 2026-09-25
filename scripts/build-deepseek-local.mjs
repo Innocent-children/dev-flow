@@ -6,9 +6,9 @@ import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
+import { execPortableCommand } from "../packages/taskbelay/lib/command.mjs";
 import { buildCoreRuntimes } from "./build-core-runtimes.mjs";
-import { stageAndPack } from "./dev-flow-local.mjs";
+import { stageAndPack } from "./taskbelay-local.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultRepositoryRoot = resolve(dirname(scriptPath), "..");
@@ -22,13 +22,13 @@ export async function buildDeepSeekLocal({
   const root = await realpath(resolve(repositoryRoot));
   const output = await resolveExternalOutput(root, outputDirectory);
   const manifest = JSON.parse(await readFile(join(root, "packages", "deepseek", "package.json"), "utf8"));
-  if (manifest.name !== "dev-flow-deepseek" || typeof manifest.version !== "string") {
+  if (manifest.name !== "taskbelay-deepseek" || typeof manifest.version !== "string") {
     throw new Error("DeepSeek package manifest identity is invalid");
   }
 
-  const artifactPath = join(output, `dev-flow-deepseek-${manifest.version}.tgz`);
+  const artifactPath = join(output, `taskbelay-deepseek-${manifest.version}.tgz`);
   await assertMissing(artifactPath);
-  const temporaryRoot = await mkdtemp(join(tmpdir(), "dev-flow-deepseek-build-"));
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "taskbelay-deepseek-build-"));
   try {
     const stageRoot = join(temporaryRoot, "stages");
     const temporaryOutput = join(temporaryRoot, "artifacts");

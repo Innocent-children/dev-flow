@@ -4,7 +4,7 @@ import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
+import { execPortableCommand } from "../packages/taskbelay/lib/command.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultRepositoryRoot = resolve(dirname(scriptPath), "..");
@@ -30,7 +30,7 @@ export async function buildWebUI({
   }
   const restoreSources = await normalizeWebUISources(join(root, "packages", "webui"));
   try {
-    await run("pnpm", ["--dir", root, "--filter", "@dev-flow/webui", "run", "build"], {
+    await run("pnpm", ["--dir", root, "--filter", "@taskbelay/webui", "run", "build"], {
       cwd: root,
       environment: buildEnvironment,
     });

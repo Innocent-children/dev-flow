@@ -1,11 +1,11 @@
 {
-  "name": "dev-flow-zcode-local",
-  "description": "Local Dev Flow integration for ZCode",
+  "name": "taskbelay-zcode-local",
+  "description": "Local TaskBelay integration for ZCode",
   "plugins": [
     {
-      "name": "dev-flow-zcode",
+      "name": "taskbelay-zcode",
       "version": "0.1.1",
-      "description": "Persistent Dev Flow development tasks for ZCode.",
+      "description": "Persistent TaskBelay development tasks for ZCode.",
       "source": "./"
     }
   ]

@@ -27,7 +27,7 @@ func Load(homeDirectory string) (Preferences, error) {
 	if homeDirectory == "" {
 		return Preferences{}, fmt.Errorf("user configuration: user home directory is unavailable")
 	}
-	path := filepath.Join(homeDirectory, ".dev-flow", "config.json")
+	path := filepath.Join(homeDirectory, ".taskbelay", "config.json")
 	file, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {

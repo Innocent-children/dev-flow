@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/testpath"
+	"github.com/Innocent-children/taskbelay/internal/testpath"
 )
 
 func TestProcessTaskRepositoryScopeDigestsAndCurrentPaths(t *testing.T) {

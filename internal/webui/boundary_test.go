@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 func TestWebBoundaryCP1(t *testing.T) {
 	reader := &stubControlCenterReader{}
 	api, err := NewReadAPI(reader, func() SystemStatusResponse {
-		return SystemStatusResponse{Readiness: ReadinessReady, CoreIdentity: "dev-flow-test", DataRootDigest: strings.Repeat("a", 64), URL: "http://127.0.0.1:1"}
+		return SystemStatusResponse{Readiness: ReadinessReady, CoreIdentity: "taskbelay-test", DataRootDigest: strings.Repeat("a", 64), URL: "http://127.0.0.1:1"}
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -1,8 +1,8 @@
 {
-  "name": "dev-flow-zcode",
+  "name": "taskbelay-zcode",
   "version": "0.1.1",
-  "description": "Persistent Dev Flow development tasks for ZCode.",
+  "description": "Persistent TaskBelay development tasks for ZCode.",
   "author": {
-    "name": "Dev Flow"
+    "name": "TaskBelay"
   }
 }

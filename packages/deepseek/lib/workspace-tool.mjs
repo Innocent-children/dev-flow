@@ -22,7 +22,7 @@ export function registerWorkspaceCoordinator(ctx, options) {
   });
   const disposeTool = ctx.tools.register(defineTool({
     name: WORKSPACE_COORDINATOR_TOOL,
-    description: "Prepare a confirmed Dev Flow workspace: default to a new branch in the current directory, or explicitly use the current branch or a dedicated worktree. Local launches return ready for the current session. Every mutation requires its exact current-turn confirmation.",
+    description: "Prepare a confirmed TaskBelay workspace: default to a new branch in the current directory, or explicitly use the current branch or a dedicated worktree. Local launches return ready for the current session. Every mutation requires its exact current-turn confirmation.",
     parameters: {
       operation: { type: "string", required: true, enum: ["provision", "consume", "prepare_cleanup", "cleanup_worktree", "cleanup_branch"] },
       request: { type: "string", description: "Exact admitted development request for a new provision operation." },
@@ -107,7 +107,7 @@ async function readCoreTask(ctx, { taskID, signal, execution }) {
     callId: `${execution.callId}:terminal-task`,
     rootCallId: execution.rootCallId ?? execution.callId,
     parent: execution.token,
-    name: "mcp__dev_flow__dev_flow_get_task",
+    name: "mcp__taskbelay__taskbelay_get_task",
     arguments: { host: "deepseek", task_id: taskID },
     agent: execution.agent,
     signal,

@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/store"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/recovery"
+	"github.com/Innocent-children/taskbelay/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 func TestSubmitActionBuildsAndRetainsCanonicalOperation(t *testing.T) {
@@ -96,7 +96,7 @@ func TestRecoverActionUsesCoreRetainedPayload(t *testing.T) {
 
 func TestSubmitActionPersistsCanonicalOperationOutsideTaskSnapshot(t *testing.T) {
 	ctx := context.Background()
-	databasePath := filepath.Join(t.TempDir(), "dev-flow.db")
+	databasePath := filepath.Join(t.TempDir(), "taskbelay.db")
 	database, err := store.Open(ctx, databasePath)
 	if err != nil {
 		t.Fatal(err)

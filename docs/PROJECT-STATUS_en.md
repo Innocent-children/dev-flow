@@ -1,22 +1,22 @@
-# Dev Flow Project Status
+# TaskBelay Project Status
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
 _Last checked: September 24, 2026._
 
-Dev Flow remains an early open-source project. This page separates stable releases, beta or source
+TaskBelay remains an early open-source project. This page separates stable releases, beta or source
 capabilities, unverified claims, and product gaps. A buildable source tree or passing tests do not
 expand stable support automatically.
 
-## Stable releases
+## Publication status
 
-npm `@latest` currently selects these stable packages:
+TaskBelay package publication and installation checks belong to the standalone release process. The table below retains each component’s previously verified environment; it does not establish that packages under the TaskBelay names have been published or verified. Before the first release, use the [local source installer](../scripts/README_en.md#local-installation-testing) and the activation instructions in the Host guides.
 
-| Product | Verified environment |
+| TaskBelay package name | Verified environment |
 | --- | --- |
-| `dev-flow-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
-| `dev-flow-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
-| `@imotong/dev-flow` | macOS arm64, Node.js `>=20` |
+| `taskbelay-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
+| `taskbelay-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
+| `@imotong/taskbelay` | macOS arm64, Node.js `>=20` |
 
 Stable lifecycle records cover registry-package installation, Host/Core readiness, removal,
 uninstallation, and an unchanged target repository. The DeepSeek stable end-to-end test also covers explicit
@@ -38,10 +38,10 @@ The following capabilities exist in the current source; some may be beta-only or
 | Automatic verification brake | Retain the three most recent test attempts and pause after the third exact repetition of the same failure, same result, or same changed-path and failure loop |
 | Uncertain Action recovery | Read-before-retry, Recovery assessment, Blocker, and resume |
 | Pre-delivery comprehension | Comprehension follows testing; repository changes require testing again |
-| Local view and diagnostics | Shared loopback WebUI through `dev-flow webui start|open|status|stop` |
+| Local view and diagnostics | Shared loopback WebUI through `taskbelay webui start|open|status|stop` |
 | Current-source platforms | Exact `darwin-arm64` and `win32-x64` runtimes; Windows scope is Windows 10/11 desktop x64 |
 | Advanced repository capability | One primary plus up to seven explicit additional repositories; every root must be prepared under its confirmed workspace mode, authorized, and verified before Task creation; same-machine relocation is available when all repositories use dedicated worktrees and atomically replaces bindings and claims |
-| Host lifecycle | Unified `dev-flow` entry for Codex, DeepSeek, Claude Code and ZCode installation, diagnosis, maintenance, and removal; ZCode retains required UI actions |
+| Host lifecycle | Unified `taskbelay` entry for Codex, DeepSeek, Claude Code and ZCode installation, diagnosis, maintenance, and removal; ZCode retains required UI actions |
 
 Multi-repository and worktree behavior is advanced capability, not the primary user scenario. Source
 presence also does not imply a corresponding end-to-end test of a stable package.
@@ -75,12 +75,12 @@ Environment: Windows x64, Node.js 24.18.0 and Go 1.27.0. Checks used current sou
 
 | Check | Actual result and scope |
 | --- | --- |
-| Core and protocols | Targeted Host identity, cross-Host rejection, protocol and complete four-Host success/error examples passed; the complete `internal/mcp` and `cmd/dev-flow` package checks passed |
+| Core and protocols | Targeted Host identity, cross-Host rejection, protocol and complete four-Host success/error examples passed; the complete `internal/mcp` and `cmd/taskbelay` package checks passed |
 | Final ZCode package | After extracting the final tarball, idempotent local setup, native stdio MCP, Task creation and same-directory resume, and cross-Host rejection passed. After fixture confirmation of a plan, an in-scope Edit was allowed and an out-of-scope Write was denied; cancellation after the rejected scope request released claims, and ordinary removal retained data |
 | Manager | 73 targeted checks passed; 2 targeted menu checks passed after the regression fix. In the complete manager suite, 3 existing file-symlink cases could not complete because of local `EPERM` permission restrictions and are not counted as passing |
 | Builds and interface | Both Windows x64 and macOS arm64 Core targets compiled and WebUI built successfully; macOS artifacts were not executed natively |
 
-Representative entrypoints are `go test ./internal/mcp ./cmd/dev-flow`, `node tests/zcode/verify-package.mjs <absolute-extracted-package-directory>` and `pnpm --dir packages/dev-flow test`. The final-package harness used isolated data, temporary Git repositories and fixture inputs while actually executing packaged Core, CLI and Hook code. It did not operate the real ZCode UI or run an authenticated model session. The manager's symlink restriction does not establish passing behavior, and these results are not a complete-repository or final GitHub CI pass. Actual Host and native macOS checks remain on the checklist above.
+Representative entrypoints are `go test ./internal/mcp ./cmd/taskbelay`, `node tests/zcode/verify-package.mjs <absolute-extracted-package-directory>` and `pnpm --dir packages/taskbelay test`. The final-package harness used isolated data, temporary Git repositories and fixture inputs while actually executing packaged Core, CLI and Hook code. It did not operate the real ZCode UI or run an authenticated model session. The manager's symlink restriction does not establish passing behavior, and these results are not a complete-repository or final GitHub CI pass. Actual Host and native macOS checks remain on the checklist above.
 
 ### 2026-09-20: Responsibility boundaries and failure recovery
 
@@ -146,7 +146,7 @@ Limits: no authenticated Claude model development session was executed; the loca
 
 | Entry point | Question it can answer |
 | --- | --- |
-| [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Did a real Codex graph end-to-end test cover refactoring, retesting, comprehension, and delivery? |
+| [PR #8](https://github.com/Innocent-children/taskbelay/pull/8) | Did a real Codex graph end-to-end test cover refactoring, retesting, comprehension, and delivery? |
 | [Support Matrix](SUPPORT-MATRIX_en.md) | Which public stable packages and Host environments completed final-artifact validation? |
 | [Release directory](../release/README.md) | How do maintainers build, read back, and publish artifacts? |
 

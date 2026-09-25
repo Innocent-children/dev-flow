@@ -1,5 +1,5 @@
 {
-  "description": "Dev Flow checks supported file writes against the active Task Plan before execution.",
+  "description": "TaskBelay checks supported file writes against the active Task Plan before execution.",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,9 +7,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dev-flow-codex hook pre-tool-use",
+            "command": "taskbelay-codex hook pre-tool-use",
             "timeout": 30,
-            "statusMessage": "Checking Dev Flow file scope"
+            "statusMessage": "Checking TaskBelay file scope"
           }
         ]
       }

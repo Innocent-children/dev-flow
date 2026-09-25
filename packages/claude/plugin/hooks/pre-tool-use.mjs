@@ -17,5 +17,5 @@ export async function runHook(event, check = input => coreJSON(["host-check", "p
   if (!["allow", "deny"].includes(result?.decision)) throw new Error("Invalid Core write decision");
   if (result.decision === "allow") return null;
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny",
-    permissionDecisionReason: result.reason || "Dev Flow stopped this write." } };
+    permissionDecisionReason: result.reason || "TaskBelay stopped this write." } };
 }

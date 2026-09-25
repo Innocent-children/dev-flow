@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import {
-  DEV_FLOW_QUALIFIED_TOOL_NAMES,
+  TASKBELAY_QUALIFIED_TOOL_NAMES,
 } from "../../../packages/deepseek/lib/tool-names.mjs";
 
 const signal = new AbortController().signal;
@@ -45,10 +45,10 @@ export class DeterministicCoreHost {
     const runtimePath = await this.resolveRuntimePath();
     fibers.push(await ctx.plugin(stack.mcpClient, {
       transport: "stdio",
-      serverName: "dev_flow",
+      serverName: "taskbelay",
       command: runtimePath,
       args: ["mcp", "--stdio"],
-      env: { DEV_FLOW_DATA_DIR: this.dataDirectory },
+      env: { TASKBELAY_DATA_DIR: this.dataDirectory },
       cwd: this.packageRoot,
       toolCallTimeoutMs: 15_000,
       failOnStartupError: true,
@@ -57,7 +57,7 @@ export class DeterministicCoreHost {
     try {
       assert.deepEqual(
         ctx.tools.schemas().map((schema) => schema.name).sort(),
-        [...DEV_FLOW_QUALIFIED_TOOL_NAMES].sort(),
+        [...TASKBELAY_QUALIFIED_TOOL_NAMES].sort(),
       );
     } catch (error) {
       for (const fiber of [...fibers].reverse()) await fiber.dispose();
@@ -74,7 +74,7 @@ export class DeterministicCoreHost {
     if (this.portableRuntimePath !== undefined) return this.portableRuntimePath;
 
     const runtimeDirectory = join(dirname(this.dataDirectory), "current-platform-runtime");
-    const runtimePath = join(runtimeDirectory, platform() === "win32" ? "dev-flow.exe" : "dev-flow");
+    const runtimePath = join(runtimeDirectory, platform() === "win32" ? "taskbelay.exe" : "taskbelay");
     const version = (await readFile(join(repositoryRoot, "CORE_VERSION"), "utf8")).trim();
     await mkdir(runtimeDirectory, { recursive: true });
     await execFile("go", [
@@ -83,10 +83,10 @@ export class DeterministicCoreHost {
       "-trimpath",
       "-buildvcs=false",
       "-ldflags",
-      `-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=${version}`,
+      `-s -w -X github.com/Innocent-children/taskbelay/internal/version.buildVersion=${version}`,
       "-o",
       runtimePath,
-      "./cmd/dev-flow",
+      "./cmd/taskbelay",
     ], {
       cwd: repositoryRoot,
       env: { ...process.env, CGO_ENABLED: "0" },

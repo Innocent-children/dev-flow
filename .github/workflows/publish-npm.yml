@@ -12,9 +12,9 @@ on:
           - deepseek
           - claude
           - zcode
-          - dev-flow
+          - taskbelay
       channel:
-        description: npm channel (dev-flow supports stable only)
+        description: npm channel (taskbelay supports stable only)
         required: true
         default: stable
         type: choice
@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ${{ inputs.product == 'dev-flow' && 'xcode-27' || 'macos-15' }}
+    runs-on: ${{ inputs.product == 'taskbelay' && 'xcode-27' || 'macos-15' }}
     timeout-minutes: 90
     env:
       RELEASE_PRODUCT: ${{ inputs.product }}
@@ -69,7 +69,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Check desktop build toolchain
-        if: inputs.product == 'dev-flow'
+        if: inputs.product == 'taskbelay'
         run: node --input-type=module -e 'import { verifyMacDesktopToolchain } from "./scripts/build-desktop-pet.mjs"; await verifyMacDesktopToolchain();'
 
       - name: Create release GitHub App token
@@ -84,12 +84,12 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
-          RELEASE_OUTPUT: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
+          RELEASE_OUTPUT: ${{ runner.temp }}/taskbelay-release-${{ inputs.product }}-${{ inputs.version }}
         run: |
           set -euo pipefail
           test "$(uname -s)-$(uname -m)" = "Darwin-arm64"
-          if [[ "$RELEASE_PRODUCT" == "dev-flow" && "$RELEASE_CHANNEL" != "stable" ]]; then
-            echo "dev-flow supports stable releases only" >&2
+          if [[ "$RELEASE_PRODUCT" == "taskbelay" && "$RELEASE_CHANNEL" != "stable" ]]; then
+            echo "taskbelay supports stable releases only" >&2
             exit 1
           fi
           mkdir -p "$RELEASE_OUTPUT"
@@ -97,13 +97,13 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           gh auth setup-git
 
-      # Dev Flow preparation compiles Swift and downloads the locked Windows x64
+      # TaskBelay preparation compiles Swift and downloads the locked Windows x64
       # Electron runtime before checking the complete two-platform tarball.
       - name: Build, verify and publish selected npm product
         shell: bash
         env:
           GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
-          RELEASE_OUTPUT: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
+          RELEASE_OUTPUT: ${{ runner.temp }}/taskbelay-release-${{ inputs.product }}-${{ inputs.version }}
         run: |
           set -euo pipefail
           case "$RELEASE_PRODUCT" in
@@ -114,11 +114,11 @@ jobs:
                 --output "$RELEASE_OUTPUT" \
                 --confirm "$RELEASE_PRODUCT-v$RELEASE_VERSION"
               ;;
-            dev-flow)
-              pnpm run release:dev-flow -- \
+            taskbelay)
+              pnpm run release:taskbelay -- \
                 --version "$RELEASE_VERSION" \
                 --output "$RELEASE_OUTPUT" \
-                --confirm "dev-flow-v$RELEASE_VERSION"
+                --confirm "taskbelay-v$RELEASE_VERSION"
               ;;
             *)
               echo "unsupported product: $RELEASE_PRODUCT" >&2
@@ -131,6 +131,6 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: npm-release-${{ inputs.product }}-${{ inputs.version }}
-          path: ${{ runner.temp }}/dev-flow-release-${{ inputs.product }}-${{ inputs.version }}
+          path: ${{ runner.temp }}/taskbelay-release-${{ inputs.product }}-${{ inputs.version }}
           if-no-files-found: ignore
           retention-days: 30

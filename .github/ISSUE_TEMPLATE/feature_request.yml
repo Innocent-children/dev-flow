@@ -5,9 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Dev Flow prioritizes improvements that make long-running coding tasks easier to continue safely. Describe the user event and visible result before proposing implementation details.
+        TaskBelay prioritizes improvements that make long-running coding tasks easier to continue safely. Describe the user event and visible result before proposing implementation details.
 
-        Dev Flow 优先处理能让长时编码任务更可靠地继续的改进。请先说明真实用户事件和可见结果，再讨论实现方案。
+        TaskBelay 优先处理能让长时编码任务更可靠地继续的改进。请先说明真实用户事件和可见结果，再讨论实现方案。
 
   - type: textarea
     id: user_event
@@ -21,14 +21,14 @@ body:
     id: current_approach
     attributes:
       label: Current approach / 当前做法
-      description: How is this handled without the proposed Dev Flow change? / 没有这项改动时，目前如何处理？
+      description: How is this handled without the proposed TaskBelay change? / 没有这项改动时，目前如何处理？
     validations:
       required: true
 
   - type: textarea
     id: confirmable_facts
     attributes:
-      label: Facts Dev Flow can confirm / Dev Flow 可确认的事实
+      label: Facts TaskBelay can confirm / TaskBelay 可确认的事实
       description: What can the Task, Action, repository observation, or retained records determine? / Task、Action、仓库观察或已有记录能够确定什么？
     validations:
       required: true

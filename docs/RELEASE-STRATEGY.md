@@ -1,6 +1,6 @@
 # Product Release Strategy
 
-Dev Flow versions Core, Codex, DeepSeek, Claude, ZCode and the lifecycle CLI independently. Current
+TaskBelay versions Core, Codex, DeepSeek, Claude, ZCode and the lifecycle CLI independently. Current
 release commands publish any of the four Host Adapters or the CLI. See [VERSIONING.md](VERSIONING.md) for
 their authorities. A product release changes only that product's version; a host artifact records the
 actual bundled Core version separately.
@@ -8,15 +8,15 @@ actual bundled Core version separately.
 ## Product Tags
 
 Product Tag prefixes are `core-vX.Y.Z`, `codex-vX.Y.Z`, `deepseek-vX.Y.Z`, `claude-vX.Y.Z`,
-`zcode-vX.Y.Z` and `dev-flow-vX.Y.Z`. Historical unprefixed Tags remain frozen. Host releases
+`zcode-vX.Y.Z` and `taskbelay-vX.Y.Z`. Historical unprefixed Tags remain frozen. Host releases
 validate the selected source and artifacts directly; a first release does not require a previous Tag.
 
 ## Host Adapter artifacts
 
 ```text
-dev-flow-<HOST>-<VERSION>.tgz
-dev-flow-core-<CORE_VERSION>-darwin-arm64
-dev-flow-core-<CORE_VERSION>-windows-amd64.exe
+taskbelay-<HOST>-<VERSION>.tgz
+taskbelay-core-<CORE_VERSION>-darwin-arm64
+taskbelay-core-<CORE_VERSION>-windows-amd64.exe
 SHA256SUMS
 release-manifest.json
 ```
@@ -30,7 +30,7 @@ verifies and uploads both standalone Core executables.
 维护者默认通过 GitHub Actions 手工触发 `publish-npm` 工作流，填写 product、channel 和 version。
 四个 Host Adapter 使用 ARM64 `macos-15` runner，CLI 桌面包使用带 Xcode 27 的 ARM64 `xcode-27` 预览镜像。
 工作流使用固定发布检查，再调用对应的一键发布命令。五个 npm
-包须分别配置为信任 `Innocent-children/dev-flow` 的 `publish-npm.yml`，workflow
+包须分别配置为信任 `Innocent-children/taskbelay` 的 `publish-npm.yml`，workflow
 通过 OIDC 获取短期 npm 发布凭据；GitHub mutation 使用已安装到当前仓库并加入 `main` ruleset
 bypass list 的专用 GitHub App 短期 token，所有产品共用一个串行发布队列。App Client ID 存在仓库
 变量 `RELEASE_APP_CLIENT_ID`，完整 PEM 私钥存在仓库 secret `RELEASE_APP_PRIVATE_KEY`。

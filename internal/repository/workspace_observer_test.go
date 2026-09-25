@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 func TestWorkspaceObserverTracksIndexWorktreeAndCommitInvariant(t *testing.T) {
@@ -346,7 +346,7 @@ func provisionObserverWorktree(t *testing.T) (string, string, WorkspaceOriginSel
 
 func runObserverGit(t *testing.T, directory string, args ...string) string {
 	t.Helper()
-	command := []string{"-c", "user.name=Dev Flow Test", "-c", "user.email=dev-flow@example.invalid", "-c", "commit.gpgSign=false"}
+	command := []string{"-c", "user.name=TaskBelay Test", "-c", "user.email=taskbelay@example.invalid", "-c", "commit.gpgSign=false"}
 	if directory != "" {
 		command = append(command, "-C", directory)
 	}

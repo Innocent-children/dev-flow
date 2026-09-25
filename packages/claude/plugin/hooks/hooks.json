@@ -8,7 +8,7 @@
             "type": "command",
             "command": "node",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/bin/dev-flow-claude.mjs",
+              "${CLAUDE_PLUGIN_ROOT}/bin/taskbelay-claude.mjs",
               "hook",
               "pre-tool-use"
             ]

@@ -32,7 +32,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   skip: supportedMachine ? false : "darwin-arm64 packaged Core integration only",
   timeout: 120_000,
 }, async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-retention-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-retention-")));
   const clients = [];
   t.after(async () => {
     await Promise.all(clients.map((client) => client.dispose()));
@@ -73,7 +73,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.match(build.artifact_sha256, /^[0-9a-f]{64}$/);
 
   await installArtifact(build.artifact_path, installPrefix);
-  const installedPackage = await realpath(join(installPrefix, "node_modules", "dev-flow-codex"));
+  const installedPackage = await realpath(join(installPrefix, "node_modules", "taskbelay-codex"));
   const lifecycle = await importInstalledLifecycle(installedPackage, "initial");
   const admission = await importInstalledModule(installedPackage, "lib/task-admission.mjs", "admission-initial");
   const taskLaunch = await importInstalledModule(installedPackage, "lib/task-launch.mjs", "launch-initial");
@@ -160,9 +160,9 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   const unrelatedMarketplaceBefore = await directoryManifest(unrelatedMarketplaceRoot);
 
   const firstCore = await startCore(paths.runtimePath, dataDirectory, taskRepository);
-  const info = await firstCore.callTool("dev_flow_server_info", {});
-  assert.equal(info.result.product, "dev-flow");
-  const opened = await firstCore.callTool("dev_flow_open_task", {
+  const info = await firstCore.callTool("taskbelay_server_info", {});
+  assert.equal(info.result.product, "taskbelay");
+  const opened = await firstCore.callTool("taskbelay_open_task", {
     host: "codex",
     repository_path: taskRepository,
     workspace_origin: provisioned.workspace_origin,
@@ -180,7 +180,7 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   await firstCore.close();
 
   const dataBeforeRemoval = await directoryManifest(dataDirectory);
-  assert.equal(dataBeforeRemoval.files.some((entry) => entry.path === "dev-flow.db"), true);
+  assert.equal(dataBeforeRemoval.files.some((entry) => entry.path === "taskbelay.db"), true);
   const removed = await lifecycle.removeRegistration({
     paths,
     packageVersion: build.package_version,
@@ -205,8 +205,8 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   assert.deepEqual(await directoryManifest(taskRepository), taskRepositoryBefore);
 
   const reopenedCore = await startCore(paths.runtimePath, dataDirectory, taskRepository);
-  await reopenedCore.callTool("dev_flow_server_info", {});
-  const reopened = await reopenedCore.callTool("dev_flow_get_task", {
+  await reopenedCore.callTool("taskbelay_server_info", {});
+  const reopened = await reopenedCore.callTool("taskbelay_get_task", {
     host: "codex",
     task_id: taskBefore.task_id,
   });
@@ -239,18 +239,18 @@ test("packaged Core task data survives deregistration, npm uninstall, and compat
   });
 
   await installArtifact(build.artifact_path, reinstallPrefix);
-  const reinstalledPackage = await realpath(join(reinstallPrefix, "node_modules", "dev-flow-codex"));
+  const reinstalledPackage = await realpath(join(reinstallPrefix, "node_modules", "taskbelay-codex"));
   assert.notEqual(reinstalledPackage, installedPackage);
   const reinstalledPaths = productPaths(reinstalledPackage, isolatedHome, dataDirectory);
   const dataBeforeRetainedRead = await directoryManifest(dataDirectory);
   const finalCore = await startCore(reinstalledPaths.runtimePath, dataDirectory, taskRepository);
-  await finalCore.callTool("dev_flow_server_info", {});
-  const retained = await finalCore.callTool("dev_flow_get_task", {
+  await finalCore.callTool("taskbelay_server_info", {});
+  const retained = await finalCore.callTool("taskbelay_get_task", {
     host: "codex",
     task_id: taskBefore.task_id,
   });
   assert.deepEqual(taskIdentity(retained.result.task), taskBefore);
-  const repeatedRead = await finalCore.callTool("dev_flow_get_task", {
+  const repeatedRead = await finalCore.callTool("taskbelay_get_task", {
     host: "codex",
     task_id: taskBefore.task_id,
   });
@@ -291,7 +291,7 @@ class CoreClient {
     this.exited = false;
     this.child = spawn(runtimePath, ["mcp", "--stdio"], {
       cwd: repositoryPath,
-      env: { ...process.env, DEV_FLOW_DATA_DIR: dataDirectory },
+      env: { ...process.env, TASKBELAY_DATA_DIR: dataDirectory },
       stdio: ["pipe", "pipe", "pipe"],
     });
     this.exitPromise = new Promise((resolve) => {
@@ -325,9 +325,9 @@ class CoreClient {
     const response = await this.request("initialize", {
       protocolVersion: "2025-06-18",
       capabilities: {},
-      clientInfo: { name: "dev-flow-retention-test", version: "0.1.0" },
+      clientInfo: { name: "taskbelay-retention-test", version: "0.1.0" },
     });
-    assert.equal(response.result.serverInfo.name, "dev-flow");
+    assert.equal(response.result.serverInfo.name, "taskbelay");
     this.notify("notifications/initialized", {});
   }
 
@@ -385,7 +385,7 @@ async function initializeRepository(path, remotePath) {
   await execFile("git", ["init", "--bare", "--initial-branch=main", remotePath]);
   await mkdir(path, { recursive: true });
   await execFile("git", ["init", "--initial-branch=main"], { cwd: path });
-  await execFile("git", ["config", "user.name", "Dev Flow Retention Test"], { cwd: path });
+  await execFile("git", ["config", "user.name", "TaskBelay Retention Test"], { cwd: path });
   await execFile("git", ["config", "user.email", "retention@example.invalid"], { cwd: path });
   await writeFile(join(path, "README.md"), "retention fixture\n");
   await execFile("git", ["add", "README.md"], { cwd: path });
@@ -414,7 +414,7 @@ async function uninstallPackage(installPrefix) {
     "--no-fund",
     "--prefix",
     installPrefix,
-    "dev-flow-codex",
+    "taskbelay-codex",
   ], { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
 }
 
@@ -429,18 +429,18 @@ async function importInstalledModule(installedPackage, relativePath, cacheKey) {
 }
 
 function productPaths(installedPackage, isolatedHome, dataDirectory) {
-  const productSupportRoot = join(isolatedHome, "Library", "Application Support", "dev-flow");
+  const productSupportRoot = join(isolatedHome, "Library", "Application Support", "taskbelay");
   return {
     packageRoot: installedPackage,
     marketplaceRoot: installedPackage,
     pluginRoot: join(installedPackage, "plugin"),
-    runtimePath: join(installedPackage, "runtime", "darwin-arm64", "dev-flow"),
+    runtimePath: join(installedPackage, "runtime", "darwin-arm64", "taskbelay"),
     homeDirectory: isolatedHome,
     productSupportRoot,
     registrationsDirectory: join(productSupportRoot, "registrations"),
     receiptPath: join(productSupportRoot, "registrations", "codex.json"),
-    configurationDirectory: join(isolatedHome, ".dev-flow"),
-    configurationPath: join(isolatedHome, ".dev-flow", "config.json"),
+    configurationDirectory: join(isolatedHome, ".taskbelay"),
+    configurationPath: join(isolatedHome, ".taskbelay", "config.json"),
     dataDirectory,
     usesDefaultDataDirectory: false,
     runtimeKey: "darwin-arm64",

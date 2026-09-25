@@ -1,4 +1,4 @@
-# Dev Flow Local WebUI
+# TaskBelay Local WebUI
 
 [中文](WEBUI.md) | [English](WEBUI_en.md)
 
@@ -63,25 +63,25 @@ WebUI and MCP share Core semantic submission, operation retention and recovery. 
 ## Start, open, inspect, and stop
 
 ```bash
-dev-flow webui start
-dev-flow webui status
-dev-flow webui open
-dev-flow webui stop
+taskbelay webui start
+taskbelay webui status
+taskbelay webui open
+taskbelay webui stop
 ```
 
 `start` opens the browser unless `--no-open` is supplied. Every command accepts `--plain` or `--json`.
 Only `start` may create a missing default data directory: mode `0700` on macOS or the current user's
-LocalAppData ACL on Windows. An explicit `DEV_FLOW_DATA_DIR` must already exist, canonicalize, and not
+LocalAppData ACL on Windows. An explicit `TASKBELAY_DATA_DIR` must already exist, canonicalize, and not
 traverse a symbolic link.
 
 ```bash
-export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
-dev-flow webui start
+export TASKBELAY_DATA_DIR="/absolute/path/to/existing-directory"
+taskbelay webui start
 ```
 
 ```powershell
-$env:DEV_FLOW_DATA_DIR = "C:\absolute\existing-directory"
-dev-flow webui start
+$env:TASKBELAY_DATA_DIR = "C:\absolute\existing-directory"
+taskbelay webui start
 ```
 
 ## Local single-user boundary
@@ -98,7 +98,7 @@ operations, and relocation records; none substitutes for another.
 ## States and data
 
 `status` returns `ready`, `read_only`, `incompatible`, or `unavailable`. Default Task data lives at
-`$HOME/.dev-flow/data` on macOS and `%LOCALAPPDATA%\dev-flow\data` on
+`$HOME/.taskbelay/data` on macOS and `%LOCALAPPDATA%\taskbelay\data` on
 Windows. Codex, DeepSeek, Claude Code and ZCode share it.
 
 React, TypeScript, and Vite participate only in the build. Static assets are embedded in Core, so
@@ -115,7 +115,7 @@ runtime use needs no Node server, CDN, external font, or separate WebUI package.
 
 ## Desktop entry and file errors
 
-The desktop pet can open the selected Task in this WebUI. The public `@imotong/dev-flow` npm package includes apps for macOS arm64 and Windows 10/11 x64, and a configured Adapter supplies Core at runtime. The manager's install, upgrade, repair and reinstall operations refresh the application copy in the user directory while preserving settings and appearance assets. Installation, controls and appearances are described in the [desktop pet guide](DESKTOP-PETS_en.md).
+The desktop pet can open the selected Task in this WebUI. The public `@imotong/taskbelay` npm package includes apps for macOS arm64 and Windows 10/11 x64, and a configured Adapter supplies Core at runtime. The manager's install, upgrade, repair and reinstall operations refresh the application copy in the user directory while preserving settings and appearance assets. Installation, controls and appearances are described in the [desktop pet guide](DESKTOP-PETS_en.md).
 
 When a submission omits changed process files, the page shows the missing repository paths separately from request-field errors. A correction is allowed only when Core confirms no write and explicitly permits one correction of the listed artifact fields. Workspace and history errors follow their existing recovery rules. Integration fields belong in [artifact collection and submission](ARTIFACTS_en.md).
 

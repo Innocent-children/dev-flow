@@ -1,6 +1,6 @@
 package workflow
 
-import "github.com/Innocent-children/dev-flow/internal/domain"
+import "github.com/Innocent-children/taskbelay/internal/domain"
 
 func knownFailureAcceptanceSchema() map[string]any {
 	return schemaObject([]string{"source", "summary", "failed_checks", "comparison_check", "task_plan_revision", "content_digest"}, map[string]any{

@@ -1,10 +1,10 @@
-# Dev Flow Threat Model
+# TaskBelay Threat Model
 
 [中文](THREAT-MODEL.md) | [English](THREAT-MODEL_en.md)
 
 ## The important boundary
 
-Dev Flow protects **task process state**; it is not a sandbox around the coding agent.
+TaskBelay protects **task process state**; it is not a sandbox around the coding agent.
 
 Codex, DeepSeek Harness, Claude Code, or ZCode still reads repositories, changes files, and runs
 commands with the permissions the developer gave it. The Go Core keeps the single Task state and
@@ -14,7 +14,7 @@ validates transitions, bindings, persistence, and recovery decisions.
 flowchart LR
     U[Developer] --> H[Codex / DeepSeek / Claude Code / ZCode]
     H --> R[Authorized repositories]
-    H --> A[Dev Flow adapter]
+    H --> A[TaskBelay adapter]
     A --> C[Local Go Core]
     C --> S[SQLite Task state]
 ```
@@ -34,7 +34,7 @@ flowchart LR
 
 | Participant | Responsibility |
 | --- | --- |
-| Developer | Chooses whether to enter Dev Flow and confirms source/base/target/carry, repository and Host permissions, comprehension, handoff, cleanup, and releases |
+| Developer | Chooses whether to enter TaskBelay and confirms source/base/target/carry, repository and Host permissions, comprehension, handoff, cleanup, and releases |
 | Codex / DeepSeek Harness / Claude Code / ZCode | Actually reads files, changes repositories, and runs commands; uses the elevated permissions granted by the developer |
 | Host Adapter | Assesses requests read-only; after confirmation performs fetch, branch, worktree, relaunch/handoff; judges scope before commands, full suites, test-code changes, and review; calls Core under the Action, Scope, current verification plan, and Recovery contract |
 | Go Core | Observes Git read-only, retains the one process state, derives Task surface, and validates revision, workspace, payload field restrictions, transitions, and persistence |
@@ -81,7 +81,7 @@ Identity or target drift stops cleanup.
   configuration.
 - There is currently no encrypted state store, multi-user isolation, remote authentication, automatic
   secret scanning, code signing, or transparency log.
-- Dev Flow cannot guarantee correct model output, vulnerability-free code, sufficient tests, or immunity
+- TaskBelay cannot guarantee correct model output, vulnerability-free code, sufficient tests, or immunity
   to prompt injection.
 - Core cannot prove that natural-language reasons are causally related to the change; the Host can still judge the scope of verification and review incorrectly.
 - Unsupported platforms, Host versions, and source-only builds do not have a stable security support claim.

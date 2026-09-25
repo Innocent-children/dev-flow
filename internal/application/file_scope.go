@@ -8,11 +8,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/recovery"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 var supportedFileChangeTools = map[domain.Host]map[string]bool{
@@ -76,7 +76,7 @@ func (s *Service) PrepareFileChange(ctx context.Context, request PrepareFileChan
 		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrWorkspaceUnavailable, "The requested directory no longer identifies the original worktree instance retained by the active Task.")
 	}
 	if task.OriginHost != request.Host {
-		return denyFileChange(task, nil, "The active Dev Flow Task belongs to another Host."), nil
+		return denyFileChange(task, nil, "The active TaskBelay Task belongs to another Host."), nil
 	}
 	if workflow.ValidateProcessTask(task) != nil {
 		return PrepareFileChangeResult{}, domain.WithExplanation(domain.ErrStorageUnavailable, "The stored Task does not satisfy the current process definition or saved-record rules.")
@@ -89,7 +89,7 @@ func (s *Service) PrepareFileChange(ctx context.Context, request PrepareFileChan
 		return PrepareFileChangeResult{Decision: FileChangeAllow, TaskID: task.TaskID, TaskRevision: task.Revision}, nil
 	}
 	if !request.PathParseComplete {
-		return denyFileChange(task, nil, "Dev Flow could not determine every target path for this supported write."), nil
+		return denyFileChange(task, nil, "TaskBelay could not determine every target path for this supported write."), nil
 	}
 	paths, inside := mapAbsolutePathsToTask(task, request.Paths)
 	if !inside || len(paths) == 0 {
@@ -110,7 +110,7 @@ func (s *Service) PrepareFileChange(ctx context.Context, request PrepareFileChan
 
 func (s *Service) createFileScopeBlocker(ctx context.Context, task domain.ProcessTask, paths []string, intent domain.Digest) (PrepareFileChangeResult, error) {
 	if task.CurrentAction == nil || task.TaskPlan == nil || len(task.FileScopeRecords) >= domain.MaxFileScopeRecords {
-		return denyFileChange(task, paths, "Dev Flow cannot retain another file-scope decision for this Task."), nil
+		return denyFileChange(task, paths, "TaskBelay cannot retain another file-scope decision for this Task."), nil
 	}
 	fresh, err := s.observeTaskRepositories(ctx, task)
 	if err != nil {

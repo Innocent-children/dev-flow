@@ -3,12 +3,15 @@
 `release/` contains the current prepare/publish implementation and operator guidance. Generated output stays
 in an external operator-selected directory and is never committed.
 
+
+TaskBelay uses new npm package names. Existing public-version numbers and historical Tags do not prove publication under these names. Before publishing each package, confirm its npm ownership and configure its Trusted Publisher for the actual GitHub repository. Keep publication in the standalone release flow; a source rename does not publish a package.
+
 ## Host Adapter output
 
 ```text
-dev-flow-<HOST>-<VERSION>.tgz
-dev-flow-core-<CORE_VERSION>-darwin-arm64
-dev-flow-core-<CORE_VERSION>-windows-amd64.exe
+taskbelay-<HOST>-<VERSION>.tgz
+taskbelay-core-<CORE_VERSION>-darwin-arm64
+taskbelay-core-<CORE_VERSION>-windows-amd64.exe
 SHA256SUMS
 release-manifest.json
 ```
@@ -21,17 +24,17 @@ the Publisher verifies and uploads both standalone Core assets.
 
 维护者通常通过 GitHub Actions 的 `publish-npm` 工作流运行这些入口。在 Actions 页面选择
 `Run workflow`，填写 `product`、`channel` 和 `version`。工作流使用固定的发布检查，不要求操作者选择
-验证模式或勾选理解确认。可选产品为 `codex`、`deepseek`、`claude`、`zcode` 和 `dev-flow`。每个 npm 包须分别把 `Innocent-children/dev-flow` 的 `publish-npm.yml`
+验证模式或勾选理解确认。可选产品为 `codex`、`deepseek`、`claude`、`zcode` 和 `taskbelay`。每个 npm 包须分别把 `Innocent-children/taskbelay` 的 `publish-npm.yml`
 配置为允许 `npm publish` 的 GitHub Actions Trusted Publisher；工作流通过 OIDC 获取短期 npm 发布凭据，
 并使用安装到当前仓库、加入 `main` ruleset bypass list 的专用 GitHub App 短期 token 提交版本、
 创建 Tag 和维护 Release。仓库变量 `RELEASE_APP_CLIENT_ID` 保存 App Client ID，仓库 secret
 `RELEASE_APP_PRIVATE_KEY` 保存完整 PEM 私钥。四个 Host Adapter 使用 `macos-15` ARM64 runner，
-Dev Flow 桌面包使用带 Xcode 27 的 ARM64 `xcode-27` 预览镜像。所有产品共用发布队列串行执行；
+TaskBelay 桌面包使用带 Xcode 27 的 ARM64 `xcode-27` 预览镜像。所有产品共用发布队列串行执行；
 排队任务获得执行机会后从最新 `main` checkout，避免前一个发布任务推送版本提交后，
 后续任务仍基于触发时的旧提交发布。发布工具链固定为 Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，npm 发布只使用 Trusted Publishing OIDC，不生成依赖
 `NODE_AUTH_TOKEN` 的 registry 认证配置。
 
-新增的 Claude/ZCode 发布入口不代表 `dev-flow-claude`、`dev-flow-zcode` 已在 npm 完成首次发布或已配置 Trusted Publisher。首次启用前，包维护者须确认包名所有权、npm 侧的首次发布条件和认证方式，并分别配置上述 Trusted Publisher。仓库不自动创建 npm 包所有权或修改 npm 设置；在这些条件完成前，不能仅凭 Actions 中出现产品选项就认定可以发布。首次发布仍须明确选择产品、channel、精确版本，并通过独立发布入口完成固定检查与产物核对。
+新增的 Claude/ZCode 发布入口不代表 `taskbelay-claude`、`taskbelay-zcode` 已在 npm 完成首次发布或已配置 Trusted Publisher。首次启用前，包维护者须确认包名所有权、npm 侧的首次发布条件和认证方式，并分别配置上述 Trusted Publisher。仓库不自动创建 npm 包所有权或修改 npm 设置；在这些条件完成前，不能仅凭 Actions 中出现产品选项就认定可以发布。首次发布仍须明确选择产品、channel、精确版本，并通过独立发布入口完成固定检查与产物核对。
 
 工作流仍调用下面的 standalone command，完成版本检查、构建产物检查、npm tarball 回读和 GitHub
 Release 资产处理，不运行 Host 或 Task 完整流程测试。每次运行都会上传 runner 临时目录中的构建产物；同一组
@@ -51,7 +54,7 @@ The four Host release commands use the same arguments and product-specific confi
 [DeepSeek](deepseek/README.md), [Claude Code](claude/README.md), [ZCode](zcode/README.md).
 
 The release command can create its output directory, but the parent must already exist. If `--output`
-is omitted, it uses `~/dev-flow-releases/<host>-v<VERSION>`.
+is omitted, it uses `~/taskbelay-releases/<host>-v<VERSION>`.
 
 `stable` is the default channel. It accepts `MAJOR.MINOR.PATCH`, requires clean `main` equal to
 `origin/main`, and updates the selected package version and its entry in `release/public-versions.json`,
@@ -113,10 +116,10 @@ from release checks.
 The Host-neutral CLI has its own stable-only release identity:
 
 ```bash
-pnpm run release:dev-flow -- --version "<DEV_FLOW_VERSION>" --output "<ABSOLUTE_DIRECTORY>" \
-  --confirm "dev-flow-v<DEV_FLOW_VERSION>"
+pnpm run release:taskbelay -- --version "<TASKBELAY_VERSION>" --output "<ABSOLUTE_DIRECTORY>" \
+  --confirm "taskbelay-v<TASKBELAY_VERSION>"
 ```
 
-For `@imotong/dev-flow`, preparation includes both desktop applications and their default artwork. The macOS release job compiles Swift and assembles the locked Windows x64 Electron distribution; it verifies the final extracted npm package before publication. No Core or local Adapter archives are bundled in this product. See [Dev Flow CLI release](dev-flow/README.md) for toolchain and signing limits.
+For `@imotong/taskbelay`, preparation includes both desktop applications and their default artwork. The macOS release job compiles Swift and assembles the locked Windows x64 Electron distribution; it verifies the final extracted npm package before publication. No Core or local Adapter archives are bundled in this product. See [TaskBelay CLI release](taskbelay/README.md) for toolchain and signing limits.
 
-`@imotong/dev-flow` 制备包含两个平台的桌面应用与默认素材。macOS 发布 job 编译 Swift 并装配锁定的 Windows x64 Electron，在发布前验证最终 npm 解包结果。此产品不内置 Core 或本地 Adapter 归档。工具链与签名限制见 [Dev Flow CLI 发布说明](dev-flow/README.md)。
+`@imotong/taskbelay` 制备包含两个平台的桌面应用与默认素材。macOS 发布 job 编译 Swift 并装配锁定的 Windows x64 Electron，在发布前验证最终 npm 解包结果。此产品不内置 Core 或本地 Adapter 归档。工具链与签名限制见 [TaskBelay CLI 发布说明](taskbelay/README.md)。

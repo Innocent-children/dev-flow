@@ -5,15 +5,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { runCLI } from "../bin/dev-flow-codex.mjs";
+import { runCLI } from "../bin/taskbelay-codex.mjs";
 import { inspectAdmissionAnchor } from "../lib/task-admission.mjs";
 import { handoffFixture } from "./fixtures/task-handoff.mjs";
 import { readExamples, exampleNormalizer, verifySuccessExample } from "../../../tests/skills/executed-examples.mjs";
 
-const root = fileURLToPath(new URL("../plugin/skills/dev-flow/", import.meta.url));
+const root = fileURLToPath(new URL("../plugin/skills/taskbelay/", import.meta.url));
 const examples = await readExamples(root, "host");
 test("Skill response normalization maps native paths and quoted paths without changing other text", () => {
-  const directory = join(tmpdir(), "dev-flow-normalizer");
+  const directory = join(tmpdir(), "taskbelay-normalizer");
   const path = join(directory, "handoffs", "material.md");
   const normalize = exampleNormalizer([[directory, "/example"]]);
   const unchanged = String.raw`Keep \n and "C:\unmapped\path" unchanged.`;
@@ -26,7 +26,7 @@ test("Skill response normalization maps native paths and quoted paths without ch
 
 for (const example of examples) {
   test(`complete Skill response ${example.tool}/${example.name}`, async (t) => {
-    const dir = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-skill-codex-")));
+    const dir = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-skill-codex-")));
     t.after(() => rm(dir, { recursive: true, force: true }));
     const source = join(dir, "source");
     const worktree = join(dir, "worktree");
@@ -49,7 +49,7 @@ for (const example of examples) {
 
     const paths = new Map([
       ["/work/project", source], ["/work/tasks/endpoint-field", worktree],
-      ["/work/tasks/relocated-endpoint", relocated], ["/private/tmp/dev-flow-handoff.json", handoff],
+      ["/work/tasks/relocated-endpoint", relocated], ["/private/tmp/taskbelay-handoff.json", handoff],
     ]);
     const substitute = (value) => {
       if (typeof value === "string") return paths.get(value) ?? value;

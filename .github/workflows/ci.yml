@@ -36,7 +36,7 @@ jobs:
         run: test "$(uname -s)" = Darwin && test "$(uname -m)" = arm64
 
       - name: Check formal desktop package contracts
-        run: node --test release/dev-flow/prepare.test.mjs
+        run: node --test release/taskbelay/prepare.test.mjs
 
       - name: Run bounded repository validation
         run: ./scripts/validate-repository.sh
@@ -91,7 +91,7 @@ jobs:
       - name: Install frozen workspace dependencies
         shell: pwsh
         run: |
-          node --input-type=module -e "import { execPortableCommand } from './packages/dev-flow/lib/command.mjs'; const result = await execPortableCommand('pnpm', ['--version'], { encoding: 'utf8' }); process.stdout.write(result.stdout);"
+          node --input-type=module -e "import { execPortableCommand } from './packages/taskbelay/lib/command.mjs'; const result = await execPortableCommand('pnpm', ['--version'], { encoding: 'utf8' }); process.stdout.write(result.stdout);"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pnpm install --frozen-lockfile --ignore-scripts
 
@@ -99,12 +99,12 @@ jobs:
         shell: pwsh
         run: |
           $coreVersion = (Get-Content CORE_VERSION -Raw).Trim()
-          $runtime = Join-Path $env:RUNNER_TEMP "dev-flow.exe"
+          $runtime = Join-Path $env:RUNNER_TEMP "taskbelay.exe"
           $env:CGO_ENABLED = "0"
           $env:GOOS = "windows"
           $env:GOARCH = "amd64"
-          go build -mod=readonly -trimpath -buildvcs=false -ldflags "-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=$coreVersion" -o $runtime ./cmd/dev-flow
-          "DEV_FLOW_WINDOWS_CORE=$runtime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          go build -mod=readonly -trimpath -buildvcs=false -ldflags "-s -w -X github.com/Innocent-children/taskbelay/internal/version.buildVersion=$coreVersion" -o $runtime ./cmd/taskbelay
+          "TASKBELAY_WINDOWS_CORE=$runtime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           if (& $runtime version) { } else { exit 1 }
 
       - name: Run the complete Go suite on Windows
@@ -130,19 +130,19 @@ jobs:
       - name: Run Windows lifecycle manager package suite
         shell: pwsh
         run: |
-          pnpm --dir packages/dev-flow test
+          pnpm --dir packages/taskbelay test
           exit $LASTEXITCODE
 
       - name: Run Windows ZCode package suite
         shell: pwsh
         run: |
-          $env:DEV_FLOW_ZCODE_TEST_CORE = $env:DEV_FLOW_WINDOWS_CORE
+          $env:TASKBELAY_ZCODE_TEST_CORE = $env:TASKBELAY_WINDOWS_CORE
           pnpm --dir packages/zcode test
           exit $LASTEXITCODE
 
       - name: Build the dual-runtime local packages on Windows
         shell: pwsh
-        run: node scripts/dev-flow-local.mjs help
+        run: node scripts/taskbelay-local.mjs help
 
       - name: Check Windows pet renderer logic with simulated DOM and IPC
         shell: pwsh
@@ -151,12 +151,12 @@ jobs:
       - name: Run native Windows WebUI lifecycle
         shell: pwsh
         run: |
-          $data = Join-Path $env:RUNNER_TEMP "dev-flow-webui-data"
+          $data = Join-Path $env:RUNNER_TEMP "taskbelay-webui-data"
           New-Item -ItemType Directory -Path $data | Out-Null
-          $env:DEV_FLOW_DATA_DIR = $data
-          $started = & $env:DEV_FLOW_WINDOWS_CORE webui start --no-open --json | ConvertFrom-Json
+          $env:TASKBELAY_DATA_DIR = $data
+          $started = & $env:TASKBELAY_WINDOWS_CORE webui start --no-open --json | ConvertFrom-Json
           if ($started.readiness -ne "ready") { throw "WebUI did not become ready" }
-          $status = & $env:DEV_FLOW_WINDOWS_CORE webui status --json | ConvertFrom-Json
+          $status = & $env:TASKBELAY_WINDOWS_CORE webui status --json | ConvertFrom-Json
           if ($status.readiness -ne "ready") { throw "WebUI status is not ready" }
-          $stopped = & $env:DEV_FLOW_WINDOWS_CORE webui stop --json | ConvertFrom-Json
+          $stopped = & $env:TASKBELAY_WINDOWS_CORE webui stop --json | ConvertFrom-Json
           if ($stopped.readiness -ne "unavailable") { throw "WebUI did not stop" }

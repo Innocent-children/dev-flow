@@ -3,8 +3,8 @@ package application
 import (
 	"fmt"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 // validateRepositoryScopedPaths compares submitted repository paths with the

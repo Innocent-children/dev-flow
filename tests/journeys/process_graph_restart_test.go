@@ -9,18 +9,18 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
 )
 
-const phase7BWorkerMode = "DEV_FLOW_PHASE7B_SUBPROCESS_MODE"
+const phase7BWorkerMode = "TASKBELAY_PHASE7B_SUBPROCESS_MODE"
 
 func TestProcessGraphRestartJourney(t *testing.T) {
 	root := t.TempDir()
 	repoPath := filepath.Join(root, "repository")
-	dbPath := filepath.Join(root, "dev-flow.db")
+	dbPath := filepath.Join(root, "taskbelay.db")
 	firstProof := filepath.Join(root, "comprehension.json")
 	terminalProof := filepath.Join(root, "terminal.json")
 	runPhase7BWorker(t, "prepare", repoPath, dbPath, "", firstProof)
@@ -33,10 +33,10 @@ func TestPhase7BSubprocessWorker(t *testing.T) {
 	if mode == "" {
 		return
 	}
-	repoPath := os.Getenv("DEV_FLOW_PHASE7B_REPOSITORY")
-	dbPath := os.Getenv("DEV_FLOW_PHASE7B_DATABASE")
-	inputProof := os.Getenv("DEV_FLOW_PHASE7B_INPUT_PROOF")
-	outputProof := os.Getenv("DEV_FLOW_PHASE7B_OUTPUT_PROOF")
+	repoPath := os.Getenv("TASKBELAY_PHASE7B_REPOSITORY")
+	dbPath := os.Getenv("TASKBELAY_PHASE7B_DATABASE")
+	inputProof := os.Getenv("TASKBELAY_PHASE7B_INPUT_PROOF")
+	outputProof := os.Getenv("TASKBELAY_PHASE7B_OUTPUT_PROOF")
 	switch mode {
 	case "prepare":
 		j := openJourneyAtPaths(t, repoPath, dbPath, domain.MethodSpecKit, true)
@@ -101,10 +101,10 @@ func runPhase7BWorker(t *testing.T, mode, repoPath, dbPath, inputProof, outputPr
 	cmd := exec.Command(os.Args[0], "-test.run=^TestPhase7BSubprocessWorker$", "-test.v")
 	cmd.Env = append(os.Environ(),
 		phase7BWorkerMode+"="+mode,
-		"DEV_FLOW_PHASE7B_REPOSITORY="+repoPath,
-		"DEV_FLOW_PHASE7B_DATABASE="+dbPath,
-		"DEV_FLOW_PHASE7B_INPUT_PROOF="+inputProof,
-		"DEV_FLOW_PHASE7B_OUTPUT_PROOF="+outputProof,
+		"TASKBELAY_PHASE7B_REPOSITORY="+repoPath,
+		"TASKBELAY_PHASE7B_DATABASE="+dbPath,
+		"TASKBELAY_PHASE7B_INPUT_PROOF="+inputProof,
+		"TASKBELAY_PHASE7B_OUTPUT_PROOF="+outputProof,
 	)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("subprocess %s: %v\n%s", mode, err, output)

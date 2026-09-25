@@ -185,7 +185,7 @@ export async function beginManagedTaskDispatch(input, options = {}) {
     const attemptId = createHash("sha256").update(`${receipt.launch_id}\0${receipt.repository_key}\0managed-dispatch`).digest("hex");
     const hostRequest = {
       prompt,
-      title: `Dev Flow ${receipt.launch_id} ${receipt.repository_key}`,
+      title: `TaskBelay ${receipt.launch_id} ${receipt.repository_key}`,
       target: {
         type: "project", projectId: input.project_id,
         environment: { type: "worktree", startingState: { type: "branch", branchName: receipt.base_commit } },
@@ -406,7 +406,7 @@ export async function provisionLocalTask(input, options = {}) {
 async function requireAvailableWorkspace(root, check) {
   if (typeof check !== "function") throw new Error("Core workspace availability check is required before local branch preparation");
   const result = await check(root);
-  if (result?.available !== true || result.repository_path !== root) throw new Error("workspace is unavailable or already has an active Dev Flow Task; resume or resolve that Task before changing branches");
+  if (result?.available !== true || result.repository_path !== root) throw new Error("workspace is unavailable or already has an active TaskBelay Task; resume or resolve that Task before changing branches");
 }
 
 function cliProvisionResult(path, receipt, input, handoff) {
@@ -552,7 +552,7 @@ export async function beginTaskHandoff(input, options = {}) {
       receipt: next,
       host_request: Object.freeze({
         threadId: input.thread_id,
-        followUpPrompt: `Resume Dev Flow relocation ${input.relocation_id}; inspect the Host result, then resolve the Core blocker with the exact destination repository paths.`,
+        followUpPrompt: `Resume TaskBelay relocation ${input.relocation_id}; inspect the Host result, then resolve the Core blocker with the exact destination repository paths.`,
       }),
     });
   });

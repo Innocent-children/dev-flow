@@ -10,11 +10,11 @@ const context = {
 
 export function artifactsHelp(operation) {
   if (operation === undefined) {
-    return "Usage: dev-flow-codex artifacts <collect|prepare>\n" +
-      "Read command help: dev-flow-codex artifacts <collect|prepare> --help\n\n" +
+    return "Usage: taskbelay-codex artifacts <collect|prepare>\n" +
+      "Read command help: taskbelay-codex artifacts <collect|prepare> --help\n\n" +
       "collect: Read the current Action's complete file changes from Core.\n" +
       "prepare: Classify the collected files and prepare the submission's artifacts object.\n\n" +
-      "Set DEV_FLOW_DATA_DIR before starting Codex to use an existing canonical absolute data directory.\n";
+      "Set TASKBELAY_DATA_DIR before starting Codex to use an existing canonical absolute data directory.\n";
   }
   let help;
   if (operation === "collect") {
@@ -30,7 +30,7 @@ export function artifactsHelp(operation) {
         "result.files[]": "Each file contains path, change_type, digest, slot and summary. Core supplies its identity and content digest; slot and summary start empty.",
         error: "On failure, read code, message and any details before choosing the next step.",
       },
-      next_step: "Keep the complete result collection. Fill only each file's slot and summary, then send {host: \"codex\", collection: <that collection>} to dev-flow-codex artifacts prepare.",
+      next_step: "Keep the complete result collection. Fill only each file's slot and summary, then send {host: \"codex\", collection: <that collection>} to taskbelay-codex artifacts prepare.",
     };
   } else if (operation === "prepare") {
     help = {

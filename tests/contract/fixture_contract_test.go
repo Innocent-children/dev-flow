@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	core "github.com/Innocent-children/dev-flow/internal/mcp"
+	core "github.com/Innocent-children/taskbelay/internal/mcp"
 )
 
 func TestFixtureFilesExist(t *testing.T) {
@@ -55,15 +55,15 @@ func TestWorkspaceLifecycleFixtureMatchesClosedMCPInputs(t *testing.T) {
 		t.Fatalf("workspace lifecycle identity=%q/%q", fixture.FixtureKind, fixture.StorageSchemaVersion)
 	}
 	for tool, input := range map[string]json.RawMessage{
-		"dev_flow_prepare_task_relocation": fixture.PrepareRelocationInput,
-		"dev_flow_resolve_blocker":         fixture.RelocationResolutionInput,
-		"dev_flow_abandon_task":            fixture.AbandonInput,
+		"taskbelay_prepare_task_relocation": fixture.PrepareRelocationInput,
+		"taskbelay_resolve_blocker":         fixture.RelocationResolutionInput,
+		"taskbelay_abandon_task":            fixture.AbandonInput,
 	} {
 		if err := core.ValidateToolInput(tool, input); err != nil {
 			t.Fatalf("%s fixture input: %v", tool, err)
 		}
 	}
-	if err := core.ValidateToolInput("dev_flow_resolve_blocker", fixture.HistoryResolutionInput); err != nil {
+	if err := core.ValidateToolInput("taskbelay_resolve_blocker", fixture.HistoryResolutionInput); err != nil {
 		t.Fatalf("history fixture input: %v", err)
 	}
 	var origin map[string]any
@@ -129,7 +129,7 @@ func TestCurrentHostParityFixtures(t *testing.T) {
 		if fixture.FixtureKind != "core_host_parity" {
 			t.Fatalf("%s contract identity = %#v", name, fixture)
 		}
-		if fixture.ProcessID != "standard-development" || fixture.CurrentNode != "REQUIREMENTS" || fixture.ActionKind != "COMPLETE_REQUIREMENTS" || fixture.SubmissionTool != "dev_flow_submit_requirements" {
+		if fixture.ProcessID != "standard-development" || fixture.CurrentNode != "REQUIREMENTS" || fixture.ActionKind != "COMPLETE_REQUIREMENTS" || fixture.SubmissionTool != "taskbelay_submit_requirements" {
 			t.Fatalf("%s process/action identity = %#v", name, fixture)
 		}
 		if len(fixture.DefinitionDigest) != 64 {
@@ -323,7 +323,7 @@ func TestGraphMultiRepositoryOpenFixtureUsesOneTaskActionAndDigest(t *testing.T)
 		t.Fatal("multi repository fixture has trailing JSON")
 	}
 	const effectiveDigest = "9999999999999999999999999999999999999999999999999999999999999999"
-	if fixture.FixtureKind != "multi_repository_open" || !fixture.Created || fixture.Task.TaskID == "" || fixture.Task.ProcessID != "standard-development" || len(fixture.Task.ProcessDefinitionDigest) != 64 || fixture.Task.Revision != 1 || fixture.Task.CurrentAction.TaskID != fixture.Task.TaskID || fixture.Task.CurrentAction.Revision != fixture.Task.Revision || fixture.Task.CurrentAction.SubmissionTool != "dev_flow_submit_requirements" {
+	if fixture.FixtureKind != "multi_repository_open" || !fixture.Created || fixture.Task.TaskID == "" || fixture.Task.ProcessID != "standard-development" || len(fixture.Task.ProcessDefinitionDigest) != 64 || fixture.Task.Revision != 1 || fixture.Task.CurrentAction.TaskID != fixture.Task.TaskID || fixture.Task.CurrentAction.Revision != fixture.Task.Revision || fixture.Task.CurrentAction.SubmissionTool != "taskbelay_submit_requirements" {
 		t.Fatalf("task/action identity=%#v", fixture)
 	}
 	if fixture.Task.PrimaryRepositoryKey != "core" || fixture.Task.WorkspaceOrigin.CanonicalWorktreeRoot != "/workspace/core" || len(fixture.Task.AdditionalRepositories) != 1 || fixture.Task.AdditionalRepositories[0].Key != "docs" || fixture.Task.AdditionalRepositories[0].WorkspaceOrigin.CanonicalWorktreeRoot != "/workspace/docs" || len(fixture.Task.CurrentChangedPaths) != 0 {

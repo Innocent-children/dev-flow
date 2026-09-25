@@ -1,8 +1,8 @@
-# Dev Flow Documentation and Source Scope
+# TaskBelay Documentation and Source Scope
 
 [中文](MANIFEST.md) | [English](MANIFEST_en.md)
 
-Human-readable documentation helps people evaluate, use, and understand Dev Flow. Runtime code does
+Human-readable documentation helps people evaluate, use, and understand TaskBelay. Runtime code does
 not parse it as a process, schema, command, or release contract. When documentation and executable
 behavior disagree, source code, machine-readable schemas, package manifests, CLI parsers, and
 executable tests decide current behavior, and the documentation must be corrected.
@@ -31,7 +31,7 @@ executable tests decide current behavior, and the documentation must be correcte
 | `docs/ARTIFACTS*`, `docs/WORKTREE-SOURCES*`, `docs/THREAT-MODEL*` | Detailed design of process files, worktree sources, and trust boundaries |
 | `internal/README*`, `scripts/README*`, `tests/**/README.md`, `protocol/fixtures/README.md` | Directory structure, development commands, test procedures, and fixture usage |
 | `release/**/README.md`, `docs/RELEASE-STRATEGY.md`, `docs/VERSIONING.md` | Maintainer procedures for versions, artifact checks, and publication |
-| `skills/dev-flow/core/` and Host Skill directories | Core interaction instructions and Host operations used by agents running the installed product |
+| `skills/taskbelay/core/` and Host Skill directories | Core interaction instructions and Host operations used by agents running the installed product |
 | [Claude guide](docs/CLAUDE_en.md), [package README](packages/claude/README.md) | Installation, task use, resume, maintenance and removal for Claude users |
 | [ZCode guide](docs/ZCODE_en.md), [package README](packages/zcode/README.md) | Local installation, UI activation, task use, maintenance and removal for ZCode users |
 | `SECURITY.md` | Vulnerability reporting and the security reporting policy |
@@ -49,7 +49,7 @@ governs AI maintenance of this repository; Skills govern agent use of the instal
 | DeepSeek product version and package contents | `packages/deepseek/package.json` |
 | Claude product version and package contents | `packages/claude/package.json` |
 | ZCode product version and package contents | `packages/zcode/package.json` |
-| Unified lifecycle package and `dev-flow` bin | `packages/dev-flow/package.json`, `packages/dev-flow/` |
+| Unified lifecycle package and `taskbelay` bin | `packages/taskbelay/package.json`, `packages/taskbelay/` |
 | Process nodes, transitions, and guards | `internal/workflow/` |
 | Task aggregate, WorkspaceOrigin/Binding, and validation | `internal/domain/` |
 | SQLite bootstrap, codec, Action operations, and read-only preflight | `internal/store/` |

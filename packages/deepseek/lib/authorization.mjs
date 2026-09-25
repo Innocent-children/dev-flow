@@ -2,22 +2,22 @@ import { realpathSync } from "node:fs";
 import { isAbsolute, relative, sep } from "node:path";
 
 import {
-  DEV_FLOW_QUALIFIED_TOOL_NAMES,
-  isDevFlowNamespaceTool,
-  isExpectedDevFlowTool,
+  TASKBELAY_QUALIFIED_TOOL_NAMES,
+  isTaskBelayNamespaceTool,
+  isExpectedTaskBelayTool,
 } from "./tool-names.mjs";
 
 export const DENIAL_CODES = Object.freeze({
-  SELECTOR_REQUIRED: "DEV_FLOW_SELECTOR_REQUIRED",
-  UNEXPECTED_TOOL: "DEV_FLOW_UNEXPECTED_TOOL",
-  NO_AGENT: "DEV_FLOW_NO_AGENT",
-  NO_OPEN_TURN: "DEV_FLOW_NO_OPEN_TURN",
-  REPOSITORY_PATH_INVALID: "DEV_FLOW_REPOSITORY_PATH_INVALID",
-  REPOSITORY_OUTSIDE_WORKSPACE: "DEV_FLOW_REPOSITORY_OUTSIDE_WORKSPACE",
+  SELECTOR_REQUIRED: "TASKBELAY_SELECTOR_REQUIRED",
+  UNEXPECTED_TOOL: "TASKBELAY_UNEXPECTED_TOOL",
+  NO_AGENT: "TASKBELAY_NO_AGENT",
+  NO_OPEN_TURN: "TASKBELAY_NO_OPEN_TURN",
+  REPOSITORY_PATH_INVALID: "TASKBELAY_REPOSITORY_PATH_INVALID",
+  REPOSITORY_OUTSIDE_WORKSPACE: "TASKBELAY_REPOSITORY_OUTSIDE_WORKSPACE",
 });
 
-const selectorPattern = /(^|\s)\/dev-flow(?=\s|$)/u;
-const selectorInstruction = "include a whitespace-bounded /dev-flow in the current direct user turn";
+const selectorPattern = /(^|\s)\/taskbelay(?=\s|$)/u;
+const selectorInstruction = "include a whitespace-bounded /taskbelay in the current direct user turn";
 
 export function hasDirectUserSelector(message) {
   if (message?.source?.kind !== "user" || !Array.isArray(message.content)) return false;
@@ -62,13 +62,13 @@ export function currentDirectUserText(execution) {
     .join("\n");
 }
 
-export function authorizeDevFlowExecution(execution, {
+export function authorizeTaskBelayExecution(execution, {
   workspaceRoot = process.cwd(),
   realpathImpl = realpathSync,
 } = {}) {
-  if (!isDevFlowNamespaceTool(execution?.name)) return undefined;
-  if (!isExpectedDevFlowTool(execution.name)) {
-    return `${DENIAL_CODES.UNEXPECTED_TOOL}: the Dev Flow namespace permits only the contracted Core tools.`;
+  if (!isTaskBelayNamespaceTool(execution?.name)) return undefined;
+  if (!isExpectedTaskBelayTool(execution.name)) {
+    return `${DENIAL_CODES.UNEXPECTED_TOOL}: the TaskBelay namespace permits only the contracted Core tools.`;
   }
   if (execution.agent === undefined) {
     return `${DENIAL_CODES.NO_AGENT}: ${selectorInstruction}.`;
@@ -81,13 +81,13 @@ export function authorizeDevFlowExecution(execution, {
   if (!turn.selectorPresent) {
     return `${DENIAL_CODES.SELECTOR_REQUIRED}: ${selectorInstruction}.`;
   }
-  if (execution.name === DEV_FLOW_QUALIFIED_TOOL_NAMES[1]) {
+  if (execution.name === TASKBELAY_QUALIFIED_TOOL_NAMES[1]) {
     return authorizeRepositoryScope(execution.arguments, { workspaceRoot, realpathImpl });
   }
   return undefined;
 }
 
-export function registerDevFlowGuard(ctx, {
+export function registerTaskBelayGuard(ctx, {
   workspaceRoot = process.cwd(),
   realpathImpl = realpathSync,
 } = {}) {
@@ -97,7 +97,7 @@ export function registerDevFlowGuard(ctx, {
   } catch {
     canonicalWorkspaceRoot = null;
   }
-  return ctx.tools.guard((execution) => authorizeDevFlowExecution(execution, {
+  return ctx.tools.guard((execution) => authorizeTaskBelayExecution(execution, {
     workspaceRoot: canonicalWorkspaceRoot ?? workspaceRoot,
     realpathImpl,
   }));

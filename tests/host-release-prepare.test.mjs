@@ -8,7 +8,7 @@ import { gzipSync } from "node:zlib";
 import test from "node:test";
 
 import { buildHostRelease, parseArguments } from "../scripts/build-host-release.mjs";
-import { normalizeUstarArchive } from "../scripts/dev-flow-local.mjs";
+import { normalizeUstarArchive } from "../scripts/taskbelay-local.mjs";
 import { hostVersionPaths, writeHostVersion } from "../release/host-versions.mjs";
 import { releaseOutputNames } from "../release/prepare.mjs";
 import { HOST_PRODUCTS } from "../release/products.mjs";
@@ -23,14 +23,14 @@ async function fixture(t, product, version = "1.2.3") {
   await mkdir(root);
   await mkdir(output);
   const manifest = {
-    name: `dev-flow-${product}`, version, license: "Apache-2.0",
+    name: `taskbelay-${product}`, version, license: "Apache-2.0",
     os: ["darwin", "win32"], cpu: ["arm64", "x64"],
     publishConfig: { access: "public", registry: "https://registry.npmjs.org/" },
   };
   for (const path of hostVersionPaths(product)) {
     await mkdir(dirname(join(root, path)), { recursive: true });
     const document = path.endsWith("/package.json") ? manifest : path.endsWith("/marketplace.json")
-      ? { name: "dev-flow-zcode-local", plugins: [{ name: manifest.name, version }] }
+      ? { name: "taskbelay-zcode-local", plugins: [{ name: manifest.name, version }] }
       : { name: manifest.name, version };
     await writeFile(join(root, path), JSON.stringify(document));
   }
@@ -67,8 +67,8 @@ function builder(f, options = {}) {
       await mkdir(join(stage, "package", "runtime", "win32-x64"), { recursive: true });
       const packedManifest = options.wrongPackage ? { ...manifest, name: "wrong-package" } : manifest;
       await writeFile(join(stage, "package", "package.json"), JSON.stringify(packedManifest));
-      await writeFile(join(stage, "package", "runtime", "darwin-arm64", "dev-flow"), "fixture darwin Core\n");
-      await writeFile(join(stage, "package", "runtime", "win32-x64", "dev-flow.exe"), `fixture Windows Core ${options.nonDeterministic ? builds.length : ""}\n`);
+      await writeFile(join(stage, "package", "runtime", "darwin-arm64", "taskbelay"), "fixture darwin Core\n");
+      await writeFile(join(stage, "package", "runtime", "win32-x64", "taskbelay.exe"), `fixture Windows Core ${options.nonDeterministic ? builds.length : ""}\n`);
       const archive = join(environment.TMPDIR, "package.tar");
       await execFile("tar", ["-cf", archive, "--format", "ustar", "-C", stage, "package"]);
       const artifact = join(args[2], `${manifest.name}-${manifest.version}.tgz`);
@@ -88,7 +88,7 @@ function builder(f, options = {}) {
 async function prepare(f, runner, channel = "stable", output = f.output) {
   return buildHostRelease({
     product: f.product, repositoryRoot: f.root, outputDirectory: output,
-    environment: { ...process.env, DEV_FLOW_RELEASE_CHANNEL: channel }, run: runner.run,
+    environment: { ...process.env, TASKBELAY_RELEASE_CHANNEL: channel }, run: runner.run,
   });
 }
 
@@ -168,7 +168,7 @@ test("an interruption after the last build command cannot return a successful pr
   };
   await assert.rejects(buildHostRelease({
     product: f.product, repositoryRoot: f.root, outputDirectory: f.output,
-    environment: { ...process.env, DEV_FLOW_RELEASE_CHANNEL: "stable" },
+    environment: { ...process.env, TASKBELAY_RELEASE_CHANNEL: "stable" },
     run, signal: controller.signal,
   }), { name: "AbortError" });
   assert.equal(manifestReads, 2);
@@ -209,7 +209,7 @@ test("source, channel, platform and mirror preconditions stop before cloning", a
     ["version", async () => {}, "beta", {}, /beta channel requires/u],
     ["platform", async () => {}, "stable", { os: "Linux" }, /requires darwin-arm64/u],
     ["mirror", async f => {
-      await writeFile(join(f.root, "packages/claude/.claude-plugin/plugin.json"), JSON.stringify({ name: "dev-flow-claude", version: "9.9.9" }));
+      await writeFile(join(f.root, "packages/claude/.claude-plugin/plugin.json"), JSON.stringify({ name: "taskbelay-claude", version: "9.9.9" }));
       await f.commit();
     }, "stable", {}, /versions must agree/u],
   ]) {
@@ -244,7 +244,7 @@ test("prepare arguments accept four Host products and forwarded separator withou
   for (const product of HOST_PRODUCTS) {
     assert.deepEqual(parseArguments(["--", "--product", product, "--output", "/tmp/output"]), { product, outputDirectory: "/tmp/output" });
   }
-  for (const args of [[], ["--product", "dev-flow", "--output", "/tmp/output"], ["--product", "claude", "--product", "zcode", "--output", "/tmp/output"], ["--product", "claude", "--output"]]) {
+  for (const args of [[], ["--product", "taskbelay", "--output", "/tmp/output"], ["--product", "claude", "--product", "zcode", "--output", "/tmp/output"], ["--product", "claude", "--output"]]) {
     assert.throws(() => parseArguments(args), /usage:/u);
   }
 });

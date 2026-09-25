@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
+import { execPortableCommand } from "../packages/taskbelay/lib/command.mjs";
 import { readHostVersion } from "../release/host-versions.mjs";
 import { prepareRelease } from "../release/prepare.mjs";
 import { HOST_PRODUCTS, releaseProducts } from "../release/products.mjs";
@@ -29,7 +29,7 @@ export async function buildHostRelease({
     cwd, environment: env, signal,
   });
   const git = async (args, cwd = root) => (await execute("git", args, cwd)).stdout.trim();
-  const channel = environment.DEV_FLOW_RELEASE_CHANNEL ?? "stable";
+  const channel = environment.TASKBELAY_RELEASE_CHANNEL ?? "stable";
   if (!RELEASE_CHANNELS.includes(channel)) throw new Error("release channel must equal stable or beta");
   const branch = await git(["symbolic-ref", "--quiet", "--short", "HEAD"]).catch(() => "");
   if (!branch) throw new Error("release preparation requires a named branch");
@@ -51,7 +51,7 @@ export async function buildHostRelease({
   const packageName = releaseProducts[product].packageName;
   assertPublicPackage(JSON.parse(await readFile(join(root, "packages", product, "package.json"), "utf8")), packageName, version);
 
-  const temporaryRoot = await realpath(await mkdtemp(join(tmpdir(), `dev-flow-${product}-release-`)));
+  const temporaryRoot = await realpath(await mkdtemp(join(tmpdir(), `taskbelay-${product}-release-`)));
   let result;
   try {
     const sources = [];

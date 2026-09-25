@@ -139,7 +139,7 @@ async function desktopHarness(selected = null) {
       shell: { openExternal: async url => { opens.push(url); } },
       Menu: { setApplicationMenu: noop, buildFromTemplate: () => ({}) },
       Tray: class { setToolTip() {} on() {} setContextMenu() {} },
-      nativeImage: { createFromDataURL: noop },
+      nativeImage: { createFromPath: noop },
       ipcMain: { handle: noop, on: noop }, powerMonitor: { on: noop },
       screen: { getPrimaryDisplay: () => area, getDisplayMatching: () => area, on: noop },
     },

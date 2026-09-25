@@ -6,7 +6,7 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 func DecodeBlockerResolutionPayload(raw []byte) (domain.BlockerResolutionPayload, json.RawMessage, error) {

@@ -10,13 +10,13 @@ import { execPortableCommand, findCommandPath } from "../lib/command.mjs";
 import { inspectCoreVersion } from "../lib/lifecycle.mjs";
 import { ensureDefaultDataDirectory, resolveProductPaths } from "../lib/paths.mjs";
 
-const windowsCore = process.env.DEV_FLOW_WINDOWS_CORE;
+const windowsCore = process.env.TASKBELAY_WINDOWS_CORE;
 const nativeWindows = process.platform === "win32" && process.arch === "x64";
 
 test("Windows x64 selects the package-owned .exe and LOCALAPPDATA data root", {
   skip: nativeWindows ? false : "requires Windows x64",
 }, async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-windows-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-windows-")));
   const packageRoot = join(root, "package");
   const home = join(root, "home");
   const localAppData = join(home, "AppData", "Local");
@@ -31,9 +31,9 @@ test("Windows x64 selects the package-owned .exe and LOCALAPPDATA data root", {
     environment: { LOCALAPPDATA: localAppData },
   });
   assert.equal(paths.runtimeKey, "win32-x64");
-  assert.equal(paths.runtimePath, join(packageRoot, "runtime", "win32-x64", "dev-flow.exe"));
-  assert.equal(paths.productSupportRoot, join(localAppData, "dev-flow"));
-  assert.equal(paths.dataDirectory, join(localAppData, "dev-flow", "data"));
+  assert.equal(paths.runtimePath, join(packageRoot, "runtime", "win32-x64", "taskbelay.exe"));
+  assert.equal(paths.productSupportRoot, join(localAppData, "taskbelay"));
+  assert.equal(paths.dataDirectory, join(localAppData, "taskbelay", "data"));
   assert.equal(await ensureDefaultDataDirectory(paths), paths.dataDirectory);
   assert.equal((await stat(paths.dataDirectory)).isDirectory(), true);
 
@@ -44,7 +44,7 @@ test("Windows x64 selects the package-owned .exe and LOCALAPPDATA data root", {
     );
   }
   await assert.rejects(
-    findCommandPath("definitely-missing-dev-flow-command", {
+    findCommandPath("definitely-missing-taskbelay-command", {
       platform: "win32",
       environment: { PATH: "" },
     }),
@@ -53,10 +53,10 @@ test("Windows x64 selects the package-owned .exe and LOCALAPPDATA data root", {
 });
 
 test("Windows packaged Core executes natively and reports the repository Core version", {
-  skip: nativeWindows && windowsCore ? false : "set DEV_FLOW_WINDOWS_CORE on Windows x64",
+  skip: nativeWindows && windowsCore ? false : "set TASKBELAY_WINDOWS_CORE on Windows x64",
 }, async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-windows-core-")));
-  const runtimePath = join(root, "dev-flow.exe");
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-windows-core-")));
+  const runtimePath = join(root, "taskbelay.exe");
   const home = join(root, "home");
   const dataDirectory = join(root, "data");
   await Promise.all([mkdir(home), mkdir(dataDirectory)]);
@@ -68,7 +68,7 @@ test("Windows packaged Core executes natively and reports the repository Core ve
   const environment = {
     ...process.env,
     USERPROFILE: home,
-    DEV_FLOW_DATA_DIR: dataDirectory,
+    TASKBELAY_DATA_DIR: dataDirectory,
   };
   delete environment.HOME;
   const mcp = await execPortableCommand(runtimePath, ["mcp", "--stdio"], {
@@ -80,18 +80,18 @@ test("Windows packaged Core executes natively and reports the repository Core ve
   });
   assert.equal(mcp.stdout, "");
   assert.equal(mcp.stderr, "");
-  assert.equal((await stat(join(dataDirectory, "dev-flow.db"))).isFile(), true);
+  assert.equal((await stat(join(dataDirectory, "taskbelay.db"))).isFile(), true);
 });
 
 test("Windows Codex hook command runs under cmd and Windows PowerShell", {
   skip: nativeWindows ? false : "requires Windows x64",
 }, async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-windows-hook-")));
-  const launcherPath = fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-windows-hook-")));
+  const launcherPath = fileURLToPath(new URL("../bin/taskbelay-codex.mjs", import.meta.url));
   const hooks = JSON.parse(await readFile(new URL("../plugin/hooks/hooks.json", import.meta.url), "utf8"));
   const command = hooks.hooks.PreToolUse[0].hooks[0].command;
   await writeFile(
-    join(root, "dev-flow-codex.cmd"),
+    join(root, "taskbelay-codex.cmd"),
     `@echo off\r\n\"${process.execPath}\" \"${launcherPath}\" %*\r\n`,
     "utf8",
   );

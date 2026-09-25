@@ -14,7 +14,7 @@ if (same(argv, ["--version"])) await succeed("gh version 2.97.0 (fixture)\n", "v
 
 if (same(argv, ["auth", "status", "-h", "github.com"])) await succeed("", "auth-status");
 
-if (argv[0] === "api" && argv[1] === "repos/Innocent-children/dev-flow") {
+if (argv[0] === "api" && argv[1] === "repos/Innocent-children/taskbelay") {
   await succeed(`${JSON.stringify(state.permissions ?? { push: true, maintain: true, admin: true })}\n`, "repo-permissions");
 }
 
@@ -115,7 +115,7 @@ function publicRelease(release) {
     assets: release.assets.map((asset) => ({
       name: asset.name,
       id: `RA_fixture_${asset.id}`,
-      apiUrl: `https://api.github.example.invalid/repos/Innocent-children/dev-flow/releases/assets/${asset.id}`,
+      apiUrl: `https://api.github.example.invalid/repos/Innocent-children/taskbelay/releases/assets/${asset.id}`,
       url: asset.url,
     })),
   };

@@ -1,8 +1,8 @@
-# Dev Flow 文档与源码范围
+# TaskBelay 文档与源码范围
 
 [中文](MANIFEST.md) | [English](MANIFEST_en.md)
 
-人类文档帮助读者判断、使用和理解 Dev Flow。它们不会被运行时代码解析为流程、Schema、命令或
+人类文档帮助读者判断、使用和理解 TaskBelay。它们不会被运行时代码解析为流程、Schema、命令或
 发布约定。当文档与可执行行为不一致时，以源码、机器可读 Schema、package manifest、CLI parser
 和可执行测试为准，并同步修正文档。
 
@@ -30,7 +30,7 @@
 | `docs/ARTIFACTS*`、`docs/WORKTREE-SOURCES*`、`docs/THREAT-MODEL*` | 流程文件、工作树来源和信任边界的详细设计 |
 | `internal/README*`、`scripts/README*`、`tests/**/README.md`、`protocol/fixtures/README.md` | 所在目录的结构、开发命令、测试方法和样例用法 |
 | `release/**/README.md`、`docs/RELEASE-STRATEGY.md`、`docs/VERSIONING.md` | 维护者使用的版本、产物检查和发布流程 |
-| `skills/dev-flow/core/` 与各 Host Skill 目录 | 安装后由 Agent 使用的 Core 交互说明和 Host 操作规则 |
+| `skills/taskbelay/core/` 与各 Host Skill 目录 | 安装后由 Agent 使用的 Core 交互说明和 Host 操作规则 |
 | [Claude 指南](docs/CLAUDE.md)、[包 README](packages/claude/README.md) | Claude 用户的安装、任务操作、恢复、维护和移除 |
 | [ZCode 指南](docs/ZCODE.md)、[包 README](packages/zcode/README.md) | ZCode 用户的本地安装、UI 启用、任务操作、维护和移除 |
 | `SECURITY.md` | 漏洞报告方式与安全报告政策 |
@@ -48,7 +48,7 @@
 | DeepSeek product version 与 package 内容 | `packages/deepseek/package.json` |
 | Claude product version 与 package 内容 | `packages/claude/package.json` |
 | ZCode product version 与 package 内容 | `packages/zcode/package.json` |
-| 统一 lifecycle package 与 `dev-flow` bin | `packages/dev-flow/package.json`、`packages/dev-flow/` |
+| 统一 lifecycle package 与 `taskbelay` bin | `packages/taskbelay/package.json`、`packages/taskbelay/` |
 | Process nodes、transitions 与 guards | `internal/workflow/` |
 | Task aggregate、WorkspaceOrigin/Binding 与 validation | `internal/domain/` |
 | SQLite bootstrap、codec、Action operation 与只读 preflight | `internal/store/` |

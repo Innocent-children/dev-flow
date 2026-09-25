@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/mcp"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/store"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/mcp"
+	"github.com/Innocent-children/taskbelay/internal/recovery"
+	"github.com/Innocent-children/taskbelay/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 func TestActionCorrectionMatchesMCPForRejectedSemanticPayload(t *testing.T) {
@@ -34,7 +34,7 @@ func TestActionCorrectionMatchesMCPForRejectedSemanticPayload(t *testing.T) {
 		t.Fatalf("status=%d", response.Code)
 	}
 	wantHTTP := `{"ok":false,"request_id":"request-correction","workflow_write_state":"not_committed","error":{"details":[{"path":"payload.summary","rule":"required_member_missing","message":"the closed contract requires this member"}],"code":"INVALID_ARGUMENT","message":"the domain value is invalid","field_paths":["payload.summary"],"guard_id":null},"recovery":{"allowed_paths":["payload.summary"],"action":"correct_current_action","retry_safe":true,"message":"Correct only allowed_paths using established facts and resubmit once while this Action identity remains current. Do not guess a user decision; stop if the correction fails."}}`
-	wantMCP := `{"ok":false,"request_id":"request-correction","tool":"dev_flow_submit_requirements","error":{"code":"INVALID_ARGUMENT","message":"summary: the closed contract requires this member","details":[{"path":"summary","rule":"required_member_missing","message":"the closed contract requires this member"}]},"recovery":{"retry_safe":true,"action":"correct_current_action","message":"Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails.","allowed_paths":["summary"]}}`
+	wantMCP := `{"ok":false,"request_id":"request-correction","tool":"taskbelay_submit_requirements","error":{"code":"INVALID_ARGUMENT","message":"summary: the closed contract requires this member","details":[{"path":"summary","rule":"required_member_missing","message":"the closed contract requires this member"}]},"recovery":{"retry_safe":true,"action":"correct_current_action","message":"Correct only the members listed in allowed_paths, using facts already confirmed in the current Action work, and resubmit through the same submission tool once. Do not re-expand requirements, change more code, or guess a user decision; stop when the resubmission fails.","allowed_paths":["summary"]}}`
 	for name, pair := range map[string][2][]byte{
 		"HTTP": {response.Body.Bytes(), []byte(wantHTTP)},
 		"MCP":  {mcp.EncodeError("request-correction", mcp.ToolSubmitRequirements, failure).JSON, []byte(wantMCP)},

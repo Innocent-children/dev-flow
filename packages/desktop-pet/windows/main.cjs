@@ -20,7 +20,7 @@ const { Observer, presentation } = require("./observation.cjs");
 const { TaskCollection } = require("./task-collection.cjs");
 const texts = {
   zh: {
-    title: "Dev Flow 桌面宠物",
+    title: "TaskBelay 桌面宠物",
     selectTask: "选择任务",
     noSelection: "恢复自动",
     pin: "固定关注", tasks: "个未完成", dismiss: "关闭提示",
@@ -49,7 +49,7 @@ const texts = {
     readOnly: "只读",
   },
   en: {
-    title: "Dev Flow Desktop Pet",
+    title: "TaskBelay Desktop Pet",
     selectTask: "Select task",
     noSelection: "Follow automatically",
     pin: "Pin task", tasks: "unfinished", dismiss: "Dismiss",
@@ -115,7 +115,7 @@ function parse(argv) {
     operation === "run" &&
     (!path.isAbsolute(request.corePath ?? "") ||
       !path.isAbsolute(request.dataDirectory ?? "") ||
-      !/^dev-flow\/[\d.]+$/.test(request.coreIdentity ?? "") ||
+      !/^taskbelay\/[\d.]+$/.test(request.coreIdentity ?? "") ||
       !/^[a-f0-9]{64}$/.test(request.dataRootDigest ?? ""))
   )
     throw new Error("Incomplete desktop identity");
@@ -603,10 +603,7 @@ async function createDesktop(request) {
       publish();
     }
   });
-  const iconURL = await decoder.webContents.executeJavaScript(
-    `(()=>{const c=document.createElement('canvas');c.width=c.height=32;const x=c.getContext('2d');x.strokeStyle='#50a6ee';x.lineWidth=3;x.lineCap='round';x.beginPath();x.moveTo(7,8);x.bezierCurveTo(29,0,29,32,7,25);x.moveTo(7,16);x.lineTo(19,16);x.stroke();return c.toDataURL()})()`,
-  );
-  const tray = new Tray(nativeImage.createFromDataURL(iconURL));
+  const tray = new Tray(nativeImage.createFromPath(path.join(__dirname, "taskbelay-mark-32.png")));
   tray.setToolTip(labels.title);
   tray.on(
     "double-click",
@@ -715,7 +712,7 @@ async function boot() {
   await fs.mkdir(root, { recursive: true });
   await safePath(request.productRoot, "pet/runtime.json");
   app.setPath("userData", path.join(root, "windows-runtime"));
-  app.setName("Dev Flow Desktop Pet");
+  app.setName("TaskBelay Desktop Pet");
   if (!app.requestSingleInstanceLock()) {
     const result = await sendExisting(root, operation, request);
     await acknowledgeLaunch(request, {result});
@@ -730,7 +727,7 @@ async function boot() {
   const desktop = await createDesktop(request);
   const token = randomUUID(),
     pipe =
-      "\\\\.\\pipe\\dev-flow-pet-" +
+      "\\\\.\\pipe\\taskbelay-pet-" +
       createHash("sha256")
         .update(root.toLowerCase())
         .digest("hex")

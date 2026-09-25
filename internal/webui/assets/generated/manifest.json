@@ -1,6 +1,6 @@
 {
   "index.html": {
-    "file": "assets/index-iFvYBX0D.js",
+    "file": "assets/index-NiUNd_Ht.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -8,11 +8,11 @@
       "assets/index-D4HxSYuq.css"
     ],
     "assets": [
-      "assets/dev-flow-mark-32-DfVBvCoZ.svg"
+      "assets/taskbelay-mark-32-Cj-1MMuy.svg"
     ]
   },
-  "src/assets/dev-flow-mark-32.svg": {
-    "file": "assets/dev-flow-mark-32-DfVBvCoZ.svg",
-    "src": "src/assets/dev-flow-mark-32.svg"
+  "src/assets/taskbelay-mark-32.svg": {
+    "file": "assets/taskbelay-mark-32-Cj-1MMuy.svg",
+    "src": "src/assets/taskbelay-mark-32.svg"
   }
 }

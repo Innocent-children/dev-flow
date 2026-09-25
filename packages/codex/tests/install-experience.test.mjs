@@ -20,9 +20,9 @@ import { permissionPolicy } from "../lib/platform.mjs";
 
 let coreDirectory, runtimePath;
 before(async () => {
-  coreDirectory = await mkdtemp(join(tmpdir(), "dev-flow-configuration-core-"));
-  runtimePath = join(coreDirectory, process.platform === "win32" ? "dev-flow.exe" : "dev-flow");
-  await promisify(execFile)("go", ["build", "-o", runtimePath, "./cmd/dev-flow"], {
+  coreDirectory = await mkdtemp(join(tmpdir(), "taskbelay-configuration-core-"));
+  runtimePath = join(coreDirectory, process.platform === "win32" ? "taskbelay.exe" : "taskbelay");
+  await promisify(execFile)("go", ["build", "-o", runtimePath, "./cmd/taskbelay"], {
     cwd: fileURLToPath(new URL("../../..", import.meta.url)), timeout: 120000,
   });
 });
@@ -112,21 +112,21 @@ test("builds stable setup facts and plain output", async () => {
       { path: "/config.json", change: "created" },
       { path: "/receipt.json", change: "created" },
     ],
-    next_step: "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description> to assess the request",
+    next_step: "Review and trust the TaskBelay hook with /hooks, then use $taskbelay-codex:taskbelay <task description> to assess the request",
   });
   assert.match(renderSetupPlain(result, "en"), /created: \/config\.json/);
   assert.match(renderSetupPlain(result, "zh-CN"), /下一步/);
 });
 
-test("renders one bounded Simplified Chinese Dev Flow screen", () => {
+test("renders one bounded Simplified Chinese TaskBelay screen", () => {
   const result = setupResult();
   const output = renderSetup(result, { language: "zh-CN", mode: "rich" });
   const logicalLines = output.trimEnd().split("\n");
   assert.ok(logicalLines.length >= 5 && logicalLines.length <= 8);
-  assert.match(output, /DEV FLOW · CODEX/);
+  assert.match(output, /TASKBELAY · CODEX/);
   assert.match(output, /设置完成，Codex 已就绪/);
   assert.match(output, /下一步/);
-  assert.equal((output.match(/\$dev-flow-codex:dev-flow/g) ?? []).length, 1);
+  assert.equal((output.match(/\$taskbelay-codex:taskbelay/g) ?? []).length, 1);
   assert.doesNotMatch(output, /Houston|Oh My Zsh|Starship|Astro|Bun/u);
 });
 
@@ -155,8 +155,8 @@ function setupResult() {
 }
 
 async function fixturePaths() {
-  const homeDirectory = await mkdtemp(join(tmpdir(), "dev-flow-codex-install-"));
-  const configurationDirectory = join(homeDirectory, ".dev-flow");
+  const homeDirectory = await mkdtemp(join(tmpdir(), "taskbelay-codex-install-"));
+  const configurationDirectory = join(homeDirectory, ".taskbelay");
   return {
     homeDirectory,
     platform: process.platform,

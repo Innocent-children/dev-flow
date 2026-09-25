@@ -14,7 +14,7 @@ type RepositoryKey string
 
 const (
 	DefaultPrimaryRepositoryKey RepositoryKey = "primary"
-	repositoryScopeDigestDomain               = "dev-flow/repository-scope-binding"
+	repositoryScopeDigestDomain               = "taskbelay/repository-scope-binding"
 )
 
 func (k RepositoryKey) IsValid() bool {

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 func TestAuthorityMatrixCorruptSnapshotSafeStopsDecodeLoadAndPreflight(t *testing.T) {

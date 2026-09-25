@@ -20,7 +20,7 @@ async function readVersionRecords(root, product) {
     const document = JSON.parse(await readFile(join(root, path), "utf8"));
     let member = document;
     if (product === "zcode" && path.endsWith("/marketplace.json")) {
-      if (document.name !== "dev-flow-zcode-local" || document.plugins?.length !== 1) {
+      if (document.name !== "taskbelay-zcode-local" || document.plugins?.length !== 1) {
         throw new Error("ZCode marketplace must contain its single owned plugin");
       }
       member = document.plugins[0];

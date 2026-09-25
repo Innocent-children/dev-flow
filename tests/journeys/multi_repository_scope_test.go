@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
 )
 
 func TestMultiRepositoryScopeJourney(t *testing.T) {
@@ -23,7 +23,7 @@ func TestMultiRepositoryScopeJourney(t *testing.T) {
 	additionalPath := filepath.Join(root, "docs")
 	primaryOrigin := initializeDedicatedJourneyWorktree(t, primaryPath, "task/core", "receipt-core")
 	additionalOrigin := initializeDedicatedJourneyWorktree(t, additionalPath, "task/docs", "receipt-docs")
-	databasePath := filepath.Join(root, "dev-flow.db")
+	databasePath := filepath.Join(root, "taskbelay.db")
 	sqliteStore, err := store.Open(context.Background(), databasePath)
 	if err != nil {
 		t.Fatal(err)

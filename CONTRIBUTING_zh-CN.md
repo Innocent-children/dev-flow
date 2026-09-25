@@ -1,8 +1,8 @@
-# Dev Flow 贡献指南
+# TaskBelay 贡献指南
 
 [中文](CONTRIBUTING_zh-CN.md) | [English](CONTRIBUTING.md)
 
-Dev Flow 接受可复现的缺陷、文档修正、经过最终安装包验证的平台支持，以及围绕真实开发问题提出的
+TaskBelay 接受可复现的缺陷、文档修正、经过最终安装包验证的平台支持，以及围绕真实开发问题提出的
 范围明确的产品改进。
 
 ## 变更分类
@@ -22,7 +22,7 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终安装包验证�
 
 缺陷报告请尽量包含：
 
-- 使用的产品与版本，例如 Core、`dev-flow-codex`、`dev-flow-deepseek`、`dev-flow-claude` 或 `dev-flow-zcode`；
+- 使用的产品与版本，例如 Core、`taskbelay-codex`、`taskbelay-deepseek`、`taskbelay-claude` 或 `taskbelay-zcode`；
 - 操作系统、CPU、Node.js 与 Host 版本；
 - 最小复现步骤；
 - 预期结果与实际结果；
@@ -41,7 +41,7 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终安装包验证�
 
 ## 当前做法
 
-没有 Dev Flow 时，用户如何处理？
+没有 TaskBelay 时，用户如何处理？
 
 ## 可用数据
 
@@ -106,9 +106,9 @@ Dev Flow 接受可复现的缺陷、文档修正、经过最终安装包验证�
 先在 GitHub Fork 本仓库，再从自己的 Fork 创建分支：
 
 ```bash
-git clone https://github.com/<your-account>/dev-flow.git
-cd dev-flow
-git remote add upstream https://github.com/Innocent-children/dev-flow.git
+git clone https://github.com/<your-account>/taskbelay.git
+cd taskbelay
+git remote add upstream https://github.com/Innocent-children/taskbelay.git
 git fetch upstream
 git checkout -b <type>/<short-description> upstream/main
 pnpm install --frozen-lockfile

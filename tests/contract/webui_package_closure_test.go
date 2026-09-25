@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/webui"
+	"github.com/Innocent-children/taskbelay/internal/webui"
 )
 
 func TestEmbeddedWebUIAssetClosure(t *testing.T) {

@@ -43,12 +43,12 @@ test("simulated Codex Host covers the worktree-first Task lifecycle without clai
     host_or_platform_flags: ["managed worktree", "Handoff"],
     verification_shape: ["targeted check", "simulated Host journey"],
     unknowns: [],
-    recommendation: "dev_flow",
+    recommendation: "taskbelay",
     reasons: ["The request changes Host lifecycle and persistent operation handling."],
     anchor,
   });
   assert.deepEqual(core.calls, [], "assessment and user choice make no Core call");
-  const userChoice = { source: "user", mode: "dev_flow", summary: "Simulated user selected Dev Flow after reviewing the assessment." };
+  const userChoice = { source: "user", mode: "taskbelay", summary: "Simulated user selected TaskBelay after reviewing the assessment." };
 
   const launch = await prepareTaskLaunch({
     launch_id: "codex-simulated-journey",
@@ -261,7 +261,7 @@ class SimulatedCodexHost {
 }
 
 async function makeFixture(t) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-simulated-journey-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-simulated-journey-")));
   const remote = join(root, "remote.git");
   const source = join(root, "source");
   const productSupportRoot = join(root, "support");

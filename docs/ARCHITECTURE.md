@@ -1,4 +1,4 @@
-# Dev Flow 架构
+# TaskBelay 架构
 
 [中文](ARCHITECTURE.md) | [English](ARCHITECTURE_en.md)
 
@@ -7,7 +7,7 @@
 
 ## 核心原则
 
-Dev Flow 只保存一份业务状态。Go Core 管理 Task、节点、合法流转、范围、验证、Recovery、Blocker、
+TaskBelay 只保存一份业务状态。Go Core 管理 Task、节点、合法流转、范围、验证、Recovery、Blocker、
 claims 和 outcome；Codex、DeepSeek、Claude Code、ZCode 与 WebUI 是 Host Adapter。Core 只读观察 Git，Host 才能在用户
 确认后执行 fetch、branch、worktree、relaunch、handoff 和 cleanup。
 
@@ -15,7 +15,7 @@ claims 和 outcome；Codex、DeepSeek、Claude Code、ZCode 与 WebUI 是 Host A
 flowchart TB
     U[Developer] --> H[Codex / DeepSeek / Claude Code / ZCode Adapter]
     H --> A[只读改动量评估]
-    A --> C{选择 Dev Flow?}
+    A --> C{选择 TaskBelay?}
     C -->|否| D[直接开发 · 无 Core Task]
     C -->|是| P[选择工作位置 · 默认原目录新分支]
     P --> W[Host 启动记录与工作区准备]
@@ -33,7 +33,7 @@ Host 根据当前用户指令和适用的 `AGENTS.md` 调查仓库范围。指�
 确认和 provisioning；Core 保存确认后的固定 Scope。代码索引偏好只在用户和 AGENTS 未指定检索方式时生效。
 
 新请求、显式 selector 和并行批次先由 Host 做只读评估。允许读取请求、仓库说明、相关代码、调用方、
-测试、manifest 与 Git 状态；不得调用 Dev Flow Core、运行测试、fetch 或创建 branch/worktree。输出包含：
+测试、manifest 与 Git 状态；不得调用 TaskBelay Core、运行测试、fetch 或创建 branch/worktree。输出包含：
 
 ```text
 change_level: small | standard | large | uncertain
@@ -45,7 +45,7 @@ persistence_or_state_flags
 host_or_platform_flags
 verification_shape
 unknowns
-recommendation: direct | dev_flow | clarify
+recommendation: direct | taskbelay | clarify
 reasons
 ```
 
@@ -55,7 +55,7 @@ Codex 沿用当前请求和评估下仍有效的明确选择与授权；没有�
 明确 resume 或已核验启动记录的 bootstrap 接续不重复评估。bootstrap 复用已保存的评估和确认，
 仍须核对记录的 surface、phase、目标工作树身份与权限，再决定初始化、创建或恢复 Task。
 
-用户选择 Dev Flow 后，`workspace_mode` 默认采用 `new_branch`，从当前 HEAD 在原目录新建任务
+用户选择 TaskBelay 后，`workspace_mode` 默认采用 `new_branch`，从当前 HEAD 在原目录新建任务
 分支；显式选项还有 `current_branch` 与 `dedicated_worktree`。Core `WorkspaceOrigin.mode` 保存同一
 选择。本地模式使用本地来源、当前起始分支和 HEAD；新分支创建由 Host 负责，Core 只读验证。
 `carry_changes` 明确接受初始改动，本地模式保留文件及 index，不应用复制快照。准备前和切分支前
@@ -117,7 +117,7 @@ Host 单独检查当前工作树身份与权限，再根据 Core 实际状态选
 
 ## WorkspaceOrigin 和 RepositoryBinding
 
-创建新 Task 的 `dev_flow_open_task` 保存请求、初始范围、已知验收和 method profile，不接收最终
+创建新 Task 的 `taskbelay_open_task` 保存请求、初始范围、已知验收和 method profile，不接收最终
 verification budget；为 primary 接收 `workspace_origin`，每个 additional
 repository 也带一个同形字段：
 
@@ -184,7 +184,7 @@ Git 判断文件没有未暂存差异、mode 相同，且工作文件
 
 ## 工作树观察和 Blocker
 
-`dev_flow_open_task` 的显式 resume 与 `dev_flow_get_next_action` 在返回实际工作前观察所有 Task roots。
+`taskbelay_open_task` 的显式 resume 与 `taskbelay_get_next_action` 在返回实际工作前观察所有 Task roots。
 普通 Action、Recovery 和 cancel 也使用同一观察与分类路径。
 
 | 观察 | 结果 |
@@ -299,13 +299,13 @@ Core 保存调整前后预算和原因，并签发新的 TEST Action。无具体
 ## Relocation、取消和终态
 
 工作区迁移只接受全部采用 `dedicated_worktree` 的 Task，本地模式在进入 BLOCKED 前拒绝迁移。
-`dev_flow_prepare_task_relocation` 把当前 Task 放入 `BLOCKED`，保存 relocation ID、源 bindings、base、
+`taskbelay_prepare_task_relocation` 把当前 Task 放入 `BLOCKED`，保存 relocation ID、源 bindings、base、
 content、surface 和 resume node，源 claims 继续有效。Host 执行一次同机 handoff。随后
-`dev_flow_resolve_blocker` 提交 relocation ID 与目标 repository paths；Core 验证同一 repository group、
+`taskbelay_resolve_blocker` 提交 relocation ID 与目标 repository paths；Core 验证同一 repository group、
 base、等价 surface 和 claim 可用性，在一个 transaction 中替换全部 bindings 与 claims，再恢复节点。
 
-普通 `dev_flow_cancel_task` 仍先观察工作树。原实例确实丢失时，只有
-`dev_flow_abandon_task(host, task_id, revision, reason)` 可以保存最后已知 binding、进入 CANCELLED 并释放
+普通 `taskbelay_cancel_task` 仍先观察工作树。原实例确实丢失时，只有
+`taskbelay_abandon_task(host, task_id, revision, reason)` 可以保存最后已知 binding、进入 CANCELLED 并释放
 claims；它不访问或删除 Git 对象。
 
 DONE/CANCELLED 只结束 Task 和释放 claims。本地目录与分支保留，cleanup 不适用。终态投影 source/base/base commit、task branch/current
@@ -317,23 +317,23 @@ cleanup 是 Host 后续操作，其中两个 cleanup 分别授权。
 当前 MCP 工具列表固定包含十七个工具：
 
 ```text
-dev_flow_server_info
-dev_flow_open_task
-dev_flow_get_task
-dev_flow_get_next_action
-dev_flow_submit_requirements
-dev_flow_submit_design
-dev_flow_submit_tasks
-dev_flow_submit_implementation
-dev_flow_submit_test
-dev_flow_submit_comprehension
-dev_flow_submit_refactor
-dev_flow_submit_delivery
-dev_flow_resolve_blocker
-dev_flow_recover_action
-dev_flow_cancel_task
-dev_flow_prepare_task_relocation
-dev_flow_abandon_task
+taskbelay_server_info
+taskbelay_open_task
+taskbelay_get_task
+taskbelay_get_next_action
+taskbelay_submit_requirements
+taskbelay_submit_design
+taskbelay_submit_tasks
+taskbelay_submit_implementation
+taskbelay_submit_test
+taskbelay_submit_comprehension
+taskbelay_submit_refactor
+taskbelay_submit_delivery
+taskbelay_resolve_blocker
+taskbelay_recover_action
+taskbelay_cancel_task
+taskbelay_prepare_task_relocation
+taskbelay_abandon_task
 ```
 
 Store 只实现当前 SQLite Schema、严格 snapshot codec、Action operation、append-only TaskEvent、claims 和
@@ -371,7 +371,7 @@ Claude 的 Write/Edit/NotebookEdit 解析完整目标和原始输入摘要，再
 
 `packages/zcode/` 拥有 ZCode 原生插件、MCP/Hook 传输、本地准备记录和工作区接续说明。独立 `zcode` 身份参与 Core、MCP Schema、配置偏好和 Task 所有权校验；它不复用其他 Host 身份，也不改变 SQLite 布局、流程定义、节点或边。
 
-包根内的 `.zcode-plugin/plugin.json`、`marketplace.json`、`.mcp.json`、`skills/dev-flow/`、`hooks/hooks.json`、CLI 和两个 Core runtime 构成自包含产物。ZCode process executor 使用独立 command/args 和 `ZCODE_PLUGIN_ROOT`，Hook 由标准目录发现。Write/Edit 提取完整 `tool_input.file_path` 与原始输入摘要，交给 Core 判定。Core 明确拒绝时，Hook 输出 `permissionDecision=deny` 并退出 0；事件解析或检查调用异常时退出 2，拒绝受保护操作。退出 0 本身不代表写入获准。Shell 与外部写入仍依赖后续观察。
+包根内的 `.zcode-plugin/plugin.json`、`marketplace.json`、`.mcp.json`、`skills/taskbelay/`、`hooks/hooks.json`、CLI 和两个 Core runtime 构成自包含产物。ZCode process executor 使用独立 command/args 和 `ZCODE_PLUGIN_ROOT`，Hook 由标准目录发现。Write/Edit 提取完整 `tool_input.file_path` 与原始输入摘要，交给 Core 判定。Core 明确拒绝时，Hook 输出 `permissionDecision=deny` 并退出 0；事件解析或检查调用异常时退出 2，拒绝受保护操作。退出 0 本身不代表写入获准。Shell 与外部写入仍依赖后续观察。
 
 Adapter 校验本地文件和 Core 后保存准备记录，统一管理器的 `hosts/zcode.mjs` 负责包发现、生命周期与 Core 候选。记录只证明本地来源，无法观察 UI 安装、缓存或启用，因此返回 `action_required`；真实 Host 加载与模型会话验证另行记录。普通卸载保留 Adapter 和 `removal_required` 记录，用户在 UI 移除插件并关闭会话后通过 `remove --confirm-host-removed` 清除记录，再卸载包。存在包或记录时拒绝共享数据 reset，避免将源包进程检查误当作全部缓存进程已停止。
 
@@ -381,7 +381,7 @@ Adapter 校验本地文件和 Core 后保存准备记录，统一管理器的 `h
 
 Core、Codex、DeepSeek、Claude、ZCode 和统一 lifecycle package 独立版本。Core 的机器可读版本文件是 `CORE_VERSION`；npm
 版本由各自 `package.json` 管理，普通产品改造不执行发布。Host package 按精确 runtime pair 携带
-`darwin-arm64/dev-flow` 与 `win32-x64/dev-flow.exe`。
+`darwin-arm64/taskbelay` 与 `win32-x64/taskbelay.exe`。
 
 | 路径 | 职责 |
 | --- | --- |
@@ -401,7 +401,7 @@ Core、Codex、DeepSeek、Claude、ZCode 和统一 lifecycle package 独立版�
 
 ## 桌面宠物职责
 
-`packages/dev-flow/lib/pet.mjs` 复用已安装 Adapter 的 Core 选择与 WebUI 入口；macOS 调用位于
+`packages/taskbelay/lib/pet.mjs` 复用已安装 Adapter 的 Core 选择与 WebUI 入口；macOS 调用位于
 `lib/platform/macos/pet.mjs`。`packages/desktop-pet/macos` 负责 AppKit 窗口、只读 HTTP、展示、进程身份、
 单实例和偏好。每轮观察检查同一 Core 与服务身份；取消任务使过期响应失效。每轮分页读取受阻和进行中任务，按任务 ID 去重；从列表消失的已观察任务及固定任务通过详情确认当前状态。列表缺失本身不能表示完成，读取失败保留最后成功集合；过期响应不能覆盖新选择。任务面板按需分页。
 `PetTaskCollection` 和 Windows `task-collection.cjs` 负责桌面关注顺序、明确固定与本会话完成提示，Core 负责生命周期。自动关注受阻优先，同级保持稳定；完成提示结束后切换未完成任务。`PetBubbleStackView` 和 Windows renderer 负责最多三层叠加、展开滚动及逐任务点击；导航前重新核对同一 Core 与数据目录。
@@ -410,15 +410,15 @@ Core、Codex、DeepSeek、Claude、ZCode 和统一 lifecycle package 独立版�
 macOS 宠物的 `process_start_identity` 由内核进程信息中的启动秒和微秒组成，保存为十进制 `seconds:microseconds` 字符串，与语言环境和时区无关。恢复与停止同时核对 PID、启动标识、所属用户及程序路径；原生信息读取失败时拒绝识别该进程。应用替换前先停止旧实例，新实例写入当前格式的运行记录。
 Core 数据、流程图和 MCP 工具保持现有职责。
 
-`PetMenuBarIcon` 负责以 AppKit 路径绘制 18 pt Dev Flow 流线标识，并提供模板图像；`PetMenu` 将图像安装到菜单栏按钮，macOS 负责外观着色。
+`PetMenuBarIcon` 负责以 AppKit 路径绘制 18 pt TaskBelay 流线标识，并提供模板图像；`PetMenu` 将图像安装到菜单栏按钮，macOS 负责外观着色。
 
-`scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源和 ad-hoc 签名；`scripts/build-desktop-pet-windows.mjs` 负责 Windows 应用装配，本地开发包复用这些函数。`release/dev-flow/prepare.mjs` 按源码清单暂存文件，构建 macOS 应用并装配锁定的 Windows x64 Electron 分发文件。它将两个 runtime 目录装入同一包，核对应用版本与默认素材、保留执行权限，并在写入发布记录前逐文件比对解包结果。正式包不含本地 Adapter 归档；Core 由已配置的 Adapter 提供。
+`scripts/build-desktop-pet.mjs` 负责 macOS 编译、资源和 ad-hoc 签名；`scripts/build-desktop-pet-windows.mjs` 负责 Windows 应用装配，本地开发包复用这些函数。`release/taskbelay/prepare.mjs` 按源码清单暂存文件，构建 macOS 应用并装配锁定的 Windows x64 Electron 分发文件。它将两个 runtime 目录装入同一包，核对应用版本与默认素材、保留执行权限，并在写入发布记录前逐文件比对解包结果。正式包不含本地 Adapter 归档；Core 由已配置的 Adapter 提供。
 
 包内有应用时，`plan.mjs` 为已确认的维护增加明确的宠物安装操作，即使无需更新 Adapter 也执行。`lifecycle.mjs` 在维护前停止宠物并执行该操作；平台安装器暂存并替换应用目录，保留设置与形象。启动优先使用用户目录副本，其次使用包内应用，详见[桌面宠物指南](DESKTOP-PETS.md#更新程序与素材)。
 
 用户形象保存到 `productRoot/pet/appearances/<id>`。`PetAppearanceStore` 负责受限文件读取、导入校验和
 替换；转换后的完整包在临时目录通过与加载时相同的校验后才安装。`AppearanceImages` 在像素解码前
-按图片尺寸和位深检查内存预估。`CodexPetImporter` 在导入时拆分 Codex 标准格式 1/2 图集与 Dev Flow
+按图片尺寸和位深检查内存预估。`CodexPetImporter` 在导入时拆分 Codex 标准格式 1/2 图集与 TaskBelay
 自有高分辨率扩展图集，完整保留九类动作、57 帧与原始单格分辨率。`AnimationCatalog` 定义五类必需
 任务动作和四类可选附加动作，并校验所有已提供动作；`PetAppearanceSelection` 负责资源加载成功与选择保存
 的一致性；`PetCharacterView` 负责统一播放，并将素材锚点换算为 AppKit 坐标。`SVGArtwork` 负责静态矢量内容和尺寸校验，AppKit 保留 SVG 表示并按显示尺寸绘制。偏好增加 `selected_appearance`，与按数据目录保存的
@@ -452,29 +452,29 @@ Windows Codex 注册回读核对 marketplace 的 `name`、`root` 与 Plugin 身�
 
 ## Windows 桌面职责
 
-`packages/desktop-pet/windows/` 负责 Electron 窗口、托盘、渲染器、本地观察与素材处理，macOS 保留 Swift/AppKit。两者只读取 Core 状态。`scripts/build-desktop-pet-windows.mjs` 装配包含 Codex、DeepSeek、Claude 和 ZCode Adapter 包的 Windows 桌面分发包。统一入口校验内置包摘要并管理程序替换，保留 `%LOCALAPPDATA%\dev-flow\pet` 中的设置和形象。
+`packages/desktop-pet/windows/` 负责 Electron 窗口、托盘、渲染器、本地观察与素材处理，macOS 保留 Swift/AppKit。两者只读取 Core 状态。`scripts/build-desktop-pet-windows.mjs` 装配包含 Codex、DeepSeek、Claude 和 ZCode Adapter 包的 Windows 桌面分发包。统一入口校验内置包摘要并管理程序替换，保留 `%LOCALAPPDATA%\taskbelay\pet` 中的设置和形象。
 
 Windows 路径实现将已有 AppData 目录解析为实际路径，包括打包桌面 Host 提供的目录别名，同时拒绝符号链接。GUI 使用 `Start-Process` 和每次启动的确认记录，避免常驻桌面进程保留调用终端的输出句柄。平台维护通过完整可执行路径、命令和创建时间识别 Core 实例，再停止需要替换的实例。
 
 ## 当前 DSH 接口
 
-当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/dev-flow`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
+当前源码的 DeepSeek Adapter 要求 DSH `>=0.1.2-rc.1`。Adapter 通过 Session 的 `snapshotEvents()` 读取当前轮次和用户直接输入，核对 `/taskbelay`、工作树确认及结构化文件写入；Core 继续负责 Task 状态。
 
 工作区命令执行器 `runClosedCommand()` 在子进程退出且 stdout/stderr 关闭后返回完整结果，避免使用尚未收齐的 Git 输出判断仓库身份或内容。超时、取消或输出超限会停止收集并拒绝返回成功，即使父进程已退出而后代仍持有输出管道也保持有界；已经启动的修改命令在这些情况下标记结果不确定，供 Host 保留现场并恢复。
 
 ## 生命周期 CLI 职责
 
-`packages/dev-flow/lib/cli.mjs` 解析参数并组织交互菜单，`terminal.mjs` 保留同一次交互中的输入，`presentation.mjs` 展示计划、进度和结果。`plan.mjs` 生成维护动作与确认要求，`lifecycle.mjs` 先观察、解析目标版本、展示计划和取得确认，再执行并记录操作结果。它按明确选定的 Host/Profile 调用驱动，安装目录规范化后重新创建驱动，使后续操作使用同一组路径。`diagnostics.mjs` 汇总安装与用户配置检查。重试重新观察实际安装；安装记录不决定 Core Task 的状态。
+`packages/taskbelay/lib/cli.mjs` 解析参数并组织交互菜单，`terminal.mjs` 保留同一次交互中的输入，`presentation.mjs` 展示计划、进度和结果。`plan.mjs` 生成维护动作与确认要求，`lifecycle.mjs` 先观察、解析目标版本、展示计划和取得确认，再执行并记录操作结果。它按明确选定的 Host/Profile 调用驱动，安装目录规范化后重新创建驱动，使后续操作使用同一组路径。`diagnostics.mjs` 汇总安装与用户配置检查。重试重新观察实际安装；安装记录不决定 Core Task 的状态。
 
 DeepSeek 驱动从 `npm pack --json` 的列表或包名映射中读取唯一制品报告，核对包名、版本和文件名后才修改 Profile。Claude 与 ZCode 的 CLI 入口按真实文件路径判断直接执行，支持 npm 生成的命令软链接。两者的管理器驱动校验 `setup` 返回的 JSON 和预期状态后才记录注册步骤完成，再通过 `status` 回读安装；空输出或无效 JSON 的错误会指出具体命令。
 
 | 模块 | 职责 |
 | --- | --- |
-| `packages/dev-flow/lib/hosts/` | Codex、DeepSeek、Claude、ZCode 驱动各自拥有包定位和私有安装记录，DeepSeek 同时负责 Profile 规则；各驱动执行已确认的 Adapter 操作。`runtimeCandidates()` 提供启动候选；`maintenanceTargets()` 提供已注册或安装中断后仍存在的包及 Core 位置。 |
-| `packages/dev-flow/lib/core-runtime.mjs` | 核对公共包内 runtime 布局、package 身份、规范路径、可执行文件和 Core 版本。 |
-| `packages/dev-flow/lib/core-maintenance.mjs` | 为 reset 协调已知 Core 服务位置，复用 WebUI status/stop 协议；进程检查和停止由平台实现负责。 |
-| `packages/dev-flow/lib/runtime.mjs` | 汇总各驱动的候选并调用公共校验，按 Core 版本及来源排序选择运行时，准备数据目录并转发启动参数和信号。 |
-| `packages/dev-flow/lib/platform/` | 接收已确定的包及 Core 可执行文件位置，处理系统路径、权限、进程停止、清理和命令参数引用。Windows 维护按实际可执行文件、命令和创建时间识别需要停止的进程。 |
+| `packages/taskbelay/lib/hosts/` | Codex、DeepSeek、Claude、ZCode 驱动各自拥有包定位和私有安装记录，DeepSeek 同时负责 Profile 规则；各驱动执行已确认的 Adapter 操作。`runtimeCandidates()` 提供启动候选；`maintenanceTargets()` 提供已注册或安装中断后仍存在的包及 Core 位置。 |
+| `packages/taskbelay/lib/core-runtime.mjs` | 核对公共包内 runtime 布局、package 身份、规范路径、可执行文件和 Core 版本。 |
+| `packages/taskbelay/lib/core-maintenance.mjs` | 为 reset 协调已知 Core 服务位置，复用 WebUI status/stop 协议；进程检查和停止由平台实现负责。 |
+| `packages/taskbelay/lib/runtime.mjs` | 汇总各驱动的候选并调用公共校验，按 Core 版本及来源排序选择运行时，准备数据目录并转发启动参数和信号。 |
+| `packages/taskbelay/lib/platform/` | 接收已确定的包及 Core 可执行文件位置，处理系统路径、权限、进程停止、清理和命令参数引用。Windows 维护按实际可执行文件、命令和创建时间识别需要停止的进程。 |
 
 reset 的共享服务停止与可执行文件替换分别处理。确认后，管理器保留已管理 Adapter 的实际位置，停止
 宠物、WebUI 和可识别的 STDIO Core，卸载 Adapter，再在清理数据前复查。退出失败、进程身份变化或
@@ -497,7 +497,7 @@ Codex setup 先检查配置路径、文件类型和权限，再把已有文件�
 
 ## 文件提交准备
 
-Codex 在普通提交前执行 `dev-flow-codex artifacts collect` 和 `dev-flow-codex artifacts prepare`，复用 Core 对当前 Action 的完整 Git 观察。Codex 只补充文件用途和说明，准备命令检查清单与当前观察一致后生成 artifact 数组。流程文件漏报返回具体路径和仅修改 artifact 字段的一次纠正指示；实际仓库异常继续按原有恢复规则处理。详见[文件收集与提交](ARTIFACTS.md)。
+Codex 在普通提交前执行 `taskbelay-codex artifacts collect` 和 `taskbelay-codex artifacts prepare`，复用 Core 对当前 Action 的完整 Git 观察。Codex 只补充文件用途和说明，准备命令检查清单与当前观察一致后生成 artifact 数组。流程文件漏报返回具体路径和仅修改 artifact 字段的一次纠正指示；实际仓库异常继续按原有恢复规则处理。详见[文件收集与提交](ARTIFACTS.md)。
 
 ## Host 接口描述与恢复入口
 

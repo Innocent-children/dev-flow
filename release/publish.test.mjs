@@ -13,20 +13,20 @@ import { prepareRelease, releaseOutputNames } from "./prepare.mjs";
 
 const execFile = promisify(callback);
 const hostProducts = ["codex", "deepseek", "claude", "zcode"];
-const allProducts = [...hostProducts, "dev-flow"];
-const packageName = "dev-flow-codex";
+const allProducts = [...hostProducts, "taskbelay"];
+const packageName = "taskbelay-codex";
 const version = "0.7.8";
 
 for (const product of hostProducts) {
   test(`${product} prepares a deterministic package and both Core artifacts for the publisher`, async t => {
-    const root = await mkdtemp(join(tmpdir(), "dev-flow-prepare-test-"));
+    const root = await mkdtemp(join(tmpdir(), "taskbelay-prepare-test-"));
     t.after(() => rm(root, { recursive: true, force: true }));
     const repositoryRoot = join(root, "source"), packageRoot = join(root, "packed/package"), outputDirectory = join(root, "prepared");
     await mkdir(join(repositoryRoot, "packages", product), { recursive: true });
     await mkdir(outputDirectory);
-    await writeFile(join(repositoryRoot, "packages", product, "package.json"), JSON.stringify({ name: `dev-flow-${product}`, version }));
+    await writeFile(join(repositoryRoot, "packages", product, "package.json"), JSON.stringify({ name: `taskbelay-${product}`, version }));
     await writeFile(join(repositoryRoot, "CORE_VERSION"), "0.8.5\n");
-    for (const [platform, binary] of [["darwin-arm64", "dev-flow"], ["win32-x64", "dev-flow.exe"]]) {
+    for (const [platform, binary] of [["darwin-arm64", "taskbelay"], ["win32-x64", "taskbelay.exe"]]) {
       await mkdir(join(packageRoot, "runtime", platform), { recursive: true });
       await writeFile(join(packageRoot, "runtime", platform, binary), `Core fixture for ${platform}\n`);
     }
@@ -39,8 +39,8 @@ for (const product of hostProducts) {
     const prepared = await validateReleaseArtifacts({ product, version, directory: outputDirectory, sourceCommit: selection.sourceCommit });
     assert.equal(prepared.manifest.release.product, product);
     assert.deepEqual(await readFile(prepared.tarball.path), await readFile(firstTarball));
-    assert.equal(await readFile(join(outputDirectory, "dev-flow-core-0.8.5-darwin-arm64"), "utf8"), "Core fixture for darwin-arm64\n");
-    assert.equal(await readFile(join(outputDirectory, "dev-flow-core-0.8.5-windows-amd64.exe"), "utf8"), "Core fixture for win32-x64\n");
+    assert.equal(await readFile(join(outputDirectory, "taskbelay-core-0.8.5-darwin-arm64"), "utf8"), "Core fixture for darwin-arm64\n");
+    assert.equal(await readFile(join(outputDirectory, "taskbelay-core-0.8.5-windows-amd64.exe"), "utf8"), "Core fixture for win32-x64\n");
     await writeFile(secondTarball, "different build");
     await assert.rejects(prepareRelease(selection), /not deterministic/);
   });
@@ -52,7 +52,7 @@ for (const product of allProducts) {
     const prepared = await validateReleaseArtifacts(fixture.selection);
     assert.deepEqual(prepared.manifest, fixture.manifest);
     assert.equal(prepared.tarball.sha256, fixture.manifest.artifacts[0].sha256);
-    assert.equal(prepared.assets.length, product === "dev-flow" ? 3 : 5);
+    assert.equal(prepared.assets.length, product === "taskbelay" ? 3 : 5);
     for (const record of fixture.manifest.artifacts) {
       assert.equal(prepared.assets.find(asset => asset.name === record.relative_path).sha256, record.sha256);
     }
@@ -276,11 +276,11 @@ test("release presentation names every product and links immutable release detai
   const sourceCommit = "a".repeat(40);
   const coreVersion = "0.8.5";
   const cases = [
-    { product: "codex", title: "Dev Flow for Codex v0.7.8", packageName: "dev-flow-codex", guidePath: "packages/codex/README.md", bundlesCore: true },
-    { product: "deepseek", title: "Dev Flow for DeepSeek Harness v0.7.8", packageName: "dev-flow-deepseek", guidePath: "packages/deepseek/README.md", bundlesCore: true },
-    { product: "claude", title: "Dev Flow for Claude Code v0.7.8", packageName: "dev-flow-claude", guidePath: "packages/claude/README.md", bundlesCore: true },
-    { product: "zcode", title: "Dev Flow for ZCode v0.7.8", packageName: "dev-flow-zcode", guidePath: "packages/zcode/README.md", bundlesCore: true },
-    { product: "dev-flow", title: "Dev Flow CLI v0.7.8", packageName: "@imotong/dev-flow", guidePath: "packages/dev-flow/README.md", bundlesCore: false },
+    { product: "codex", title: "TaskBelay for Codex v0.7.8", packageName: "taskbelay-codex", guidePath: "packages/codex/README.md", bundlesCore: true },
+    { product: "deepseek", title: "TaskBelay for DeepSeek Harness v0.7.8", packageName: "taskbelay-deepseek", guidePath: "packages/deepseek/README.md", bundlesCore: true },
+    { product: "claude", title: "TaskBelay for Claude Code v0.7.8", packageName: "taskbelay-claude", guidePath: "packages/claude/README.md", bundlesCore: true },
+    { product: "zcode", title: "TaskBelay for ZCode v0.7.8", packageName: "taskbelay-zcode", guidePath: "packages/zcode/README.md", bundlesCore: true },
+    { product: "taskbelay", title: "TaskBelay CLI v0.7.8", packageName: "@imotong/taskbelay", guidePath: "packages/taskbelay/README.md", bundlesCore: false },
   ];
 
   for (const item of cases) {
@@ -294,7 +294,7 @@ test("release presentation names every product and links immutable release detai
     });
     assert.equal(presentation.title, item.title);
     assert.ok(presentation.notes.includes(`${item.packageName}@${version}`));
-    assert.equal(presentation.notes.includes(`Dev Flow Core \`${coreVersion}\``), item.bundlesCore);
+    assert.equal(presentation.notes.includes(`TaskBelay Core \`${coreVersion}\``), item.bundlesCore);
     assert.ok(presentation.notes.includes(`${sourceCommit}/${item.guidePath}`));
     assert.ok(presentation.notes.includes(`${sourceCommit}/docs/SUPPORT-MATRIX_en.md`));
     assert.ok(presentation.notes.includes(`tree/${sourceCommit}`));
@@ -378,9 +378,9 @@ test("registry tarball read-back does not retry authentication or byte conflicts
 });
 
 async function tarballFixture(t, contents) {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-publish-test-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-publish-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const tarball = join(root, `dev-flow-codex-${version}.tgz`);
+  const tarball = join(root, `taskbelay-codex-${version}.tgz`);
   await writeFile(tarball, contents);
   return { root, tarball, sha256: createHash("sha256").update(contents).digest("hex") };
 }
@@ -395,7 +395,7 @@ function assertPackCommand(command, arguments_) {
 
 async function packFixture(arguments_, source) {
   const destination = arguments_[arguments_.indexOf("--pack-destination") + 1];
-  const filename = `dev-flow-codex-${version}.tgz`;
+  const filename = `taskbelay-codex-${version}.tgz`;
   await copyFile(source, join(destination, filename));
   return JSON.stringify([{ filename }]);
 }
@@ -408,12 +408,12 @@ function npmError(code, stderr) {
 }
 
 async function releaseFixture(t, product, releaseVersion = version) {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-publisher-artifacts-")), directory = join(root, "prepared");
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-publisher-artifacts-")), directory = join(root, "prepared");
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(directory);
-  const sourceCommit = "a".repeat(40), coreVersion = "0.8.5", bundlesCore = product !== "dev-flow";
-  const tarballName = `${bundlesCore ? `dev-flow-${product}` : "imotong-dev-flow"}-${releaseVersion}.tgz`;
-  const names = [tarballName, ...(bundlesCore ? [`dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-core-${coreVersion}-windows-amd64.exe`] : [])];
+  const sourceCommit = "a".repeat(40), coreVersion = "0.8.5", bundlesCore = product !== "taskbelay";
+  const tarballName = `${bundlesCore ? `taskbelay-${product}` : "imotong-taskbelay"}-${releaseVersion}.tgz`;
+  const names = [tarballName, ...(bundlesCore ? [`taskbelay-core-${coreVersion}-darwin-arm64`, `taskbelay-core-${coreVersion}-windows-amd64.exe`] : [])];
   const files = new Map(names.map(name => [name, Buffer.from(`prepared ${name}\n`)]));
   const digest = bytes => createHash("sha256").update(bytes).digest("hex");
   const artifacts = names.map((name, index) => ({ kind: index === 0 ? "npm_tarball" : "core_binary", relative_path: name, sha256: digest(files.get(name)) }));
@@ -443,7 +443,7 @@ function fakeRemote(fixture) {
     }
     if (command === "npm") {
       if (["view", "pack"].includes(args[0])) {
-        const expectedName = fixture.selection.product === "dev-flow" ? "@imotong/dev-flow" : `dev-flow-${fixture.selection.product}`;
+        const expectedName = fixture.selection.product === "taskbelay" ? "@imotong/taskbelay" : `taskbelay-${fixture.selection.product}`;
         assert.equal(args[1], `${expectedName}@${fixture.selection.version}`);
       }
       if (args[0] === "view") {

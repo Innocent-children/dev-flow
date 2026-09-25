@@ -1,8 +1,8 @@
-# Contributing to Dev Flow
+# Contributing to TaskBelay
 
 [中文](CONTRIBUTING_zh-CN.md) | [English](CONTRIBUTING.md)
 
-Dev Flow accepts reproducible defects, documentation corrections, platform support backed by
+TaskBelay accepts reproducible defects, documentation corrections, platform support backed by
 final-package test results, and clearly scoped product improvements that solve real development problems.
 
 ## Change classification
@@ -23,7 +23,7 @@ completed code.
 
 A useful bug report includes:
 
-- the product and version, such as Core, `dev-flow-codex`, `dev-flow-deepseek`, `dev-flow-claude`, or `dev-flow-zcode`;
+- the product and version, such as Core, `taskbelay-codex`, `taskbelay-deepseek`, `taskbelay-claude`, or `taskbelay-zcode`;
 - operating system, CPU, Node.js version, and host version;
 - minimal reproduction steps;
 - expected and actual results;
@@ -44,7 +44,7 @@ What actually happened?
 
 ## Current approach
 
-How does the user handle it without Dev Flow?
+How does the user handle it without TaskBelay?
 
 ## Available data
 
@@ -113,9 +113,9 @@ Repository development requires:
 Fork the repository on GitHub, then create a branch from your fork:
 
 ```bash
-git clone https://github.com/<your-account>/dev-flow.git
-cd dev-flow
-git remote add upstream https://github.com/Innocent-children/dev-flow.git
+git clone https://github.com/<your-account>/taskbelay.git
+cd taskbelay
+git remote add upstream https://github.com/Innocent-children/taskbelay.git
 git fetch upstream
 git checkout -b <type>/<short-description> upstream/main
 pnpm install --frozen-lockfile

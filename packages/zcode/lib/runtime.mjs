@@ -12,18 +12,18 @@ export async function paths(environment = process.env, options = {}) {
   const root = resolve(options.packageRoot ?? packageRoot);
   const home = platform.homeDirectory(environment, homedir());
   const productRoot = platform.productRoot(environment, home);
-  const explicit = environment.DEV_FLOW_DATA_DIR;
+  const explicit = environment.TASKBELAY_DATA_DIR;
   const dataDirectory = explicit || join(productRoot, "data");
-  if (!isAbsolute(dataDirectory)) throw new Error("DEV_FLOW_DATA_DIR must be absolute");
+  if (!isAbsolute(dataDirectory)) throw new Error("TASKBELAY_DATA_DIR must be absolute");
   if (!explicit) {
     for (const directory of [productRoot, dataDirectory]) {
       try {
         const info = await lstat(directory);
-        if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("Default Dev Flow data must use regular owned directories");
+        if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("Default TaskBelay data must use regular owned directories");
       } catch (error) { if (error.code !== "ENOENT") throw error; }
     }
   } else if (await realpath(explicit) !== resolve(explicit) || !(await stat(explicit)).isDirectory()) {
-    throw new Error("DEV_FLOW_DATA_DIR must be an existing canonical directory");
+    throw new Error("TASKBELAY_DATA_DIR must be an existing canonical directory");
   }
   return {
     packageRoot: root, productRoot, dataDirectory, explicitData: Boolean(explicit), platform,
@@ -38,7 +38,7 @@ export async function core(arguments_, { input, environment = process.env, strea
   if (!p.explicitData && arguments_[0] === "mcp") await mkdir(p.dataDirectory, { recursive: true, mode: 0o700 });
   return await new Promise((resolveResult, reject) => {
     const child = spawn(p.runtimePath, arguments_, {
-      env: { ...environment, DEV_FLOW_DATA_DIR: p.dataDirectory },
+      env: { ...environment, TASKBELAY_DATA_DIR: p.dataDirectory },
       stdio: stream ? "inherit" : ["pipe", "pipe", "pipe"], windowsHide: true,
     });
     const signals = new Map();

@@ -119,7 +119,7 @@ test("default native artwork retains nine clips and 57 PNG frames", async () => 
   );
 });
 test("SVG external content, unsafe paths and failed reimport preserve installed artwork", async (t) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dev-flow-pet-import-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "taskbelay-pet-import-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const source = path.join(root, "中文 source");
   await fs.mkdir(source);
@@ -156,7 +156,7 @@ test("SVG external content, unsafe paths and failed reimport preserve installed 
   );
 });
 test("native appearance imports enforce timing and total frame limits before replacement", async (t) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dev-flow-pet-limits-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "taskbelay-pet-limits-"));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const source = path.join(root, "source");
   await fs.mkdir(path.join(source, "Assets"), { recursive: true });
@@ -208,7 +208,7 @@ test("native appearance imports enforce timing and total frame limits before rep
 });
 test("concurrent preference updates keep independent selections and exact scale", async (t) => {
   const root = await fs.mkdtemp(
-    path.join(os.tmpdir(), "dev-flow-pet-settings-"),
+    path.join(os.tmpdir(), "taskbelay-pet-settings-"),
   );
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const prefs = new Preferences(root);

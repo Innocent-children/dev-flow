@@ -17,18 +17,18 @@ Core 的 Git 可见范围。
 构造输入前可查询已安装命令的帮助：
 
 ```bash
-dev-flow-codex artifacts --help
-dev-flow-codex artifacts collect --help
-dev-flow-codex artifacts prepare --help
+taskbelay-codex artifacts --help
+taskbelay-codex artifacts collect --help
+taskbelay-codex artifacts prepare --help
 ```
 
 总帮助列出两个操作；操作帮助返回 JSON，包含 `operation`、`description`、`transport`、`input_example`、`input_fields`、`output_fields` 和 `next_step`。示例中的身份及观察字段必须替换为当前 Action 或完整 collection 的实际值。帮助查询不读取 stdin、安装路径或 Task 数据，也不启动 Core；实际命令输入由 Core 校验。
 
-使用自定义数据目录时，在启动 Codex 前设置 `DEV_FLOW_DATA_DIR`。Plugin 显式将其转发给 MCP，hook 和文件准备命令沿用同一 Host 环境。目录必须已存在并使用规范化绝对路径；省略变量时使用默认数据目录。启动环境的变化需要在新的 Codex 会话中生效。
+使用自定义数据目录时，在启动 Codex 前设置 `TASKBELAY_DATA_DIR`。Plugin 显式将其转发给 MCP，hook 和文件准备命令沿用同一 Host 环境。目录必须已存在并使用规范化绝对路径；省略变量时使用默认数据目录。启动环境的变化需要在新的 Codex 会话中生效。
 
 
-`dev-flow-codex artifacts collect` 转发到包内的 `dev-flow artifacts collect`；
-`dev-flow-codex artifacts prepare` 转发到包内的 `dev-flow artifacts prepare`。
+`taskbelay-codex artifacts collect` 转发到包内的 `taskbelay artifacts collect`；
+`taskbelay-codex artifacts prepare` 转发到包内的 `taskbelay artifacts prepare`。
 两个命令均从 stdin 读取一个不超过 1 MiB 的 UTF-8 JSON 对象，拒绝未知字段、重复字段、尾随 JSON
 和非法 UTF-8。命令读取已有 Task 数据库，通过 stdout 返回 JSON；成功退出码为 0，失败为 1，
 不初始化存储。
@@ -95,4 +95,4 @@ Action，以及补齐后成功进入 DESIGN。原生 Git/CLI 测试覆盖隐藏�
 
 `collectArtifacts` 在 TEST、COMPREHENSION_REVIEW 和 DELIVERY 比较当前内容与 Implementation/Test 保存的内容摘要，流程文件同样计入。Codex 因此在最终验证前完成流程文件更新，之后只读核对；若仍需更新，则使用当前合法返回路径并重新建立验证结果。把文件分类为 `other_process` 不能绕过内容检查。实现见 `internal/application/artifacts.go` 与 `internal/application/workspace.go`。
 
-DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill 目录>/scripts/artifacts.mjs collect` 或 `prepare` 调用同一套 Core 只读文件准备命令。输入与返回结构与本文相同，`host` 使用 `deepseek`；脚本复用 Adapter 的运行时和数据目录解析，不创建存储。通过实际 DSH Skill 的 `resourceBase` 取得脚本路径。`--help` 不读取 stdin 或解析运行时。该脚本不是独立的 `dev-flow-deepseek` CLI，也不增加 `workspace_coordinator` 操作。
+DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill 目录>/scripts/artifacts.mjs collect` 或 `prepare` 调用同一套 Core 只读文件准备命令。输入与返回结构与本文相同，`host` 使用 `deepseek`；脚本复用 Adapter 的运行时和数据目录解析，不创建存储。通过实际 DSH Skill 的 `resourceBase` 取得脚本路径。`--help` 不读取 stdin 或解析运行时。该脚本不是独立的 `taskbelay-deepseek` CLI，也不增加 `workspace_coordinator` 操作。

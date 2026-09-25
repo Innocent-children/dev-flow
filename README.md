@@ -1,21 +1,23 @@
 <p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow icon" />
+  <img src="packages/webui/src/assets/taskbelay-app-icon-light.svg" width="112" height="112" alt="TaskBelay icon" />
 </p>
 
-<h1 align="center">Dev Flow</h1>
+<h1 align="center">TaskBelay</h1>
 
-<p align="center"><strong>Long-running AI coding, under control.</strong></p>
+<p align="center"><strong>Long-running AI coding, on belay.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## What Dev Flow helps you do
+## What TaskBelay helps you do
 
 Your coding agent decides what to do next.<br />
-Dev Flow keeps the task under control.
+TaskBelay keeps the task under control.
 
-Use it with Codex, DeepSeek, Claude Code or ZCode. The agent reasons about the code and chooses the technical action; Dev Flow keeps the scope, verification limits, state and recovery records around that work.
+Use it with Codex, DeepSeek, Claude Code or ZCode. The agent reasons about the code and chooses the technical action; TaskBelay keeps the scope, verification limits, state and recovery records around that work.
+
+In climbing, a belayer manages the rope while the climber chooses the route. TaskBelay applies that idea to coding: the agent makes technical decisions, while TaskBelay checks approved scope and verification limits and uses saved records to recover from failures or uncertain results. It is neither a sandbox nor another coding agent.
 
 - **Explicit Scope:** Check actual changes against approved files. Work beyond the plan needs a decision.
 - **Bounded Verification:** Plan relevant checks and their limits. More verification needs a concrete reason.
@@ -30,18 +32,16 @@ directly is usually simpler.
 
 > Use Node.js `>=24` and install the Host you intend to use. Check Host versions and validated platforms in the [Support Matrix](docs/SUPPORT-MATRIX_en.md).
 
-### 1. Install Dev Flow
+### 1. Install TaskBelay
 
-The public installation below serves the released Codex and DeepSeek integrations. For Claude Code, follow the [source installation guide](docs/CLAUDE_en.md); a source-only adapter is not installed by the older public CLI.
-
-ZCode also uses a [source installation guide](docs/ZCODE_en.md). Local packages target Windows x64 and macOS arm64; native macOS ZCode validation remains pending.
+These commands use the TaskBelay package names and require the packages to be published. Before their first release, use the [local source installer](scripts/README_en.md#local-installation-testing), then follow the activation instructions for [Codex](docs/CODEX_en.md), [DeepSeek](docs/DEEPSEEK_en.md), [Claude Code](docs/CLAUDE_en.md), or [ZCode](docs/ZCODE_en.md). Local packages target Windows x64 and macOS arm64; native macOS ZCode validation remains pending.
 
 ```sh
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
-Choose your Host from the options offered by your installation entry. After setup, review and trust the Dev Flow hook in Codex `/hooks`, restart the selected DeepSeek Profile, or reload Claude plugins/start a new Claude session and review its permission prompts.
+Choose your Host from the options offered by your installation entry. After setup, review and trust the TaskBelay hook in Codex `/hooks`, restart the selected DeepSeek Profile, or reload Claude plugins/start a new Claude session and review its permission prompts.
 
 In ZCode, install and enable the plugin in Settings → Plugins, then start a new session to activate its hooks. Local preparation does not confirm that ZCode has loaded the plugin.
 
@@ -52,34 +52,34 @@ After completing the appropriate installation, send one of these messages in you
 **Codex**
 
 ```text
-$dev-flow-codex:dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
+$taskbelay-codex:taskbelay Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
 **DeepSeek Harness**
 
 ```text
-/dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
+/taskbelay Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
 **Claude Code**
 
 ```text
-/dev-flow-claude:dev-flow Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
+/taskbelay-claude:taskbelay Add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
 **ZCode**
 
-Select `dev-flow` from the input’s `/` → Skills menu, then describe your task.
+Select `taskbelay` from the input’s `/` → Skills menu, then describe your task.
 
 ```text
-Use Dev Flow to add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
+Use TaskBelay to add failed-login rate limiting. Change only auth files and run at most 4 targeted checks.
 ```
 
 Send these in the conversation, not a terminal. Describe your goal, acceptance conditions, file
 scope, and testing limit.
 
-The first reply assesses the request and asks whether to work directly or use Dev Flow. Choosing
-Dev Flow defaults to a new task branch from the current HEAD in the current directory. Confirm the
+The first reply assesses the request and asks whether to work directly or use TaskBelay. Choosing
+TaskBelay defaults to a new task branch from the current HEAD in the current directory. Confirm the
 new branch and whether existing uncommitted changes belong to the task. Your dependencies, local
 configuration, files and staged state stay in place; the current session continues when it can access
 all participating directories.
@@ -92,28 +92,28 @@ One directory supports one active Task. Local manual or external edits are also 
 branches during a Task pauses progress. Local directories and branches remain after completion;
 uncommitted work must be accounted for when starting the next Task.
 
-Before implementation, review and discuss the requirements, design, work items, expected files and verification plan. Development starts after you explicitly approve the complete plan. Revisions or expanded file scope require approval again; choosing Dev Flow or a worktree does not replace plan approval.
+Before implementation, review and discuss the requirements, design, work items, expected files and verification plan. Development starts after you explicitly approve the complete plan. Revisions or expanded file scope require approval again; choosing TaskBelay or a worktree does not replace plan approval.
 
 ### 3. Resume and view progress
 
-After a session restart, return to the task's original directory and ask to continue it. Dev Flow
+After a session restart, return to the task's original directory and ask to continue it. TaskBelay
 resumes from the saved progress. If that directory is missing or replaced, the task pauses until you
 restore it or explicitly abandon the task.
 
-In DeepSeek Harness, include `/dev-flow` in the message asking to resume.
+In DeepSeek Harness, include `/taskbelay` in the message asking to resume.
 
-For Claude, reopen the original workspace and conversation and invoke `/dev-flow-claude:dev-flow` to continue the saved task.
+For Claude, reopen the original workspace and conversation and invoke `/taskbelay-claude:taskbelay` to continue the saved task.
 
-For ZCode, reopen the original workspace, select the Dev Flow Skill and ask to continue the saved task. For a new directory, follow the returned workspace-opening instructions.
+For ZCode, reopen the original workspace, select the TaskBelay Skill and ask to continue the saved task. For a new directory, follow the returned workspace-opening instructions.
 
 These commands use an installed global manager. For source installations, use the corresponding entry in the source guide.
 
 ```bash
 # Inspect installed integrations
-dev-flow status --host all
+taskbelay status --host all
 
 # Open the local task view
-dev-flow webui start
+taskbelay webui start
 ```
 
 For non-interactive installation, custom DSH Profiles, upgrades, repair, and removal, see the
@@ -126,8 +126,8 @@ The pet requires both a configured Adapter and an installed desktop application.
 The desktop pet shows multiple tasks in stacked bubbles and opens each task's WebUI. It prioritizes blocked tasks and automatically follows unfinished work after a task completes; you can also pin a task. Customize its appearance, control animations, resize it, and start or stop it independently.
 
 ```bash
-dev-flow pet start
-dev-flow pet stop
+taskbelay pet start
+taskbelay pet stop
 ```
 
 Desktop applications target macOS arm64 and Windows 10/11 x64. See the
@@ -136,7 +136,7 @@ Desktop applications target macOS arm64 and Windows 10/11 x64. See the
 
 ## Usage limits
 
-Dev Flow controls the task workflow, not OS permissions. It does not intercept every file operation or shell command.
+TaskBelay controls the task workflow, not OS permissions. It does not intercept every file operation or shell command.
 
 A dedicated worktree separates code changes. Processes, network access, credentials, and external
 services remain shared with your environment.

@@ -40,7 +40,7 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		"packages/deepseek/lib/platform.mjs",
 		"packages/claude/lib/platform.mjs",
 		"packages/zcode/lib/platform.mjs",
-		"packages/dev-flow/lib/platform.mjs",
+		"packages/taskbelay/lib/platform.mjs",
 	} {
 		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 		if err != nil {
@@ -75,7 +75,7 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		"packages/codex/lib/paths.mjs",
 		"packages/codex/lib/install-experience.mjs",
 		"packages/codex/lib/lifecycle.mjs",
-		"packages/codex/bin/dev-flow-codex.mjs",
+		"packages/codex/bin/taskbelay-codex.mjs",
 		"packages/codex/plugin/hooks/pre-tool-use.mjs",
 		"packages/deepseek/lib/index.mjs",
 		"packages/deepseek/lib/paths.mjs",
@@ -84,18 +84,18 @@ func TestNodeConsumersUseClosedPlatformImplementations(t *testing.T) {
 		"packages/claude/lib/runtime.mjs",
 		"packages/claude/lib/lifecycle.mjs",
 		"packages/claude/lib/workspace.mjs",
-		"packages/claude/bin/dev-flow-claude.mjs",
+		"packages/claude/bin/taskbelay-claude.mjs",
 		"packages/claude/plugin/hooks/pre-tool-use.mjs",
 		"packages/zcode/lib/runtime.mjs",
 		"packages/zcode/lib/lifecycle.mjs",
 		"packages/zcode/lib/workspace.mjs",
-		"packages/zcode/bin/dev-flow-zcode.mjs",
+		"packages/zcode/bin/taskbelay-zcode.mjs",
 		"packages/zcode/hooks/pre-tool-use.mjs",
-		"packages/dev-flow/lib/configuration.mjs",
-		"packages/dev-flow/lib/lifecycle.mjs",
-		"packages/dev-flow/lib/ownership.mjs",
-		"packages/dev-flow/lib/plan.mjs",
-		"packages/dev-flow/lib/runtime.mjs",
+		"packages/taskbelay/lib/configuration.mjs",
+		"packages/taskbelay/lib/lifecycle.mjs",
+		"packages/taskbelay/lib/ownership.mjs",
+		"packages/taskbelay/lib/plan.mjs",
+		"packages/taskbelay/lib/runtime.mjs",
 	} {
 		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 		if err != nil {
@@ -117,7 +117,7 @@ func TestHostPlatformImplementationsRemainSeparate(t *testing.T) {
 		{"packages/deepseek/lib/platform", "policies.mjs"},
 		{"packages/claude/lib/platform", "policies.mjs"},
 		{"packages/zcode/lib/platform", "policies.mjs"},
-		{"packages/dev-flow/lib/platform", "policies.mjs"},
+		{"packages/taskbelay/lib/platform", "policies.mjs"},
 		{"packages/host-command/platform", "command.mjs"},
 	} {
 		for _, platform := range []string{"windows", "macos"} {
@@ -167,7 +167,7 @@ func TestRuntimeBuildHasOneClosedTargetCatalog(t *testing.T) {
 	if !strings.Contains(source, `CGO_ENABLED: "0"`) {
 		t.Error("runtime builder does not disable CGo")
 	}
-	for _, relative := range []string{"scripts/dev-flow-local.mjs", "tests/journeys/deepseek/multi-repository-runner.mjs"} {
+	for _, relative := range []string{"scripts/taskbelay-local.mjs", "tests/journeys/deepseek/multi-repository-runner.mjs"} {
 		consumer, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 		if readErr != nil {
 			t.Fatal(readErr)

@@ -3,28 +3,28 @@ package mcp
 import (
 	"encoding/json"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 const (
-	ToolServerInfo            = "dev_flow_server_info"
-	ToolOpenTask              = "dev_flow_open_task"
-	ToolGetTask               = "dev_flow_get_task"
-	ToolGetNextAction         = "dev_flow_get_next_action"
-	ToolSubmitRequirements    = "dev_flow_submit_requirements"
-	ToolSubmitDesign          = "dev_flow_submit_design"
-	ToolSubmitTasks           = "dev_flow_submit_tasks"
-	ToolSubmitImplementation  = "dev_flow_submit_implementation"
-	ToolSubmitTest            = "dev_flow_submit_test"
-	ToolSubmitComprehension   = "dev_flow_submit_comprehension"
-	ToolSubmitRefactor        = "dev_flow_submit_refactor"
-	ToolSubmitDelivery        = "dev_flow_submit_delivery"
-	ToolPrepareTaskRelocation = "dev_flow_prepare_task_relocation"
-	ToolResolveBlocker        = "dev_flow_resolve_blocker"
-	ToolRecoverAction         = "dev_flow_recover_action"
-	ToolCancelTask            = "dev_flow_cancel_task"
-	ToolAbandonTask           = "dev_flow_abandon_task"
+	ToolServerInfo            = "taskbelay_server_info"
+	ToolOpenTask              = "taskbelay_open_task"
+	ToolGetTask               = "taskbelay_get_task"
+	ToolGetNextAction         = "taskbelay_get_next_action"
+	ToolSubmitRequirements    = "taskbelay_submit_requirements"
+	ToolSubmitDesign          = "taskbelay_submit_design"
+	ToolSubmitTasks           = "taskbelay_submit_tasks"
+	ToolSubmitImplementation  = "taskbelay_submit_implementation"
+	ToolSubmitTest            = "taskbelay_submit_test"
+	ToolSubmitComprehension   = "taskbelay_submit_comprehension"
+	ToolSubmitRefactor        = "taskbelay_submit_refactor"
+	ToolSubmitDelivery        = "taskbelay_submit_delivery"
+	ToolPrepareTaskRelocation = "taskbelay_prepare_task_relocation"
+	ToolResolveBlocker        = "taskbelay_resolve_blocker"
+	ToolRecoverAction         = "taskbelay_recover_action"
+	ToolCancelTask            = "taskbelay_cancel_task"
+	ToolAbandonTask           = "taskbelay_abandon_task"
 )
 
 var actionSubmissionTools = []struct {
@@ -533,7 +533,7 @@ func buildCatalog() []ToolDefinition {
 	open["$defs"] = defs
 	tools := []ToolDefinition{
 		makeTool(ToolServerInfo, "Read the current Core server identity.", empty, true, true, false),
-		makeTool(ToolOpenTask, "Open a Task after the Host verifies every confirmed workspace. Default to a new branch in the current directory; current_branch and dedicated_worktree are explicit alternatives. New Tasks require new_task and receipt-backed workspace_origin for every repository. Local modes use the starting HEAD and confirmed initial changes. Resume uses the original directory and omits creation fields. Codex discovers Host preparation with dev-flow-codex host-launch --help. After an uncertain creation, resume that exact directory without new_task.", open, false, false, false),
+		makeTool(ToolOpenTask, "Open a Task after the Host verifies every confirmed workspace. Default to a new branch in the current directory; current_branch and dedicated_worktree are explicit alternatives. New Tasks require new_task and receipt-backed workspace_origin for every repository. Local modes use the starting HEAD and confirmed initial changes. Resume uses the original directory and omits creation fields. Codex discovers Host preparation with taskbelay-codex host-launch --help. After an uncertain creation, resume that exact directory without new_task.", open, false, false, false),
 		makeTool(ToolGetTask, "Read one graph task and any Core-retained recovery assessment.", read, true, true, false),
 		makeTool(ToolGetNextAction, "Observe the Task worktree, persist any required guard, and return the current graph action.", read, false, true, false),
 	}

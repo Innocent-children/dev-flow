@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 	"github.com/google/jsonschema-go/jsonschema"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -30,7 +30,7 @@ func TestOutputSchemasAcceptCurrentTaskAndActionProjections(t *testing.T) {
 				var result any = projectTask(task)
 				switch definition.Name {
 				case ToolServerInfo:
-					result = ServerInfoResult{Product: "dev-flow"}
+					result = ServerInfoResult{Product: "taskbelay"}
 				case ToolOpenTask:
 					result = map[string]any{"created": false, "task": projectTask(task), "recovery_assessment": nil}
 				case ToolGetTask:

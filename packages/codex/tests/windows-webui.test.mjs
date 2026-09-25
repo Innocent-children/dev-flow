@@ -5,16 +5,16 @@ import { join } from "node:path";
 import test from "node:test";
 import { execPortableCommand } from "../lib/command.mjs";
 
-const core = process.env.DEV_FLOW_WINDOWS_CORE;
+const core = process.env.TASKBELAY_WINDOWS_CORE;
 test("Windows native WebUI starts, reuses its process, stops and reopens SQLite", {
-  skip: process.platform === "win32" && process.arch === "x64" && core ? false : "set DEV_FLOW_WINDOWS_CORE on Windows x64",
+  skip: process.platform === "win32" && process.arch === "x64" && core ? false : "set TASKBELAY_WINDOWS_CORE on Windows x64",
 }, async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-windows-webui-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-windows-webui-"));
   const data = join(root, "中文 data with spaces");
-  const executable = join(root, "dev-flow.exe");
+  const executable = join(root, "taskbelay.exe");
   await copyFile(core, executable);
   await mkdir(data);
-  const env = { ...process.env, DEV_FLOW_DATA_DIR: data };
+  const env = { ...process.env, TASKBELAY_DATA_DIR: data };
   const run = async (...args) => {
     const { stdout } = await execPortableCommand(executable, ["webui", ...args, "--json"], {
       env, encoding: "utf8", timeout: 20_000, windowsHide: true,

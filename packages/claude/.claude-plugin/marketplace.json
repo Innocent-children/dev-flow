@@ -1,15 +1,15 @@
 {
-  "name": "dev-flow-claude-local",
+  "name": "taskbelay-claude-local",
   "owner": {
-    "name": "Dev Flow"
+    "name": "TaskBelay"
   },
   "plugins": [
     {
-      "name": "dev-flow-claude",
+      "name": "taskbelay-claude",
       "source": "./"
     }
   ],
   "metadata": {
-    "description": "Local Dev Flow integration for Claude Code"
+    "description": "Local TaskBelay integration for Claude Code"
   }
 }

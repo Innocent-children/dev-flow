@@ -2,7 +2,7 @@
 
 [中文](DESKTOP-PETS.md) | [English](DESKTOP-PETS_en.md)
 
-桌面宠物显示一个所选 Dev Flow Task 的已保存状态，点击打开对应 WebUI。形象决定可播放的素材，
+桌面宠物显示一个所选 TaskBelay Task 的已保存状态，点击打开对应 WebUI。形象决定可播放的素材，
 本地调度器安排待机活动；Task 状态仍由 Core 决定。本文说明获取与启动、任务选择、程序和素材更新、
 动作规则、形象制作及常见问题。
 
@@ -12,10 +12,10 @@
 Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实际运行、Developer ID 签名和 Apple 公证尚未完成正式分发验证。
 具体已验证范围见[支持矩阵](SUPPORT-MATRIX.md#桌面宠物功能检查)。
 
-下文 `productRoot` 指产品目录，macOS 默认是 `~/.dev-flow`；设置与形象保存在其中的 `pet/` 子目录。
+下文 `productRoot` 指产品目录，macOS 默认是 `~/.taskbelay`；设置与形象保存在其中的 `pet/` 子目录。
 
-正式 `@imotong/dev-flow` npm 包包含 `runtime/darwin-arm64/DevFlowPet.app` 与
-`runtime/win32-x64/DevFlowPet`，两个平台均携带九类动作、57 个 PNG 帧。
+正式 `@imotong/taskbelay` npm 包包含 `runtime/darwin-arm64/TaskBelayPet.app` 与
+`runtime/win32-x64/TaskBelayPet`，两个平台均携带九类动作、57 个 PNG 帧。
 运行已构建的应用无需编译器或 Electron 开发环境。Adapter 仍独立安装并提供 Core。
 正式制备由 macOS arm64 构建机编译 Swift、装配锁定的 Windows x64 Electron 运行时，
 然后核对应用版本、架构、默认素材和最终解包文件。macOS 使用 ad-hoc 签名；Windows 正式分发签名尚未验证。
@@ -23,9 +23,9 @@ Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实�
 ## npm 安装与启动
 
 ```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow install
-dev-flow pet start
+npm install -g @imotong/taskbelay@latest
+taskbelay install
+taskbelay pet start
 ```
 
 通过统一入口配置至少一个 Adapter；已有配置可以复用。启动器传入 Core 与数据目录参数，
@@ -46,7 +46,7 @@ node scripts/build-desktop-pet.mjs --output "/absolute/pet-build"
 
 ```bash
 npm install -g "/absolute/pet-build/<local-package>.tgz"
-dev-flow pet start
+taskbelay pet start
 ```
 
 本地包与正式制备复用同一平台应用装配。macOS 构建机器需要 Node.js >=24、Xcode >=27 和 macOS SDK >=27；`xcrun swift` 使用当前选中的 Xcode。构建前会检查工具链并输出版本，失败日志包含标准输出和标准错误。
@@ -61,16 +61,16 @@ Windows 本地开发包的构建需要 Go、Node.js 与 pnpm 位于 PATH，并�
 npm ci --prefix packages/desktop-pet/windows
 node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"
 npm install -g "C:\pet-build\<local-package>.tgz"
-dev-flow install --host all --yes
-dev-flow pet start
-dev-flow pet stop
+taskbelay install --host all --yes
+taskbelay pet start
+taskbelay pet stop
 ~~~
 
 将 `<local-package>.tgz` 替换为 desktop-pet-build.json 中 tarball 对应的文件名。该构建装配 Windows 桌面应用，并通过既有构建目标表生成四个 Adapter 的完整 Core 文件和安装包，绑定路径、版本与 SHA256；复制默认九类动作、57 帧并验证解包后的素材和可执行文件。Mac Core 仅交叉编译，不执行 Mac 程序或测试，不执行发布。Windows 采用系统托盘代替 macOS 菜单栏，素材格式、任务语义和六档缩放一致。
 
 本地分发包的 `--host all` 包含 ZCode；其 `action_required` 提示仍需在 ZCode UI 完成插件安装和启用，见 [ZCode 指南](ZCODE.md)。宠物能够读取 Core 不代表 ZCode 模型会话已经可用。
 
-productRoot 默认是 %LOCALAPPDATA%\dev-flow。已安装桌面目录为 productRoot/pet/DevFlowPet，入口为 DevFlowPet.exe；优先使用此目录，其次使用包内 runtime/win32-x64/DevFlowPet。settings.json、appearances/ 与程序目录分开保存。统一入口通过 dev-flow install、upgrade、repair、reinstall 更新程序副本；统一入口先停止需要维护的实例，再暂存并替换程序目录，保留 settings.json 与 appearances/。单独 pet start 不重装已有程序。普通退出和卸载保留这些数据，确认的 factory-reset 才按既有规则清理整个宠物目录。
+productRoot 默认是 %LOCALAPPDATA%\taskbelay。已安装桌面目录为 productRoot/pet/TaskBelayPet，入口为 TaskBelayPet.exe；优先使用此目录，其次使用包内 runtime/win32-x64/TaskBelayPet。settings.json、appearances/ 与程序目录分开保存。统一入口通过 taskbelay install、upgrade、repair、reinstall 更新程序副本；统一入口先停止需要维护的实例，再暂存并替换程序目录，保留 settings.json 与 appearances/。单独 pet start 不重装已有程序。普通退出和卸载保留这些数据，确认的 factory-reset 才按既有规则清理整个宠物目录。
 
 Windows 使用受限渲染器、当前用户范围的本地单实例通道与确认消息，不按进程名或仅凭 PID 停止程序。每轮和点击跳转前核对同一 Core 与数据目录；连接失败保留最后记录并标注断连，任务更新与同步时间分别显示。隐藏/睡眠取消读取和动画，恢复后不重放历史完成提示。
 
@@ -81,10 +81,10 @@ Windows 正式分发签名尚未验证。已记录的原生环境与结果见[�
 先更新 npm 包，再通过维护命令更新用户目录中的应用副本：
 
 ```bash
-dev-flow pet stop
-npm install -g @imotong/dev-flow@latest
-dev-flow repair --host codex --yes
-dev-flow pet start
+taskbelay pet stop
+npm install -g @imotong/taskbelay@latest
+taskbelay repair --host codex --yes
+taskbelay pet start
 ```
 
 选择已配置的 Host；DeepSeek 使用 `--host deepseek --profile <name>`。`install`、`upgrade`、`repair`、`reinstall` 即使无需修改 Adapter，也会包含宠物更新。确认前的计划显示该操作。执行时先停止宠物，再暂存新应用并替换应用目录；停止或复制失败会中止维护，暂存失败保留原应用。设置和导入形象保存在独立目录中。
@@ -101,7 +101,7 @@ dev-flow pet start
 
 ## 任务选择与基本操作
 
-菜单栏入口使用 Dev Flow 流线标识的单色图标，横笔与主曲线之间留出适合小尺寸的间隙。图标以 18 pt 矢量绘制，由 macOS 根据菜单栏外观和选中状态着色。
+macOS 菜单栏入口使用由护栏和终端组成的 TaskBelay 小尺寸单色图标，以 18 pt 矢量绘制，由系统根据菜单栏外观和选中状态着色。Windows 托盘使用同款蓝青色小尺寸图标。
 
 默认以最多三层叠加气泡显示任务：前层显示重点任务，后层露出其他任务的卡片轮廓。底部显示未完成与受阻数量；超过三个时显示更多数量。悬停或点击数量入口展开可滚动的气泡列表，每个任务都可单独打开 WebUI。
 
@@ -113,7 +113,7 @@ dev-flow pet start
 
 观察间隔为 macOS 每轮结束后 5 秒、Windows 3 秒；完成提示到期会提前刷新。隐藏或睡眠时暂停。读取失败保留最后记录并标注断连；恢复、唤醒及首次读取历史完成任务均不重播庆祝。
 
-普通 Codex 对话不会自动成为 Dev Flow Task。所选任务持续处于进行中时，即使 Host 暂时没有输出，宠物仍展示工作或审核动作。
+普通 Codex 对话不会自动成为 TaskBelay Task。所选任务持续处于进行中时，即使 Host 暂时没有输出，宠物仍展示工作或审核动作。
 
 | 操作 | 结果 |
 | --- | --- |
@@ -122,9 +122,9 @@ dev-flow pet start
 | 鼠标悬停 | 展开多任务气泡列表；符合休闲条件时，角色悬停还可触发挥手。 |
 | 拖动后放下 | 保存新的摆放位置，后续散步围绕该位置进行。 |
 | 隐藏或系统睡眠 | 停止动画、位移和观察请求；重新显示或唤醒后读取当前状态。 |
-| 退出／`dev-flow pet stop` | 只结束宠物，保留 WebUI、Task、设置和素材。 |
+| 退出／`taskbelay pet stop` | 只结束宠物，保留 WebUI、Task、设置和素材。 |
 
-命令仅支持 `dev-flow pet start` 和 `dev-flow pet stop`，输出为纯文本，退出码为成功 `0`、运行失败 `1`、参数错误 `2`。
+命令仅支持 `taskbelay pet start` 和 `taskbelay pet stop`，输出为纯文本，退出码为成功 `0`、运行失败 `1`、参数错误 `2`。
 没有公开的 `pet status` 或 `pet start --json`；启动失败时结合错误文字和本指南的常见问题处理。
 
 ## macOS 动效
@@ -155,7 +155,7 @@ Windows 调整大小时会结束当前待机活动、停止对应位移，再按
 | 形象类型 | 保存与播放的内容 |
 | --- | --- |
 | 单张 PNG 或 SVG | 五类任务动作共用一张图，表现为静态形象。 |
-| Dev Flow 原生 PNG/SVG 动画包 | 必须提供五类任务动作，可增加四类附加动作；每类帧数由自己的清单决定，SVG 保留矢量表示。 |
+| TaskBelay 原生 PNG/SVG 动画包 | 必须提供五类任务动作，可增加四类附加动作；每类帧数由自己的清单决定，SVG 保留矢量表示。 |
 | Codex 标准图集或采用相同布局的高分辨率扩展 | 按固定九行动作提取九类、57 帧。格式 2 的额外追视帧不在提取范围内。 |
 
 五类必需动作是 `idle`、`working`、`blocked`、`complete`、`disconnected`，保证任务状态都有对应展示。
@@ -177,7 +177,7 @@ Windows 调整大小时会结束当前待机活动、停止对应位移，再按
 程序升级和普通卸载保留素材与选择；已确认的 factory-reset 随整个宠物目录清理。保存的形象缺失或损坏时，
 程序提示并暂用内置形象，用户可以重新导入。
 
-## Dev Flow 静态形象
+## TaskBelay 静态形象
 
 最小形象包只需要描述文件和一张 PNG 或 SVG。以下示例使用 PNG：
 
@@ -201,7 +201,7 @@ orange-square/
 `image` 是相对当前文件夹的 PNG 或 SVG 路径，建议使用透明背景。单张图用于所有阶段，阶段区别仍由气泡文字说明。
 可以复制仓库中的 [静态示例](../packages/desktop-pet/examples/orange-square/pet.json)，替换图片与名称。
 
-## Dev Flow 动画形象
+## TaskBelay 动画形象
 
 动画包的 `pet.json` 只填写 `id` 与 `name`；同目录提供 `animations.json` 和 `Assets/`：
 
@@ -243,8 +243,8 @@ my-pet/
 
 ## Codex 标准宠物格式兼容
 
-Dev Flow 兼容 Codex 精灵图格式 1 和 2。兼容范围是本地包中的图集布局、所需动作帧和逐帧时长；
-任务阶段、提示和点击跳转由 Dev Flow 决定。导入入口接受以下字段组成的 `pet.json` 与 PNG/WebP 图集：
+TaskBelay 兼容 Codex 精灵图格式 1 和 2。兼容范围是本地包中的图集布局、所需动作帧和逐帧时长；
+任务阶段、提示和点击跳转由 TaskBelay 决定。导入入口接受以下字段组成的 `pet.json` 与 PNG/WebP 图集：
 
 ```json
 {
@@ -267,9 +267,9 @@ Dev Flow 兼容 Codex 精灵图格式 1 和 2。兼容范围是本地包中的�
 | `spriteVersionNumber: 1` | 1536×1872 | 8 列、9 行 | 192×208 |
 | `spriteVersionNumber: 2` | 1536×2288 | 8 列、11 行 | 192×208 |
 
-两种标准格式共用下面九个动作行，Dev Flow 全部导入，共 57 帧。格式 2 另外包含追视帧，
+两种标准格式共用下面九个动作行，TaskBelay 全部导入，共 57 帧。格式 2 另外包含追视帧，
 当前导入范围为前九行动作。
-这里的 1、2 是 Codex 素材格式版本，不是 Dev Flow 产品版本。
+这里的 1、2 是 Codex 素材格式版本，不是 TaskBelay 产品版本。
 
 | 动作 | 清单键 | Codex 动作行 | 帧数 |
 | --- | --- | --- | --- |
@@ -285,14 +285,14 @@ Dev Flow 兼容 Codex 精灵图格式 1 和 2。兼容范围是本地包中的�
 
 导入时拆成 PNG 帧并保留标准逐帧时长，之后使用统一播放器。向右走、向左走、挥手和 review
 参与下述待机活动与任务动作选择；循环素材也可按指定完整遍数播放后结束。
-任务含义、完成提示条件和跳转目标继续由 Dev Flow 决定；`behavior-map.json` 不参与导入或动作调度。
+任务含义、完成提示条件和跳转目标继续由 TaskBelay 决定；`behavior-map.json` 不参与导入或动作调度。
 源文件夹保持原样，安装目录 ID 从 Codex 的 `id` 稳定生成。
 
-## Dev Flow 自有高分辨率扩展
+## TaskBelay 自有高分辨率扩展
 
-同一入口也支持 Dev Flow 自有的高分辨率图集扩展。它沿用上面的 `pet.json` 字段和动作行布局，
-导入时保留原始单格分辨率，转换为统一 PNG 帧。该扩展由 Dev Flow 支持，不属于 Codex 标准格式；
-Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Codex 中使用时，应另行提供上表中
+同一入口也支持 TaskBelay 自有的高分辨率图集扩展。它沿用上面的 `pet.json` 字段和动作行布局，
+导入时保留原始单格分辨率，转换为统一 PNG 帧。该扩展由 TaskBelay 支持，不属于 Codex 标准格式；
+TaskBelay 导入成功不表示原图集能被 Codex 识别。需要同时在 Codex 中使用时，应另行提供上表中
 与 `spriteVersionNumber` 匹配的标准尺寸图集。
 
 扩展切图规则：
@@ -303,7 +303,7 @@ Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Cod
 - `spriteVersionNumber` 仍只接受 1、2，省略默认 1；扩展图集的切图尺寸由宽度推导，
   该字段不要求扩展图集具有标准格式的总高度。
 
-例如 12288×14976 的 8 位图集使用 1536×1664 单格，包含 9 行；即使字段填写 2，Dev Flow 也按扩展
+例如 12288×14976 的 8 位图集使用 1536×1664 单格，包含 9 行；即使字段填写 2，TaskBelay 也按扩展
 规则提取九类动作。它不是 Codex 格式 2 的标准图集。源图集的 RGBA 解码预估为 702 MiB，
 最大的 8 帧动作预估为 78 MiB，均在以下限制内；导入还需满足转换后 PNG 总大小限制。
 
@@ -337,12 +337,12 @@ Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Cod
 ## 文件要求
 
 - 描述文件最多 256 KiB。文件路径必须为相对路径，引用普通文件；不接受符号链接或目录外引用。
-- Dev Flow PNG/SVG 动画帧尺寸须与 `canvas` 一致，宽高须为正整数。静态 PNG 和每个 PNG 帧的解码预估最多 128 MiB。
+- TaskBelay PNG/SVG 动画帧尺寸须与 `canvas` 一致，宽高须为正整数。静态 PNG 和每个 PNG 帧的解码预估最多 128 MiB。
 - 动作清单最多 512 个帧引用；引用的 PNG/SVG 素材文件总大小最多 128 MiB，以容纳九类高分辨率动作。每个动作按
   `canvas.width × canvas.height × 4 × frame_count` 估算的 RGBA 数据不超过 128 MiB，`frame_count` 为动作帧数。
 - 每个 SVG 最多 1 MiB，采用 UTF-8；根画布宽高为 1–4096 的整数，提供 `viewBox` 时必须为 `0 0 width height`。仅接受受限静态图形、渐变及文件内引用；元素最多 4096 个、嵌套最多 64 层。脚本、嵌入位图、外部引用、DOCTYPE 和实体会被拒绝，当前系统须能渲染素材。
 - `fps` 为 0.1–120，逐帧时长为 9–60000 毫秒。循环及静态索引必须有效。
-- Codex 标准图集与 Dev Flow 扩展图集的源文件最多 512 MiB，解码预估最多 1 GiB。
+- Codex 标准图集与 TaskBelay 扩展图集的源文件最多 512 MiB，解码预估最多 1 GiB。
 - 解码预估在分配像素前按图片元信息计算：`width × height × 4 × ceil(bit_depth / 8)`；`bit_depth` 为位深，支持 1–16 位，
   以四通道估算。它限制图片像素数据，不表示整个进程的内存峰值。
 - 源图集满足限制后，转换结果仍须满足 PNG 总大小、动作内存和播放清单限制。
@@ -354,14 +354,14 @@ Dev Flow 导入成功不表示原图集能被 Codex 识别。需要同时在 Cod
 
 | 现象 | 检查与处理 |
 | --- | --- |
-| 安装 Adapter 后没有宠物应用 | 安装 `@imotong/dev-flow@latest`，运行 `dev-flow install` 配置 Adapter 后执行 `dev-flow pet start`。 |
-| 更新程序后仍是原来的表现 | 更新 npm 包后运行 `dev-flow repair` 更新用户目录副本；程序更新与形象重导入是两步不同操作。 |
+| 安装 Adapter 后没有宠物应用 | 安装 `@imotong/taskbelay@latest`，运行 `taskbelay install` 配置 Adapter 后执行 `taskbelay pet start`。 |
+| 更新程序后仍是原来的表现 | 更新 npm 包后运行 `taskbelay repair` 更新用户目录副本；程序更新与形象重导入是两步不同操作。 |
 | 其他形象没有散步、挥手或思考 | 查看安装副本的 `clips` 是否包含对应附加动作。只有五类动作的形象可正常展示任务，但不能播放未提供的素材。 |
 | 源图有九类，安装副本只有五类 | 确认运行的应用副本也已更新，再从包含完整图集的原始文件夹重新导入。程序只读取最近一次导入保存的帧，不会因升级自动补齐。 |
 | 是否所有包都有九类、57 帧 | 该固定数量只适用于 Codex 布局图集；单张 PNG/SVG 与原生动画包按上表各自的规则处理。 |
 | 一直待机或不散步 | 检查任务选择、服务连接、“动画”和“待机活动”开关、系统减少动态效果，以及素材是否有行走动作。鼠标留在窗口内或菜单／面板打开时会暂停；离开后等待 6–12 秒。某方向不足 40 pt 空间时不会向该方向走。 |
 | 悬停后没有再次挥手 | 需满足休闲条件和 20 秒冷却，悬停角色至少 0.4 秒；持续停留只回应一次，移开至少 2 秒后才可重新触发。 |
-| 正在聊天却没有工作动作，或没聊天却在工作 | 宠物读取所选 Dev Flow Task 的保存状态，不读取普通 Codex 对话活动或键盘输入。先检查是否选择了正确的 Task。 |
+| 正在聊天却没有工作动作，或没聊天却在工作 | 宠物读取所选 TaskBelay Task 的保存状态，不读取普通 Codex 对话活动或键盘输入。先检查是否选择了正确的 Task。 |
 | 选择已完成任务没有跳跃 | 庆祝只在持续观察同一任务从未完成变成 DONE 时触发一次；首次读取完成任务使用静态帧，停留后可进入休闲。 |
 | 图集文件没有超限，仍提示 PNG 总大小或内存超限 | 源图集和转换后的帧分别计限。WebP 转 PNG 可能增大文件；检查源图集 512 MiB、解码预估 1 GiB、转换后 PNG 总计 128 MiB，以及单动作 128 MiB 限制。 |
 | 显示未连接或启动失败 | 确认平台及 Adapter 配置；已启动时可用菜单“重试连接”。显式 `pet start` 可按需启动 WebUI，后台观察只读。不要用不存在的 `pet status` 排查。 |

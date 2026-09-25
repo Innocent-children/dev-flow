@@ -45,7 +45,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
       await mkdir(dirname(target), { recursive: true });
       await copyFile(join(packageRoot, "lib", file), target);
     }
-    await writeFakeRuntime(join(detachedRoot, "runtime", "darwin-arm64", "dev-flow"));
+    await writeFakeRuntime(join(detachedRoot, "runtime", "darwin-arm64", "taskbelay"));
 
     const detachedPaths = await import(pathToFileURL(join(detachedRoot, "lib", "paths.mjs")));
     const detachedRuntime = await import(pathToFileURL(join(detachedRoot, "lib", "runtime.mjs")));
@@ -61,7 +61,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
       arch: "arm64",
       runtimeKey: "darwin-arm64",
       requireExecutableMode: true,
-      runtimePath: join(detachedRoot, "runtime", "darwin-arm64", "dev-flow"),
+      runtimePath: join(detachedRoot, "runtime", "darwin-arm64", "taskbelay"),
     });
     const preflight = await detachedRuntime.preflightPackagedCore(selection);
     assert.equal(preflight.version, currentVersion);
@@ -70,7 +70,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
   test("preflight rejects a missing, symlinked, non-regular, or non-executable runtime", async (t) => {
     const root = await makeDirectory(t, "runtime-preflight");
     const runtimeDirectory = join(root, "runtime", "darwin-arm64");
-    const runtimePath = join(runtimeDirectory, "dev-flow");
+    const runtimePath = join(runtimeDirectory, "taskbelay");
     await mkdir(runtimeDirectory, { recursive: true });
     const selection = await selectPackagedRuntime({
       packageRoot: root,
@@ -106,10 +106,10 @@ describe("macOS arm64 paths and POSIX runtime checks", {
     );
 
     await import("node:fs/promises").then(({ rm }) => rm(runtimePath));
-    await writeRuntimeOutput(runtimePath, "dev-flow 9.9.9");
+    await writeRuntimeOutput(runtimePath, "taskbelay 9.9.9");
     assert.equal((await preflightPackagedCore(selection)).version, "9.9.9");
 
-    await writeRuntimeOutput(runtimePath, "not-a-dev-flow-version");
+    await writeRuntimeOutput(runtimePath, "not-a-taskbelay-version");
     await assert.rejects(
       preflightPackagedCore(selection),
       /packaged Core returned an invalid version line/,
@@ -123,11 +123,11 @@ describe("macOS arm64 paths and POSIX runtime checks", {
       homeDirectory,
       platform: "darwin",
       arch: "arm64",
-      environment: { DEV_FLOW_DATA_DIR: explicit },
+      environment: { TASKBELAY_DATA_DIR: explicit },
     });
     assert.equal(selected.dataDirectory, explicit);
     assert.equal(selected.homeDirectory, homeDirectory);
-    assert.equal(selected.productSupportRoot, join(homeDirectory, ".dev-flow"));
+    assert.equal(selected.productSupportRoot, join(homeDirectory, ".taskbelay"));
     assert.equal(selected.usesDefaultDataDirectory, false);
     await assert.rejects(ensureDefaultDataDirectory(selected), /explicit data directory/);
 
@@ -142,7 +142,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
           homeDirectory,
           platform: "darwin",
           arch: "arm64",
-          environment: { DEV_FLOW_DATA_DIR: value },
+          environment: { TASKBELAY_DATA_DIR: value },
         }),
       );
     }
@@ -151,7 +151,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
   test("default data directory is restrictive and rejects symbolic-link components", async (t) => {
     const homeDirectory = await makeDirectory(t, "default-home");
     const selected = await resolveDataDirectory({ homeDirectory, platform: "darwin", arch: "arm64", environment: {} });
-    const expected = join(homeDirectory, ".dev-flow", "data");
+    const expected = join(homeDirectory, ".taskbelay", "data");
     assert.equal(selected.dataDirectory, expected);
     assert.equal(selected.usesDefaultDataDirectory, true);
 
@@ -162,7 +162,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
     const outside = await makeDirectory(t, "outside");
     await symlink(
       outside,
-      join(symlinkHome, ".dev-flow"),
+      join(symlinkHome, ".taskbelay"),
     );
     await assert.rejects(
       resolveDataDirectory({ homeDirectory: symlinkHome, platform: "darwin", arch: "arm64", environment: {} }),
@@ -175,7 +175,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
     const outside = await makeDirectory(t, "application-data-symlink-target");
     await symlink(
       outside,
-      join(homeDirectory, ".dev-flow"),
+      join(homeDirectory, ".taskbelay"),
     );
 
     await assert.rejects(
@@ -194,14 +194,14 @@ describe("macOS arm64 paths and POSIX runtime checks", {
     const homeDirectory = await makeDirectory(t, "explicit-precedence-home");
     const explicit = await makeDirectory(t, "explicit-precedence-data");
     const unusedDefaultTarget = await makeDirectory(t, "unused-default-target");
-    const productSupportRoot = join(homeDirectory, ".dev-flow");
+    const productSupportRoot = join(homeDirectory, ".taskbelay");
     await symlink(unusedDefaultTarget, productSupportRoot);
 
     const selected = await resolveDataDirectory({
       homeDirectory,
       platform: "darwin",
       arch: "arm64",
-      environment: { DEV_FLOW_DATA_DIR: explicit },
+      environment: { TASKBELAY_DATA_DIR: explicit },
     });
 
     assert.equal(selected.dataDirectory, explicit);
@@ -215,7 +215,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
     const homeDirectory = await makeDirectory(t, "parity-home");
     const explicit = await makeDirectory(t, "parity-explicit");
 
-    for (const environment of [{}, { DEV_FLOW_DATA_DIR: explicit }]) {
+    for (const environment of [{}, { TASKBELAY_DATA_DIR: explicit }]) {
       const deepseek = await resolveDataDirectory({ homeDirectory, platform: "darwin", arch: "arm64", environment });
       const codex = await resolveCodexProductPaths({
         packageRoot: packageDirectory,
@@ -236,7 +236,7 @@ describe("macOS arm64 paths and POSIX runtime checks", {
 });
 
 async function makeDirectory(t, name) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-paths-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-paths-")));
   const directory = join(root, name);
   await mkdir(directory, { recursive: true });
   t.after(async () => {
@@ -247,7 +247,7 @@ async function makeDirectory(t, name) {
 }
 
 async function writeFakeRuntime(path) {
-  await writeRuntimeOutput(path, `dev-flow ${currentVersion}`);
+  await writeRuntimeOutput(path, `taskbelay ${currentVersion}`);
 }
 
 async function writeRuntimeOutput(path, output) {

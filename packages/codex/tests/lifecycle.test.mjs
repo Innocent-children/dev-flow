@@ -189,13 +189,13 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
   await assert.rejects(stat(incompatible.paths.receiptPath), { code: "ENOENT" });
 
   const missingSkill = await makeSetupFixture(t, "missing-skill");
-  await writeFile(join(missingSkill.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"), "");
+  await writeFile(join(missingSkill.paths.pluginRoot, "skills", "taskbelay", "SKILL.md"), "");
   await assert.rejects(setupRegistration(missingSkill.options), /Skill.*non-empty/);
   await assert.rejects(stat(missingSkill.statePath), { code: "ENOENT" });
 
   const wrongSkillPolicy = await makeSetupFixture(t, "wrong-skill-policy");
   await writeFile(
-    join(wrongSkillPolicy.paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
+    join(wrongSkillPolicy.paths.pluginRoot, "skills", "taskbelay", "agents", "openai.yaml"),
     "policy:\n  allow_implicit_invocation: false\n",
   );
   await assert.rejects(setupRegistration(wrongSkillPolicy.options), /implicit Skill policy.*enable implicit invocation/);
@@ -203,27 +203,27 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
 
   const wrongSkillDescription = await makeSetupFixture(t, "wrong-skill-description");
   await writeFile(
-    join(wrongSkillDescription.paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    "---\nname: dev-flow\ndescription: \"\"\n---\n\nRead the routed interaction reference.\n",
+    join(wrongSkillDescription.paths.pluginRoot, "skills", "taskbelay", "SKILL.md"),
+    "---\nname: taskbelay\ndescription: \"\"\n---\n\nRead the routed interaction reference.\n",
   );
   await assert.rejects(setupRegistration(wrongSkillDescription.options), /non-empty description/);
   await assert.rejects(stat(wrongSkillDescription.statePath), { code: "ENOENT" });
 
   const wrongSkillName = await makeSetupFixture(t, "wrong-skill-name");
-  const invalidNamePath = join(wrongSkillName.paths.pluginRoot, "skills", "dev-flow", "SKILL.md");
-  await writeFile(invalidNamePath, (await readFile(invalidNamePath, "utf8")).replace("name: dev-flow", "name: different-skill"));
-  await assert.rejects(setupRegistration(wrongSkillName.options), /name dev-flow/);
+  const invalidNamePath = join(wrongSkillName.paths.pluginRoot, "skills", "taskbelay", "SKILL.md");
+  await writeFile(invalidNamePath, (await readFile(invalidNamePath, "utf8")).replace("name: taskbelay", "name: different-skill"));
+  await assert.rejects(setupRegistration(wrongSkillName.options), /name taskbelay/);
   await assert.rejects(stat(wrongSkillName.statePath), { code: "ENOENT" });
 
   const missingReference = await makeSetupFixture(t, "missing-skill-reference");
-  await rm(join(missingReference.paths.pluginRoot, "skills", "dev-flow", "references", "nodes", "test.md"));
+  await rm(join(missingReference.paths.pluginRoot, "skills", "taskbelay", "references", "nodes", "test.md"));
   await assert.rejects(setupRegistration(missingReference.options), /Skill reference must exist and be readable/);
   await assert.rejects(stat(missingReference.statePath), { code: "ENOENT" });
 
   const wrongMcp = await makeSetupFixture(t, "wrong-mcp-shape");
   await writeFile(
     join(wrongMcp.paths.pluginRoot, ".mcp.json"),
-    `${JSON.stringify({ mcpServers: { "dev-flow": { command: "dev-flow-codex", args: ["mcp"] } } })}\n`,
+    `${JSON.stringify({ mcpServers: { "taskbelay": { command: "taskbelay-codex", args: ["mcp"] } } })}\n`,
   );
   await assert.rejects(
     setupRegistration(wrongMcp.options),
@@ -233,13 +233,13 @@ test("setup preflights compatibility, resources, runtime, and PATH before regist
 
   const missingPath = await makeSetupFixture(t, "missing-path");
   missingPath.options.environment = { ...missingPath.environment, PATH: join(missingPath.root, "empty-bin") };
-  await assert.rejects(setupRegistration(missingPath.options), /dev-flow-codex.*PATH/);
+  await assert.rejects(setupRegistration(missingPath.options), /taskbelay-codex.*PATH/);
   await assert.rejects(stat(missingPath.statePath), { code: "ENOENT" });
 
   const wrongPath = await makeSetupFixture(t, "wrong-path");
   const wrongBin = join(wrongPath.root, "wrong-bin");
   await mkdir(wrongBin, { recursive: true });
-  await writeFile(join(wrongBin, "dev-flow-codex"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
+  await writeFile(join(wrongBin, "taskbelay-codex"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
   wrongPath.options.environment = { ...wrongPath.environment, PATH: wrongBin };
   await assert.rejects(setupRegistration(wrongPath.options), /does not resolve to this installed package/);
   await assert.rejects(stat(wrongPath.statePath), { code: "ENOENT" });
@@ -260,10 +260,10 @@ test("setup requires the data-directory environment variable in the MCP forwardi
     const fixture = await makeSetupFixture(t, envVars === undefined ? "missing-data-forwarding" : "empty-data-forwarding");
     const file = join(fixture.paths.pluginRoot, ".mcp.json");
     const configuration = JSON.parse(await readFile(file, "utf8"));
-    if (envVars === undefined) delete configuration.mcpServers["dev-flow"].env_vars;
-    else configuration.mcpServers["dev-flow"].env_vars = envVars;
+    if (envVars === undefined) delete configuration.mcpServers["taskbelay"].env_vars;
+    else configuration.mcpServers["taskbelay"].env_vars = envVars;
     await writeFile(file, JSON.stringify(configuration));
-    await assert.rejects(setupRegistration(fixture.options), /missing field env_vars|must forward exactly DEV_FLOW_DATA_DIR/);
+    await assert.rejects(setupRegistration(fixture.options), /missing field env_vars|must forward exactly TASKBELAY_DATA_DIR/);
     await assert.rejects(stat(fixture.statePath), { code: "ENOENT" });
   }
 });
@@ -301,8 +301,8 @@ test("setup rejects every mismatched public package identity before registration
 
 test("setup accepts CRLF packaged Skill resources without changing their evidence bytes", async (t) => {
   const fixture = await makeSetupFixture(t, "crlf-resources");
-  const skillPath = join(fixture.paths.pluginRoot, "skills", "dev-flow", "SKILL.md");
-  const metadataPath = join(fixture.paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml");
+  const skillPath = join(fixture.paths.pluginRoot, "skills", "taskbelay", "SKILL.md");
+  const metadataPath = join(fixture.paths.pluginRoot, "skills", "taskbelay", "agents", "openai.yaml");
   const skill = await readFile(skillPath, "utf8");
   const metadata = await readFile(metadataPath, "utf8");
   await writeFile(skillPath, skill.replace(/\r?\n/gu, "\r\n"), "utf8");
@@ -346,8 +346,8 @@ test("setup registers through exact JSON commands, verifies readback, and writes
   assert.equal(state.plugins.length, 1);
   assert.equal(state.marketplaces[0].root, fixture.paths.marketplaceRoot);
   assert.equal(state.marketplaces[0].marketplaceSource.source, fixture.paths.marketplaceRoot);
-  assert.equal(state.plugins[0].pluginId, "dev-flow-codex@dev-flow-local");
-  assert.equal(state.plugins[0].marketplaceName, "dev-flow-local");
+  assert.equal(state.plugins[0].pluginId, "taskbelay-codex@taskbelay-local");
+  assert.equal(state.plugins[0].marketplaceName, "taskbelay-local");
   assert.equal(state.plugins[0].source.path, fixture.paths.pluginRoot);
 
   const traces = await readTrace(fixture.tracePath);
@@ -358,7 +358,7 @@ test("setup registers through exact JSON commands, verifies readback, and writes
       ["plugin", "marketplace", "list", "--json"],
       ["plugin", "list", "--json"],
       ["plugin", "marketplace", "add", fixture.paths.marketplaceRoot, "--json"],
-      ["plugin", "add", "dev-flow-codex@dev-flow-local", "--json"],
+      ["plugin", "add", "taskbelay-codex@taskbelay-local", "--json"],
       ["plugin", "marketplace", "list", "--json"],
       ["plugin", "list", "--json"],
     ],
@@ -390,7 +390,7 @@ test("matching repeated setup is a no-op while receipt or readback conflicts fai
   await writeFile(
     orphan.statePath,
     `${JSON.stringify({
-      marketplaces: [marketplaceStateEntry("dev-flow-local", "/unexpected")],
+      marketplaces: [marketplaceStateEntry("taskbelay-local", "/unexpected")],
       plugins: [],
     })}\n`,
   );
@@ -398,7 +398,7 @@ test("matching repeated setup is a no-op while receipt or readback conflicts fai
   assert.equal(
     await readFile(orphan.statePath, "utf8"),
     `${JSON.stringify({
-      marketplaces: [marketplaceStateEntry("dev-flow-local", "/unexpected")],
+      marketplaces: [marketplaceStateEntry("taskbelay-local", "/unexpected")],
       plugins: [],
     })}\n`,
   );
@@ -466,7 +466,7 @@ test("setup rolls back only a marketplace created by the failing attempt", async
   const fixture = await makeSetupFixture(t, "rollback");
   fixture.options.environment = {
     ...fixture.environment,
-    FAKE_CODEX_FAIL: "add:dev-flow-codex@dev-flow-local",
+    FAKE_CODEX_FAIL: "add:taskbelay-codex@taskbelay-local",
   };
 
   await assert.rejects(setupRegistration(fixture.options), /Codex command failed/);
@@ -475,7 +475,7 @@ test("setup rolls back only a marketplace created by the failing attempt", async
   assert.deepEqual(state.plugins, []);
   await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
   const calls = (await readTrace(fixture.tracePath)).map((entry) => entry.argv.join(" "));
-  assert.equal(calls.includes("plugin marketplace remove dev-flow-local --json"), true);
+  assert.equal(calls.includes("plugin marketplace remove taskbelay-local --json"), true);
 });
 
 test("setup does not roll back a marketplace concurrently added by another owner", async (t) => {
@@ -518,7 +518,7 @@ child.once("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
   assert.deepEqual(state.plugins, []);
   await assert.rejects(stat(fixture.paths.receiptPath), { code: "ENOENT" });
   const calls = (await readTrace(fixture.tracePath)).map((entry) => entry.argv.join(" "));
-  assert.equal(calls.includes("plugin marketplace remove dev-flow-local --json"), false);
+  assert.equal(calls.includes("plugin marketplace remove taskbelay-local --json"), false);
 });
 
 test("setup update and remove preserve Task and ordinary user data manifests", async (t) => {
@@ -559,12 +559,12 @@ test("local npm uninstall removes only package-managed files and retains user da
         "install", "--prefix", installPrefix, join(repositoryRoot, "packages", "codex"),
         "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false",
       ], { encoding: "utf8", env: process.env });
-      const installedPackage = join(installPrefix, "node_modules", "dev-flow-codex");
+      const installedPackage = join(installPrefix, "node_modules", "taskbelay-codex");
       assert.equal((await stat(installedPackage)).isDirectory(), true);
 
       const beforeUninstall = await lifecycleDataManifest(dataDirectory);
       await execPortableCommand("npm", [
-        "uninstall", "--prefix", installPrefix, "dev-flow-codex",
+        "uninstall", "--prefix", installPrefix, "taskbelay-codex",
         "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false",
       ], { encoding: "utf8", env: process.env });
       await assert.rejects(stat(installedPackage), { code: "ENOENT" });
@@ -585,7 +585,7 @@ test("removal deletes only matching registration and the exact receipt", async (
   await mkdir(fixture.paths.dataDirectory, { recursive: true });
   await mkdir(codexCache, { recursive: true });
   await writeFile(join(repository, "README.md"), "preserve repository\n");
-  await writeFile(join(fixture.paths.dataDirectory, "dev-flow.db"), "preserve task data\n");
+  await writeFile(join(fixture.paths.dataDirectory, "taskbelay.db"), "preserve task data\n");
   await writeFile(join(codexCache, "cache.db"), "preserve Codex cache\n");
   await writeFile(adjacentReceiptFile, "preserve adjacent receipt data\n");
   await mkdir(dirname(provisioningReceipt), { recursive: true });
@@ -655,7 +655,7 @@ test("removal treats complete absence as a no-op and conflicts without a receipt
   const orphan = await makeSetupFixture(t, "remove-orphan");
   await mkdir(dirname(orphan.statePath), { recursive: true });
   const orphanState = {
-    marketplaces: [marketplaceStateEntry("dev-flow-local", orphan.paths.marketplaceRoot)],
+    marketplaces: [marketplaceStateEntry("taskbelay-local", orphan.paths.marketplaceRoot)],
     plugins: [],
   };
   await writeFile(orphan.statePath, `${JSON.stringify(orphanState)}\n`);
@@ -744,7 +744,7 @@ test("removal rejects a symbolic-link receipt parent before mutating Codex state
 
 async function makeRoot(t) {
   const { mkdtemp } = await import("node:fs/promises");
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-lifecycle-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-lifecycle-")));
   t.after(async () => {
     await rm(root, { recursive: true, force: true });
   });
@@ -758,8 +758,8 @@ async function makeSetupFixture(t, name) {
   const fixturePlatform = process.platform === "win32" ? "win32" : "darwin";
   const fixtureArch = process.platform === "win32" ? "x64" : "arm64";
   const runtimeKey = `${fixturePlatform}-${fixtureArch}`;
-  const runtimePath = join(packageRoot, "runtime", runtimeKey, fixturePlatform === "win32" ? "dev-flow.exe" : "dev-flow");
-  const productSupportRoot = join(root, "home", "Library", "Application Support", "dev-flow");
+  const runtimePath = join(packageRoot, "runtime", runtimeKey, fixturePlatform === "win32" ? "taskbelay.exe" : "taskbelay");
+  const productSupportRoot = join(root, "home", "Library", "Application Support", "taskbelay");
   const receiptPath = join(productSupportRoot, "registrations", "codex.json");
   const dataDirectory = join(productSupportRoot, "data");
   const hostBin = join(root, "host-bin");
@@ -768,7 +768,7 @@ async function makeSetupFixture(t, name) {
   await mkdir(join(packageRoot, ".agents", "plugins"), { recursive: true });
   await mkdir(join(pluginRoot, ".codex-plugin"), { recursive: true });
   await mkdir(join(pluginRoot, "hooks"), { recursive: true });
-  await mkdir(join(pluginRoot, "skills", "dev-flow", "agents"), { recursive: true });
+  await mkdir(join(pluginRoot, "skills", "taskbelay", "agents"), { recursive: true });
   await mkdir(join(packageRoot, "bin"), { recursive: true });
   await mkdir(dirname(runtimePath), { recursive: true });
   await mkdir(hostBin, { recursive: true });
@@ -779,9 +779,9 @@ async function makeSetupFixture(t, name) {
   await writeFile(
     join(packageRoot, ".agents", "plugins", "marketplace.json"),
     `${JSON.stringify({
-      name: "dev-flow-local",
+      name: "taskbelay-local",
       plugins: [{
-        name: "dev-flow-codex",
+        name: "taskbelay-codex",
         source: { source: "local", path: "./plugin" },
       }],
     })}\n`,
@@ -789,7 +789,7 @@ async function makeSetupFixture(t, name) {
   await writeFile(
     join(pluginRoot, ".codex-plugin", "plugin.json"),
     `${JSON.stringify({
-      name: "dev-flow-codex",
+      name: "taskbelay-codex",
       version: "0.1.0",
       description: "fixture",
       skills: "./skills/",
@@ -802,37 +802,37 @@ async function makeSetupFixture(t, name) {
     `${JSON.stringify({
       $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
       mcpServers: {
-        "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"], env_vars: ["DEV_FLOW_DATA_DIR"] },
+        "taskbelay": { type: "stdio", command: "taskbelay-codex", args: ["mcp"], env_vars: ["TASKBELAY_DATA_DIR"] },
       },
     })}\n`,
   );
   await writeFile(
     join(pluginRoot, "hooks", "hooks.json"),
-    `${JSON.stringify({ hooks: { PreToolUse: [{ matcher: "^apply_patch$", hooks: [{ type: "command", command: "dev-flow-codex hook pre-tool-use" }] }] } })}\n`,
+    `${JSON.stringify({ hooks: { PreToolUse: [{ matcher: "^apply_patch$", hooks: [{ type: "command", command: "taskbelay-codex hook pre-tool-use" }] }] } })}\n`,
   );
   await writeFile(join(pluginRoot, "hooks", "pre-tool-use.mjs"), "export {};\n");
   await writeFile(
-    join(pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    await readFile(join(repositoryRoot, "packages", "codex", "plugin", "skills", "dev-flow", "SKILL.md"), "utf8"),
+    join(pluginRoot, "skills", "taskbelay", "SKILL.md"),
+    await readFile(join(repositoryRoot, "packages", "codex", "plugin", "skills", "taskbelay", "SKILL.md"), "utf8"),
   );
   await cp(
-    join(repositoryRoot, "packages", "codex", "plugin", "skills", "dev-flow", "references"),
-    join(pluginRoot, "skills", "dev-flow", "references"),
+    join(repositoryRoot, "packages", "codex", "plugin", "skills", "taskbelay", "references"),
+    join(pluginRoot, "skills", "taskbelay", "references"),
     { recursive: true },
   );
   await writeFile(
-    join(pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
+    join(pluginRoot, "skills", "taskbelay", "agents", "openai.yaml"),
     "policy:\n  allow_implicit_invocation: true\n",
   );
   await writeFakeCore(runtimePath, packageRoot, "0.1.0");
-  const packageLauncher = join(packageRoot, "bin", "dev-flow-codex.mjs");
+  const packageLauncher = join(packageRoot, "bin", "taskbelay-codex.mjs");
   await writeFile(packageLauncher, "#!/usr/bin/env node\nprocess.exitCode = 0;\n", { mode: 0o700 });
   if (process.platform === "win32") {
-    await writeFile(join(hostBin, "dev-flow-codex.ps1"), "exit 0\n");
+    await writeFile(join(hostBin, "taskbelay-codex.ps1"), "exit 0\n");
     await mkdir(join(hostBin, "node_modules"), { recursive: true });
-    await symlink(packageRoot, join(hostBin, "node_modules", "dev-flow-codex"), "junction");
+    await symlink(packageRoot, join(hostBin, "node_modules", "taskbelay-codex"), "junction");
   } else {
-    await symlink(packageLauncher, join(hostBin, "dev-flow-codex"));
+    await symlink(packageLauncher, join(hostBin, "taskbelay-codex"));
   }
 
   const paths = {
@@ -898,21 +898,21 @@ async function writeFakeCore(runtimePath, workingDirectory, version, { createRun
     }
     await writeFile(
       join(workingDirectory, "version"),
-      `process.stdout.write('dev-flow ${version}\\n');\n`,
+      `process.stdout.write('taskbelay ${version}\\n');\n`,
       "utf8",
     );
     return;
   }
   await writeFile(
     runtimePath,
-    `#!/usr/bin/env node\nprocess.stdout.write('dev-flow ${version}\\n');\n`,
+    `#!/usr/bin/env node\nprocess.stdout.write('taskbelay ${version}\\n');\n`,
     { mode: 0o700 },
   );
 }
 
 function publicPackageManifestFixture() {
   return {
-    name: "dev-flow-codex",
+    name: "taskbelay-codex",
     version: "0.1.0",
     private: false,
     license: "Apache-2.0",
@@ -955,7 +955,7 @@ async function createLifecycleDataFixture(dataDirectory, kind) {
     return;
   }
 
-  const database = new DatabaseSync(join(dataDirectory, "dev-flow.db"));
+  const database = new DatabaseSync(join(dataDirectory, "taskbelay.db"));
   database.exec(`
     CREATE TABLE records(record_id TEXT PRIMARY KEY, value TEXT NOT NULL);
     INSERT INTO records VALUES('user-record', 'preserve');
@@ -987,7 +987,7 @@ async function lifecycleDataManifest(dataDirectory) {
   }
   await visit(dataDirectory);
 
-  const databasePath = join(dataDirectory, "dev-flow.db");
+  const databasePath = join(dataDirectory, "taskbelay.db");
   let database = null;
   try {
     await stat(databasePath);
@@ -1017,22 +1017,22 @@ function manifestSQLiteValue(value) {
 function validReceipt(root, { receiptPath = join(root, "registrations", "codex.json") } = {}) {
   return {
     product: {
-      name: "dev-flow-codex",
+      name: "taskbelay-codex",
       version: "0.1.0",
       core_version: "0.1.0",
       codex_compatibility: CODEX_COMPATIBILITY_RANGE,
     },
     host: { surface: "codex-cli", version: "0.147.0", os: "darwin", arch: "arm64" },
     registration: {
-      marketplace_name: "dev-flow-local",
+      marketplace_name: "taskbelay-local",
       marketplace_root: root,
-      plugin_name: "dev-flow-codex",
-      plugin_selector: "dev-flow-codex@dev-flow-local",
+      plugin_name: "taskbelay-codex",
+      plugin_selector: "taskbelay-codex@taskbelay-local",
       plugin_root: join(root, "plugin"),
     },
     paths: {
       package_root: root,
-      runtime_path: join(root, "runtime", "darwin-arm64", "dev-flow"),
+      runtime_path: join(root, "runtime", "darwin-arm64", "taskbelay"),
       data_dir: join(root, "data"),
       receipt_path: receiptPath,
     },

@@ -111,7 +111,7 @@ test("resume rejects changed bytes and another product before dispatching any re
   await runHostReleaseCommand(fixture.options);
   const calls = fixture.calls.length;
   await assert.rejects(runHostReleaseCommand({ ...fixture.options, product: "zcode", confirmation: "zcode-v0.1.0" }), /manifest identity mismatch/);
-  await writeFile(join(fixture.output, "dev-flow-claude-0.1.0.tgz"), "changed bytes");
+  await writeFile(join(fixture.output, "taskbelay-claude-0.1.0.tgz"), "changed bytes");
   await assert.rejects(runHostReleaseCommand(fixture.options), /differs from recorded digest/);
   assert.equal(fixture.calls.length, calls);
 });
@@ -127,7 +127,7 @@ test("source and version guards stop before version changes or builds", async t 
 });
 
 async function makeFixture(t, product, { channel = "stable", targetVersion = "0.1.0", failPublish = false, failChecks = false } = {}) {
-  const temporary = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-host-release-")));
+  const temporary = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-host-release-")));
   t.after(() => rm(temporary, { recursive: true, force: true }));
   const root = join(temporary, "source"), remote = join(temporary, "remote.git"), output = join(temporary, "output");
   await mkdir(root);
@@ -139,9 +139,9 @@ async function makeFixture(t, product, { channel = "stable", targetVersion = "0.
   await runGit(root, ["config", "commit.gpgsign", "false"]);
   for (const host of hosts) {
     for (const path of hostVersionPaths(host)) {
-      const manifest = { name: `dev-flow-${host}`, version: "0.1.0" };
+      const manifest = { name: `taskbelay-${host}`, version: "0.1.0" };
       await writeJSON(join(root, path), path.endsWith("/marketplace.json")
-        ? { name: "dev-flow-zcode-local", plugins: [manifest] } : manifest);
+        ? { name: "taskbelay-zcode-local", plugins: [manifest] } : manifest);
     }
   }
   await writeFile(join(root, "CORE_VERSION"), `${coreVersion}\n`);
@@ -159,7 +159,7 @@ async function makeFixture(t, product, { channel = "stable", targetVersion = "0.
     runProcess: async (executable, args, options) => {
       assert.equal(executable, process.execPath);
       assert.equal(options.cwd, root);
-      assert.equal(options.env.DEV_FLOW_RELEASE_CHANNEL, channel);
+      assert.equal(options.env.TASKBELAY_RELEASE_CHANNEL, channel);
       if (args[0] === "--test") {
         fixture.calls.push({ kind: "checks", head: await runGit(root, ["rev-parse", "HEAD"]) });
         assert.ok(args.includes(`packages/${product}/tests/${["codex", "deepseek"].includes(product) ? "package-contract" : "package"}.test.mjs`));
@@ -168,7 +168,7 @@ async function makeFixture(t, product, { channel = "stable", targetVersion = "0.
         assert.deepEqual(args.slice(1), ["--product", product, "--output", output]);
         fixture.calls.push({ kind: "build", version: await readHostVersion(root, product) });
         const coreRoot = join(temporary, "tar", "package/runtime");
-        for (const [runtime, binary] of [["darwin-arm64", "dev-flow"], ["win32-x64", "dev-flow.exe"]]) {
+        for (const [runtime, binary] of [["darwin-arm64", "taskbelay"], ["win32-x64", "taskbelay.exe"]]) {
           await mkdir(join(coreRoot, runtime), { recursive: true });
           await writeFile(join(coreRoot, runtime, binary), `fixture ${runtime}`);
         }

@@ -11,6 +11,6 @@ test("bundle patch inserts exactly the DeepSeek integration plugin row", async (
 
   assert.equal(
     patch,
-    "- insert:\n    - id: dev-flow-deepseek\n      name: dev-flow-deepseek\n",
+    "- insert:\n    - id: taskbelay-deepseek\n      name: taskbelay-deepseek\n",
   );
 });

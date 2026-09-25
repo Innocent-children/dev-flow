@@ -3,9 +3,9 @@ import { dirname, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { execPortableCommand } from "./command.mjs";
 import { paths, core } from "./runtime.mjs";
-export const pluginID = "dev-flow-claude@dev-flow-claude-local";
+export const pluginID = "taskbelay-claude@taskbelay-claude-local";
 export const minimumClaudeVersion = "2.1.270";
-const market = "dev-flow-claude-local";
+const market = "taskbelay-claude-local";
 export async function runClaude(args, options = {}) {
   return (await (options.exec ?? execPortableCommand)(options.claudeExecutable ?? "claude", args, { env: options.environment ?? process.env, windowsHide: true, maxBuffer: 8 * 1024 * 1024, timeout: 30000 })).stdout;
 }
@@ -23,7 +23,7 @@ async function observe(options) {
   if (matching.length > 1 || matching.some(v => v.source !== "directory" || typeof v.path !== "string" || resolve(v.path) !== p.packageRoot)) throw new Error("Claude marketplace name belongs to another source");
   let receipt = null;
   try { receipt = JSON.parse(await readFile(p.receiptPath, "utf8")); } catch (e) { if (e.code !== "ENOENT") throw e; }
-  if (receipt && (receipt.product?.name !== "dev-flow-claude" || resolve(receipt.paths?.package_root || "") !== p.packageRoot || resolve(receipt.paths?.config_root || "") !== p.configRoot)) throw new Error("Claude registration belongs to another package/configuration directory");
+  if (receipt && (receipt.product?.name !== "taskbelay-claude" || resolve(receipt.paths?.package_root || "") !== p.packageRoot || resolve(receipt.paths?.config_root || "") !== p.configRoot)) throw new Error("Claude registration belongs to another package/configuration directory");
   return { p, plugins, marketplace: matching[0], installed: plugins.find(v => v.id === pluginID && v.scope === "user"), receipt };
 }
 async function identity(options) {
@@ -51,7 +51,7 @@ export async function setup(options = {}) {
   if (!marketplace) await runClaude(["plugin", "marketplace", "add", p.packageRoot], options);
   if (installed) await mutate(["plugin", "uninstall", pluginID, "--scope", "user"], options);
   await mutate(["plugin", "install", pluginID, "--scope", "user"], options);
-  const next = { product: { name: "dev-flow-claude", version: manifest.version, core_version: version }, host: { surface: "claude-cli", version: hostVersion, os: process.platform, arch: process.arch }, paths: { package_root: p.packageRoot, runtime_path: p.runtimePath, data_dir: p.dataDirectory, receipt_path: p.receiptPath, config_root: p.configRoot } };
+  const next = { product: { name: "taskbelay-claude", version: manifest.version, core_version: version }, host: { surface: "claude-cli", version: hostVersion, os: process.platform, arch: process.arch }, paths: { package_root: p.packageRoot, runtime_path: p.runtimePath, data_dir: p.dataDirectory, receipt_path: p.receiptPath, config_root: p.configRoot } };
   await mkdir(dirname(p.receiptPath), { recursive: true, mode: 0o700 });
   const temp = p.receiptPath + "." + randomUUID() + ".tmp";
   await writeFile(temp, JSON.stringify(next) + "\n", { mode: 0o600, flag: "wx" }); await rename(temp, p.receiptPath);

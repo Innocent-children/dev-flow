@@ -7,14 +7,14 @@ const { app } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const assert = require("node:assert/strict");
-const root = process.env.DEV_FLOW_PET_NATIVE_OUTPUT;
-const request = JSON.parse(process.env.DEV_FLOW_PET_NATIVE_REQUEST);
+const root = process.env.TASKBELAY_PET_NATIVE_OUTPUT;
+const request = JSON.parse(process.env.TASKBELAY_PET_NATIVE_REQUEST);
 app.setPath("userData", path.join(root, "electron-profile"));
 app
   .whenReady()
   .then(async () => {
     const { createDesktop } = require(
-      path.join(process.env.DEV_FLOW_PET_APP_ROOT, "main.cjs"),
+      path.join(process.env.TASKBELAY_PET_APP_ROOT, "main.cjs"),
     );
     const desktop = await createDesktop(request);
     desktop.win.webContents.on("console-message", (_event, level, message) => {

@@ -36,7 +36,7 @@ export async function assertSkillResources({ skillRoot, packageRoot, repositoryR
     for (const block of markdown.matchAll(/```json\n([\s\S]*?)\n```/gu)) {
       const value = JSON.parse(block[1]);
       const coreRequest = value?.host !== undefined && value?.task_id !== undefined;
-      const coreResponse = typeof value?.tool === "string" && value.tool.startsWith("dev_flow_");
+      const coreResponse = typeof value?.tool === "string" && value.tool.startsWith("taskbelay_");
       if (coreRequest || coreResponse) {
         const preceding = markdown.slice(0, block.index);
         assert.match(preceding, /<!-- example:[a-z-]+ [a-z_-]+ [a-z_-]+ -->\n$/u,

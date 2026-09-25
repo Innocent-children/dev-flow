@@ -10,8 +10,8 @@ macOS Codex App end-to-end test records the exact events accepted by `native-run
 that result only with explicit inputs:
 
 ```bash
-DEV_FLOW_CODEX_NATIVE_CONFIRM=worktree-first-native \
-DEV_FLOW_CODEX_NATIVE_EVIDENCE=/absolute/path/to/native-evidence.json \
+TASKBELAY_CODEX_NATIVE_CONFIRM=worktree-first-native \
+TASKBELAY_CODEX_NATIVE_EVIDENCE=/absolute/path/to/native-evidence.json \
 node tests/journeys/codex/native-runner.mjs
 ```
 

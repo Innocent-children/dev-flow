@@ -2,7 +2,7 @@
 
 [中文](README.md) | [English](README_en.md)
 
-`internal/` contains the Host-independent Dev Flow Go Core. It manages Tasks, the state graph, MCP,
+`internal/` contains the Host-independent TaskBelay Go Core. It manages Tasks, the state graph, MCP,
 SQLite, Recovery, and read-only Git observation. Codex, DeepSeek, Claude Code and ZCode packages use the same Core to
 provide consistent process behavior.
 
@@ -42,7 +42,7 @@ different worktrees in one group may each run a Task while one instance holds on
 ## Runtime structure
 
 ```text
-cmd/dev-flow
+cmd/taskbelay
     ├── internal/mcp
     └── internal/webui ── embedded React assets
     ↓

@@ -1,6 +1,6 @@
 package workflow
 
-import "github.com/Innocent-children/dev-flow/internal/domain"
+import "github.com/Innocent-children/taskbelay/internal/domain"
 
 func PrimaryArtifactRoleForNode(node domain.NodeID) (domain.ArtifactRole, bool) {
 	switch node {

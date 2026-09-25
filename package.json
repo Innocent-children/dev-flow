@@ -1,9 +1,9 @@
 {
-  "name": "dev-flow",
+  "name": "taskbelay",
   "private": true,
   "scripts": {
     "build:webui": "node ./scripts/build-webui.mjs",
-    "dev-flow:local": "node ./scripts/dev-flow-local.mjs",
+    "taskbelay:local": "node ./scripts/taskbelay-local.mjs",
     "validate": "./scripts/validate-repository.sh",
     "validate:contracts": "go test ./tests/contract",
     "versions:check": "node ./scripts/check-versions.mjs",
@@ -16,7 +16,7 @@
     "release:zcode": "node ./scripts/release-zcode.mjs",
     "release:zcode:prepare": "node ./scripts/build-host-release.mjs --product zcode",
     "release:publish": "node ./release/publish.mjs",
-    "release:dev-flow": "node ./scripts/release-dev-flow.mjs"
+    "release:taskbelay": "node ./scripts/release-taskbelay.mjs"
   },
   "engines": {
     "node": ">=24",

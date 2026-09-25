@@ -20,24 +20,24 @@ import { containedPath } from "./paths.mjs";
 import { SUPPORTED_RUNTIME_KEYS, ensureCodexPetInstalled, registrationPolicy } from "./platform.mjs";
 
 export const CODEX_COMPATIBILITY_RANGE = ">=0.147.0";
-export const MARKETPLACE_NAME = "dev-flow-local";
-export const PLUGIN_NAME = "dev-flow-codex";
+export const MARKETPLACE_NAME = "taskbelay-local";
+export const PLUGIN_NAME = "taskbelay-codex";
 export const PLUGIN_SELECTOR = `${PLUGIN_NAME}@${MARKETPLACE_NAME}`;
 
 const MCP_SCHEMA_URI = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
 const IMPLICIT_SKILL_POLICY = "policy:\n  allow_implicit_invocation: true";
 
 export const CODEX_MCP_INSTRUCTIONS = [
-  "Display requirements, design, work items, expected files and verification before implementation. Save the complete draft with tasks_plan_saved; obtain an explicit user verdict for the saved digests and plan revision before tasks_ready. Waiting stays in TASKS. A revised or expanded plan needs fresh confirmation. The workspace and Dev Flow choices do not approve an unseen plan. prepare requires the full assessment and user_choice and retains them in receipt.admission. Every new user development request, including `$dev-flow-codex:dev-flow` and a parallel batch, receives a read-only suitability assessment and explicit user choice before any Dev Flow Core call, receipt, fetch, branch, worktree, or child dispatch; only explicit Task resume or a receipt-backed confirmed bootstrap bypasses duplicate assessment.",
+  "Display requirements, design, work items, expected files and verification before implementation. Save the complete draft with tasks_plan_saved; obtain an explicit user verdict for the saved digests and plan revision before tasks_ready. Waiting stays in TASKS. A revised or expanded plan needs fresh confirmation. The workspace and TaskBelay choices do not approve an unseen plan. prepare requires the full assessment and user_choice and retains them in receipt.admission. Every new user development request, including `$taskbelay-codex:taskbelay` and a parallel batch, receives a read-only suitability assessment and explicit user choice before any TaskBelay Core call, receipt, fetch, branch, worktree, or child dispatch; only explicit Task resume or a receipt-backed confirmed bootstrap bypasses duplicate assessment.",
   "Bind assessment to the request, canonical repository roots, HEADs, and status digests; an anchor change requires reassessment.",
-  "A direct choice creates no Dev Flow state. A Dev Flow choice defaults to workspace_mode=new_branch in the current directory from its current HEAD. Explicit alternatives are current_branch and dedicated_worktree. Display the actual roots, current branches and initial changes; obtain only missing target-branch and carry_changes decisions. Dedicated worktrees additionally select local/remote source and base. Reuse valid choices.",
-  "After confirmation, use the packaged host-launch receipt helpers, local resolution or remote fetch, and frozen base commit; read dev-flow-codex host-launch <operation> --help for input Schemas and use host-launch scope to assemble all provisioned repositories. Current-session launches use handoff_file=null and local-provision after Core checks workspace availability; retain the directory, index and ignored content and open Core in the same session after scope. Dedicated worktrees copy staged, unstaged and non-ignored untracked content only for local carry_changes=true, preserving the source checkout.",
+  "A direct choice creates no TaskBelay state. A TaskBelay choice defaults to workspace_mode=new_branch in the current directory from its current HEAD. Explicit alternatives are current_branch and dedicated_worktree. Display the actual roots, current branches and initial changes; obtain only missing target-branch and carry_changes decisions. Dedicated worktrees additionally select local/remote source and base. Reuse valid choices.",
+  "After confirmation, use the packaged host-launch receipt helpers, local resolution or remote fetch, and frozen base commit; read taskbelay-codex host-launch <operation> --help for input Schemas and use host-launch scope to assemble all provisioned repositories. Current-session launches use handoff_file=null and local-provision after Core checks workspace availability; retain the directory, index and ignored content and open Core in the same session after scope. Dedicated worktrees copy staged, unstaged and non-ignored untracked content only for local carry_changes=true, preserving the source checkout.",
   "Managed Codex task creation starts exactly once from the frozen base_commit with target.environment.type=worktree and no onMissing fallback; queued, clientThreadId, timeout, or uncertain results are read from the receipt and Host state without redispatch.",
   "dispatch-start persists the complete host_request; dispatch-call grants one creation call. Parse complete stdout files rather than displayed output. dispatch-recover requires confirmed non-invocation and a stopped caller; dispatch-reconcile matches actual Host task initial prompts after an unknown result, never granting another creation.",
-  "The child verifies the frozen HEAD and dedicated worktree, creates the confirmed target branch and applies the saved snapshot if selected, and only then performs dev_flow_server_info followed by dev_flow_open_task with receipt-backed workspace_origin.",
+  "The child verifies the frozen HEAD and dedicated worktree, creates the confirmed target branch and applies the saved snapshot if selected, and only then performs taskbelay_server_info followed by taskbelay_open_task with receipt-backed workspace_origin.",
   "ACTIVE_TASK_CONFLICT is a safe stop and never authorizes relocation or replacement dispatch.",
   "Core computes repository file effects from Git; Host node results carry semantic facts only.",
-  "Relocation requires dev_flow_prepare_task_relocation followed by one coordinator-owned Host Handoff and exact blocker resolution; an uncertain Handoff is inspected and never repeated.",
+  "Relocation requires taskbelay_prepare_task_relocation followed by one coordinator-owned Host Handoff and exact blocker resolution; an uncertain Handoff is inspected and never repeated.",
   "Relocation resolution uses relocation_id plus relocation_destinations entries; workspace-history resolution uses history_resolution with accept_current_history and a reason.",
   "DONE and CANCELLED release claims without deleting a worktree or branch. Local Tasks retain their directory and branch and do not support workspace handoff or cleanup; dedicated managed cleanup stays Host-owned and worktree/branch deletion require separate user authorization.",
   "Discover candidate repositories from the user request and applicable AGENTS.md project-index instructions, then confirm every repository before provisioning; keep the resulting Task Scope fixed and preserve Codex permissions.",
@@ -105,7 +105,7 @@ export async function inspectCoreVersion(
   } catch (error) {
     throw new Error("packaged Core version preflight failed", { cause: error });
   }
-  const match = /^dev-flow (\S+)\n?$/.exec(stdout);
+  const match = /^taskbelay (\S+)\n?$/.exec(stdout);
   if (!match) throw new Error("packaged Core returned an invalid version line");
   parseSemver(match[1], "packaged Core version");
   return match[1];
@@ -353,12 +353,12 @@ async function preflightSetup({ paths, packageVersion, codexExecutable, environm
   parseSemver(packageVersion, "package version");
   await assertPackageResources(paths, packageVersion);
   const launcherPath = await assertExecutableOnPath(
-    "dev-flow-codex",
+    "taskbelay-codex",
     environment,
     paths.platform,
     paths.requireExecutableMode,
   );
-  const expectedLauncherPath = join(paths.packageRoot, "bin", "dev-flow-codex.mjs");
+  const expectedLauncherPath = join(paths.packageRoot, "bin", "taskbelay-codex.mjs");
   let launcherOwnedByPackage;
   try {
     launcherOwnedByPackage = await commandResolvesToPackage(launcherPath, expectedLauncherPath, {
@@ -366,10 +366,10 @@ async function preflightSetup({ paths, packageVersion, codexExecutable, environm
       packageName: PLUGIN_NAME,
     });
   } catch (error) {
-    throw new Error("resolve the package-owned dev-flow-codex launcher on PATH", { cause: error });
+    throw new Error("resolve the package-owned taskbelay-codex launcher on PATH", { cause: error });
   }
   if (!launcherOwnedByPackage) {
-    throw new Error("dev-flow-codex on PATH does not resolve to this installed package");
+    throw new Error("taskbelay-codex on PATH does not resolve to this installed package");
   }
   const coreVersion = await inspectCoreVersion(paths.runtimePath, {
     environment,
@@ -436,7 +436,7 @@ async function assertPackageResources(paths, packageVersion) {
     "marketplace catalog",
   );
   if (marketplace.name !== MARKETPLACE_NAME || !Array.isArray(marketplace.plugins) || marketplace.plugins.length !== 1) {
-    throw new Error("marketplace catalog must contain exactly the Dev Flow marketplace entry");
+    throw new Error("marketplace catalog must contain exactly the TaskBelay marketplace entry");
   }
   const marketplacePlugin = marketplace.plugins[0];
   if (
@@ -479,69 +479,69 @@ async function assertPackageResources(paths, packageVersion) {
   if (!Array.isArray(preToolUse) || preToolUse.length !== 1 || preToolUse[0]?.matcher !== "^apply_patch$" ||
       !Array.isArray(preToolUse[0]?.hooks) || preToolUse[0].hooks.length !== 1 ||
       preToolUse[0].hooks[0]?.type !== "command" ||
-      preToolUse[0].hooks[0]?.command !== "dev-flow-codex hook pre-tool-use") {
+      preToolUse[0].hooks[0]?.command !== "taskbelay-codex hook pre-tool-use") {
     throw new Error("Plugin PreToolUse hook does not match the fixed apply_patch scope check");
   }
   await assertReadableFile(join(paths.pluginRoot, "hooks", "pre-tool-use.mjs"), "Plugin PreToolUse hook");
   assertObject(mcpConfiguration.mcpServers, "MCP servers");
-  assertExactKeys(mcpConfiguration.mcpServers, ["dev-flow"], "MCP servers");
-  const server = mcpConfiguration.mcpServers["dev-flow"];
-  assertObject(server, "Dev Flow MCP server");
-  assertExactKeys(server, ["type", "command", "args", "env_vars"], "Dev Flow MCP server");
+  assertExactKeys(mcpConfiguration.mcpServers, ["taskbelay"], "MCP servers");
+  const server = mcpConfiguration.mcpServers["taskbelay"];
+  assertObject(server, "TaskBelay MCP server");
+  assertExactKeys(server, ["type", "command", "args", "env_vars"], "TaskBelay MCP server");
   if (
     server.type !== "stdio" ||
-    server.command !== "dev-flow-codex" ||
+    server.command !== "taskbelay-codex" ||
     stableJSON(server.args) !== stableJSON(["mcp"])
   ) {
-    throw new Error("Dev Flow MCP server must invoke exactly dev-flow-codex mcp");
+    throw new Error("TaskBelay MCP server must invoke exactly taskbelay-codex mcp");
   }
-  if (stableJSON(server.env_vars) !== stableJSON(["DEV_FLOW_DATA_DIR"])) {
-    throw new Error("Dev Flow MCP server must forward exactly DEV_FLOW_DATA_DIR");
+  if (stableJSON(server.env_vars) !== stableJSON(["TASKBELAY_DATA_DIR"])) {
+    throw new Error("TaskBelay MCP server must forward exactly TASKBELAY_DATA_DIR");
   }
 
-  const skillPath = join(paths.pluginRoot, "skills", "dev-flow", "SKILL.md");
+  const skillPath = join(paths.pluginRoot, "skills", "taskbelay", "SKILL.md");
   let skill;
   try {
     skill = await readFile(skillPath, "utf8");
   } catch (error) {
-    throw new Error("Dev Flow Skill is unavailable", { cause: error });
+    throw new Error("TaskBelay Skill is unavailable", { cause: error });
   }
-  if (skill.trim() === "") throw new Error("Dev Flow Skill must be non-empty");
+  if (skill.trim() === "") throw new Error("TaskBelay Skill must be non-empty");
   const normalizedSkill = skill.replace(/\r\n?/gu, "\n");
   const skillFrontmatter = normalizedSkill.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
   if (/^allow_implicit_invocation\s*:/m.test(skillFrontmatter)) {
-    throw new Error("Dev Flow Skill frontmatter must not carry Codex invocation policy");
+    throw new Error("TaskBelay Skill frontmatter must not carry Codex invocation policy");
   }
   const skillDescription = skillFrontmatter.match(/^description:\s*"([^"]+)"$/m)?.[1] ?? "";
-  if (!/^name:\s*dev-flow\s*$/m.test(skillFrontmatter) || skillDescription.trim() === "") {
-    throw new Error("Dev Flow Skill must have name dev-flow and a non-empty description");
+  if (!/^name:\s*taskbelay\s*$/m.test(skillFrontmatter) || skillDescription.trim() === "") {
+    throw new Error("TaskBelay Skill must have name taskbelay and a non-empty description");
   }
   await assertSkillReferences(dirname(skillPath), skillPath, normalizedSkill);
 
   let skillMetadata;
   try {
     skillMetadata = await readFile(
-      join(paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
+      join(paths.pluginRoot, "skills", "taskbelay", "agents", "openai.yaml"),
       "utf8",
     );
   } catch (error) {
-    throw new Error("Dev Flow implicit Skill policy is unavailable", { cause: error });
+    throw new Error("TaskBelay implicit Skill policy is unavailable", { cause: error });
   }
   if (skillMetadata.replace(/\r\n?/gu, "\n").trim() !== IMPLICIT_SKILL_POLICY) {
-    throw new Error("Dev Flow implicit Skill policy must enable implicit invocation");
+    throw new Error("TaskBelay implicit Skill policy must enable implicit invocation");
   }
   for (const required of [
-    "Every new user development request", "$dev-flow-codex:dev-flow", "read-only suitability assessment",
+    "Every new user development request", "$taskbelay-codex:taskbelay", "read-only suitability assessment",
     "receipt-backed confirmed bootstrap bypasses duplicate assessment", "request", "HEADs", "status digests",
     "workspace_mode=new_branch", "current_branch", "local-provision", "workspace availability", "host-launch receipt helpers", "frozen base commit",
     "frozen base_commit", "target.environment.type=worktree", "no onMissing fallback",
     "clientThreadId", "without redispatch", "receipt-backed workspace_origin",
     "ACTIVE_TASK_CONFLICT", "never authorizes relocation", "semantic facts only",
-    "dev_flow_prepare_task_relocation", "separate user authorization",
+    "taskbelay_prepare_task_relocation", "separate user authorization",
     "relocation_destinations", "history_resolution", "accept_current_history",
   ]) {
     if (!CODEX_MCP_INSTRUCTIONS.includes(required)) {
-      throw new Error(`Dev Flow MCP admission is missing activation boundary: ${required}`);
+      throw new Error(`TaskBelay MCP admission is missing activation boundary: ${required}`);
     }
   }
 }
@@ -559,11 +559,11 @@ async function assertSkillReferences(skillRoot, entryPath, entryText) {
     for (const match of current.text.matchAll(/\[[^\]]*\]\(([^)\s]+\.md)(?:#[^)]*)?\)/gu)) {
       if (/^[a-z][a-z0-9+.-]*:/iu.test(match[1])) continue;
       const path = containedPath(skillRoot, resolve(dirname(current.path), match[1]), "Skill reference");
-      await assertReadableFile(path, "Dev Flow Skill reference");
+      await assertReadableFile(path, "TaskBelay Skill reference");
       containedPath(canonicalRoot, await realpath(path), "Skill reference");
       if (visited.has(path)) continue;
       const text = await readFile(path, "utf8");
-      if (text.trim() === "") throw new Error("Dev Flow Skill reference must be non-empty");
+      if (text.trim() === "") throw new Error("TaskBelay Skill reference must be non-empty");
       pending.push({ path, text });
     }
   }
@@ -684,7 +684,7 @@ function assertMatchingRegistrationState(state, paths, packageVersion) {
       entry?.marketplaceSource?.source === paths.marketplaceRoot,
   );
   if (matchingMarketplaces.length !== 1) {
-    throw new Error("Codex readback must contain exactly one Dev Flow marketplace identity");
+    throw new Error("Codex readback must contain exactly one TaskBelay marketplace identity");
   }
   const marketplace = matchingMarketplaces[0];
   assertMarketplaceReadback(
@@ -701,7 +701,7 @@ function assertMatchingRegistrationState(state, paths, packageVersion) {
       entry?.source?.path === paths.pluginRoot,
   );
   if (matchingPlugins.length !== 1) {
-    throw new Error("Codex readback must contain exactly one Dev Flow plugin identity");
+    throw new Error("Codex readback must contain exactly one TaskBelay plugin identity");
   }
   const plugin = matchingPlugins[0];
   assertPluginReadback(
@@ -915,8 +915,8 @@ function createReceipt({
 function resourcePaths(paths) {
   return {
     pluginManifest: join(paths.pluginRoot, ".codex-plugin", "plugin.json"),
-    skill: join(paths.pluginRoot, "skills", "dev-flow", "SKILL.md"),
-    skillMetadata: join(paths.pluginRoot, "skills", "dev-flow", "agents", "openai.yaml"),
+    skill: join(paths.pluginRoot, "skills", "taskbelay", "SKILL.md"),
+    skillMetadata: join(paths.pluginRoot, "skills", "taskbelay", "agents", "openai.yaml"),
     mcpConfiguration: join(paths.pluginRoot, ".mcp.json"),
   };
 }
@@ -984,7 +984,7 @@ export function validateReceipt(receipt, { compatibilityRange = CODEX_COMPATIBIL
 
   assertObject(receipt.product, "product");
   assertExactKeys(receipt.product, ["name", "version", "core_version", "codex_compatibility"], "product");
-  assertEqual(receipt.product.name, "dev-flow-codex", "product.name");
+  assertEqual(receipt.product.name, "taskbelay-codex", "product.name");
   parseSemver(receipt.product.version, "product.version");
   parseSemver(receipt.product.core_version, "product.core_version");
   assertEqual(receipt.product.codex_compatibility, compatibilityRange, "product compatibility range");
@@ -1006,11 +1006,11 @@ export function validateReceipt(receipt, { compatibilityRange = CODEX_COMPATIBIL
     ["marketplace_name", "marketplace_root", "plugin_name", "plugin_selector", "plugin_root"],
     "registration",
   );
-  assertEqual(receipt.registration.marketplace_name, "dev-flow-local", "registration.marketplace_name");
-  assertEqual(receipt.registration.plugin_name, "dev-flow-codex", "registration.plugin_name");
+  assertEqual(receipt.registration.marketplace_name, "taskbelay-local", "registration.marketplace_name");
+  assertEqual(receipt.registration.plugin_name, "taskbelay-codex", "registration.plugin_name");
   assertEqual(
     receipt.registration.plugin_selector,
-    "dev-flow-codex@dev-flow-local",
+    "taskbelay-codex@taskbelay-local",
     "registration.plugin_selector",
   );
   assertCanonicalAbsolutePath(receipt.registration.marketplace_root, "registration.marketplace_root");

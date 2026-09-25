@@ -1,6 +1,6 @@
 # Product Versions
 
-Dev Flow maintains independent product versions:
+TaskBelay maintains independent product versions:
 
 ```text
 Core      -> CORE_VERSION
@@ -8,7 +8,7 @@ Codex     -> packages/codex/package.json.version
 DeepSeek  -> packages/deepseek/package.json.version
 Claude    -> packages/claude/package.json.version
 ZCode     -> packages/zcode/package.json.version
-CLI       -> packages/dev-flow/package.json.version
+CLI       -> packages/taskbelay/package.json.version
 ```
 
 Each Codex/Claude/ZCode plugin manifest and the ZCode marketplace entry copy their corresponding package version; they do not define separate versions. Root
@@ -27,7 +27,7 @@ numbers. Current capabilities, allowed fields and tools, content digests, artifa
 runtime behavior define the supported interfaces and rules.
 
 Product Tag prefixes are `core-vX.Y.Z`, `codex-vX.Y.Z`, `deepseek-vX.Y.Z`, `claude-vX.Y.Z`,
-`zcode-vX.Y.Z` and `dev-flow-vX.Y.Z`. The release entrypoints cover all four Host Adapters and the CLI. Historical unprefixed
+`zcode-vX.Y.Z` and `taskbelay-vX.Y.Z`. The release entrypoints cover all four Host Adapters and the CLI. Historical unprefixed
 Tags remain frozen and are not used to determine current product versions.
 
 Host `stable` releases add or update the selected product in `release/public-versions.json`; `beta`

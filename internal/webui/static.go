@@ -18,7 +18,7 @@ func newStaticHandler(sessionValue string) (http.Handler, error) {
 		return nil, fmt.Errorf("read embedded WebUI index: %w", err)
 	}
 	marker := []byte("</head>")
-	meta := []byte(`<meta name="dev-flow-session" content="` + html.EscapeString(sessionValue) + `" />`)
+	meta := []byte(`<meta name="taskbelay-session" content="` + html.EscapeString(sessionValue) + `" />`)
 	if !strings.Contains(string(index), string(marker)) {
 		return nil, fmt.Errorf("embedded WebUI index has no head boundary")
 	}

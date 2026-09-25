@@ -15,7 +15,7 @@ async function fixture(t) {
   t.after(() => rm(parent, { recursive: true, force: true }));
   await git(["init", "-b", "main", root]); await git(["-C", root, "config", "user.name", "Test"]); await git(["-C", root, "config", "user.email", "test@example.invalid"]);
   await writeFile(join(root, "base.txt"), "base"); await git(["-C", root, "add", "."]); await git(["-C", root, "commit", "-m", "base"]);
-  const options = { environment: { ...process.env, HOME: parent, USERPROFILE: parent, LOCALAPPDATA: join(parent, "appdata"), DEV_FLOW_DATA_DIR: "" }, checkWorkspaceAvailable: async repository_path => ({ available: true, repository_path }) };
+  const options = { environment: { ...process.env, HOME: parent, USERPROFILE: parent, LOCALAPPDATA: join(parent, "appdata"), TASKBELAY_DATA_DIR: "" }, checkWorkspaceAvailable: async repository_path => ({ available: true, repository_path }) };
   return { root, options };
 }
 
@@ -34,12 +34,12 @@ function shape(value) {
 
 test("documented ZCode Host calls match the CLI and workspace result shapes", async t => {
   const { root, options } = await fixture(t);
-  const admission = await readFile(new URL("../skills/dev-flow/references/admission.md", import.meta.url), "utf8");
-  const lifecycle = await readFile(new URL("../skills/dev-flow/references/host-lifecycle.md", import.meta.url), "utf8");
+  const admission = await readFile(new URL("../skills/taskbelay/references/admission.md", import.meta.url), "utf8");
+  const lifecycle = await readFile(new URL("../skills/taskbelay/references/host-lifecycle.md", import.meta.url), "utf8");
 
   const inspectInput = structuredClone(example(admission, "host-launch", "inspect", "request"));
   inspectInput.repositories[0].repository_path = root;
-  const command = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/dev-flow-zcode.mjs", import.meta.url)), "host-launch", "inspect"], { input: JSON.stringify(inspectInput), encoding: "utf8" });
+  const command = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/taskbelay-zcode.mjs", import.meta.url)), "host-launch", "inspect"], { input: JSON.stringify(inspectInput), encoding: "utf8" });
   assert.equal(command.status, 0, command.stderr);
   const anchor = JSON.parse(command.stdout);
   assert.deepEqual(shape(anchor), shape(example(admission, "host-launch-output", "inspect", "success")));
@@ -51,7 +51,7 @@ test("documented ZCode Host calls match the CLI and workspace result shapes", as
   prepareInput.repositories[0].worktree_path = root;
   const rejectedInput = structuredClone(prepareInput);
   rejectedInput.assessment.unknowns = ["Unresolved endpoint behavior"];
-  const rejected = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/dev-flow-zcode.mjs", import.meta.url)), "host-launch", "prepare"], { input: JSON.stringify(rejectedInput), env: options.environment, encoding: "utf8" });
+  const rejected = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/taskbelay-zcode.mjs", import.meta.url)), "host-launch", "prepare"], { input: JSON.stringify(rejectedInput), env: options.environment, encoding: "utf8" });
   assert.equal(rejected.status, 1);
   assert.equal(rejected.stdout, "");
   assert.match(rejected.stderr, /Complete resolved assessment required/u);
@@ -105,7 +105,7 @@ test("local branch prepares once and UI guidance preserves the Core identity", a
 
 test("unresolved assessment cannot write Git", async t => {
   const { root, options } = await fixture(t);
-  await assert.rejects(prepare({ request: "x", assessment: { unknowns: ["target"] }, user_choice: { source: "user", mode: "dev_flow", summary: "yes" }, repositories: [], handoff: null }, options), /resolved assessment/);
+  await assert.rejects(prepare({ request: "x", assessment: { unknowns: ["target"] }, user_choice: { source: "user", mode: "taskbelay", summary: "yes" }, repositories: [], handoff: null }, options), /resolved assessment/);
   assert.equal(String(await git(["-C", root, "branch", "--show-current"])).trim(), "main");
 });
 
@@ -116,7 +116,7 @@ test("uppercase repository keys are rejected before preparation changes Git", as
     change_level: "standard", candidate_components: ["workspace"], candidate_paths: ["base.txt"],
     public_contract_flags: [], persistence_or_state_flags: [], host_or_platform_flags: ["ZCode"],
     verification_shape: ["workspace checks"], reasons: ["Core repository identity"], unknowns: [],
-  }, user_choice: { source: "user", mode: "dev_flow", summary: "Confirmed" },
+  }, user_choice: { source: "user", mode: "taskbelay", summary: "Confirmed" },
   repositories: [dedicated(root, "Backend")], handoff: null }, options), /Repository key/);
   assert.equal(await git(["-C", root, "show-ref"]), before);
   assert.equal(String(await git(["-C", root, "branch", "--show-current"])).trim(), "main");
@@ -126,7 +126,7 @@ async function prepareSelections(repositories, options) {
   const request = "Complete a multi-repository change";
   const anchor = await inspect({ request, repositories: repositories.map(({ key, repository_path }) => ({ key, repository_path })) });
   return prepare({ request, assessment: { change_level: "standard", candidate_components: ["workspace"], candidate_paths: ["base.txt"], public_contract_flags: [], persistence_or_state_flags: [], host_or_platform_flags: ["ZCode"], verification_shape: ["workspace checks"], reasons: ["multiple repositories"], unknowns: [], anchor },
-    user_choice: { source: "user", mode: "dev_flow", summary: "Confirmed exact workspaces and carry choices" }, repositories,
+    user_choice: { source: "user", mode: "taskbelay", summary: "Confirmed exact workspaces and carry choices" }, repositories,
     handoff: { discussion: [{ role: "user", text: request }] } }, options);
 }
 function dedicated(root, key = "primary", carry = false) {
@@ -364,10 +364,10 @@ test("prepare CLI exposes its saved launch identity after a failed remote fetch"
   const input = { request, assessment: { change_level: "standard", candidate_components: ["workspace"], candidate_paths: ["base.txt"],
     public_contract_flags: [], persistence_or_state_flags: [], host_or_platform_flags: ["ZCode"], verification_shape: ["workspace checks"],
     reasons: ["remote source"], unknowns: [], anchor },
-    user_choice: { source: "user", mode: "dev_flow", summary: "Confirmed remote base and workspace" },
+    user_choice: { source: "user", mode: "taskbelay", summary: "Confirmed remote base and workspace" },
     repositories: [{ ...dedicated(root), source_type: "remote", remote_name: "origin" }],
     handoff: { discussion: [{ role: "user", text: request }] } };
-  const result = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/dev-flow-zcode.mjs", import.meta.url)), "host-launch", "prepare"], {
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL("../bin/taskbelay-zcode.mjs", import.meta.url)), "host-launch", "prepare"], {
     input: JSON.stringify(input), env: options.environment, encoding: "utf8", windowsHide: true, timeout: 15000,
   });
   assert.equal(result.error, undefined);

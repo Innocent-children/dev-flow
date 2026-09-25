@@ -1,21 +1,21 @@
-# Dev Flow 项目状态
+# TaskBelay 项目状态
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
 _最后核对：2026 年 9 月 24 日。_
 
-Dev Flow 仍是一个早期开源项目。本页区分已经稳定发布、只在 beta 或源码中出现、尚未验证，以及
+TaskBelay 仍是一个早期开源项目。本页区分已经稳定发布、只在 beta 或源码中出现、尚未验证，以及
 产品仍需改进的内容。源码可构建或测试通过不会自动扩大稳定支持。
 
-## 已稳定发布
+## 发布状态
 
-npm `@latest` 当前选择以下稳定 package：
+TaskBelay 包名的发布与安装验证须通过独立发布流程完成。下表保留各组件此前已验证的环境，不表示新包名已发布或通过安装验证。首次发布前，请使用[源码本地安装](../scripts/README.md#本地安装测试)，再按各 Host 指南启用。
 
-| 产品 | 已验证环境 |
+| TaskBelay 包名 | 已验证环境 |
 | --- | --- |
-| `dev-flow-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
-| `dev-flow-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
-| `@imotong/dev-flow` | macOS arm64、Node.js `>=20` |
+| `taskbelay-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
+| `taskbelay-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
+| `@imotong/taskbelay` | macOS arm64、Node.js `>=20` |
 
 稳定版本的测试记录包含 npm 安装包安装、Host/Core 就绪检查、移除、卸载，以及操作前后目标仓库
 内容保持不变。DeepSeek 还测试了显式触发、重启恢复、`DONE` 和保留数据后重新打开。具体 Release 和
@@ -36,12 +36,12 @@ npm `@latest` 当前选择以下稳定 package：
 | 自动刹车 | 保存最近三次测试尝试；相同失败、相同结果或相同修改与失败循环第三次精确重复后暂停 |
 | 不确定 Action 恢复 | read-before-retry、Recovery 判断、Blocker 和 resume |
 | 交付前理解确认 | 测试后进入理解确认；仓库变更后重新测试 |
-| 本机查看与诊断 | 共享 loopback WebUI，入口为 `dev-flow webui start|open|status|stop` |
+| 本机查看与诊断 | 共享 loopback WebUI，入口为 `taskbelay webui start|open|status|stop` |
 | 当前源码平台 | 精确支持 `darwin-arm64` 与 `win32-x64` runtime；Windows 范围是 Windows 10/11 桌面版 x64 |
 | 高级仓库能力 | 一个主仓库加最多七个显式附加仓库；每个目录均按确认的工作区模式准备、授权并通过核验后才创建 Task；全部仓库采用独立工作树时支持同机 relocation，原子替换 bindings 与 claims |
-| Host 生命周期 | 统一 `dev-flow` 入口管理 Codex、DeepSeek、Claude Code 与 ZCode 的安装、诊断、维护和移除；ZCode 保留实际所需的 UI 操作 |
+| Host 生命周期 | 统一 `taskbelay` 入口管理 Codex、DeepSeek、Claude Code 与 ZCode 的安装、诊断、维护和移除；ZCode 保留实际所需的 UI 操作 |
 
-多仓库与 worktree 是高级能力，不代表 Dev Flow 的主要用户场景。它们的源码存在也不表示已有对应
+多仓库与 worktree 是高级能力，不代表 TaskBelay 的主要用户场景。它们的源码存在也不表示已有对应
 稳定最终安装包的完整流程测试。
 
 ## ZCode 验收范围
@@ -73,12 +73,12 @@ macOS 实机验证留待后续：在 arm64 Mac 安装最终包，核验 executab
 
 | 检查 | 实际结果与范围 |
 | --- | --- |
-| Core 与协议 | Host 身份、跨 Host 拒绝、协议和四个 Host 的完整成功/错误示例定向检查通过；`internal/mcp` 与 `cmd/dev-flow` 包完整检查通过 |
+| Core 与协议 | Host 身份、跨 Host 拒绝、协议和四个 Host 的完整成功/错误示例定向检查通过；`internal/mcp` 与 `cmd/taskbelay` 包完整检查通过 |
 | 最终 ZCode 包 | 最终 tarball 解包后，本地 setup 幂等、原生 stdio MCP、Task 创建与同目录恢复、跨 Host 拒绝通过；fixture 确认计划后，计划内 Edit 放行、越界 Write 拒绝，拒绝范围请求后取消 Task 并释放占用，普通移除保留数据 |
 | 管理器 | 73 项定向检查通过；菜单回归修复后 2 项定向检查通过。完整管理器套件仍有 3 项既有文件符号链接用例因本机 `EPERM` 权限限制无法完成，不计为通过 |
 | 构建与界面 | Windows x64、macOS arm64 两个 Core 目标编译及 WebUI 构建通过；macOS 产物未原生执行 |
 
-代表性入口为 `go test ./internal/mcp ./cmd/dev-flow`、`node tests/zcode/verify-package.mjs <解包后的绝对包目录>` 和 `pnpm --dir packages/dev-flow test`。最终包检查使用隔离数据、临时 Git 仓库和预设输入，实际执行包内 Core、CLI 与 Hook；它没有操作真实 ZCode UI，也没有运行已认证模型会话。管理器的符号链接限制不构成被测行为通过，以上结果不代表全仓库或 GitHub CI 最终通过。真实 Host 与 macOS 后续检查仍按上方清单保留。
+代表性入口为 `go test ./internal/mcp ./cmd/taskbelay`、`node tests/zcode/verify-package.mjs <解包后的绝对包目录>` 和 `pnpm --dir packages/taskbelay test`。最终包检查使用隔离数据、临时 Git 仓库和预设输入，实际执行包内 Core、CLI 与 Hook；它没有操作真实 ZCode UI，也没有运行已认证模型会话。管理器的符号链接限制不构成被测行为通过，以上结果不代表全仓库或 GitHub CI 最终通过。真实 Host 与 macOS 后续检查仍按上方清单保留。
 
 ### 2026-09-20：职责边界与失败恢复
 
@@ -141,7 +141,7 @@ Windows 管理器维护流程由 macOS 上的 Windows 平台分支模拟验证�
 
 | 入口 | 能回答什么问题 |
 | --- | --- |
-| [PR #8](https://github.com/Innocent-children/dev-flow/pull/8) | Codex 状态图是否真实覆盖重构、重新测试、理解确认和交付？ |
+| [PR #8](https://github.com/Innocent-children/taskbelay/pull/8) | Codex 状态图是否真实覆盖重构、重新测试、理解确认和交付？ |
 | [Support Matrix](SUPPORT-MATRIX.md) | 哪些公开稳定 package 与 Host 环境完成最终安装包验证？ |
 | [Release 目录](../release/README.md) | 维护者如何构建、下载核对并发布安装包？ |
 

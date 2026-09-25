@@ -33,7 +33,7 @@ export async function inspectSourceRepository(repositoryPath, { runGit = default
     canonical_root: root,
     git_common_dir: commonDir,
     worktree_git_dir: gitDir,
-    source_repository_identity: createHash("sha256").update(`dev-flow/source-repository\0${commonDir}`).digest("hex"),
+    source_repository_identity: createHash("sha256").update(`taskbelay/source-repository\0${commonDir}`).digest("hex"),
     head,
     branch,
     clean: status.length === 0,

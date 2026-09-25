@@ -1,4 +1,4 @@
-# Dev Flow Support Matrix
+# TaskBelay Support Matrix
 
 [中文](SUPPORT-MATRIX.md) | [English](SUPPORT-MATRIX_en.md)
 
@@ -7,15 +7,15 @@ This page answers a narrow question: **which public package has been verified in
 A buildable source tree, a passing test, or a published beta package does not by itself expand the
 stable support claim.
 
-## Stable support
+## Publication and verification
 
-npm `@latest` currently selects these packages:
+TaskBelay package publication and installation checks belong to the standalone release process. The table below retains each component’s previously verified environment; it does not establish that packages under the TaskBelay names have been published or verified. Before the first release, use the [local source installer](../scripts/README_en.md#local-installation-testing) and the activation instructions in the Host guides.
 
-| Product | Platform | Host compatibility | Publication entry point |
+| TaskBelay package name | Platform | Host compatibility | Publication entry point |
 | --- | --- | --- | --- |
-| `dev-flow-codex` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0` | [npm](https://www.npmjs.com/package/dev-flow-codex) · [Releases](https://github.com/Innocent-children/dev-flow/releases) |
-| `dev-flow-deepseek` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6` | [npm](https://www.npmjs.com/package/dev-flow-deepseek) · [Releases](https://github.com/Innocent-children/dev-flow/releases) |
-| `@imotong/dev-flow` | macOS arm64, Node.js `>=20` | Target operations require an installed Codex or DSH | [npm](https://www.npmjs.com/package/@imotong/dev-flow) · [Releases](https://github.com/Innocent-children/dev-flow/releases) |
+| `taskbelay-codex` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0` | [npm](https://www.npmjs.com/package/taskbelay-codex) · [Releases](https://github.com/Innocent-children/taskbelay/releases) |
+| `taskbelay-deepseek` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6` | [npm](https://www.npmjs.com/package/taskbelay-deepseek) · [Releases](https://github.com/Innocent-children/taskbelay/releases) |
+| `@imotong/taskbelay` | macOS arm64, Node.js `>=20` | Target operations require an installed Codex or DSH | [npm](https://www.npmjs.com/package/@imotong/taskbelay) · [Releases](https://github.com/Innocent-children/taskbelay/releases) |
 
 Codex lifecycle test results covers package/Core identity, installation, setup, Core handshake, removal,
 uninstallation, and an unchanged repository. DeepSeek additionally covers explicit activation,
@@ -23,7 +23,7 @@ restart/resume, `DONE`, and retained reopen.
 
 ## Current source
 
-Current source includes the shared local WebUI, embedded assets, and `dev-flow webui
+Current source includes the shared local WebUI, embedded assets, and `taskbelay webui
 start|open|status|stop`, and supports these operating-system/CPU pairs:
 
 | Runtime pair | Current-source scope | Verified scope |
@@ -80,7 +80,7 @@ For current source capabilities, actual-environment test entry points, and adopt
 | macOS arm64 local development package | App build, unpacked resources, ad-hoc signature and executable permissions; native import/selection, controls, scaling and idle activities; targeted observer, artwork and playback checks | Minimum macOS execution, complete mouse-drag automation, full Codex/DeepSeek Task sessions, Developer ID signing and notarization are not established |
 | Windows 11 Intel x64 local development distribution | Core/WebUI, package assembly, native window, atlas import, singleton and stop; isolated lifecycle installation, reinstall and removal | Windows 10, AMD hardware, complete mouse-drag and sleep/wake interaction, full Codex/DeepSeek Task sessions and formal distribution signing remain unverified |
 
-Desktop packages target macOS arm64 and Windows 10/11 x64. macOS deployment metadata targets macOS 14; this is a build target, not proof of minimum-system execution. Current formal preparation includes both platform applications and default artwork in the `@imotong/dev-flow` npm package. A configured Adapter provides Core. Preparation alone does not establish a published or verified stable package.
+Desktop packages target macOS arm64 and Windows 10/11 x64. macOS deployment metadata targets macOS 14; this is a build target, not proof of minimum-system execution. Current formal preparation includes both platform applications and default artwork in the `@imotong/taskbelay` npm package. A configured Adapter provides Core. Preparation alone does not establish a published or verified stable package.
 
 Historical desktop validation records are available through Git history. Windows environment, procedures and results are recorded in the [Windows report](WINDOWS-ADAPTATION_en.md). These local results do not expand the stable table above. Installation and artwork instructions belong in the [desktop pet guide](DESKTOP-PETS_en.md).
 

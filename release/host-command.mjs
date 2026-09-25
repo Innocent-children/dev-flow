@@ -51,9 +51,9 @@ export async function runHostReleaseCommand({
   if (platform !== "darwin" || architecture !== "arm64") throw new Error("release command requires darwin-arm64");
   const root = await realpath(requestedRoot);
   let source = await validateSource(root, channel);
-  const output = await resolveOutputDirectory(root, outputDirectory ?? join(homedir(), "dev-flow-releases", tag));
+  const output = await resolveOutputDirectory(root, outputDirectory ?? join(homedir(), "taskbelay-releases", tag));
   const resuming = (await readdir(output)).length !== 0;
-  const releaseEnvironment = { ...environment, DEV_FLOW_RELEASE_CHANNEL: channel };
+  const releaseEnvironment = { ...environment, TASKBELAY_RELEASE_CHANNEL: channel };
   let prepared;
 
   if (resuming) {

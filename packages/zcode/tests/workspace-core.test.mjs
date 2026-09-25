@@ -10,11 +10,11 @@ import { execPortableCommand } from "../lib/command.mjs";
 import { bindTask, inspect, prepare, provision, relocate, scope } from "../lib/workspace.mjs";
 import { defaultRunGit as git } from "../lib/worktree-lifecycle.mjs";
 
-const testCore = process.env.DEV_FLOW_ZCODE_TEST_CORE;
+const testCore = process.env.TASKBELAY_ZCODE_TEST_CORE;
 const supportedMachine = process.platform === "darwin" && process.arch === "arm64" || process.platform === "win32" && process.arch === "x64";
 
 test("ZCode workspace keys survive real Core creation and relocation", {
-  skip: !supportedMachine ? "ZCode supports darwin-arm64 and win32-x64" : !testCore ? "Set DEV_FLOW_ZCODE_TEST_CORE to a native built Core for this integration check" : false,
+  skip: !supportedMachine ? "ZCode supports darwin-arm64 and win32-x64" : !testCore ? "Set TASKBELAY_ZCODE_TEST_CORE to a native built Core for this integration check" : false,
   timeout: 120_000,
 }, async t => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "zcode-workspace-core-")));
@@ -26,7 +26,7 @@ test("ZCode workspace keys survive real Core creation and relocation", {
       const home = join(root, String(keys.length));
       const data = join(home, "data");
       await mkdir(data, { recursive: true });
-      const environment = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: join(home, "appdata"), DEV_FLOW_DATA_DIR: data };
+      const environment = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: join(home, "appdata"), TASKBELAY_DATA_DIR: data };
       const workspaceAvailable = async repository_path => JSON.parse((await execPortableCommand(runtime, ["host-check", "workspace-available"], {
         env: environment, input: JSON.stringify({ repository_path }), timeout: 10_000,
       })).stdout);
@@ -49,7 +49,7 @@ test("ZCode workspace keys survive real Core creation and relocation", {
         change_level: "standard", candidate_components: ["workspace"], candidate_paths: ["base.txt"],
         public_contract_flags: ["repository identity"], persistence_or_state_flags: [], host_or_platform_flags: ["ZCode"],
         verification_shape: ["Core creation and relocation"], reasons: ["Preserve custom repository keys"], unknowns: [], anchor,
-      }, user_choice: { source: "user", mode: "dev_flow", summary: "Confirmed workspaces" }, repositories,
+      }, user_choice: { source: "user", mode: "taskbelay", summary: "Confirmed workspaces" }, repositories,
       handoff: { discussion: [{ role: "user", text: request }] } }, options);
       await provision(receipt.launch_id, options);
       const creationScope = await scope(receipt.launch_id, options);
@@ -57,18 +57,18 @@ test("ZCode workspace keys survive real Core creation and relocation", {
       assert.deepEqual((creationScope.additional_repositories ?? []).map(repo => repo.key), keys.slice(1));
 
       const call = await coreClient(t, runtime, environment, home);
-      const opened = await call("dev_flow_open_task", { host: "zcode", ...creationScope, new_task: {
+      const opened = await call("taskbelay_open_task", { host: "zcode", ...creationScope, new_task: {
         request, initial_scope: ["Workspace identity"], initial_out_of_scope: ["Application changes"],
         known_acceptance_criteria: ["Repository keys and files survive relocation"], method_profile: "plain",
       } });
       assert.equal(opened.created, true);
       assert.equal(opened.task.primary_repository_key, "backend");
       await bindTask(receipt.launch_id, { task_id: opened.task.task_id }, options);
-      const prepared = await call("dev_flow_prepare_task_relocation", { host: "zcode", task_id: opened.task.task_id, revision: opened.task.revision });
+      const prepared = await call("taskbelay_prepare_task_relocation", { host: "zcode", task_id: opened.task.task_id, revision: opened.task.revision });
       const destinations = repositories.map(repo => ({ repository_key: repo.key, repository_path: join(home, "relocated-" + repo.key) })).reverse();
       const moved = await relocate(receipt.launch_id, { relocation_id: prepared.relocation_id, destinations, authorized: true, core_preparation: prepared }, options);
       assert.deepEqual(moved.relocation_destinations.map(repo => repo.key), keys);
-      const resolved = await call("dev_flow_resolve_blocker", { host: "zcode", task_id: opened.task.task_id,
+      const resolved = await call("taskbelay_resolve_blocker", { host: "zcode", task_id: opened.task.task_id,
         action_id: prepared.task.current_action.action_id, relocation_id: moved.relocation_id,
         relocation_destinations: moved.relocation_destinations });
       assert.equal(resolved.current_cursor, "REQUIREMENTS");
@@ -80,11 +80,11 @@ test("ZCode workspace keys survive real Core creation and relocation", {
         assert.equal(await readFile(join(destination.repository_path, "base.txt"), "utf8"), destination.key);
         assert.equal((await workspaceAvailable(destination.repository_path)).available, false);
       }
-      const resumed = await call("dev_flow_open_task", { host: "zcode", repository_path: resolved.workspace_origin.canonical_worktree_root });
+      const resumed = await call("taskbelay_open_task", { host: "zcode", repository_path: resolved.workspace_origin.canonical_worktree_root });
       assert.equal(resumed.created, false);
       assert.equal(resumed.task.task_id, opened.task.task_id);
       assert.equal(resumed.task.current_cursor, "REQUIREMENTS");
-      const nextPreparation = await call("dev_flow_prepare_task_relocation", { host: "zcode", task_id: resumed.task.task_id, revision: resumed.task.revision });
+      const nextPreparation = await call("taskbelay_prepare_task_relocation", { host: "zcode", task_id: resumed.task.task_id, revision: resumed.task.revision });
       const nextDestinations = repositories.map(repo => ({ repository_key: repo.key, repository_path: join(home, "second-" + repo.key) }));
       const changedSource = structuredClone(nextPreparation);
       changedSource.task.workspace_origin.canonical_worktree_root = repositories[0].worktree_path;
@@ -93,7 +93,7 @@ test("ZCode workspace keys survive real Core creation and relocation", {
       const nextMoveInput = { relocation_id: nextPreparation.relocation_id, destinations: nextDestinations, authorized: true, core_preparation: nextPreparation };
       const second = await relocate(receipt.launch_id, nextMoveInput, options);
       assert.deepEqual(await relocate(receipt.launch_id, nextMoveInput, options), second);
-      const resolvedAgain = await call("dev_flow_resolve_blocker", { host: "zcode", task_id: resumed.task.task_id,
+      const resolvedAgain = await call("taskbelay_resolve_blocker", { host: "zcode", task_id: resumed.task.task_id,
         action_id: nextPreparation.task.current_action.action_id, relocation_id: second.relocation_id,
         relocation_destinations: second.relocation_destinations });
       assert.equal(resolvedAgain.workspace_origin.canonical_worktree_root, join(home, "second-backend"));
@@ -130,7 +130,7 @@ async function coreClient(t, runtime, environment, cwd) {
     });
   };
   const initialized = await request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "zcode-workspace-test", version: "0.1.0" } });
-  assert.equal(initialized.result.serverInfo.name, "dev-flow");
+  assert.equal(initialized.result.serverInfo.name, "taskbelay");
   child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
   return async (name, arguments_) => {
     const response = await request("tools/call", { name, arguments: arguments_ });

@@ -13,7 +13,7 @@ import { terminalCleanupDecision } from "../lib/worktree-lifecycle.mjs";
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
 const pluginRoot = join(packageRoot, "plugin");
-const skillRoot = join(pluginRoot, "skills", "dev-flow");
+const skillRoot = join(pluginRoot, "skills", "taskbelay");
 const skillPath = join(skillRoot, "SKILL.md");
 
 function marked(markdown, name) {
@@ -29,13 +29,13 @@ test("plugin exposes one implicitly enabled Skill with the installed identity", 
   assert.deepEqual(skillFiles, [skillPath]);
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
   const skill = (await readFile(skillPath, "utf8")).replaceAll("\r\n", "\n");
-  assert.match(skill, /^---\nname: dev-flow\ndescription: "[^\n]+"\n---/u);
-  assert.equal(`${manifest.name}:dev-flow`, "dev-flow-codex:dev-flow");
+  assert.match(skill, /^---\nname: taskbelay\ndescription: "[^\n]+"\n---/u);
+  assert.equal(`${manifest.name}:taskbelay`, "taskbelay-codex:taskbelay");
   assert.equal((await readFile(join(skillRoot, "agents", "openai.yaml"), "utf8")).replaceAll("\r\n", "\n"), "policy:\n  allow_implicit_invocation: true\n");
   const plugin = JSON.parse(await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
-  assert.deepEqual(plugin.interface.defaultPrompt, ["$dev-flow-codex:dev-flow assess the requested change in this repository before starting Dev Flow."]);
+  assert.deepEqual(plugin.interface.defaultPrompt, ["$taskbelay-codex:taskbelay assess the requested change in this repository before starting TaskBelay."]);
   const mcp = JSON.parse(await readFile(join(pluginRoot, ".mcp.json"), "utf8"));
-  assert.deepEqual(mcp.mcpServers, { "dev-flow": { type: "stdio", command: "dev-flow-codex", args: ["mcp"], env_vars: ["DEV_FLOW_DATA_DIR"] } });
+  assert.deepEqual(mcp.mcpServers, { "taskbelay": { type: "stdio", command: "taskbelay-codex", args: ["mcp"], env_vars: ["TASKBELAY_DATA_DIR"] } });
 });
 
 test("all Skill references are reachable, packaged and cite existing implementation symbols", async () => {

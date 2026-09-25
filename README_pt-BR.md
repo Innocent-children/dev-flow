@@ -1,21 +1,23 @@
 <p align="center">
-  <img src="packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Ícone do Dev Flow" />
+  <img src="packages/webui/src/assets/taskbelay-app-icon-light.svg" width="112" height="112" alt="Ícone do TaskBelay" />
 </p>
 
-<h1 align="center">Dev Flow</h1>
+<h1 align="center">TaskBelay</h1>
 
-<p align="center"><strong>Programação prolongada com IA, sob controle.</strong></p>
+<p align="center"><strong>Programação prolongada com IA, com segurança de corda.</strong></p>
 
 <p align="center">
   <a href="README.md">English</a> · <a href="README_zh-CN.md">简体中文</a> · <a href="README_zh-TW.md">繁體中文</a> · <a href="README_ja.md">日本語</a> · <a href="README_ko.md">한국어</a> · <a href="README_es.md">Español</a> · <a href="README_fr.md">Français</a> · <a href="README_de.md">Deutsch</a> · <a href="README_pt-BR.md">Português (Brasil)</a>
 </p>
 
-## O que você pode fazer com o Dev Flow
+## O que você pode fazer com o TaskBelay
 
 Seu agente escolhe a próxima ação técnica.<br />
-O Dev Flow mantém a tarefa sob controle.
+O TaskBelay mantém a tarefa sob controle.
 
-Use com Codex, DeepSeek, Claude Code ou ZCode. O agente raciocina sobre o código; o Dev Flow preserva o escopo, os limites de verificação, o estado e os registros de recuperação.
+Use com Codex, DeepSeek, Claude Code ou ZCode. O agente raciocina sobre o código; o TaskBelay preserva o escopo, os limites de verificação, o estado e os registros de recuperação.
+
+Na escalada, quem dá segurança controla a corda enquanto quem escala escolhe a rota. O TaskBelay segue essa divisão: o agente toma as decisões técnicas; o TaskBelay verifica o escopo aprovado e os limites de verificação e usa os registros salvos para retomar o trabalho após falhas ou resultados incertos. Não é um ambiente isolado nem outro agente de programação.
 
 - **Escopo explícito:** Compare as alterações reais com os arquivos aprovados. Trabalhar fora do plano exige uma decisão.
 - **Verificação limitada:** Planeje as verificações relevantes e seus limites. Ampliá-las exige um motivo concreto.
@@ -30,18 +32,16 @@ precisam salvar o progresso, usar Codex, DeepSeek, Claude Code ou ZCode diretame
 
 > Instale Node.js `>=24` e o Host que pretende usar. Consulte as versões necessárias e as plataformas verificadas na [matriz de suporte](docs/SUPPORT-MATRIX_en.md).
 
-### 1. Instale o Dev Flow
+### 1. Instale o TaskBelay
 
-A instalação pública abaixo atende às integrações publicadas do Codex e do DeepSeek. Para Claude Code, siga o [guia de instalação pelo código-fonte](docs/CLAUDE_en.md); a CLI pública anterior não instala um Adapter disponível apenas no código-fonte.
-
-O ZCode também usa o [guia de instalação pelo código-fonte](docs/ZCODE_en.md). Os pacotes locais têm como alvo Windows x64 e macOS arm64; a validação do ZCode em um Mac ainda está pendente.
+Estes comandos npm usam os nomes dos pacotes TaskBelay e exigem que eles estejam publicados. Antes da primeira publicação, use o [instalador local a partir do código-fonte](scripts/README_en.md#local-installation-testing) e siga as instruções de ativação para [Codex](docs/CODEX_en.md), [DeepSeek](docs/DEEPSEEK_en.md), [Claude Code](docs/CLAUDE_en.md) ou [ZCode](docs/ZCODE_en.md). Os pacotes locais se destinam a Windows x64 e macOS arm64; a validação nativa do ZCode no macOS continua pendente.
 
 ```sh
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
-Escolha seu Host entre as opções do instalador utilizado. No Codex, revise e autorize o hook do Dev Flow em `/hooks`; no DeepSeek, reinicie o Profile selecionado. No Claude Code, recarregue os plugins ou abra uma nova conversa e revise as permissões solicitadas.
+Escolha seu Host entre as opções do instalador utilizado. No Codex, revise e autorize o hook do TaskBelay em `/hooks`; no DeepSeek, reinicie o Profile selecionado. No Claude Code, recarregue os plugins ou abra uma nova conversa e revise as permissões solicitadas.
 
 No ZCode, instale e ative o plugin em Settings → Plugins e abra uma nova conversa para ativar os hooks. Preparar o pacote local não confirma que o ZCode o carregou.
 
@@ -52,34 +52,34 @@ Após concluir a instalação correspondente, envie uma destas mensagens na conv
 **Codex**
 
 ```text
-$dev-flow-codex:dev-flow Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
+$taskbelay-codex:taskbelay Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
 ```
 
 **DeepSeek Harness**
 
 ```text
-/dev-flow Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
+/taskbelay Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
 ```
 
 **Claude Code**
 
 ```text
-/dev-flow-claude:dev-flow Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
+/taskbelay-claude:taskbelay Adicione limite de frequência para falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
 ```
 
 **ZCode**
 
-Selecione `dev-flow` no menu `/` → Skills do campo de entrada e descreva a tarefa.
+Selecione `taskbelay` no menu `/` → Skills do campo de entrada e descreva a tarefa.
 
 ```text
-Use Dev Flow para limitar falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
+Use TaskBelay para limitar falhas de login. Altere apenas arquivos de autenticação e execute no máximo 4 verificações direcionadas.
 ```
 
 Envie essas mensagens na conversa, não no terminal. Descreva o objetivo, os critérios de aceite,
 o escopo de arquivos e o limite de testes.
 
-A primeira resposta avalia o pedido e pergunta se você quer trabalhar diretamente ou usar o Dev Flow.
-Ao escolher o Dev Flow, o padrão é criar um novo branch de tarefa a partir do HEAD atual no diretório
+A primeira resposta avalia o pedido e pergunta se você quer trabalhar diretamente ou usar o TaskBelay.
+Ao escolher o TaskBelay, o padrão é criar um novo branch de tarefa a partir do HEAD atual no diretório
 atual. Confirme o branch e se as alterações existentes ainda não commitadas fazem parte da tarefa.
 As dependências, configurações locais, arquivos e estado do índice são preservados; a mesma sessão
 continua quando consegue acessar todos os diretórios participantes.
@@ -92,28 +92,28 @@ Cada diretório admite apenas uma Task ativa. Edições manuais ou de outras fer
 observadas, e mudar de branch durante a tarefa pausa o processo. Diretórios e branches locais são
 preservados ao concluir; alterações não commitadas precisam ser consideradas ao iniciar a próxima tarefa.
 
-Antes da implementação, revise e discuta os requisitos, o projeto, as tarefas, os arquivos previstos e o plano de verificação. O desenvolvimento começa após sua aprovação explícita do plano completo. Alterações no plano ou ampliação do conjunto de arquivos exigem nova aprovação. Escolher Dev Flow ou um worktree não substitui essa aprovação.
+Antes da implementação, revise e discuta os requisitos, o projeto, as tarefas, os arquivos previstos e o plano de verificação. O desenvolvimento começa após sua aprovação explícita do plano completo. Alterações no plano ou ampliação do conjunto de arquivos exigem nova aprovação. Escolher TaskBelay ou um worktree não substitui essa aprovação.
 
 ### 3. Retome e acompanhe o progresso
 
-Depois de reiniciar a sessão, volte ao diretório original e peça para continuar a tarefa. O Dev Flow
+Depois de reiniciar a sessão, volte ao diretório original e peça para continuar a tarefa. O TaskBelay
 retoma o progresso salvo. Se esse diretório sumiu ou foi substituído, a tarefa fica pausada até que
 você o restaure ou abandone explicitamente a tarefa.
 
-No DeepSeek Harness, inclua `/dev-flow` na mensagem que pede para retomar a tarefa.
+No DeepSeek Harness, inclua `/taskbelay` na mensagem que pede para retomar a tarefa.
 
-No Claude, volte ao diretório e à conversa originais e peça explicitamente para continuar a tarefa salva com `/dev-flow-claude:dev-flow`.
+No Claude, volte ao diretório e à conversa originais e peça explicitamente para continuar a tarefa salva com `/taskbelay-claude:taskbelay`.
 
-No ZCode, reabra o diretório original, selecione a Skill Dev Flow e peça para continuar a tarefa salva. Se outro diretório for preparado, siga as instruções retornadas para abrir esse espaço de trabalho.
+No ZCode, reabra o diretório original, selecione a Skill TaskBelay e peça para continuar a tarefa salva. Se outro diretório for preparado, siga as instruções retornadas para abrir esse espaço de trabalho.
 
 Estes comandos usam o gerenciador global instalado. Para instalações pelo código-fonte, use a entrada correspondente do guia.
 
 ```bash
 # Consultar as integrações instaladas
-dev-flow status --host all
+taskbelay status --host all
 
 # Abrir a visualização local das tarefas
-dev-flow webui start
+taskbelay webui start
 ```
 
 Para instalação não interativa, Profiles personalizados do DSH, atualizações, reparo e remoção,
@@ -126,8 +126,8 @@ O mascote exige um Adapter configurado e o aplicativo de desktop instalado. Inst
 O mascote mostra várias tarefas em balões sobrepostos e abre a WebUI de cada uma. Ele prioriza tarefas bloqueadas e passa automaticamente para outra tarefa pendente quando a atual termina; você também pode fixar uma tarefa. É possível personalizar a aparência, controlar animações, ajustar o tamanho e iniciar ou parar o mascote de forma independente.
 
 ```bash
-dev-flow pet start
-dev-flow pet stop
+taskbelay pet start
+taskbelay pet stop
 ```
 
 Os aplicativos de desktop são destinados ao macOS arm64 e Windows 10/11 x64. Consulte o
@@ -136,7 +136,7 @@ Os aplicativos de desktop são destinados ao macOS arm64 e Windows 10/11 x64. Co
 
 ## Limites de uso
 
-O Dev Flow controla o fluxo da tarefa, não as permissões do sistema operacional. Ele não intercepta cada operação de arquivo ou comando de shell.
+O TaskBelay controla o fluxo da tarefa, não as permissões do sistema operacional. Ele não intercepta cada operação de arquivo ou comando de shell.
 
 Um worktree dedicado separa as alterações de código. Processos, acesso à rede, credenciais e serviços
 externos continuam compartilhados com seu ambiente.

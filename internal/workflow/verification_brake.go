@@ -3,7 +3,7 @@ package workflow
 import (
 	"sort"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 type VerificationBrakeDecision struct {

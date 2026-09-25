@@ -8,7 +8,7 @@ import { nativeGitPath } from "./platform.mjs";
 const execFile = promisify(execFileCallback);
 
 export const CHANGE_LEVELS = Object.freeze(["small", "standard", "large", "uncertain"]);
-export const ADMISSION_RECOMMENDATIONS = Object.freeze(["direct", "dev_flow", "clarify"]);
+export const ADMISSION_RECOMMENDATIONS = Object.freeze(["direct", "taskbelay", "clarify"]);
 const digestPattern = /^[0-9a-f]{64}$/u;
 
 export function requestDigest(request) {
@@ -255,8 +255,8 @@ function stableJSON(value) {
 export function validateLaunchAdmission(assessment, choice) {
   const checked = validateSuitabilityAssessment(assessment);
   assertExactKeys(choice, ["source", "mode", "summary"], "launch user choice");
-  if (choice.source !== "user" || choice.mode !== "dev_flow" || typeof choice.summary !== "string" || choice.summary.trim() === "") {
-    throw new Error("launch requires an explicit user dev_flow choice");
+  if (choice.source !== "user" || choice.mode !== "taskbelay" || typeof choice.summary !== "string" || choice.summary.trim() === "") {
+    throw new Error("launch requires an explicit user taskbelay choice");
   }
   if (checked.change_level === "uncertain" || checked.recommendation === "clarify" || checked.unknowns.length !== 0) {
     throw new Error("resolve assessment unknowns before provisioning");

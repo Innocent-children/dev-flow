@@ -1,14 +1,14 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
-    "dev-flow": {
+    "taskbelay": {
       "type": "stdio",
-      "command": "dev-flow-codex",
+      "command": "taskbelay-codex",
       "args": [
         "mcp"
       ],
       "env_vars": [
-        "DEV_FLOW_DATA_DIR"
+        "TASKBELAY_DATA_DIR"
       ]
     }
   }

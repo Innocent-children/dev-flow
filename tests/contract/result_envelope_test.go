@@ -3,8 +3,8 @@ package contract_test
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	core "github.com/Innocent-children/dev-flow/internal/mcp"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	core "github.com/Innocent-children/taskbelay/internal/mcp"
 	"strings"
 	"testing"
 )

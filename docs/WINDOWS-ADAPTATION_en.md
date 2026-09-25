@@ -27,7 +27,7 @@ No macOS tests were performed. Complete unified-entry packaging cross-compiles M
 | Windows/Host targeted tests | 20 pass, 0 fail, 0 skipped; Chinese-path assessment, real temporary Git repositories, worktree preparation, failed fetch, one-shot dispatch receipts, Codex CLI argument parsing, native Core preflight for both Adapters, cmd/PowerShell hooks and recoverable cleanup |
 | Native Windows WebUI | 1 pass; Chinese and spaced data path, start, PID reuse on repeated start, HTTP status, status, stop and reopening SQLite |
 | Windows verification archives | 1 pass; all three packages staged, archived, extracted and compared byte-for-byte, platform modules loaded, Codex/manager version commands and DeepSeek Core preflight executed |
-| Targeted Go packages | internal/repository, internal/webui, cmd/dev-flow, internal/store, internal/mcp and internal/version pass on native Windows |
+| Targeted Go packages | internal/repository, internal/webui, cmd/taskbelay, internal/store, internal/mcp and internal/version pass on native Windows |
 | Platform structure | 3 pass; no OS decisions in Core semantics, Host consumers use policies, platform directories do not import each other or select an OS again |
 | Package metadata | Codex closed manifest inventory, DeepSeek closed manifest inventory and source archive inventory pass |
 | Tools and versions | npm --version succeeds through the actual Windows launcher; version synchronization passes |
@@ -37,13 +37,13 @@ The verification archives contain only Windows Core. They test assembly and nati
 
 ## Reproduction
 
-Build the current Windows Core outside the repository, add Go to the PowerShell PATH and point DEV_FLOW_WINDOWS_CORE at that executable.
+Build the current Windows Core outside the repository, add Go to the PowerShell PATH and point TASKBELAY_WINDOWS_CORE at that executable.
 
 ~~~powershell
-$env:DEV_FLOW_WINDOWS_CORE = "C:\verification\dev-flow.exe"
-node --test packages/codex/tests/windows-support.test.mjs packages/codex/tests/windows-command.test.mjs packages/codex/tests/task-admission.test.mjs packages/codex/tests/task-launch.test.mjs packages/deepseek/tests/windows-support.test.mjs packages/deepseek/tests/workspace-coordinator.test.mjs packages/dev-flow/tests/windows-support.test.mjs
+$env:TASKBELAY_WINDOWS_CORE = "C:\verification\taskbelay.exe"
+node --test packages/codex/tests/windows-support.test.mjs packages/codex/tests/windows-command.test.mjs packages/codex/tests/task-admission.test.mjs packages/codex/tests/task-launch.test.mjs packages/deepseek/tests/windows-support.test.mjs packages/deepseek/tests/workspace-coordinator.test.mjs packages/taskbelay/tests/windows-support.test.mjs
 node --test packages/codex/tests/windows-webui.test.mjs packages/codex/tests/windows-package.test.mjs
-go test ./internal/repository ./internal/webui ./cmd/dev-flow ./internal/store ./internal/mcp ./internal/version
+go test ./internal/repository ./internal/webui ./cmd/taskbelay ./internal/store ./internal/mcp ./internal/version
 go test ./tests/contract -run 'TestCoreSemanticPackagesContainNoOperatingSystemDecision|TestNodeConsumersUseClosedPlatformImplementations|TestHostPlatformImplementationsRemainSeparate'
 node scripts/check-versions.mjs
 ~~~
@@ -78,8 +78,8 @@ Mouse dragging and actual system sleep/wake have not completed manual interactio
 
 Unified-entry checks used a local distribution containing both complete Adapter packages and the Windows desktop.
 
-Using isolated npm, CODEX_HOME, DSH_HOME and product-data directories with real Codex, DSH and dev-flow commands, checks covered install, pet start, repeated start, reinstall while the pet was running, doctor, uninstall and install again. No registration was written manually. Retained preferences were checked after uninstall. First pet startup returned in about 1.25 seconds and repeated startup in about 0.69 seconds, fixing the earlier timeout-dependent return.
+Using isolated npm, CODEX_HOME, DSH_HOME and product-data directories with real Codex, DSH and taskbelay commands, checks covered install, pet start, repeated start, reinstall while the pet was running, doctor, uninstall and install again. No registration was written manually. Retained preferences were checked after uninstall. First pet startup returned in about 1.25 seconds and repeated startup in about 0.69 seconds, fixing the earlier timeout-dependent return.
 
-The machine configuration then followed the same npm launcher bootstrap, dev-flow install --host all --profile web --yes, status and pet start. At the recorded check, Codex and DeepSeek web were ready and the pet was running. Windows installer code identifies file-holding MCP instances by the target package image, command and creation time; no manual process-stop step is required.
+The machine configuration then followed the same npm launcher bootstrap, taskbelay install --host all --profile web --yes, status and pet start. At the recorded check, Codex and DeepSeek web were ready and the pet was running. Windows installer code identifies file-holding MCP instances by the target package image, command and creation time; no manual process-stop step is required.
 
 Complete packages no longer omit Mac Core. Cross-compilation and package checks do not execute Mac programs or Mac tests. No npm publication or public stable-version change was performed.

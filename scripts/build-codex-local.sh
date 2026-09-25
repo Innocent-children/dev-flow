@@ -117,7 +117,7 @@ const publishContract = packageManifest.publishConfig?.access === "public" &&
   packageManifest.publishConfig?.registry === "https://registry.npmjs.org/" &&
   JSON.stringify(Object.keys(packageManifest.publishConfig).sort()) === JSON.stringify(["access", "registry"]);
 if (
-  packageManifest.name !== "dev-flow-codex" ||
+  packageManifest.name !== "taskbelay-codex" ||
   !privateContract ||
   !platformContract ||
   !publishContract ||
@@ -138,7 +138,7 @@ if (!lifecycleSource.includes(`CODEX_COMPATIBILITY_RANGE = "${codexCompatibility
 }
 NODE
 
-build_root=$(mktemp -d -t dev-flow-codex-build.XXXXXX)
+build_root=$(mktemp -d -t taskbelay-codex-build.XXXXXX)
 trap 'rm -rf -- "$build_root"' EXIT HUP INT TERM
 stage_root="$build_root/package"
 mkdir -p "$stage_root"
@@ -146,7 +146,7 @@ mkdir -p "$stage_root"
 production_files='package.json
 README.md
 .agents/plugins/marketplace.json
-bin/dev-flow-codex.mjs
+bin/taskbelay-codex.mjs
 lib/command.mjs
 lib/artifacts-help.mjs
 lib/install-experience.mjs
@@ -169,115 +169,115 @@ plugin/.codex-plugin/plugin.json
 plugin/.mcp.json
 plugin/hooks/hooks.json
 plugin/hooks/pre-tool-use.mjs
-plugin/skills/dev-flow/SKILL.md
-plugin/skills/dev-flow/agents/openai.yaml
-plugin/skills/dev-flow/references/admission.md
-plugin/skills/dev-flow/references/artifact-contract.md
-plugin/skills/dev-flow/references/connection-examples.md
-plugin/skills/dev-flow/references/connection.md
-plugin/skills/dev-flow/references/core-lifecycle-examples.md
-plugin/skills/dev-flow/references/core-lifecycle.md
-plugin/skills/dev-flow/references/launch-examples.md
-plugin/skills/dev-flow/references/lifecycle-examples.md
-plugin/skills/dev-flow/references/nodes/comprehension-examples.md
-plugin/skills/dev-flow/references/nodes/delivery-examples.md
-plugin/skills/dev-flow/references/nodes/design-examples.md
-plugin/skills/dev-flow/references/nodes/implementation-examples.md
-plugin/skills/dev-flow/references/nodes/refactor-examples.md
-plugin/skills/dev-flow/references/nodes/requirements-examples.md
-plugin/skills/dev-flow/references/nodes/tasks-examples.md
-plugin/skills/dev-flow/references/nodes/test-examples.md
-plugin/skills/dev-flow/references/recovery-examples.md
-plugin/skills/dev-flow/references/recovery.md
-plugin/skills/dev-flow/references/response-examples.md
-plugin/skills/dev-flow/references/worktree-launch.md
-plugin/skills/dev-flow/references/artifacts.md
-plugin/skills/dev-flow/references/host-lifecycle.md
-plugin/skills/dev-flow/references/method-profiles.md
-plugin/skills/dev-flow/references/node-payloads.md
-plugin/skills/dev-flow/references/nodes/comprehension.md
-plugin/skills/dev-flow/references/nodes/delivery.md
-plugin/skills/dev-flow/references/nodes/design.md
-plugin/skills/dev-flow/references/nodes/implementation.md
-plugin/skills/dev-flow/references/nodes/refactor.md
-plugin/skills/dev-flow/references/nodes/requirements.md
-plugin/skills/dev-flow/references/nodes/tasks.md
-plugin/skills/dev-flow/references/nodes/test.md
-plugin/skills/dev-flow/references/task-handoff.md
-plugin/skills/dev-flow/references/tool-results.md
-plugin/skills/dev-flow/references/transport.md
-plugin/skills/dev-flow/references/verification.md
-plugin/skills/dev-flow/references/successes/dev_flow_abandon_task-abandon.md
-plugin/skills/dev-flow/references/successes/dev_flow_cancel_task-cancel.md
-plugin/skills/dev-flow/references/successes/dev_flow_get_next_action-guarded-read.md
-plugin/skills/dev-flow/references/successes/dev_flow_get_task-read.md
-plugin/skills/dev-flow/references/successes/dev_flow_open_task-create.md
-plugin/skills/dev-flow/references/successes/dev_flow_open_task-multiple.md
-plugin/skills/dev-flow/references/successes/dev_flow_open_task-resume.md
-plugin/skills/dev-flow/references/successes/dev_flow_prepare_task_relocation-prepare.md
-plugin/skills/dev-flow/references/successes/dev_flow_recover_action-saved-operation.md
-plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-allow_once.md
-plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-expand_scope.md
-plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-history.md
-plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-reject.md
-plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-relocation.md
-plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-verification-or-recovery.md
-plugin/skills/dev-flow/references/successes/dev_flow_server_info-handshake.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-code_too_complex.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-comprehension_passed.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-design_too_complex.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-evidence_insufficient.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-implementation_defect.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-requirement_unclear.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_complete.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_comprehension.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_design.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_implementation.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_requirements.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_test.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_design-design_ready.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_design-design_requires_requirements.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_needs_refactor.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_ready_for_test.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_requires_design.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_requires_requirements.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_ready_for_test.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_requires_design.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_requires_requirements.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_requirements-requirements_ready.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_plan_saved.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_ready.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_require_design.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_require_requirements.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_accepted_with_known_failures.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_expose_design_issue.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_expose_requirement_issue.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_failed_implementation.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_passed.md
-plugin/skills/dev-flow/references/successes/dev_flow_submit_test-verification_budget_increased.md
-plugin/skills/dev-flow/references/successes/host-bootstrap-managed.md
-plugin/skills/dev-flow/references/successes/host-cleanup-branch-remove-branch.md
-plugin/skills/dev-flow/references/successes/host-cleanup-decision-keep.md
-plugin/skills/dev-flow/references/successes/host-cleanup-worktree-remove-worktree.md
-plugin/skills/dev-flow/references/successes/host-cli-provision-single.md
-plugin/skills/dev-flow/references/successes/host-dispatch-call-managed.md
-plugin/skills/dev-flow/references/successes/host-dispatch-reconcile-lookup.md
-plugin/skills/dev-flow/references/successes/host-dispatch-recover-not-called.md
-plugin/skills/dev-flow/references/successes/host-dispatch-result-queued.md
-plugin/skills/dev-flow/references/successes/host-dispatch-result-ready.md
-plugin/skills/dev-flow/references/successes/host-dispatch-start-managed.md
-plugin/skills/dev-flow/references/successes/host-handoff-result-record.md
-plugin/skills/dev-flow/references/successes/host-handoff-start-start.md
-plugin/skills/dev-flow/references/successes/host-handoff-status-pending.md
-plugin/skills/dev-flow/references/successes/host-handoff-status-succeeded.md
-plugin/skills/dev-flow/references/successes/host-inspect-single.md
-plugin/skills/dev-flow/references/successes/host-local-provision-current-session.md
-plugin/skills/dev-flow/references/successes/host-prepare-local-branch.md
-plugin/skills/dev-flow/references/successes/host-prepare-local-managed.md
-plugin/skills/dev-flow/references/successes/host-prepare-remote-cli.md
-plugin/skills/dev-flow/references/successes/host-scope-multiple.md
-plugin/skills/dev-flow/references/successes/host-scope-single.md
-plugin/skills/dev-flow/references/successes/host-status-launch.md
+plugin/skills/taskbelay/SKILL.md
+plugin/skills/taskbelay/agents/openai.yaml
+plugin/skills/taskbelay/references/admission.md
+plugin/skills/taskbelay/references/artifact-contract.md
+plugin/skills/taskbelay/references/connection-examples.md
+plugin/skills/taskbelay/references/connection.md
+plugin/skills/taskbelay/references/core-lifecycle-examples.md
+plugin/skills/taskbelay/references/core-lifecycle.md
+plugin/skills/taskbelay/references/launch-examples.md
+plugin/skills/taskbelay/references/lifecycle-examples.md
+plugin/skills/taskbelay/references/nodes/comprehension-examples.md
+plugin/skills/taskbelay/references/nodes/delivery-examples.md
+plugin/skills/taskbelay/references/nodes/design-examples.md
+plugin/skills/taskbelay/references/nodes/implementation-examples.md
+plugin/skills/taskbelay/references/nodes/refactor-examples.md
+plugin/skills/taskbelay/references/nodes/requirements-examples.md
+plugin/skills/taskbelay/references/nodes/tasks-examples.md
+plugin/skills/taskbelay/references/nodes/test-examples.md
+plugin/skills/taskbelay/references/recovery-examples.md
+plugin/skills/taskbelay/references/recovery.md
+plugin/skills/taskbelay/references/response-examples.md
+plugin/skills/taskbelay/references/worktree-launch.md
+plugin/skills/taskbelay/references/artifacts.md
+plugin/skills/taskbelay/references/host-lifecycle.md
+plugin/skills/taskbelay/references/method-profiles.md
+plugin/skills/taskbelay/references/node-payloads.md
+plugin/skills/taskbelay/references/nodes/comprehension.md
+plugin/skills/taskbelay/references/nodes/delivery.md
+plugin/skills/taskbelay/references/nodes/design.md
+plugin/skills/taskbelay/references/nodes/implementation.md
+plugin/skills/taskbelay/references/nodes/refactor.md
+plugin/skills/taskbelay/references/nodes/requirements.md
+plugin/skills/taskbelay/references/nodes/tasks.md
+plugin/skills/taskbelay/references/nodes/test.md
+plugin/skills/taskbelay/references/task-handoff.md
+plugin/skills/taskbelay/references/tool-results.md
+plugin/skills/taskbelay/references/transport.md
+plugin/skills/taskbelay/references/verification.md
+plugin/skills/taskbelay/references/successes/taskbelay_abandon_task-abandon.md
+plugin/skills/taskbelay/references/successes/taskbelay_cancel_task-cancel.md
+plugin/skills/taskbelay/references/successes/taskbelay_get_next_action-guarded-read.md
+plugin/skills/taskbelay/references/successes/taskbelay_get_task-read.md
+plugin/skills/taskbelay/references/successes/taskbelay_open_task-create.md
+plugin/skills/taskbelay/references/successes/taskbelay_open_task-multiple.md
+plugin/skills/taskbelay/references/successes/taskbelay_open_task-resume.md
+plugin/skills/taskbelay/references/successes/taskbelay_prepare_task_relocation-prepare.md
+plugin/skills/taskbelay/references/successes/taskbelay_recover_action-saved-operation.md
+plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-allow_once.md
+plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-expand_scope.md
+plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-history.md
+plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-reject.md
+plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-relocation.md
+plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-verification-or-recovery.md
+plugin/skills/taskbelay/references/successes/taskbelay_server_info-handshake.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-code_too_complex.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-comprehension_passed.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-design_too_complex.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-evidence_insufficient.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-implementation_defect.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-requirement_unclear.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_complete.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_comprehension.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_design.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_implementation.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_requirements.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_test.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_design-design_ready.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_design-design_requires_requirements.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_implementation-implementation_needs_refactor.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_implementation-implementation_ready_for_test.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_implementation-implementation_requires_design.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_implementation-implementation_requires_requirements.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_refactor-refactor_ready_for_test.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_refactor-refactor_requires_design.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_refactor-refactor_requires_requirements.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_requirements-requirements_ready.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_tasks-tasks_plan_saved.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_tasks-tasks_ready.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_tasks-tasks_require_design.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_tasks-tasks_require_requirements.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_accepted_with_known_failures.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_expose_design_issue.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_expose_requirement_issue.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_failed_implementation.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_passed.md
+plugin/skills/taskbelay/references/successes/taskbelay_submit_test-verification_budget_increased.md
+plugin/skills/taskbelay/references/successes/host-bootstrap-managed.md
+plugin/skills/taskbelay/references/successes/host-cleanup-branch-remove-branch.md
+plugin/skills/taskbelay/references/successes/host-cleanup-decision-keep.md
+plugin/skills/taskbelay/references/successes/host-cleanup-worktree-remove-worktree.md
+plugin/skills/taskbelay/references/successes/host-cli-provision-single.md
+plugin/skills/taskbelay/references/successes/host-dispatch-call-managed.md
+plugin/skills/taskbelay/references/successes/host-dispatch-reconcile-lookup.md
+plugin/skills/taskbelay/references/successes/host-dispatch-recover-not-called.md
+plugin/skills/taskbelay/references/successes/host-dispatch-result-queued.md
+plugin/skills/taskbelay/references/successes/host-dispatch-result-ready.md
+plugin/skills/taskbelay/references/successes/host-dispatch-start-managed.md
+plugin/skills/taskbelay/references/successes/host-handoff-result-record.md
+plugin/skills/taskbelay/references/successes/host-handoff-start-start.md
+plugin/skills/taskbelay/references/successes/host-handoff-status-pending.md
+plugin/skills/taskbelay/references/successes/host-handoff-status-succeeded.md
+plugin/skills/taskbelay/references/successes/host-inspect-single.md
+plugin/skills/taskbelay/references/successes/host-local-provision-current-session.md
+plugin/skills/taskbelay/references/successes/host-prepare-local-branch.md
+plugin/skills/taskbelay/references/successes/host-prepare-local-managed.md
+plugin/skills/taskbelay/references/successes/host-prepare-remote-cli.md
+plugin/skills/taskbelay/references/successes/host-scope-multiple.md
+plugin/skills/taskbelay/references/successes/host-scope-single.md
+plugin/skills/taskbelay/references/successes/host-status-launch.md
 lib/worktree-snapshot.mjs'
 
 printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
@@ -297,7 +297,7 @@ printf '%s\n' "$production_files" | while IFS= read -r relative_path; do
 done
 node "$repository_root/scripts/sync-host-commands.mjs" --output "$stage_root/lib"
 cp "$repository_root/LICENSE" "$stage_root/LICENSE"
-chmod 0755 "$stage_root/bin/dev-flow-codex.mjs"
+chmod 0755 "$stage_root/bin/taskbelay-codex.mjs"
 
 runtime_report=$(node "$repository_root/scripts/build-core-runtimes.mjs" --output "$stage_root/runtime")
 RUNTIME_REPORT=$runtime_report CORE_VERSION=$core_version node <<'NODE'
@@ -311,14 +311,14 @@ NODE
 if [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ]; then
   reported_core=$(
     cd "$build_root"
-    "$stage_root/runtime/darwin-arm64/dev-flow" version
+    "$stage_root/runtime/darwin-arm64/taskbelay" version
   )
-  [ "$reported_core" = "dev-flow $core_version" ] || fail "detached Core version does not match CORE_VERSION"
+  [ "$reported_core" = "taskbelay $core_version" ] || fail "detached Core version does not match CORE_VERSION"
 else
-  go version -m "$stage_root/runtime/darwin-arm64/dev-flow" >/dev/null
+  go version -m "$stage_root/runtime/darwin-arm64/taskbelay" >/dev/null
 fi
 
-node "$repository_root/scripts/sync-skill-references.mjs" --host codex --output "$stage_root/plugin/skills/dev-flow"
+node "$repository_root/scripts/sync-skill-references.mjs" --host codex --output "$stage_root/plugin/skills/taskbelay"
 
 pack_report=$(pnpm --config.ignore-scripts=true --dir "$stage_root" pack --dry-run --json)
 PACK_REPORT=$pack_report node <<'NODE'
@@ -331,7 +331,7 @@ const expected = [
   ".agents/plugins/marketplace.json",
   "LICENSE",
   "README.md",
-  "bin/dev-flow-codex.mjs",
+  "bin/taskbelay-codex.mjs",
   "lib/artifacts-help.mjs",
   "lib/command.mjs",
   "lib/host-launch-contract.mjs",
@@ -356,130 +356,130 @@ const expected = [
   "plugin/.mcp.json",
   "plugin/hooks/hooks.json",
   "plugin/hooks/pre-tool-use.mjs",
-  "plugin/skills/dev-flow/SKILL.md",
-  "plugin/skills/dev-flow/agents/openai.yaml",
-  "plugin/skills/dev-flow/references/admission.md",
-  "plugin/skills/dev-flow/references/artifact-contract.md",
-  "plugin/skills/dev-flow/references/connection-examples.md",
-  "plugin/skills/dev-flow/references/connection.md",
-  "plugin/skills/dev-flow/references/core-lifecycle-examples.md",
-  "plugin/skills/dev-flow/references/core-lifecycle.md",
-  "plugin/skills/dev-flow/references/launch-examples.md",
-  "plugin/skills/dev-flow/references/lifecycle-examples.md",
-  "plugin/skills/dev-flow/references/nodes/comprehension-examples.md",
-  "plugin/skills/dev-flow/references/nodes/delivery-examples.md",
-  "plugin/skills/dev-flow/references/nodes/design-examples.md",
-  "plugin/skills/dev-flow/references/nodes/implementation-examples.md",
-  "plugin/skills/dev-flow/references/nodes/refactor-examples.md",
-  "plugin/skills/dev-flow/references/nodes/requirements-examples.md",
-  "plugin/skills/dev-flow/references/nodes/tasks-examples.md",
-  "plugin/skills/dev-flow/references/nodes/test-examples.md",
-  "plugin/skills/dev-flow/references/recovery-examples.md",
-  "plugin/skills/dev-flow/references/recovery.md",
-  "plugin/skills/dev-flow/references/response-examples.md",
-  "plugin/skills/dev-flow/references/worktree-launch.md",
-  "plugin/skills/dev-flow/references/artifacts.md",
-  "plugin/skills/dev-flow/references/host-lifecycle.md",
-  "plugin/skills/dev-flow/references/method-profiles.md",
-  "plugin/skills/dev-flow/references/node-payloads.md",
-  "plugin/skills/dev-flow/references/nodes/comprehension.md",
-  "plugin/skills/dev-flow/references/nodes/delivery.md",
-  "plugin/skills/dev-flow/references/nodes/design.md",
-  "plugin/skills/dev-flow/references/nodes/implementation.md",
-  "plugin/skills/dev-flow/references/nodes/refactor.md",
-  "plugin/skills/dev-flow/references/nodes/requirements.md",
-  "plugin/skills/dev-flow/references/nodes/tasks.md",
-  "plugin/skills/dev-flow/references/nodes/test.md",
-  "plugin/skills/dev-flow/references/task-handoff.md",
-  "plugin/skills/dev-flow/references/tool-results.md",
-  "plugin/skills/dev-flow/references/transport.md",
-  "plugin/skills/dev-flow/references/verification.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_abandon_task-abandon.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_cancel_task-cancel.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_get_next_action-guarded-read.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_get_task-read.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_open_task-create.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_open_task-multiple.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_open_task-resume.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_prepare_task_relocation-prepare.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_recover_action-saved-operation.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-allow_once.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-expand_scope.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-history.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-reject.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-relocation.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_resolve_blocker-verification-or-recovery.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_server_info-handshake.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-code_too_complex.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-comprehension_passed.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-design_too_complex.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-evidence_insufficient.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-implementation_defect.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_comprehension-requirement_unclear.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_complete.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_comprehension.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_design.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_implementation.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_requirements.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_delivery-delivery_needs_test.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_design-design_ready.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_design-design_requires_requirements.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_needs_refactor.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_ready_for_test.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_requires_design.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_implementation-implementation_requires_requirements.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_ready_for_test.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_requires_design.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_refactor-refactor_requires_requirements.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_requirements-requirements_ready.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_plan_saved.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_ready.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_require_design.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_tasks-tasks_require_requirements.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_accepted_with_known_failures.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_expose_design_issue.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_expose_requirement_issue.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_failed_implementation.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-tests_passed.md",
-  "plugin/skills/dev-flow/references/successes/dev_flow_submit_test-verification_budget_increased.md",
-  "plugin/skills/dev-flow/references/successes/host-bootstrap-managed.md",
-  "plugin/skills/dev-flow/references/successes/host-cleanup-branch-remove-branch.md",
-  "plugin/skills/dev-flow/references/successes/host-cleanup-decision-keep.md",
-  "plugin/skills/dev-flow/references/successes/host-cleanup-worktree-remove-worktree.md",
-  "plugin/skills/dev-flow/references/successes/host-cli-provision-single.md",
-  "plugin/skills/dev-flow/references/successes/host-dispatch-call-managed.md",
-  "plugin/skills/dev-flow/references/successes/host-dispatch-reconcile-lookup.md",
-  "plugin/skills/dev-flow/references/successes/host-dispatch-recover-not-called.md",
-  "plugin/skills/dev-flow/references/successes/host-dispatch-result-queued.md",
-  "plugin/skills/dev-flow/references/successes/host-dispatch-result-ready.md",
-  "plugin/skills/dev-flow/references/successes/host-dispatch-start-managed.md",
-  "plugin/skills/dev-flow/references/successes/host-handoff-result-record.md",
-  "plugin/skills/dev-flow/references/successes/host-handoff-start-start.md",
-  "plugin/skills/dev-flow/references/successes/host-handoff-status-pending.md",
-  "plugin/skills/dev-flow/references/successes/host-handoff-status-succeeded.md",
-  "plugin/skills/dev-flow/references/successes/host-inspect-single.md",
-  "plugin/skills/dev-flow/references/successes/host-local-provision-current-session.md",
-  "plugin/skills/dev-flow/references/successes/host-prepare-local-branch.md",
-  "plugin/skills/dev-flow/references/successes/host-prepare-local-managed.md",
-  "plugin/skills/dev-flow/references/successes/host-prepare-remote-cli.md",
-  "plugin/skills/dev-flow/references/successes/host-scope-multiple.md",
-  "plugin/skills/dev-flow/references/successes/host-scope-single.md",
-  "plugin/skills/dev-flow/references/successes/host-status-launch.md",
-  "runtime/darwin-arm64/dev-flow",
-  "runtime/win32-x64/dev-flow.exe"
+  "plugin/skills/taskbelay/SKILL.md",
+  "plugin/skills/taskbelay/agents/openai.yaml",
+  "plugin/skills/taskbelay/references/admission.md",
+  "plugin/skills/taskbelay/references/artifact-contract.md",
+  "plugin/skills/taskbelay/references/connection-examples.md",
+  "plugin/skills/taskbelay/references/connection.md",
+  "plugin/skills/taskbelay/references/core-lifecycle-examples.md",
+  "plugin/skills/taskbelay/references/core-lifecycle.md",
+  "plugin/skills/taskbelay/references/launch-examples.md",
+  "plugin/skills/taskbelay/references/lifecycle-examples.md",
+  "plugin/skills/taskbelay/references/nodes/comprehension-examples.md",
+  "plugin/skills/taskbelay/references/nodes/delivery-examples.md",
+  "plugin/skills/taskbelay/references/nodes/design-examples.md",
+  "plugin/skills/taskbelay/references/nodes/implementation-examples.md",
+  "plugin/skills/taskbelay/references/nodes/refactor-examples.md",
+  "plugin/skills/taskbelay/references/nodes/requirements-examples.md",
+  "plugin/skills/taskbelay/references/nodes/tasks-examples.md",
+  "plugin/skills/taskbelay/references/nodes/test-examples.md",
+  "plugin/skills/taskbelay/references/recovery-examples.md",
+  "plugin/skills/taskbelay/references/recovery.md",
+  "plugin/skills/taskbelay/references/response-examples.md",
+  "plugin/skills/taskbelay/references/worktree-launch.md",
+  "plugin/skills/taskbelay/references/artifacts.md",
+  "plugin/skills/taskbelay/references/host-lifecycle.md",
+  "plugin/skills/taskbelay/references/method-profiles.md",
+  "plugin/skills/taskbelay/references/node-payloads.md",
+  "plugin/skills/taskbelay/references/nodes/comprehension.md",
+  "plugin/skills/taskbelay/references/nodes/delivery.md",
+  "plugin/skills/taskbelay/references/nodes/design.md",
+  "plugin/skills/taskbelay/references/nodes/implementation.md",
+  "plugin/skills/taskbelay/references/nodes/refactor.md",
+  "plugin/skills/taskbelay/references/nodes/requirements.md",
+  "plugin/skills/taskbelay/references/nodes/tasks.md",
+  "plugin/skills/taskbelay/references/nodes/test.md",
+  "plugin/skills/taskbelay/references/task-handoff.md",
+  "plugin/skills/taskbelay/references/tool-results.md",
+  "plugin/skills/taskbelay/references/transport.md",
+  "plugin/skills/taskbelay/references/verification.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_abandon_task-abandon.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_cancel_task-cancel.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_get_next_action-guarded-read.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_get_task-read.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_open_task-create.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_open_task-multiple.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_open_task-resume.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_prepare_task_relocation-prepare.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_recover_action-saved-operation.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-allow_once.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-expand_scope.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-history.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-reject.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-relocation.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_resolve_blocker-verification-or-recovery.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_server_info-handshake.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-code_too_complex.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-comprehension_passed.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-design_too_complex.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-evidence_insufficient.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-implementation_defect.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_comprehension-requirement_unclear.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_complete.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_comprehension.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_design.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_implementation.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_requirements.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_delivery-delivery_needs_test.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_design-design_ready.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_design-design_requires_requirements.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_implementation-implementation_needs_refactor.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_implementation-implementation_ready_for_test.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_implementation-implementation_requires_design.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_implementation-implementation_requires_requirements.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_refactor-refactor_ready_for_test.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_refactor-refactor_requires_design.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_refactor-refactor_requires_requirements.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_requirements-requirements_ready.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_tasks-tasks_plan_saved.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_tasks-tasks_ready.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_tasks-tasks_require_design.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_tasks-tasks_require_requirements.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_accepted_with_known_failures.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_expose_design_issue.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_expose_requirement_issue.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_failed_implementation.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_test-tests_passed.md",
+  "plugin/skills/taskbelay/references/successes/taskbelay_submit_test-verification_budget_increased.md",
+  "plugin/skills/taskbelay/references/successes/host-bootstrap-managed.md",
+  "plugin/skills/taskbelay/references/successes/host-cleanup-branch-remove-branch.md",
+  "plugin/skills/taskbelay/references/successes/host-cleanup-decision-keep.md",
+  "plugin/skills/taskbelay/references/successes/host-cleanup-worktree-remove-worktree.md",
+  "plugin/skills/taskbelay/references/successes/host-cli-provision-single.md",
+  "plugin/skills/taskbelay/references/successes/host-dispatch-call-managed.md",
+  "plugin/skills/taskbelay/references/successes/host-dispatch-reconcile-lookup.md",
+  "plugin/skills/taskbelay/references/successes/host-dispatch-recover-not-called.md",
+  "plugin/skills/taskbelay/references/successes/host-dispatch-result-queued.md",
+  "plugin/skills/taskbelay/references/successes/host-dispatch-result-ready.md",
+  "plugin/skills/taskbelay/references/successes/host-dispatch-start-managed.md",
+  "plugin/skills/taskbelay/references/successes/host-handoff-result-record.md",
+  "plugin/skills/taskbelay/references/successes/host-handoff-start-start.md",
+  "plugin/skills/taskbelay/references/successes/host-handoff-status-pending.md",
+  "plugin/skills/taskbelay/references/successes/host-handoff-status-succeeded.md",
+  "plugin/skills/taskbelay/references/successes/host-inspect-single.md",
+  "plugin/skills/taskbelay/references/successes/host-local-provision-current-session.md",
+  "plugin/skills/taskbelay/references/successes/host-prepare-local-branch.md",
+  "plugin/skills/taskbelay/references/successes/host-prepare-local-managed.md",
+  "plugin/skills/taskbelay/references/successes/host-prepare-remote-cli.md",
+  "plugin/skills/taskbelay/references/successes/host-scope-multiple.md",
+  "plugin/skills/taskbelay/references/successes/host-scope-single.md",
+  "plugin/skills/taskbelay/references/successes/host-status-launch.md",
+  "runtime/darwin-arm64/taskbelay",
+  "runtime/win32-x64/taskbelay.exe"
 ].sort();
-if (report.name !== "dev-flow-codex" || JSON.stringify(actual) !== JSON.stringify(expected)) {
+if (report.name !== "taskbelay-codex" || JSON.stringify(actual) !== JSON.stringify(expected)) {
   throw new Error(`unexpected staged pack contents: ${JSON.stringify(actual)}`);
 }
 NODE
 
-artifact_path="$output_directory/dev-flow-codex-$codex_version.tgz"
+artifact_path="$output_directory/taskbelay-codex-$codex_version.tgz"
 find "$stage_root" -exec touch -t 198510260815.00 {} +
 if tar --version 2>/dev/null | grep -q 'GNU tar'; then
   (
     cd "$build_root"
     find package -type f -print | LC_ALL=C sort | COPYFILE_DISABLE=1 tar \
-      -cf "$build_root/dev-flow-codex.tar" \
+      -cf "$build_root/taskbelay-codex.tar" \
       --format ustar \
       --owner 0 \
       --group 0 \
@@ -490,7 +490,7 @@ else
   (
     cd "$build_root"
     find package -type f -print | LC_ALL=C sort | COPYFILE_DISABLE=1 tar \
-      -cf "$build_root/dev-flow-codex.tar" \
+      -cf "$build_root/taskbelay-codex.tar" \
       --format ustar \
       --uid 0 \
       --gid 0 \
@@ -499,7 +499,7 @@ else
       -T -
   )
 fi
-gzip -n -c "$build_root/dev-flow-codex.tar" >"$artifact_path"
+gzip -n -c "$build_root/taskbelay-codex.tar" >"$artifact_path"
 [ -f "$artifact_path" ] || fail "archive creation did not produce the expected artifact"
 
 if command -v shasum >/dev/null 2>&1; then
@@ -540,7 +540,7 @@ if (!baseReport.final_artifact) {
 }
 
 const report = {
-  report_type: "dev-flow-codex-final-artifact",
+  report_type: "taskbelay-codex-final-artifact",
   artifact_path: baseReport.artifact_path,
   artifact_sha256: baseReport.artifact_sha256,
   package_version: baseReport.package_version,

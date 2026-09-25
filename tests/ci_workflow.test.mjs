@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 
 const execFile = promisify(execFileCallback);
 const workflow = (await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8")).replaceAll("\r\n", "\n");
-const packages = ["codex", "deepseek", "dev-flow", "zcode"];
+const packages = ["codex", "deepseek", "taskbelay", "zcode"];
 const windowsStart = workflow.indexOf("  windows-x64:\n");
 assert.notEqual(windowsStart, -1, "Windows CI job is required");
 const remaining = workflow.slice(windowsStart + "  windows-x64:\n".length);
@@ -40,20 +40,20 @@ test("Windows package suites have independent mandatory steps and explicit exit 
 test("actual Windows CI step bodies preserve each native failure and allow success", {
   skip: process.platform !== "win32" ? "requires native PowerShell on Windows" : false,
 }, async t => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-ci-exit-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-ci-exit-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const command = join(root, "pnpm-test.mjs");
   const calls = join(root, "calls.jsonl");
   // Only the package executable is substituted. Run the checked-in step bodies
   // in real PowerShell, with a native Node process supplying the exit status.
-  await writeFile(command, `import { appendFileSync } from 'node:fs';\nappendFileSync(process.env.DEV_FLOW_CI_TEST_CALLS, JSON.stringify(process.argv.slice(2)) + '\\n');\nprocess.exit(Number(process.env.DEV_FLOW_CI_TEST_EXIT));\n`);
-  await writeFile(join(root, "pnpm.ps1"), "& $env:DEV_FLOW_CI_TEST_NODE $env:DEV_FLOW_CI_TEST_COMMAND @args\nexit $LASTEXITCODE\n");
+  await writeFile(command, `import { appendFileSync } from 'node:fs';\nappendFileSync(process.env.TASKBELAY_CI_TEST_CALLS, JSON.stringify(process.argv.slice(2)) + '\\n');\nprocess.exit(Number(process.env.TASKBELAY_CI_TEST_EXIT));\n`);
+  await writeFile(join(root, "pnpm.ps1"), "& $env:TASKBELAY_CI_TEST_NODE $env:TASKBELAY_CI_TEST_COMMAND @args\nexit $LASTEXITCODE\n");
   const environment = { ...process.env };
   const pathKey = Object.keys(environment).find(key => key.toUpperCase() === "PATH") ?? "PATH";
   environment[pathKey] = `${root};${environment[pathKey] ?? ""}`;
-  environment.DEV_FLOW_CI_TEST_NODE = process.execPath;
-  environment.DEV_FLOW_CI_TEST_COMMAND = command;
-  environment.DEV_FLOW_CI_TEST_CALLS = calls;
+  environment.TASKBELAY_CI_TEST_NODE = process.execPath;
+  environment.TASKBELAY_CI_TEST_COMMAND = command;
+  environment.TASKBELAY_CI_TEST_CALLS = calls;
 
   for (const product of packages) {
     const script = join(root, `${product}.ps1`);
@@ -64,7 +64,7 @@ test("actual Windows CI step bodies preserve each native failure and allow succe
         let actualCode;
         try {
           await execFile("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script], {
-            cwd: root, env: { ...environment, DEV_FLOW_CI_TEST_EXIT: String(code) }, encoding: "utf8", windowsHide: true, timeout: 15000,
+            cwd: root, env: { ...environment, TASKBELAY_CI_TEST_EXIT: String(code) }, encoding: "utf8", windowsHide: true, timeout: 15000,
           });
           actualCode = 0;
         } catch (error) {

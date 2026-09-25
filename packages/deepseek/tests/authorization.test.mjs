@@ -7,65 +7,65 @@ import { Session } from "@deepseek-ai/dsh-session";
 
 import {
   DENIAL_CODES,
-  authorizeDevFlowExecution,
+  authorizeTaskBelayExecution,
   currentDirectUserText,
   deriveCurrentTurn,
   hasDirectUserSelector,
-  registerDevFlowGuard,
+  registerTaskBelayGuard,
 } from "../lib/authorization.mjs";
 import {
-  DEV_FLOW_QUALIFIED_TOOL_NAMES,
-  DEV_FLOW_TOOL_NAMESPACE_PREFIX,
+  TASKBELAY_QUALIFIED_TOOL_NAMES,
+  TASKBELAY_TOOL_NAMESPACE_PREFIX,
 } from "../lib/tool-names.mjs";
 
-const expectedTool = DEV_FLOW_QUALIFIED_TOOL_NAMES[0];
-const openTool = DEV_FLOW_QUALIFIED_TOOL_NAMES[1];
+const expectedTool = TASKBELAY_QUALIFIED_TOOL_NAMES[0];
+const openTool = TASKBELAY_QUALIFIED_TOOL_NAMES[1];
 
 test("current DSH Session authorizes direct and nested calls and reads confirmation text", () => {
   const session = Session.create("authorization-session");
   session.append("turn/start", { turn: 1 });
-  session.append("user/message", directUserMessage("/dev-flow confirm-worktree\nrepository=primary;remote=origin;base=main;target=codex/proof"), { surfaceOp: "append" });
+  session.append("user/message", directUserMessage("/taskbelay confirm-worktree\nrepository=primary;remote=origin;base=main;target=codex/proof"), { surfaceOp: "append" });
   session.append("tool/call", { turn: 1, step: 1, callId: "real-call", name: expectedTool, arguments: "{}" });
   const execution = { name: expectedTool, callId: "real-call", agent: { status: "running", session } };
-  assert.equal(authorizeDevFlowExecution(execution), undefined);
+  assert.equal(authorizeTaskBelayExecution(execution), undefined);
   assert.match(currentDirectUserText(execution), /repository=primary/u);
-  assert.equal(authorizeDevFlowExecution({ ...execution, callId: "nested-call", parent: Symbol("parent") }), undefined);
+  assert.equal(authorizeTaskBelayExecution({ ...execution, callId: "nested-call", parent: Symbol("parent") }), undefined);
   session.append("turn/end", { turn: 1, reason: "completed" });
-  assert.match(authorizeDevFlowExecution(execution), /DEV_FLOW_NO_OPEN_TURN/u);
+  assert.match(authorizeTaskBelayExecution(execution), /TASKBELAY_NO_OPEN_TURN/u);
   session.append("turn/start", { turn: 2 });
   session.append("user/message", directUserMessage("ordinary request", "next-user"), { surfaceOp: "append" });
   session.append("tool/call", { turn: 2, step: 1, callId: "next-call", name: expectedTool, arguments: "{}" });
-  assert.match(authorizeDevFlowExecution({ ...execution, callId: "next-call" }), /DEV_FLOW_SELECTOR_REQUIRED/u);
+  assert.match(authorizeTaskBelayExecution({ ...execution, callId: "next-call" }), /TASKBELAY_SELECTOR_REQUIRED/u);
 });
 
 test("selector matcher accepts only the whitespace-bounded token", () => {
   for (const text of [
-    "/dev-flow",
-    "/dev-flow do the task",
-    "please /dev-flow continue",
-    "line one\n/dev-flow\nline three",
-    "```\n/dev-flow\n```",
+    "/taskbelay",
+    "/taskbelay do the task",
+    "please /taskbelay continue",
+    "line one\n/taskbelay\nline three",
+    "```\n/taskbelay\n```",
   ]) {
     assert.equal(hasDirectUserSelector(directUserMessage(text)), true, text);
   }
   for (const text of [
     "",
-    "/dev-flow, continue",
-    "/dev-flowx",
-    "//dev-flow",
-    "path/dev-flow",
+    "/taskbelay, continue",
+    "/taskbelayx",
+    "//taskbelay",
+    "path/taskbelay",
   ]) {
     assert.equal(hasDirectUserSelector(directUserMessage(text)), false, text);
   }
-  assert.equal(hasDirectUserSelector(injectedMessage("/dev-flow", "plugin")), false);
-  assert.equal(hasDirectUserSelector(injectedMessage("/dev-flow", "skill-invocation")), false);
-  assert.equal(hasDirectUserSelector({ ...directUserMessage("/dev-flow"), content: [{ type: "image" }] }), false);
+  assert.equal(hasDirectUserSelector(injectedMessage("/taskbelay", "plugin")), false);
+  assert.equal(hasDirectUserSelector(injectedMessage("/taskbelay", "skill-invocation")), false);
+  assert.equal(hasDirectUserSelector({ ...directUserMessage("/taskbelay"), content: [{ type: "image" }] }), false);
 });
 
 test("derives a direct call from its durable tool/call and current turn only", () => {
   const events = [
     event(0, "turn/start", { turn: 1 }),
-    event(1, "user/message", directUserMessage("/dev-flow historical", "old")),
+    event(1, "user/message", directUserMessage("/taskbelay historical", "old")),
     event(2, "turn/end", { turn: 1, reason: "completed" }),
     event(3, "turn/start", { turn: 2 }),
     event(4, "user/message", directUserMessage("ordinary current request", "current")),
@@ -80,19 +80,19 @@ test("derives a direct call from its durable tool/call and current turn only", (
     directUserMessageIds: ["current"],
     selectorPresent: false,
   });
-  assert.match(authorizeDevFlowExecution(execution), new RegExp(DENIAL_CODES.SELECTOR_REQUIRED));
+  assert.match(authorizeTaskBelayExecution(execution), new RegExp(DENIAL_CODES.SELECTOR_REQUIRED));
 });
 
 test("allows an expected tool only for an exact current direct-user selector", () => {
   const events = [
     event(0, "turn/start", { turn: 4 }),
-    event(1, "user/message", injectedMessage("/dev-flow injected", "plugin", "plugin")),
-    event(2, "user/message", directUserMessage("please /dev-flow continue", "direct")),
+    event(1, "user/message", injectedMessage("/taskbelay injected", "plugin", "plugin")),
+    event(2, "user/message", directUserMessage("please /taskbelay continue", "direct")),
     event(3, "tool/call", { turn: 4, step: 1, callId: "call-4", name: expectedTool, arguments: "{}" }),
   ];
   const execution = makeExecution({ events, callId: "call-4" });
 
-  assert.equal(authorizeDevFlowExecution(execution), undefined);
+  assert.equal(authorizeTaskBelayExecution(execution), undefined);
   assert.deepEqual(deriveCurrentTurn(execution)?.directUserMessageIds, ["direct"]);
 });
 
@@ -100,13 +100,13 @@ test("nested Code Mode calls use the latest single open turn without a durable s
   const allowed = makeExecution({
     events: [
       event(0, "turn/start", { turn: 7 }),
-      event(1, "user/message", directUserMessage("/dev-flow nested", "nested-user")),
+      event(1, "user/message", directUserMessage("/taskbelay nested", "nested-user")),
       event(2, "tool/call", { turn: 7, step: 1, callId: "outer", name: "run_code", arguments: "{}" }),
     ],
     callId: "outer:code:1",
     parent: Symbol("outer"),
   });
-  assert.equal(authorizeDevFlowExecution(allowed), undefined);
+  assert.equal(authorizeTaskBelayExecution(allowed), undefined);
   assert.equal(deriveCurrentTurn(allowed)?.callSeq, undefined);
 
   const denied = makeExecution({
@@ -117,34 +117,34 @@ test("nested Code Mode calls use the latest single open turn without a durable s
     callId: "outer:code:2",
     parent: Symbol("outer"),
   });
-  assert.match(authorizeDevFlowExecution(denied), new RegExp(DENIAL_CODES.SELECTOR_REQUIRED));
+  assert.match(authorizeTaskBelayExecution(denied), new RegExp(DENIAL_CODES.SELECTOR_REQUIRED));
 });
 
 test("fails closed for unexpected tools and missing execution context", () => {
   const unexpected = makeExecution({
-    name: `${DEV_FLOW_TOOL_NAMESPACE_PREFIX}future_tool`,
-    events: openSelectedTurn("future-call", `${DEV_FLOW_TOOL_NAMESPACE_PREFIX}future_tool`),
+    name: `${TASKBELAY_TOOL_NAMESPACE_PREFIX}future_tool`,
+    events: openSelectedTurn("future-call", `${TASKBELAY_TOOL_NAMESPACE_PREFIX}future_tool`),
     callId: "future-call",
   });
-  assert.match(authorizeDevFlowExecution(unexpected), new RegExp(DENIAL_CODES.UNEXPECTED_TOOL));
+  assert.match(authorizeTaskBelayExecution(unexpected), new RegExp(DENIAL_CODES.UNEXPECTED_TOOL));
 
   assert.match(
-    authorizeDevFlowExecution({ ...unexpected, name: expectedTool, agent: undefined }),
+    authorizeTaskBelayExecution({ ...unexpected, name: expectedTool, agent: undefined }),
     new RegExp(DENIAL_CODES.NO_AGENT),
   );
   assert.match(
-    authorizeDevFlowExecution(makeExecution({ events: [], callId: "missing" })),
+    authorizeTaskBelayExecution(makeExecution({ events: [], callId: "missing" })),
     new RegExp(DENIAL_CODES.NO_OPEN_TURN),
   );
   assert.match(
-    authorizeDevFlowExecution(makeExecution({
+    authorizeTaskBelayExecution(makeExecution({
       events: [...openSelectedTurn("closed", expectedTool), event(3, "turn/end", { turn: 1, reason: "completed" })],
       callId: "closed",
     })),
     new RegExp(DENIAL_CODES.NO_OPEN_TURN),
   );
   assert.match(
-    authorizeDevFlowExecution(makeExecution({
+    authorizeTaskBelayExecution(makeExecution({
       events: [event(0, "turn/start", { turn: 1 }), event(1, "turn/start", { turn: 2 })],
       callId: "nested",
       parent: Symbol("outer"),
@@ -156,7 +156,7 @@ test("fails closed for unexpected tools and missing execution context", () => {
 test("plain-context guard denies before dispatch with zero Core writes", () => {
   const guards = [];
   const ctx = { tools: { guard: (guard) => { guards.push(guard); return () => guards.splice(guards.indexOf(guard), 1); } } };
-  const dispose = registerDevFlowGuard(ctx);
+  const dispose = registerTaskBelayGuard(ctx);
   let dispatches = 0;
   let coreWrites = 0;
   const execution = makeExecution({
@@ -178,13 +178,13 @@ test("plain-context guard denies before dispatch with zero Core writes", () => {
   assert.equal(dispatches, 0);
   assert.equal(coreWrites, 0);
 
-  assert.equal(authorizeDevFlowExecution({ ...execution, name: "unrelated_tool" }), undefined);
+  assert.equal(authorizeTaskBelayExecution({ ...execution, name: "unrelated_tool" }), undefined);
   dispose();
   assert.equal(guards.length, 0);
 });
 
 test("open-task guard allows two repositories inside a non-Git Workspace Root", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-auth-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-auth-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const primary = join(root, "primary");
   const additional = join(root, "docs");
@@ -201,11 +201,11 @@ test("open-task guard allows two repositories inside a non-Git Workspace Root", 
       new_task: null,
     },
   });
-  assert.equal(authorizeDevFlowExecution(execution, { workspaceRoot: root }), undefined);
+  assert.equal(authorizeTaskBelayExecution(execution, { workspaceRoot: root }), undefined);
 });
 
 test("open-task guard rejects root-external and symlink-escaping repositories before dispatch", async (t) => {
-  const base = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-auth-")));
+  const base = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-auth-")));
   t.after(() => rm(base, { recursive: true, force: true }));
   const root = join(base, "workspace");
   const primary = join(root, "primary");
@@ -228,7 +228,7 @@ test("open-task guard rejects root-external and symlink-escaping repositories be
         new_task: null,
       },
     });
-    const denial = authorizeDevFlowExecution(execution, { workspaceRoot: root });
+    const denial = authorizeTaskBelayExecution(execution, { workspaceRoot: root });
     if (denial === undefined) dispatches += 1;
     assert.match(denial, new RegExp(DENIAL_CODES.REPOSITORY_OUTSIDE_WORKSPACE), name);
     assert.match(denial, /repository "docs"/u, name);
@@ -239,7 +239,7 @@ test("open-task guard rejects root-external and symlink-escaping repositories be
 function openSelectedTurn(callId, name) {
   return [
     event(0, "turn/start", { turn: 1 }),
-    event(1, "user/message", directUserMessage("/dev-flow selected", "selected")),
+    event(1, "user/message", directUserMessage("/taskbelay selected", "selected")),
     event(2, "tool/call", { turn: 1, step: 1, callId, name, arguments: "{}" }),
   ];
 }

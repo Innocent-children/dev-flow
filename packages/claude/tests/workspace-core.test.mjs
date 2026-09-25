@@ -22,15 +22,15 @@ test("Claude workspace keys survive real Core creation and relocation", {
 }, async t => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "claude-workspace-core-")));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const runtime = join(root, process.platform === "win32" ? "dev-flow.exe" : "dev-flow");
-  await execFile("go", ["build", "-o", runtime, "./cmd/dev-flow"], { cwd: repositoryRoot, timeout: 60_000 });
+  const runtime = join(root, process.platform === "win32" ? "taskbelay.exe" : "taskbelay");
+  await execFile("go", ["build", "-o", runtime, "./cmd/taskbelay"], { cwd: repositoryRoot, timeout: 60_000 });
 
   for (const keys of [["backend"], ["backend", "worker", "api"]]) {
     await t.test(keys.join(" + "), async t => {
       const home = join(root, String(keys.length));
       const data = join(home, "data");
       await mkdir(data, { recursive: true });
-      const environment = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: join(home, "appdata"), CLAUDE_CONFIG_DIR: join(home, "claude"), DEV_FLOW_DATA_DIR: data };
+      const environment = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: join(home, "appdata"), CLAUDE_CONFIG_DIR: join(home, "claude"), TASKBELAY_DATA_DIR: data };
       const workspaceAvailable = async repository_path => JSON.parse((await execPortableCommand(runtime, ["host-check", "workspace-available"], {
         env: environment, input: JSON.stringify({ repository_path }), timeout: 10_000,
       })).stdout);
@@ -53,7 +53,7 @@ test("Claude workspace keys survive real Core creation and relocation", {
         change_level: "standard", candidate_components: ["workspace"], candidate_paths: ["base.txt"],
         public_contract_flags: ["repository identity"], persistence_or_state_flags: [], host_or_platform_flags: ["Claude"],
         verification_shape: ["Core creation and relocation"], reasons: ["Preserve custom repository keys"], unknowns: [], anchor,
-      }, user_choice: { source: "user", mode: "dev_flow", summary: "Confirmed workspaces" }, repositories,
+      }, user_choice: { source: "user", mode: "taskbelay", summary: "Confirmed workspaces" }, repositories,
       handoff: { discussion: [{ role: "user", text: request }] } }, options);
       await provision(receipt.launch_id, options);
       const creationScope = await scope(receipt.launch_id, options);
@@ -61,18 +61,18 @@ test("Claude workspace keys survive real Core creation and relocation", {
       assert.deepEqual((creationScope.additional_repositories ?? []).map(repo => repo.key), keys.slice(1));
 
       const call = await coreClient(t, runtime, environment, home);
-      const opened = await call("dev_flow_open_task", { host: "claude", ...creationScope, new_task: {
+      const opened = await call("taskbelay_open_task", { host: "claude", ...creationScope, new_task: {
         request, initial_scope: ["Workspace identity"], initial_out_of_scope: ["Application changes"],
         known_acceptance_criteria: ["Repository keys and files survive relocation"], method_profile: "plain",
       } });
       assert.equal(opened.created, true);
       assert.equal(opened.task.primary_repository_key, "backend");
       await bindTask(receipt.launch_id, { task_id: opened.task.task_id }, options);
-      const prepared = await call("dev_flow_prepare_task_relocation", { host: "claude", task_id: opened.task.task_id, revision: opened.task.revision });
+      const prepared = await call("taskbelay_prepare_task_relocation", { host: "claude", task_id: opened.task.task_id, revision: opened.task.revision });
       const destinations = repositories.map(repo => ({ repository_key: repo.key, repository_path: join(home, "relocated-" + repo.key) })).reverse();
       const moved = await relocate(receipt.launch_id, { relocation_id: prepared.relocation_id, destinations, authorized: true }, options);
       assert.deepEqual(moved.relocation_destinations.map(repo => repo.key), keys);
-      const resolved = await call("dev_flow_resolve_blocker", { host: "claude", task_id: opened.task.task_id,
+      const resolved = await call("taskbelay_resolve_blocker", { host: "claude", task_id: opened.task.task_id,
         action_id: prepared.task.current_action.action_id, relocation_id: moved.relocation_id,
         relocation_destinations: moved.relocation_destinations });
       assert.equal(resolved.current_cursor, "REQUIREMENTS");
@@ -84,7 +84,7 @@ test("Claude workspace keys survive real Core creation and relocation", {
         assert.equal(await readFile(join(destination.repository_path, "base.txt"), "utf8"), destination.key);
         assert.equal((await workspaceAvailable(destination.repository_path)).available, false);
       }
-      const resumed = await call("dev_flow_open_task", { host: "claude", repository_path: resolved.workspace_origin.canonical_worktree_root });
+      const resumed = await call("taskbelay_open_task", { host: "claude", repository_path: resolved.workspace_origin.canonical_worktree_root });
       assert.equal(resumed.created, false);
       assert.equal(resumed.task.task_id, opened.task.task_id);
       assert.equal(resumed.task.current_cursor, "REQUIREMENTS");
@@ -119,7 +119,7 @@ async function coreClient(t, runtime, environment, cwd) {
     });
   };
   const initialized = await request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "claude-workspace-test", version: "0.1.0" } });
-  assert.equal(initialized.result.serverInfo.name, "dev-flow");
+  assert.equal(initialized.result.serverInfo.name, "taskbelay");
   child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
   return async (name, arguments_) => {
     const response = await request("tools/call", { name, arguments: arguments_ });

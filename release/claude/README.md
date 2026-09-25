@@ -29,7 +29,7 @@ It uses npm dist-tag `beta` and a GitHub prerelease. Both channels use commit
 
 The entrypoint alone does not establish a public npm release or verified Host support. Before the
 first publication, the package maintainer must resolve the npm package ownership, initial-publication
-requirements and authentication, then configure `Innocent-children/dev-flow`'s `publish-npm.yml` as
+requirements and authentication, then configure `Innocent-children/taskbelay`'s `publish-npm.yml` as
 this package's GitHub Actions Trusted Publisher. The repository does not configure npm settings.
 See [Release Ownership](../README.md) for the shared credentials, approval and retry requirements.
 
@@ -45,9 +45,9 @@ frozen-source staging directories, verifies the package and version mirrors, and
 independently built tarballs to match. The external output directory contains exactly:
 
 ```text
-dev-flow-claude-<CLAUDE_VERSION>.tgz
-dev-flow-core-<CORE_VERSION>-darwin-arm64
-dev-flow-core-<CORE_VERSION>-windows-amd64.exe
+taskbelay-claude-<CLAUDE_VERSION>.tgz
+taskbelay-core-<CORE_VERSION>-darwin-arm64
+taskbelay-core-<CORE_VERSION>-windows-amd64.exe
 SHA256SUMS
 release-manifest.json
 ```

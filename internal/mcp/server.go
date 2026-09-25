@@ -7,10 +7,10 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/userconfig"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/userconfig"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -44,7 +44,7 @@ func NewServer(service *application.Service, version string, options *ServerOpti
 		instructions = options.Instructions
 	}
 	s := &Server{application: service, version: version, newRequestID: newID, hostPreferences: preferences}
-	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "dev-flow", Title: "Dev Flow Core", Description: "Local STDIO Dev Flow Core", Version: version}, &sdk.ServerOptions{Instructions: instructions})
+	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "taskbelay", Title: "TaskBelay Core", Description: "Local STDIO TaskBelay Core", Version: version}, &sdk.ServerOptions{Instructions: instructions})
 	for _, d := range catalog {
 		d := d
 		destructive, openWorld := d.Annotations.Destructive, d.Annotations.OpenWorld
@@ -83,7 +83,7 @@ func (s *Server) dispatch(ctx context.Context, tool string, id domain.ID, raw []
 	case ToolServerInfo:
 		d := workflow.StandardProcess()
 		process := SupportedProcessResult{ProcessID: d.Reference.ID, DefinitionDigest: d.Reference.DefinitionDigest, NewTaskSupported: true}
-		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "dev-flow", Version: s.version, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek", "claude", "zcode"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames(), HostPreferences: s.hostPreferences})
+		return EncodeSuccess(string(resultID), tool, ServerInfoResult{Product: "taskbelay", Version: s.version, Transport: "stdio", Health: "ready", SupportedProcesses: []SupportedProcessResult{process}, SupportedHosts: []string{"codex", "deepseek", "claude", "zcode"}, MethodProfiles: []domain.MethodProfile{domain.MethodPlain, domain.MethodSpecKit, domain.MethodOpenSpec}, Tools: ToolNames(), HostPreferences: s.hostPreferences})
 	case ToolOpenTask:
 		var w openWire
 		_ = decodeClosed(raw, &w)

@@ -5,15 +5,15 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { assertSkillResources, examples, filesBelow } from "../../../tests/skills/resources.mjs";
 import { checkSharedSkillReferences } from "../../../scripts/sync-skill-references.mjs";
-import { authorizeDevFlowExecution } from "../lib/authorization.mjs";
-import { DEV_FLOW_QUALIFIED_TOOL_NAMES } from "../lib/tool-names.mjs";
+import { authorizeTaskBelayExecution } from "../lib/authorization.mjs";
+import { TASKBELAY_QUALIFIED_TOOL_NAMES } from "../lib/tool-names.mjs";
 import { WORKSPACE_COORDINATOR_TOOL, authorizeWorkspaceExecution, workspaceConfirmationText, workspaceResumeText, workspaceCleanupText } from "../lib/workspace-coordinator.mjs";
 import { registerWorkspaceCoordinator } from "../lib/workspace-tool.mjs";
 import { preparedWrite } from "../lib/file-scope.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const repositoryRoot = dirname(dirname(packageRoot));
-const skillRoot = join(packageRoot, "skills", "dev-flow");
+const skillRoot = join(packageRoot, "skills", "taskbelay");
 
 function execution(text, name, arguments_) {
   return { name, callId: "call-example", arguments: arguments_, agent: {
@@ -38,24 +38,24 @@ test("every shared Core example uses the actual DeepSeek namespace and Host valu
   for (const path of await filesBelow(skillRoot)) {
     if (!path.endsWith(".md")) continue;
     for (const example of examples(await readFile(path, "utf8"), "mcp")) {
-      const name = `mcp__dev_flow__${example.operation}`;
-      assert.ok(DEV_FLOW_QUALIFIED_TOOL_NAMES.includes(name), name);
+      const name = `mcp__taskbelay__${example.operation}`;
+      assert.ok(TASKBELAY_QUALIFIED_TOOL_NAMES.includes(name), name);
       names.add(name);
-      if (example.operation !== "dev_flow_server_info") assert.equal(example.value.host, "deepseek");
+      if (example.operation !== "taskbelay_server_info") assert.equal(example.value.host, "deepseek");
     }
   }
-  assert.deepEqual([...names].sort(), [...DEV_FLOW_QUALIFIED_TOOL_NAMES].sort());
-  const name = "mcp__dev_flow__dev_flow_get_task";
+  assert.deepEqual([...names].sort(), [...TASKBELAY_QUALIFIED_TOOL_NAMES].sort());
+  const name = "mcp__taskbelay__taskbelay_get_task";
   const args = { host: "deepseek", task_id: "task-example" };
-  assert.equal(authorizeDevFlowExecution(execution("/dev-flow continue", name, args)), undefined);
-  assert.match(authorizeDevFlowExecution(execution("continue", name, args)), /SELECTOR_REQUIRED/u);
+  assert.equal(authorizeTaskBelayExecution(execution("/taskbelay continue", name, args)), undefined);
+  assert.match(authorizeTaskBelayExecution(execution("continue", name, args)), /SELECTOR_REQUIRED/u);
 });
 
 test("all workspace examples match registered operations and exact current-turn confirmations", async () => {
   let registered;
   registerWorkspaceCoordinator({ tools: {
     guard() { return () => {}; }, register(definition) { registered = definition; return () => {}; },
-  } }, { dataDirectory: "/private/tmp/dev-flow-schema", workspaceRoot: "/work/project" });
+  } }, { dataDirectory: "/private/tmp/taskbelay-schema", workspaceRoot: "/work/project" });
   const seen = new Set();
   for (const path of ["admission.md", "host-lifecycle.md"]) {
     const text = (await readFile(join(skillRoot, "references", path), "utf8")).replaceAll("\r\n", "\n");
@@ -71,7 +71,7 @@ test("all workspace examples match registered operations and exact current-turn 
       assert.ok(messages.includes(expected), `missing exact confirmation for ${args.operation}`);
       const message = expected;
       assert.doesNotThrow(() => authorizeWorkspaceExecution(execution(message, WORKSPACE_COORDINATOR_TOOL, args)));
-      assert.throws(() => authorizeWorkspaceExecution(execution("/dev-flow continue", WORKSPACE_COORDINATOR_TOOL, args)), /REQUIRED/u);
+      assert.throws(() => authorizeWorkspaceExecution(execution("/taskbelay continue", WORKSPACE_COORDINATOR_TOOL, args)), /REQUIRED/u);
       seen.add(args.operation);
     }
   }

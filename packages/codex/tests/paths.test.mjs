@@ -24,13 +24,13 @@ test("resolves the runtime and resources relative to the installed package", asy
   });
 
   assert.equal(paths.packageRoot, root);
-  assert.equal(paths.runtimePath, join(root, "runtime", "darwin-arm64", "dev-flow"));
+  assert.equal(paths.runtimePath, join(root, "runtime", "darwin-arm64", "taskbelay"));
   assert.equal(paths.pluginRoot, join(root, "plugin"));
   assert.equal(paths.marketplaceRoot, root);
-  assert.equal(paths.configurationDirectory, join(home, ".dev-flow"));
-  assert.equal(paths.configurationPath, join(home, ".dev-flow", "config.json"));
-  assert.equal(paths.provisioningDirectory, join(home, ".dev-flow", "provisioning", "codex"));
-  assert.equal(paths.petDirectory, join(home, ".dev-flow", "pet"));
+  assert.equal(paths.configurationDirectory, join(home, ".taskbelay"));
+  assert.equal(paths.configurationPath, join(home, ".taskbelay", "config.json"));
+  assert.equal(paths.provisioningDirectory, join(home, ".taskbelay", "provisioning", "codex"));
+  assert.equal(paths.petDirectory, join(home, ".taskbelay", "pet"));
   assert.equal(paths.usesDefaultDataDirectory, true);
 });
 
@@ -52,7 +52,7 @@ test("accepts only an existing canonical absolute explicit data directory", asyn
     homeDirectory: home,
     platform: "darwin",
     arch: "arm64",
-    environment: { DEV_FLOW_DATA_DIR: explicit },
+    environment: { TASKBELAY_DATA_DIR: explicit },
   });
   assert.equal(paths.dataDirectory, explicit);
   assert.equal(paths.usesDefaultDataDirectory, false);
@@ -63,7 +63,7 @@ test("accepts only an existing canonical absolute explicit data directory", asyn
       homeDirectory: home,
       platform: "darwin",
       arch: "arm64",
-      environment: { DEV_FLOW_DATA_DIR: "relative/data" },
+      environment: { TASKBELAY_DATA_DIR: "relative/data" },
     }),
     /absolute/,
   );
@@ -73,7 +73,7 @@ test("accepts only an existing canonical absolute explicit data directory", asyn
       homeDirectory: home,
       platform: "darwin",
       arch: "arm64",
-      environment: { DEV_FLOW_DATA_DIR: join(t.testRoot, "missing") },
+      environment: { TASKBELAY_DATA_DIR: join(t.testRoot, "missing") },
     }),
     /existing directory/,
   );
@@ -86,17 +86,17 @@ test("accepts only an existing canonical absolute explicit data directory", asyn
       homeDirectory: home,
       platform: "darwin",
       arch: "arm64",
-      environment: { DEV_FLOW_DATA_DIR: link },
+      environment: { TASKBELAY_DATA_DIR: link },
     }),
     /canonical/,
   );
 });
 
-test("owns only the exact default data directory under ~/.dev-flow", async (t) => {
+test("owns only the exact default data directory under ~/.taskbelay", async (t) => {
   const root = await makePackage(t, "default-package");
   const home = join(t.testRoot, "home");
   await mkdir(home, { recursive: true });
-  const adjacent = join(home, ".dev-flow", "user-note.txt");
+  const adjacent = join(home, ".taskbelay", "user-note.txt");
   await mkdir(join(adjacent, ".."), { recursive: true });
   await writeFile(adjacent, "preserve me\n");
 
@@ -107,10 +107,10 @@ test("owns only the exact default data directory under ~/.dev-flow", async (t) =
     arch: "arm64",
     environment: {},
   });
-  assert.equal(paths.dataDirectory, join(home, ".dev-flow", "data"));
+  assert.equal(paths.dataDirectory, join(home, ".taskbelay", "data"));
   assert.equal(
     paths.receiptPath,
-    join(home, ".dev-flow", "registrations", "codex.json"),
+    join(home, ".taskbelay", "registrations", "codex.json"),
   );
 
   await ensureDefaultDataDirectory(paths);
@@ -144,7 +144,7 @@ test("rejects a default product root that escapes through a symlink", async (t) 
   await mkdir(outside, { recursive: true });
   await symlink(
     outside,
-    join(home, ".dev-flow"),
+    join(home, ".taskbelay"),
     process.platform === "win32" ? "junction" : undefined,
   );
 
@@ -166,7 +166,7 @@ test("rejects a macOS application-data symlink before creating product files", a
   const outside = join(t.testRoot, "outside");
   await mkdir(home, { recursive: true });
   await mkdir(outside, { recursive: true });
-  await symlink(outside, join(home, ".dev-flow"), process.platform === "win32" ? "junction" : undefined);
+  await symlink(outside, join(home, ".taskbelay"), process.platform === "win32" ? "junction" : undefined);
 
   await assert.rejects(
     resolveProductPaths({
@@ -186,7 +186,7 @@ test("never falls back to a runtime in the current repository", async (t) => {
   const repository = join(t.testRoot, "target-repository");
   const home = join(t.testRoot, "home");
   await mkdir(join(repository, "runtime", "darwin-arm64"), { recursive: true });
-  await writeFile(join(repository, "runtime", "darwin-arm64", "dev-flow"), "wrong runtime\n");
+  await writeFile(join(repository, "runtime", "darwin-arm64", "taskbelay"), "wrong runtime\n");
   await mkdir(home, { recursive: true });
 
   const paths = await resolveProductPaths({
@@ -197,14 +197,14 @@ test("never falls back to a runtime in the current repository", async (t) => {
     environment: {},
     currentDirectory: repository,
   });
-  assert.equal(paths.runtimePath, join(root, "runtime", "darwin-arm64", "dev-flow"));
-  assert.notEqual(paths.runtimePath, join(repository, "runtime", "darwin-arm64", "dev-flow"));
+  assert.equal(paths.runtimePath, join(root, "runtime", "darwin-arm64", "taskbelay"));
+  assert.notEqual(paths.runtimePath, join(repository, "runtime", "darwin-arm64", "taskbelay"));
 });
 
 async function makePackage(t, name) {
   const { mkdtemp } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
-  const base = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-paths-")));
+  const base = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-paths-")));
   t.testRoot = base;
   const root = join(base, name);
   await mkdir(join(root, "lib"), { recursive: true });

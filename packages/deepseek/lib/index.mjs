@@ -2,7 +2,7 @@ import * as mcpClientPlugin from "@deepseek-ai/dsh-mcp-client";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { registerDevFlowGuard } from "./authorization.mjs";
+import { registerTaskBelayGuard } from "./authorization.mjs";
 import { registerFileScopeGate } from "./file-scope.mjs";
 import {
   ensureDefaultDataDirectory,
@@ -12,11 +12,11 @@ import {
 import { preflightPackagedCore, selectPackagedRuntime } from "./runtime.mjs";
 import { registerWorkspaceCoordinator } from "./workspace-tool.mjs";
 import {
-  DEV_FLOW_SERVER_NAME,
+  TASKBELAY_SERVER_NAME,
   assertQualifiedToolCatalog,
 } from "./tool-names.mjs";
 
-export const name = "dev-flow-deepseek";
+export const name = "taskbelay-deepseek";
 export const inject = ["skills", "tools"];
 
 export async function apply(ctx, options = {}) {
@@ -41,14 +41,14 @@ export async function activateDeepSeekIntegration(ctx, {
     environment,
   });
 
-  const skillDirectory = join(runtime.packageRoot, "skills", "dev-flow");
+  const skillDirectory = join(runtime.packageRoot, "skills", "taskbelay");
   const skillPath = join(skillDirectory, "SKILL.md");
   const skillContent = await readFile(skillPath, "utf8");
 
   ctx.skills.register(Object.freeze({
-    name: "dev-flow",
-    description: "Assess bounded development requests, then use Dev Flow only after the developer confirms an isolated worktree launch.",
-    whenToUse: "Use for new development-request suitability assessment, explicit worktree confirmation, or an explicit Dev Flow Task resume.",
+    name: "taskbelay",
+    description: "Assess bounded development requests, then use TaskBelay only after the developer confirms an isolated worktree launch.",
+    whenToUse: "Use for new development-request suitability assessment, explicit worktree confirmation, or an explicit TaskBelay Task resume.",
     invocation: Object.freeze({
       modelInvocable: true,
       userInvocable: true,
@@ -59,7 +59,7 @@ export async function activateDeepSeekIntegration(ctx, {
     content: skillContent,
     path: skillPath,
   }));
-  registerDevFlowGuard(ctx, { workspaceRoot });
+  registerTaskBelayGuard(ctx, { workspaceRoot });
   registerFileScopeGate(ctx, {
     runtimePath: runtime.runtimePath,
     dataDirectory: dataSelection.dataDirectory,
@@ -96,10 +96,10 @@ export async function activateDeepSeekIntegration(ctx, {
 
   mcpFiber = await ctx.plugin(mcpClientPlugin, {
     transport: "stdio",
-    serverName: DEV_FLOW_SERVER_NAME,
+    serverName: TASKBELAY_SERVER_NAME,
     command: runtime.runtimePath,
     args: ["mcp", "--stdio"],
-    env: { DEV_FLOW_DATA_DIR: dataSelection.dataDirectory },
+    env: { TASKBELAY_DATA_DIR: dataSelection.dataDirectory },
     cwd: runtime.packageRoot,
     toolCallTimeoutMs: 60_000,
     failOnStartupError: false,

@@ -29,10 +29,10 @@ test("workspace confirmation is bound to the current direct user turn", () => {
     target_branch: "feature/proof",
   }];
   const expected = workspaceConfirmationText(repositories);
-  assert.equal(expected, "/dev-flow confirm-workspace\nrepository=primary;mode=dedicated_worktree;source=remote;carry=false;remote=origin;base=main;target=feature/proof");
+  assert.equal(expected, "/taskbelay confirm-workspace\nrepository=primary;mode=dedicated_worktree;source=remote;carry=false;remote=origin;base=main;target=feature/proof");
   assert.doesNotThrow(() => authorizeWorkspaceExecution(execution(expected, { operation: "provision", repositories })));
   assert.throws(
-    () => authorizeWorkspaceExecution(execution("/dev-flow use it", { operation: "provision", repositories })),
+    () => authorizeWorkspaceExecution(execution("/taskbelay use it", { operation: "provision", repositories })),
     /WORKTREE_CONFIRMATION_REQUIRED/u,
   );
   assert.doesNotThrow(() => authorizeWorkspaceExecution(execution(workspaceResumeText(fixedLaunchID), {
@@ -48,7 +48,7 @@ test("workspace confirmation is bound to the current direct user turn", () => {
 });
 
 test("coordinator fetches a frozen base, excludes dirty source state, and emits a consumable relaunch", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-workspace-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-workspace-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const remote = join(root, "remote.git");
   const source = join(root, "source");
@@ -157,7 +157,7 @@ test("coordinator fetches a frozen base, excludes dirty source state, and emits 
   const cleanupRelaunch = await cleanupFromTask.prepareCleanup({ launchID: fixedLaunchID, repositoryKey: "primary", taskID: terminalTask.task_id, revision: terminalTask.revision, sourceRepositoryPath: source });
   assert.equal(cleanupRelaunch.status, "cleanup_relaunch_required");
   assert.equal(cleanupRelaunch.relaunch.cwd, source);
-  assert.match(cleanupRelaunch.relaunch.arguments[2], /\/dev-flow resume-cleanup/u);
+  assert.match(cleanupRelaunch.relaunch.arguments[2], /\/taskbelay resume-cleanup/u);
   assert.equal(JSON.stringify(await readProvisioningReceipt(data, fixedLaunchID)).includes(source), false);
   const cleanupFromSource = createWorkspaceCoordinator({ dataDirectory: data, workspaceRoot: source, readTask: async () => terminalTask });
   assert.equal(relative(source, result.workspace_root).startsWith(".."), true, "Task worktree must remain outside the relaunched fixed Workspace Root");
@@ -172,7 +172,7 @@ test("coordinator fetches a frozen base, excludes dirty source state, and emits 
 });
 
 test("invalid or occupied target branches stop before a receipt or worktree is created", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-workspace-conflict-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-workspace-conflict-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = join(root, "source");
   const remote = join(root, "remote.git");
@@ -198,7 +198,7 @@ test("invalid or occupied target branches stop before a receipt or worktree is c
 });
 
 test("a multi-repository fetch failure creates no target branch or worktree", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-workspace-multi-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-workspace-multi-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const workspace = join(root, "workspace");
   const data = join(root, "data");
@@ -251,7 +251,7 @@ async function git(cwd, args) {
 }
 
 for (const carry of [false, true]) test(`local coordinator works without a remote and carry_changes=${carry}`, async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-local-dsh-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-local-dsh-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = join(root, "source");
   const data = join(root, "data");
@@ -286,7 +286,7 @@ for (const carry of [false, true]) test(`local coordinator works without a remot
 });
 
 test("snapshot rejects changed contents even when Git status is unchanged", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-changing-dsh-snapshot-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-changing-dsh-snapshot-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = join(root, "source"), data = join(root, "data");
   await mkdir(data);
@@ -331,7 +331,7 @@ test("snapshot rejects changed contents even when Git status is unchanged", asyn
 
 for (const mode of ["new_branch", "current_branch"]) {
   test(`${mode} returns ready in the existing DSH session and retains staged and ignored contents`, async (t) => {
-    const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-local-branch-")));
+    const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-local-branch-")));
     t.after(() => rm(root, { recursive: true, force: true }));
     const source = join(root, "source"), data = join(root, "data");
     await mkdir(source); await mkdir(data);
@@ -353,7 +353,7 @@ for (const mode of ["new_branch", "current_branch"]) {
     assert.match(workspaceConfirmationText(choices), new RegExp(`mode=${mode}`));
     const options = { dataDirectory: data, workspaceRoot: source, launchID: () => fixedLaunchID, readTask: async () => assert.fail("local cleanup must stop before reading a terminal Task") };
     const denied = createWorkspaceCoordinator({ ...options, checkWorkspaceAvailable: async (path) => ({ available: false, repository_path: path }) });
-    await assert.rejects(denied.provision({ request: "Work locally", profile: "headless", repositories: choices }), /active Dev Flow Task/);
+    await assert.rejects(denied.provision({ request: "Work locally", profile: "headless", repositories: choices }), /active TaskBelay Task/);
     assert.equal((await git(source, ["branch", "--show-current"])).stdout.trim(), "main");
     const coordinator = createWorkspaceCoordinator({ ...options, checkWorkspaceAvailable: async (path) => ({ available: true, repository_path: path }) });
     await assert.rejects(coordinator.provision({ request: "Work locally", profile: "headless", repositories: [{ ...repository, carry_changes: false }] }), /initial local changes/);
@@ -373,7 +373,7 @@ for (const mode of ["new_branch", "current_branch"]) {
 }
 
 test("mixed local and dedicated repositories relaunch once with every directory inside the new root", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-mixed-workspace-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-mixed-workspace-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const workspace = join(root, "workspace"), data = join(root, "data");
   await mkdir(workspace); await mkdir(data);
@@ -396,7 +396,7 @@ test("mixed local and dedicated repositories relaunch once with every directory 
   assert.equal(ready.open_task.workspace_origin.mode, "new_branch");
   assert.equal(ready.open_task.additional_repositories[0].workspace_origin.mode, "dedicated_worktree");
   const docs = ready.open_task.additional_repositories[0].repository_path;
-  assert.equal(docs, join(root, ".dev-flow-worktrees", fixedLaunchID, "docs"));
+  assert.equal(docs, join(root, ".taskbelay-worktrees", fixedLaunchID, "docs"));
   assert.notEqual(docs, join(workspace, "docs"));
   assert.equal((await git(join(workspace, "docs"), ["branch", "--show-current"])).stdout.trim(), "main");
 });

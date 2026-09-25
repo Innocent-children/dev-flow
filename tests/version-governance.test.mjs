@@ -13,7 +13,7 @@ test("Core and all five package versions are independent", async (t) => {
   await setVersion(join(root, "packages/codex/package.json"), "2.3.4");
   await setVersion(join(root, "packages/codex/plugin/.codex-plugin/plugin.json"), "2.3.4");
   await setVersion(join(root, "packages/deepseek/package.json"), "3.4.5");
-  await setVersion(join(root, "packages/dev-flow/package.json"), "4.5.6");
+  await setVersion(join(root, "packages/taskbelay/package.json"), "4.5.6");
   await setVersion(join(root, "packages/claude/package.json"), "5.6.7");
   await setVersion(join(root, "packages/claude/.claude-plugin/plugin.json"), "5.6.7");
   await setVersion(join(root, "packages/zcode/package.json"), "6.7.8");
@@ -24,7 +24,7 @@ test("Core and all five package versions are independent", async (t) => {
   await writeFile(marketplacePath, JSON.stringify(marketplace));
   await setFixtureVersion(join(root, "protocol/fixtures/graph-server-info.json"), "1.2.3");
   await setNestedFixtureVersion(join(root, "packages/codex/tests/fixtures/graph-method-profiles.json"), "1.2.3");
-  assert.deepEqual(await checkVersions(root), { core: "1.2.3", codex: "2.3.4", deepseek: "3.4.5", devFlow: "4.5.6", claude: "5.6.7", zcode: "6.7.8" });
+  assert.deepEqual(await checkVersions(root), { core: "1.2.3", codex: "2.3.4", deepseek: "3.4.5", taskBelay: "4.5.6", claude: "5.6.7", zcode: "6.7.8" });
 });
 
 test("Core version authority accepts one Windows CRLF terminator", async (t) => {
@@ -77,7 +77,7 @@ test("beta and non-Host selections cannot overwrite public stable versions", asy
   for (const product of ["codex", "deepseek", "claude", "zcode"]) {
     await assert.rejects(syncPublicReleaseVersions(root, { product, version: "9.8.7-beta.1", coreVersion: "8.7.6" }), /strict MAJOR.MINOR.PATCH/);
   }
-  await assert.rejects(syncPublicReleaseVersions(root, { product: "dev-flow", version: "9.8.7", coreVersion: "8.7.6" }), /product must equal/);
+  await assert.rejects(syncPublicReleaseVersions(root, { product: "taskbelay", version: "9.8.7", coreVersion: "8.7.6" }), /product must equal/);
   assert.equal(await readFile(metadataPath, "utf8"), contents);
 });
 
@@ -92,7 +92,7 @@ test("current product surfaces contain no internal version system except the dat
     "protocol/fixtures/graph-host-parity-deepseek.json",
   ]) files.push(new URL(path, root));
 
-  const forbidden = /core_contract_version|core_limits_version|storage_schema_version|schema_version|snapshot_version|process_version|build_profile|standard-development@\d+|(?:requirements|design|tasks|implementation|test|comprehension|refactor|delivery)-result@\d+|blocker-resolution@\d+|ProcessActionV\d+|persistedTaskV\d+|dev-flow\/(?:git-common-dir|repository-identity|worktree-fingerprint|repository-binding)\/v\d+/iu;
+  const forbidden = /core_contract_version|core_limits_version|storage_schema_version|schema_version|snapshot_version|process_version|build_profile|standard-development@\d+|(?:requirements|design|tasks|implementation|test|comprehension|refactor|delivery)-result@\d+|blocker-resolution@\d+|ProcessActionV\d+|persistedTaskV\d+|taskbelay\/(?:git-common-dir|repository-identity|worktree-fingerprint|repository-binding)\/v\d+/iu;
   const violations = [];
   for (const file of files) {
     const path = fileURLPath(file);
@@ -103,12 +103,12 @@ test("current product surfaces contain no internal version system except the dat
 });
 
 async function fixtureRoot(t) {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-versions-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-versions-"));
   t.after(() => import("node:fs/promises").then(({ rm }) => rm(root, { recursive: true, force: true })));
   for (const path of [
     "CORE_VERSION", "package.json", "packages/codex/package.json",
     "packages/codex/plugin/.codex-plugin/plugin.json", "packages/deepseek/package.json",
-    "packages/dev-flow/package.json",
+    "packages/taskbelay/package.json",
     "packages/claude/package.json", "packages/claude/.claude-plugin/plugin.json",
     "packages/zcode/package.json", "packages/zcode/.zcode-plugin/plugin.json", "packages/zcode/marketplace.json",
     "release/public-versions.json",

@@ -1,11 +1,11 @@
 {
-  "name": "dev-flow-local",
+  "name": "taskbelay-local",
   "interface": {
-    "displayName": "Dev Flow Local"
+    "displayName": "TaskBelay Local"
   },
   "plugins": [
     {
-      "name": "dev-flow-codex",
+      "name": "taskbelay-codex",
       "source": {
         "source": "local",
         "path": "./plugin"

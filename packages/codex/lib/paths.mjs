@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { dataPathPolicy, permissionPolicy, runtimeDescriptor, signalPolicy } from "./platform.mjs";
 
-export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
+export const DATA_DIRECTORY_ENVIRONMENT = "TASKBELAY_DATA_DIR";
 
 export function packageRootFromModule(moduleUrl = import.meta.url) {
   return dirname(dirname(fileURLToPath(moduleUrl)));
@@ -41,7 +41,7 @@ export async function resolveProductPaths({
   await assertNoSymlinkComponents(productSupportInspectionRoot, productSupportRoot);
   const configurationDirectory = containedPath(
     canonicalHome,
-    join(canonicalHome, ".dev-flow"),
+    join(canonicalHome, ".taskbelay"),
     "user configuration directory",
   );
   const configurationPath = containedPath(

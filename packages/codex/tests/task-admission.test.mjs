@@ -15,7 +15,7 @@ import {
 const execFile = promisify(execFileCallback);
 
 test("assessment anchors are read-only and invalidate on request, HEAD, or status changes", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-admission-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-admission-")));
   const repository = join(root, "中文 repository with spaces");
   await mkdir(repository);
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -84,13 +84,13 @@ test("assessment contract permits only genuinely small direct work", async () =>
     /small-change rules/u,
   );
   assert.throws(
-    () => validateSuitabilityAssessment({ ...small, change_level: "uncertain", unknowns: ["entry point"], recommendation: "dev_flow" }),
+    () => validateSuitabilityAssessment({ ...small, change_level: "uncertain", unknowns: ["entry point"], recommendation: "taskbelay" }),
     /must recommend clarification/u,
   );
 });
 
 test("assessment forces dirty submodule observation even when repository config hides it", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-admission-submodule-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-admission-submodule-")));
   const repository = join(root, "repository");
   const submoduleSource = join(root, "submodule-source");
   await Promise.all([mkdir(repository), mkdir(submoduleSource)]);

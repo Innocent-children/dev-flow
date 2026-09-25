@@ -16,7 +16,7 @@ test("packageRootFromModule handles encoded spaces and Unicode", async (t) => {
 
 test("selects exact supported package paths without executing a runtime", async (t) => {
   const packageDirectory = await makeDirectory(t, "runtime-selection-package");
-  for (const [platform, arch, executable] of [["darwin", "arm64", "dev-flow"], ["win32", "x64", "dev-flow.exe"]]) {
+  for (const [platform, arch, executable] of [["darwin", "arm64", "taskbelay"], ["win32", "x64", "taskbelay.exe"]]) {
     const selected = await selectPackagedRuntime({ packageRoot: packageDirectory, platform, arch });
     assert.equal(selected.runtimeKey, `${platform}-${arch}`);
     assert.equal(selected.runtimePath, join(packageDirectory, "runtime", `${platform}-${arch}`, executable));
@@ -33,7 +33,7 @@ test("selects exact supported package paths without executing a runtime", async 
 });
 
 async function makeDirectory(t, name) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-paths-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-paths-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const directory = join(root, name);
   await mkdir(directory, { recursive: true });

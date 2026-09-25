@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/domain"
 )
 
 // RepositoryObserver obtains a bounded, read-only observation of a Git

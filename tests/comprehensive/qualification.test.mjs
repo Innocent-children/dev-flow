@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import test from "node:test";
 
-const commands = parseQualificationCommands(process.env.DEV_FLOW_QUALIFICATION_COMMANDS);
+const commands = parseQualificationCommands(process.env.TASKBELAY_QUALIFICATION_COMMANDS);
 
 test("local deterministic large-change qualification", {
-  skip: process.env.DEV_FLOW_RUN_LOCAL_QUALIFICATION === "1" ? false : "set DEV_FLOW_RUN_LOCAL_QUALIFICATION=1",
+  skip: process.env.TASKBELAY_RUN_LOCAL_QUALIFICATION === "1" ? false : "set TASKBELAY_RUN_LOCAL_QUALIFICATION=1",
 }, async () => {
   for (const command of [
     ["go", "test", "-count=1", "./..."],
     ["pnpm", "--dir", "packages/codex", "test"],
     ["pnpm", "--dir", "packages/deepseek", "test"],
-    ["pnpm", "--dir", "packages/dev-flow", "test"],
+    ["pnpm", "--dir", "packages/taskbelay", "test"],
     ["pnpm", "--dir", "packages/webui", "build"],
   ]) {
     const result = await run(command[0], command.slice(1));
@@ -20,7 +20,7 @@ test("local deterministic large-change qualification", {
 });
 
 for (const name of ["codex", "deepseek", "windows", "webui", "nightly"]) {
-  test(`external qualification: ${name}`, { skip: commands[name] === undefined ? `set DEV_FLOW_QUALIFICATION_COMMANDS.${name}` : false }, async () => {
+  test(`external qualification: ${name}`, { skip: commands[name] === undefined ? `set TASKBELAY_QUALIFICATION_COMMANDS.${name}` : false }, async () => {
     const command = commands[name];
     assert.ok(Array.isArray(command) && command.length > 0 && command.every((item) => typeof item === "string" && item.length > 0));
     const result = await run(command[0], command.slice(1));

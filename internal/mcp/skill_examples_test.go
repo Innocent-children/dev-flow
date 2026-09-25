@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -22,15 +22,15 @@ type skillExample struct {
 
 func readSkillExamples(t *testing.T, host string) []skillExample {
 	t.Helper()
-	root := filepath.Join("..", "..", "packages", "codex", "plugin", "skills", "dev-flow")
+	root := filepath.Join("..", "..", "packages", "codex", "plugin", "skills", "taskbelay")
 	if host == "claude" {
-		root = filepath.Join("..", "..", "packages", "claude", "plugin", "skills", "dev-flow")
+		root = filepath.Join("..", "..", "packages", "claude", "plugin", "skills", "taskbelay")
 	}
 	if host == "deepseek" {
-		root = filepath.Join("..", "..", "packages", "deepseek", "skills", "dev-flow")
+		root = filepath.Join("..", "..", "packages", "deepseek", "skills", "taskbelay")
 	}
 	if host == "zcode" {
-		root = filepath.Join("..", "..", "packages", "zcode", "skills", "dev-flow")
+		root = filepath.Join("..", "..", "packages", "zcode", "skills", "taskbelay")
 	}
 	pattern := regexp.MustCompile("(?s)<!-- example:([a-z-]+) ([a-z_-]+) ([a-z_-]+) -->\\n```json\\n(.*?)\\n```")
 	var examples []skillExample

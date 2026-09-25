@@ -76,7 +76,7 @@ export async function preflightPackagedCore(
     throw new Error("packaged Core version preflight failed", { cause: error });
   }
 
-  const match = /^dev-flow (\S+)\n?$/u.exec(stdout);
+  const match = /^taskbelay (\S+)\n?$/u.exec(stdout);
   if (!match || !semverPattern.test(match[1])) {
     throw new Error("packaged Core returned an invalid version line");
   }

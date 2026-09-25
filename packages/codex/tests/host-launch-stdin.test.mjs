@@ -8,18 +8,18 @@ import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const launcher = fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url));
+const launcher = fileURLToPath(new URL("../bin/taskbelay-codex.mjs", import.meta.url));
 const supported = process.platform === "darwin" || process.platform === "win32";
 
 async function fixture(t) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-stdin-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-stdin-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const home = join(root, "home");
   const repository = join(root, "repository");
   await mkdir(home);
   await mkdir(repository);
   const env = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: home,
-    DEV_FLOW_DATA_DIR: "", GIT_CONFIG_GLOBAL: join(home, ".gitconfig"), GIT_CONFIG_NOSYSTEM: "1" };
+    TASKBELAY_DATA_DIR: "", GIT_CONFIG_GLOBAL: join(home, ".gitconfig"), GIT_CONFIG_NOSYSTEM: "1" };
   const git = (...args) => execFileSync("git", ["-C", repository, ...args], { env, encoding: "utf8" });
   git("init", "-b", "main");
   git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture");
@@ -85,7 +85,7 @@ test("production host-launch rejects invalid input before Git or receipt writes"
       const result = await run(f, "prepare", [input]);
       assert.equal(result.code, 1);
       assert.equal(result.stdout, "");
-      assert.match(result.stderr, /^dev-flow-codex: /);
+      assert.match(result.stderr, /^taskbelay-codex: /);
       assert.match(result.stderr, error);
       assert.deepEqual(await readdir(f.home), [], "no Git trace or product records");
     });

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { dataPathPolicy, permissionPolicy } from "./platform.mjs";
 
-export const DATA_DIRECTORY_ENVIRONMENT = "DEV_FLOW_DATA_DIR";
+export const DATA_DIRECTORY_ENVIRONMENT = "TASKBELAY_DATA_DIR";
 
 export function packageRootFromModule(moduleUrl = import.meta.url) {
   return dirname(dirname(fileURLToPath(moduleUrl)));

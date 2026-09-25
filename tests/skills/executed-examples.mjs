@@ -65,10 +65,10 @@ export async function verifySuccessExample(example, input, output, normalize) {
   const file = join(dirname(example.path), "successes", `${example.kind}-${example.tool}-${example.name}.md`);
   const request = normalize(input);
   const response = normalize(output);
-  if (process.env.DEV_FLOW_UPDATE_SKILL_EXAMPLES === "1") {
+  if (process.env.TASKBELAY_UPDATE_SKILL_EXAMPLES === "1") {
     await mkdir(dirname(file), { recursive: true });
     const implementation = example.kind === "host"
-      ? "`packages/codex/bin/dev-flow-codex.mjs` — `runHostLaunchCommand`"
+      ? "`packages/codex/bin/taskbelay-codex.mjs` — `runHostLaunchCommand`"
       : "`packages/deepseek/lib/workspace-tool.mjs` — `registerWorkspaceCoordinator`";
     await writeFile(file, `# ${example.tool}: ${example.name}\n\nImplementation: ${implementation}.\n\nComplete result from the adapter implementation, executed in a temporary Git fixture.\nHost session creation, handoff completion and Core terminal reads are supplied test observations,\nnot live Host calls. Paths, generated identities, digests and timestamps use stable example values;\nall fields and their references are retained and compared.\n\nResolved request:\n\n<!-- example:resolved-${example.kind} ${example.tool} ${example.name} -->\n\`\`\`json\n${JSON.stringify(request, null, 2)}\n\`\`\`\n\nComplete response:\n\n<!-- example:${example.kind}-success ${example.tool} ${example.name} -->\n\`\`\`json\n${JSON.stringify(response, null, 2)}\n\`\`\`\n`);
     return;

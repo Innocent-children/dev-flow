@@ -7,7 +7,7 @@
   "definition_digest": "eb35dcd623a1673abf768209fd4e7cb07979afb31b102c527bd4066b74a24430",
   "current_node": "REQUIREMENTS",
   "action_kind": "COMPLETE_REQUIREMENTS",
-  "submission_tool": "dev_flow_submit_requirements",
+  "submission_tool": "taskbelay_submit_requirements",
   "node_contract": {
     "purpose": "Transform the immutable initial intent into the current requirements authority.",
     "entry_condition_ids": [

@@ -3,13 +3,13 @@ import { lstat, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promi
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { core, paths } from "./runtime.mjs";
 
-export const pluginID = "dev-flow-zcode@dev-flow-zcode-local";
+export const pluginID = "taskbelay-zcode@taskbelay-zcode-local";
 
 const stableVersion = value => typeof value === "string" && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value);
 
 async function readManifest(p) {
   const manifest = JSON.parse(await readFile(join(p.packageRoot, "package.json"), "utf8"));
-  if (manifest.name !== "dev-flow-zcode" || !stableVersion(manifest.version) ||
+  if (manifest.name !== "taskbelay-zcode" || !stableVersion(manifest.version) ||
       !Array.isArray(manifest.files) || manifest.files.some(file => typeof file !== "string")) {
     throw new Error("Invalid ZCode Adapter package identity");
   }
@@ -31,7 +31,7 @@ async function readReceipt(p) {
   let receipt;
   try { receipt = JSON.parse(await readFile(p.receiptPath, "utf8")); }
   catch (error) { if (error.code === "ENOENT") return null; throw error; }
-  if (receipt.product?.name !== "dev-flow-zcode" || receipt.host?.surface !== "zcode-ui" ||
+  if (receipt.product?.name !== "taskbelay-zcode" || receipt.host?.surface !== "zcode-ui" ||
       !["prepared", "removal_required"].includes(receipt.phase) ||
       !isAbsolute(receipt.paths?.package_root ?? "") || resolve(receipt.paths.package_root) !== p.packageRoot ||
       !isAbsolute(receipt.paths?.receipt_path ?? "") || resolve(receipt.paths.receipt_path) !== p.receiptPath ||
@@ -45,9 +45,9 @@ async function inspectPackage(p, manifest, options) {
   const plugin = JSON.parse(await readFile(join(p.packageRoot, ".zcode-plugin", "plugin.json"), "utf8"));
   const marketplace = JSON.parse(await readFile(p.marketplacePath, "utf8"));
   const entries = Array.isArray(marketplace.plugins) ? marketplace.plugins : [];
-  const entry = entries.find(value => value.name === "dev-flow-zcode");
+  const entry = entries.find(value => value.name === "taskbelay-zcode");
   if (plugin.name !== manifest.name || plugin.version !== manifest.version ||
-      marketplace.name !== "dev-flow-zcode-local" || entries.length !== 1 ||
+      marketplace.name !== "taskbelay-zcode-local" || entries.length !== 1 ||
       entry?.source !== "./" || entry?.version !== manifest.version) {
     throw new Error("ZCode package, plugin and marketplace identities must agree");
   }
@@ -72,14 +72,14 @@ export function activationSteps(marketplacePath) {
   return [
     `Open a ZCode workspace, then Settings > Plugins > Create > Add marketplace and select ${marketplacePath}.`,
     `Install and enable ${pluginID} from Personal. For an updated local package, refresh this marketplace; if its version is unchanged, uninstall and reinstall the plugin so its cached files are replaced.`,
-    "Start a new ZCode session. Check the Dev Flow Skill, plugin MCP server and Write/Edit Hook in ZCode before starting a Task. This CLI cannot observe their loaded state.",
+    "Start a new ZCode session. Check the TaskBelay Skill, plugin MCP server and Write/Edit Hook in ZCode before starting a Task. This CLI cannot observe their loaded state.",
   ];
 }
 
 export const removalSteps = () => [
-  `In ZCode Settings > Plugins > Manage installed, uninstall ${pluginID}; then remove dev-flow-zcode-local from Marketplace sources.`,
+  `In ZCode Settings > Plugins > Manage installed, uninstall ${pluginID}; then remove taskbelay-zcode-local from Marketplace sources.`,
   "Close affected ZCode sessions and start a new session to discard the previous plugin/Hook snapshot. The CLI cannot verify removal of ZCode's cached plugin.",
-  "After the user confirms the plugin and marketplace were removed and affected sessions were closed, run dev-flow-zcode remove --confirm-host-removed --json; then repeat dev-flow uninstall --host zcode --yes (or use npm uninstall --global dev-flow-zcode for an Adapter-only installation).",
+  "After the user confirms the plugin and marketplace were removed and affected sessions were closed, run taskbelay-zcode remove --confirm-host-removed --json; then repeat taskbelay uninstall --host zcode --yes (or use npm uninstall --global taskbelay-zcode for an Adapter-only installation).",
   "Task data, Git workspaces and unrelated ZCode settings are retained.",
 ];
 
@@ -95,7 +95,7 @@ function report(operation, p, manifest, receipt, { changed = false, inspected = 
     receipt_path: p.receiptPath,
     registration: { receipt: Boolean(receipt), package: Boolean(inspected), host: "unverified", phase: receipt?.phase ?? null },
     issues,
-    next_steps: removing ? removalSteps() : prepared ? activationSteps(p.marketplacePath) : ["Run dev-flow-zcode setup --json to prepare and verify the local plugin source.", ...issues],
+    next_steps: removing ? removalSteps() : prepared ? activationSteps(p.marketplacePath) : ["Run taskbelay-zcode setup --json to prepare and verify the local plugin source.", ...issues],
   };
 }
 
@@ -155,7 +155,7 @@ export async function remove(options = {}) {
       registration: { receipt: false, package: true, host: "user_confirmed_removed", phase: null },
       issues: [],
       next_steps: ["User-confirmed ZCode removal was recorded by clearing the owned receipt; no Host UI check was performed.",
-        "Run dev-flow uninstall --host zcode --yes again, or npm uninstall --global dev-flow-zcode for an Adapter-only installation, to remove the remaining package. Task data is retained."],
+        "Run taskbelay uninstall --host zcode --yes again, or npm uninstall --global taskbelay-zcode for an Adapter-only installation, to remove the remaining package. Task data is retained."],
     };
   }
   const next = current ? { ...current, phase: "removal_required" } : receiptFor(p, manifest, "removal_required", null);

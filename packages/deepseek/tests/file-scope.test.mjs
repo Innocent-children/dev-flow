@@ -40,17 +40,17 @@ test("DeepSeek stops invalid parent paths before dispatch or Core lookup", async
   let spawns = 0;
   let dispatched = 0;
   const ctx = { on: (_event, callback) => { listener = callback; return () => undefined; } };
-  registerFileScopeGate(ctx, { runtimePath: "/runtime/dev-flow", dataDirectory: "/data", workspaceRoot, spawnImpl: () => { spawns += 1; } });
+  registerFileScopeGate(ctx, { runtimePath: "/runtime/taskbelay", dataDirectory: "/data", workspaceRoot, spawnImpl: () => { spawns += 1; } });
   const result = await listener(selectedExecution("write", { file_path: "file/new/target.txt", content: "x" }), async () => { dispatched += 1; });
   assert.equal(result.kind, "deny");
   assert.equal(spawns, 0);
   assert.equal(dispatched, 0);
 });
 
-test("DeepSeek pre-execute gate blocks a selected Dev Flow write before dispatch", async () => {
+test("DeepSeek pre-execute gate blocks a selected TaskBelay write before dispatch", async () => {
   let listener;
   const ctx = { on: (event, callback) => { assert.equal(event, "tools/pre-execute"); listener = callback; return () => undefined; } };
-  registerFileScopeGate(ctx, { runtimePath: "/runtime/dev-flow", dataDirectory: "/data", workspaceRoot: "/workspace", spawnImpl: fakeSpawn({ decision: "deny", reason: "Choose allow_once, expand_scope or reject." }) });
+  registerFileScopeGate(ctx, { runtimePath: "/runtime/taskbelay", dataDirectory: "/data", workspaceRoot: "/workspace", spawnImpl: fakeSpawn({ decision: "deny", reason: "Choose allow_once, expand_scope or reject." }) });
   let dispatched = 0;
   const result = await listener(selectedExecution("write", { file_path: "/workspace/config.yml", content: "x" }), async () => { dispatched += 1; return { kind: "allow" }; });
   assert.deepEqual(result, { kind: "deny", reason: "Choose allow_once, expand_scope or reject." });
@@ -61,7 +61,7 @@ test("DeepSeek gate ignores ordinary turns and read-only editor calls", async ()
   let listener;
   let spawns = 0;
   const ctx = { on: (_event, callback) => { listener = callback; return () => undefined; } };
-  registerFileScopeGate(ctx, { runtimePath: "/runtime/dev-flow", dataDirectory: "/data", workspaceRoot: "/workspace", spawnImpl: (...args) => { spawns += 1; return fakeSpawn({ decision: "allow" })(...args); } });
+  registerFileScopeGate(ctx, { runtimePath: "/runtime/taskbelay", dataDirectory: "/data", workspaceRoot: "/workspace", spawnImpl: (...args) => { spawns += 1; return fakeSpawn({ decision: "allow" })(...args); } });
   let dispatched = 0;
   await listener(selectedExecution("str_replace_editor", { command: "view", path: "/workspace/file" }), async () => { dispatched += 1; return { kind: "allow" }; });
   await listener(ordinaryExecution("write", { file_path: "/workspace/file", content: "x" }), async () => { dispatched += 1; return { kind: "allow" }; });
@@ -69,7 +69,7 @@ test("DeepSeek gate ignores ordinary turns and read-only editor calls", async ()
   assert.equal(spawns, 0);
 });
 
-function selectedExecution(name, argumentsValue, text = "/dev-flow continue") {
+function selectedExecution(name, argumentsValue, text = "/taskbelay continue") {
   const callId = "scope-call";
   return {
     name,

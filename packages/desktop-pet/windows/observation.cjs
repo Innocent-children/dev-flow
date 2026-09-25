@@ -28,7 +28,7 @@ class Observer {
         encoding: "utf8",
         timeout: 3000,
         maxBuffer: 65536,
-        env: { ...process.env, DEV_FLOW_DATA_DIR: this.request.dataDirectory },
+        env: { ...process.env, TASKBELAY_DATA_DIR: this.request.dataDirectory },
         signal: this.controller?.signal,
       },
     );

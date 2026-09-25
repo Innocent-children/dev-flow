@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	core "github.com/Innocent-children/dev-flow/internal/mcp"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	core "github.com/Innocent-children/taskbelay/internal/mcp"
 	"slices"
 	"strings"
 	"testing"
@@ -209,7 +209,7 @@ func TestMCPStableErrorEnvelopesAreClosedAndRedacted(t *testing.T) {
 func TestSchemaUnsupportedResultIsBoundedAndPathFree(t *testing.T) {
 	encoded := core.EncodeError("schema-unsupported", core.ToolOpenTask, domain.ErrSchemaUnsupported)
 	text := string(encoded.JSON)
-	for _, forbidden := range []string{"/Users/", "/home/", "HOME=", "dev-flow.db", "SELECT ", "sqlite", "repository_path", "data_path"} {
+	for _, forbidden := range []string{"/Users/", "/home/", "HOME=", "taskbelay.db", "SELECT ", "sqlite", "repository_path", "data_path"} {
 		if strings.Contains(strings.ToLower(text), strings.ToLower(forbidden)) {
 			t.Fatalf("SCHEMA_UNSUPPORTED leaked private/storage detail %q: %s", forbidden, text)
 		}

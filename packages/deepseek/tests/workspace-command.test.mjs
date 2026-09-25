@@ -62,7 +62,7 @@ test("workspace commands preserve allowed exit codes and classify ordinary failu
 });
 
 test("workspace commands preserve pre-abort reasons and spawn errors", async t => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-command-errors-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-command-errors-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const controller = new AbortController();
   const reason = new Error("already aborted");
@@ -75,7 +75,7 @@ test("workspace commands preserve pre-abort reasons and spawn errors", async t =
 });
 
 async function inheritedOutput(t, delayMs, output = "尾部\0stdout\n") {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-inherited-output-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-inherited-output-"));
   const parentExited = join(root, "parent-exited");
   const descendantExited = join(root, "descendant-exited");
   // A detached, short-lived descendant keeps inherited pipes open on Windows too.

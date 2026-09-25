@@ -34,13 +34,13 @@ test("matching malformed paths remain incomplete and invalid Core checks cannot 
 });
 
 test("the actual hook CLI blocks malformed JSON, duplicate fields and invalid UTF-8 with exit 2", () => {
-  const cli = fileURLToPath(new URL("../bin/dev-flow-zcode.mjs", import.meta.url));
+  const cli = fileURLToPath(new URL("../bin/taskbelay-zcode.mjs", import.meta.url));
   for (const input of ["not json\n", '{"hook_event_name":"PreToolUse","hook_event_name":"Stop"}', Buffer.from([0xff]),
     JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Edit", cwd: "relative", tool_input: { file_path: "a" } })]) {
     const result = spawnSync(process.execPath, [cli, "hook", "pre-tool-use"], { input, encoding: "utf8", windowsHide: true, timeout: 10000 });
     assert.equal(result.error, undefined);
     assert.equal(result.status, 2, result.stderr);
     assert.equal(result.stdout, "");
-    assert.match(result.stderr, /Dev Flow write check failed/);
+    assert.match(result.stderr, /TaskBelay write check failed/);
   }
 });

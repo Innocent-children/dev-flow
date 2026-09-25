@@ -13,7 +13,7 @@ test("Codex, Claude and ZCode command copies match their maintained source", asy
 });
 
 test("command copy checks tolerate checkout line endings and reject drift without writes", async t => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-command-copies-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-command-copies-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await cp(join(repositoryRoot, "packages/host-command"), join(root, "packages/host-command"), { recursive: true });
   for (const host of ["codex", "claude", "zcode"]) {
@@ -30,7 +30,7 @@ test("command copy checks tolerate checkout line endings and reject drift withou
 });
 
 test("generated commands execute outside the repository with literal arguments, stdin and exit status", async t => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-detached-commands-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-detached-commands-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeHostCommands({ destination: join(root, "lib") });
   const command = await import(pathToFileURL(join(root, "lib/command.mjs")));

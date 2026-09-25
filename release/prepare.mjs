@@ -7,18 +7,18 @@ import { HOST_PRODUCTS, releaseProducts } from "./products.mjs";
 const execFile = promisify(callback);
 export function releaseOutputNames(product, version, coreVersion) {
   if (!HOST_PRODUCTS.includes(product)) throw Error("invalid release product");
-  return [`dev-flow-core-${coreVersion}-darwin-arm64`, `dev-flow-core-${coreVersion}-windows-amd64.exe`, `${releaseProducts[product].packageName}-${version}.tgz`, "release-manifest.json", "SHA256SUMS"].sort();
+  return [`taskbelay-core-${coreVersion}-darwin-arm64`, `taskbelay-core-${coreVersion}-windows-amd64.exe`, `${releaseProducts[product].packageName}-${version}.tgz`, "release-manifest.json", "SHA256SUMS"].sort();
 }
 export async function prepareRelease({ product, repositoryRoot, sourceCommit, sourceTree, firstTarball, secondTarball, outputDirectory }) {
   if (!HOST_PRODUCTS.includes(product)) throw Error("invalid release product");
   const version=JSON.parse(await readFile(join(repositoryRoot,`packages/${product}/package.json`),"utf8")).version;
   const coreVersion=(await readFile(join(repositoryRoot,"CORE_VERSION"),"utf8")).trim();
   const firstSHA=await sha(firstTarball),secondSHA=await sha(secondTarball);if(firstSHA!==secondSHA)throw Error("release builds are not deterministic");
-  const tarballName=`${releaseProducts[product].packageName}-${version}.tgz`,coreName=`dev-flow-core-${coreVersion}-darwin-arm64`,windowsCoreName=`dev-flow-core-${coreVersion}-windows-amd64.exe`;
+  const tarballName=`${releaseProducts[product].packageName}-${version}.tgz`,coreName=`taskbelay-core-${coreVersion}-darwin-arm64`,windowsCoreName=`taskbelay-core-${coreVersion}-windows-amd64.exe`;
   await copyFile(firstTarball,join(outputDirectory,tarballName));
-  const {stdout}=await execFile("tar",["-xOf",firstTarball,"package/runtime/darwin-arm64/dev-flow"],{encoding:null,maxBuffer:64*1024*1024,shell:false});
+  const {stdout}=await execFile("tar",["-xOf",firstTarball,"package/runtime/darwin-arm64/taskbelay"],{encoding:null,maxBuffer:64*1024*1024,shell:false});
   await writeFile(join(outputDirectory,coreName),stdout,{mode:0o755});await chmod(join(outputDirectory,coreName),0o755);
-  const {stdout:windowsCore}=await execFile("tar",["-xOf",firstTarball,"package/runtime/win32-x64/dev-flow.exe"],{encoding:null,maxBuffer:64*1024*1024,shell:false});
+  const {stdout:windowsCore}=await execFile("tar",["-xOf",firstTarball,"package/runtime/win32-x64/taskbelay.exe"],{encoding:null,maxBuffer:64*1024*1024,shell:false});
   await writeFile(join(outputDirectory,windowsCoreName),windowsCore,{mode:0o755});
   const artifacts=[];for(const [kind,name] of [["npm_tarball",tarballName],["core_binary",coreName],["core_binary",windowsCoreName]])artifacts.push({kind,relative_path:name,sha256:await sha(join(outputDirectory,name))});
   const manifest={release:{product,version,core_version:coreVersion,source_commit:sourceCommit,source_tree:sourceTree},artifacts};

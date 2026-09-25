@@ -10,11 +10,11 @@ import { gzipSync } from "node:zlib";
 
 import { stageDefaultArtwork, verifyDefaultArtwork } from "./desktop-pet-artwork.mjs";
 import { stageDesktopPackage } from "./desktop-pet-package.mjs";
-import { normalizeUstarArchive } from "./dev-flow-local.mjs";
+import { normalizeUstarArchive } from "./taskbelay-local.mjs";
 
 const execFile = promisify(execFileCallback);
 const repositoryRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
-const applicationRelativePath = "runtime/darwin-arm64/DevFlowPet.app";
+const applicationRelativePath = "runtime/darwin-arm64/TaskBelayPet.app";
 
 export async function runDesktopPetCommand(executable, args) {
   try {
@@ -45,9 +45,9 @@ function plist(version) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleIdentifier</key><string>com.imotong.devflow.pet</string>
-  <key>CFBundleExecutable</key><string>DevFlowPet</string>
-  <key>CFBundleName</key><string>Dev Flow Desktop Pet</string>
+  <key>CFBundleIdentifier</key><string>com.imotong.taskbelay.pet</string>
+  <key>CFBundleExecutable</key><string>TaskBelayPet</string>
+  <key>CFBundleName</key><string>TaskBelay Desktop Pet</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>${version}</string>
   <key>CFBundleShortVersionString</key><string>${version}</string>
@@ -63,7 +63,7 @@ function plist(version) {
 
 export async function verifyDesktopPet(application) {
   const contents = join(application, "Contents");
-  const executable = join(contents, "MacOS", "DevFlowPet");
+  const executable = join(contents, "MacOS", "TaskBelayPet");
   const info = await stat(executable);
   if (!info.isFile() || (info.mode & 0o111) === 0) throw new Error("desktop pet executable is unavailable");
   const { stdout: architectures } = await runDesktopPetCommand("/usr/bin/lipo", ["-archs", executable]);
@@ -91,12 +91,12 @@ export async function buildMacDesktopApplication({ application, work, version })
   const contents = join(application, "Contents");
   const resources = join(contents, "Resources");
   await mkdir(join(contents, "MacOS"), { recursive: true });
-  await copyFile(join(binPath.trim(), "DevFlowPet"), join(contents, "MacOS", "DevFlowPet"));
-  await chmod(join(contents, "MacOS", "DevFlowPet"), 0o755);
+  await copyFile(join(binPath.trim(), "TaskBelayPet"), join(contents, "MacOS", "TaskBelayPet"));
+  await chmod(join(contents, "MacOS", "TaskBelayPet"), 0o755);
   await writeFile(join(contents, "Info.plist"), plist(version));
   process.stdout.write("desktop-pet: assembling the default artwork and language resources\n");
   await stageDefaultArtwork(resources);
-  for (const [locale, name] of [["en", "Dev Flow Desktop Pet"], ["zh-Hans", "Dev Flow 桌面宠物"]]) {
+  for (const [locale, name] of [["en", "TaskBelay Desktop Pet"], ["zh-Hans", "TaskBelay 桌面宠物"]]) {
     const directory = join(resources, `${locale}.lproj`);
     await mkdir(directory, { recursive: true });
     await writeFile(join(directory, "InfoPlist.strings"), `"CFBundleDisplayName" = "${name}";\n`);
@@ -129,7 +129,7 @@ export async function buildDesktopPetPackage({ outputRoot }) {
     const archivePath = join(work, "package.tar");
     await runDesktopPetCommand("/usr/bin/tar", ["-cf", archivePath, "--format", "ustar", "-C", work, "package"]);
     const archive = normalizeUstarArchive(await readFile(archivePath), new Set([
-      "package/bin/dev-flow.mjs", `package/${applicationRelativePath}/Contents/MacOS/DevFlowPet`,
+      "package/bin/taskbelay.mjs", `package/${applicationRelativePath}/Contents/MacOS/TaskBelayPet`,
     ]));
     const tarball = join(output, `${manifest.name.replace(/^@/u, "").replaceAll("/", "-")}-${manifest.version}.tgz`);
     await writeFile(tarball, gzipSync(archive, { level: 9, mtime: 0 }), { mode: 0o644 });

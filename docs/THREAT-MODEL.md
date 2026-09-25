@@ -1,10 +1,10 @@
-# Dev Flow 威胁模型
+# TaskBelay 威胁模型
 
 [中文](THREAT-MODEL.md) | [English](THREAT-MODEL_en.md)
 
 ## 最重要的边界
 
-Dev Flow 保护的是**开发任务的过程状态**，不是包裹编程 Agent 的安全沙箱。
+TaskBelay 保护的是**开发任务的过程状态**，不是包裹编程 Agent 的安全沙箱。
 
 Codex、DeepSeek Harness、Claude Code 或 ZCode 仍然使用开发者授予的权限读取仓库、修改文件和运行
 命令；Go Core 负责保存唯一 Task 状态，并校验流转、仓库绑定、持久化和 Recovery 决策。
@@ -13,7 +13,7 @@ Codex、DeepSeek Harness、Claude Code 或 ZCode 仍然使用开发者授予的�
 flowchart LR
     U[开发者] --> H[Codex / DeepSeek / Claude Code / ZCode]
     H --> R[已授权仓库]
-    H --> A[Dev Flow Adapter]
+    H --> A[TaskBelay Adapter]
     A --> C[本地 Go Core]
     C --> S[SQLite Task 状态]
 ```
@@ -33,7 +33,7 @@ flowchart LR
 
 | 参与者 | 责任 |
 | --- | --- |
-| 开发者 | 选择是否进入 Dev Flow；确认 source/base/target/carry、仓库和 Host 权限、理解结论、handoff、清理与发布操作 |
+| 开发者 | 选择是否进入 TaskBelay；确认 source/base/target/carry、仓库和 Host 权限、理解结论、handoff、清理与发布操作 |
 | Codex / DeepSeek Harness / Claude Code / ZCode | 真正读取文件、修改仓库和运行命令，使用开发者授予的较高权限 |
 | Host Adapter | 只读评估请求；在确认后执行 fetch、branch、worktree、relaunch/handoff；在命令、完整套件、测试文件修改和复核前判断范围；按 Action、Scope、当前验证计划和 Recovery 调用 Core |
 | Go Core | 只读观察 Git，保存唯一流程状态，计算 Task surface，并校验 revision、workspace、只允许约定字段的 payload、流转和持久化 |
@@ -74,7 +74,7 @@ Core identity，避免错误复用或 PID 重用；Windows 从内核进程信息
 - fetch、branch、worktree、handoff 与 cleanup 是 Host 高权限操作；receipt 只缩小可恢复范围，不消除错误授权风险。
 - 具有同一用户权限或管理员权限的攻击者可以替换本地 binary、SQLite 或配置。
 - 当前没有加密状态库、多用户隔离、远程认证、自动 secret scanning、代码签名或透明度日志。
-- Dev Flow 不能保证模型输出正确、代码无漏洞、测试充分或完全免疫 prompt injection。
+- TaskBelay 不能保证模型输出正确、代码无漏洞、测试充分或完全免疫 prompt injection。
 - Core 无法判断自然语言理由是否真的与改动相关；Host 对测试和复核范围是否合适的判断仍可能出错。
 - 不受支持的平台、Host 版本和 source-only build 没有稳定安全支持声明。
 

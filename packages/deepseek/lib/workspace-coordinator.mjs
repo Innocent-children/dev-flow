@@ -20,12 +20,12 @@ export function workspaceConfirmationText(repositories) {
   const rows = validateRepositoryRequests(repositories).map((repository) =>
     `repository=${repository.repository_key};mode=${repository.workspace_mode};source=${repository.source_type};carry=${repository.carry_changes};remote=${repository.remote_name};base=${repository.base_branch};target=${repository.target_branch}`,
   );
-  return ["/dev-flow confirm-workspace", ...rows].join("\n");
+  return ["/taskbelay confirm-workspace", ...rows].join("\n");
 }
 
 export function workspaceResumeText(launchID) {
   assertLaunchID(launchID);
-  return `/dev-flow resume-worktree launch=${launchID}`;
+  return `/taskbelay resume-worktree launch=${launchID}`;
 }
 
 export function workspaceCleanupText(operation, { launchID, repositoryKey, taskID, revision }) {
@@ -34,7 +34,7 @@ export function workspaceCleanupText(operation, { launchID, repositoryKey, taskI
   if (typeof repositoryKey !== "string" || !/^[a-z0-9][a-z0-9._-]{0,127}$/u.test(repositoryKey)) throw new Error("cleanup repository key is invalid");
   if (typeof taskID !== "string" || taskID.trim() === "" || /\s/u.test(taskID)) throw new Error("cleanup Task identity is invalid");
   if (!Number.isInteger(revision) || revision < 1) throw new Error("cleanup Task revision is invalid");
-  return `/dev-flow ${operation.replace("_", "-")} launch=${launchID} repository=${repositoryKey} task=${taskID} revision=${revision}`;
+  return `/taskbelay ${operation.replace("_", "-")} launch=${launchID} repository=${repositoryKey} task=${taskID} revision=${revision}`;
 }
 
 export function authorizeWorkspaceExecution(execution) {
@@ -44,14 +44,14 @@ export function authorizeWorkspaceExecution(execution) {
   if (operation === "provision") {
     const expected = workspaceConfirmationText(execution.arguments?.repositories);
     if (!text.includes(expected)) {
-      throw new Error(`DEV_FLOW_WORKTREE_CONFIRMATION_REQUIRED: send this exact confirmation in the current direct user turn:\n${expected}`);
+      throw new Error(`TASKBELAY_WORKTREE_CONFIRMATION_REQUIRED: send this exact confirmation in the current direct user turn:\n${expected}`);
     }
     return;
   }
   if (operation === "consume") {
     const expected = workspaceResumeText(execution.arguments?.launch_id);
     if (!text.includes(expected)) {
-      throw new Error(`DEV_FLOW_WORKTREE_RELAUNCH_REQUIRED: the current direct user turn must include ${expected}`);
+      throw new Error(`TASKBELAY_WORKTREE_RELAUNCH_REQUIRED: the current direct user turn must include ${expected}`);
     }
     return;
   }
@@ -62,10 +62,10 @@ export function authorizeWorkspaceExecution(execution) {
       taskID: execution.arguments?.task_id,
       revision: execution.arguments?.revision,
     });
-    if (!text.includes(expected)) throw new Error(`DEV_FLOW_WORKSPACE_CLEANUP_CONFIRMATION_REQUIRED: the current direct user turn must include ${expected}`);
+    if (!text.includes(expected)) throw new Error(`TASKBELAY_WORKSPACE_CLEANUP_CONFIRMATION_REQUIRED: the current direct user turn must include ${expected}`);
     return;
   }
-  throw new Error("DEV_FLOW_WORKSPACE_OPERATION_INVALID: operation is not supported");
+  throw new Error("TASKBELAY_WORKSPACE_OPERATION_INVALID: operation is not supported");
 }
 
 export function createWorkspaceCoordinator({
@@ -91,7 +91,7 @@ export function createWorkspaceCoordinator({
       const id = launchID();
       assertLaunchID(id);
       const requestDigest = sha256(request);
-      const launchRoot = resolve(dirname(canonicalWorkspaceRoot), ".dev-flow-worktrees", id);
+      const launchRoot = resolve(dirname(canonicalWorkspaceRoot), ".taskbelay-worktrees", id);
       if (inside(canonicalWorkspaceRoot, launchRoot)) throw new Error("worktree launch root must be outside the current Workspace Root");
       await assertNoSymlinkComponents(dirname(canonicalWorkspaceRoot), launchRoot);
 
@@ -102,12 +102,12 @@ export function createWorkspaceCoordinator({
         else {
           if (typeof runtimePath !== "string" || !isAbsolute(runtimePath)) throw new Error("Core workspace availability check is unavailable");
           const output = await command(runtimePath, ["host-check", "workspace-available"], {
-            cwd: root, signal, env: { DEV_FLOW_DATA_DIR: dataDirectory },
+            cwd: root, signal, env: { TASKBELAY_DATA_DIR: dataDirectory },
             input: `${JSON.stringify({ repository_path: root })}\n`,
           });
           result = JSON.parse(output.stdout);
         }
-        if (result?.available !== true || result.repository_path !== root) throw new Error("workspace already has an active Dev Flow Task or could not be checked; resolve it before changing branches");
+        if (result?.available !== true || result.repository_path !== root) throw new Error("workspace already has an active TaskBelay Task or could not be checked; resolve it before changing branches");
       };
       for (const repository of requested) {
         const source = await observeSourceRepository(repository.source_repository_path, { command, signal });
@@ -260,7 +260,7 @@ export function createWorkspaceCoordinator({
       if (source.identity !== state.repository.source_repository_identity) throw new Error("cleanup relaunch source does not match the receipt repository group");
       if (source.root === state.repository.worktree_path) throw new Error("cleanup relaunch must use a source checkout outside the Task worktree");
       const prompt = [
-        `/dev-flow resume-cleanup launch=${id} repository=${repositoryKey} task=${taskID} revision=${revision}`,
+        `/taskbelay resume-cleanup launch=${id} repository=${repositoryKey} task=${taskID} revision=${revision}`,
         "The receipt-owned source checkout is now the fixed DSH Workspace Root.",
         `Ask the developer to send exactly: ${workspaceCleanupText("cleanup_worktree", { launchID: id, repositoryKey, taskID, revision })}`,
         "Do not delete the worktree or branch in this relaunch turn.",
@@ -614,7 +614,7 @@ function sha256(value) {
 }
 
 function sourceRepositoryIdentity(commonDirectory) {
-  return sha256(`dev-flow/source-repository\0${commonDirectory}`);
+  return sha256(`taskbelay/source-repository\0${commonDirectory}`);
 }
 
 async function git(cwd, arguments_, options) {

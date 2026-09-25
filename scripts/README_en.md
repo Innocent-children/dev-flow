@@ -13,7 +13,7 @@ install real Host products or create npm, Tag, or GitHub Release state.
 | `pnpm run validate` | Run the repository's required checks |
 | `pnpm run validate:contracts` | Run public contract tests only |
 | `pnpm run versions:check` | Verify Core, Codex, DeepSeek, Claude and ZCode version files and mirrors |
-| `pnpm run dev-flow:local` | Pack four Adapters and the manager from current source and open the normal `dev-flow` install menu |
+| `pnpm run taskbelay:local` | Pack four Adapters and the manager from current source and open the normal `taskbelay` install menu |
 | `node scripts/build-claude-local.mjs --output <absolute-directory>` | Build a Claude Adapter tarball outside the repository; does not install it |
 | `node scripts/build-zcode-local.mjs --output <absolute-directory>` | Build a self-contained ZCode Adapter tarball outside the repository; does not perform UI installation |
 | `node tests/zcode/verify-package.mjs <extracted-package>` | Check the final package with isolated configuration, real Git and native packaged Core; does not run ZCode UI or model sessions |
@@ -35,37 +35,37 @@ Tests are separated by the environment they actually require:
 | --- | --- |
 | `node --test tests/ci_workflow.test.mjs` | All platforms check that package suites have independent steps and cannot ignore failure. Windows also executes the actual workflow scripts in real PowerShell with a substituted package command returning 7 or 0, checking failure and success for all four suites. This regression does not represent a remote GitHub Actions run. |
 | `node --test packages/deepseek/tests/macos-paths.test.mjs` | macOS arm64 only: the detached package includes both platform modules, the macOS shell fixture passes preflight, and POSIX permissions and symlink rules pass; skipped elsewhere. |
-| `node --test packages/deepseek/tests/windows-support.test.mjs` | Windows x64 only, with `DEV_FLOW_WINDOWS_CORE` pointing to a built Core: the detached package loads its modules and runs the `.exe` preflight; skipped when prerequisites are absent. |
-| `node --test packages/deepseek/tests/paths.test.mjs packages/dev-flow/tests/local-packages.test.mjs` | Cross-platform package-path selection and local artifact hashes; comparisons use canonical paths and execute no foreign-platform programs. |
+| `node --test packages/deepseek/tests/windows-support.test.mjs` | Windows x64 only, with `TASKBELAY_WINDOWS_CORE` pointing to a built Core: the detached package loads its modules and runs the `.exe` preflight; skipped when prerequisites are absent. |
+| `node --test packages/deepseek/tests/paths.test.mjs packages/taskbelay/tests/local-packages.test.mjs` | Cross-platform package-path selection and local artifact hashes; comparisons use canonical paths and execute no foreign-platform programs. |
 | `node --test packages/desktop-pet/windows/tests/renderer.test.cjs` | Simulated DOM, IPC and clock on either platform: ordinary polls preserve walking, resizing cancels walking and allows later activities, and work and celebration playback retain their progress. Both Mac and Windows CI run this check; it is not a native window test. |
 
 ## Local installation testing
 
-This one command builds the WebUI and bundled Core, creates `@imotong/dev-flow`, `dev-flow-codex`,
-`dev-flow-deepseek`, `dev-flow-claude` and `dev-flow-zcode` tarballs in a temporary directory outside the repository, and starts the
+This one command builds the WebUI and bundled Core, creates `@imotong/taskbelay`, `taskbelay-codex`,
+`taskbelay-deepseek`, `taskbelay-claude` and `taskbelay-zcode` tarballs in a temporary directory outside the repository, and starts the
 unified install menu from the local tarball:
 
 ```bash
-pnpm run dev-flow:local
+pnpm run taskbelay:local
 ```
 
 Existing non-interactive arguments can be forwarded unchanged:
 
 ```bash
-pnpm run dev-flow:local -- reinstall --host codex --yes
+pnpm run taskbelay:local -- reinstall --host codex --yes
 ```
 
 Local mode really replaces the selected Host Adapter even when its manifest version matches the
-installed version. The existing `dev-flow` lifecycle still owns plans, confirmation, registration,
+installed version. The existing `taskbelay` lifecycle still owns plans, confirmation, registration,
 receipts, and readiness read-back. The launcher removes temporary artifacts when it exits; it never
 runs `npm publish` or creates a Tag or GitHub Release. Registry byte read-back and Release asset
 checks still require the publication workflow.
 
-The `dev-flow:local` Node orchestrator runs on macOS arm64 and Windows 10/11 x64, and builds,
-verifies, and stages both `darwin-arm64/dev-flow` and `win32-x64/dev-flow.exe`. A Windows development
+The `taskbelay:local` Node orchestrator runs on macOS arm64 and Windows 10/11 x64, and builds,
+verifies, and stages both `darwin-arm64/taskbelay` and `win32-x64/taskbelay.exe`. A Windows development
 host needs Go, Node.js, npm, and pnpm; this entry does not require Bash to launch.
 
-The local installer runs a temporary manager and does not upgrade an existing global `dev-flow`. Diagnose source installations from the repository root with `node packages/dev-flow/bin/dev-flow.mjs`.
+The local installer runs a temporary manager and does not upgrade an existing global `taskbelay`. Diagnose source installations from the repository root with `node packages/taskbelay/bin/taskbelay.mjs`.
 
 ## Local source builds
 
@@ -89,11 +89,11 @@ repository.
 ## Release entrypoints
 
 The usual maintainer entrypoint is the manually dispatched `publish-npm` GitHub Actions workflow,
-selecting `codex`, `deepseek`, `claude`, `zcode` or `dev-flow`.
-For each npm package, configure `publish-npm.yml` from `Innocent-children/dev-flow` as a GitHub Actions
+selecting `codex`, `deepseek`, `claude`, `zcode` or `taskbelay`.
+For each npm package, configure `publish-npm.yml` from `Innocent-children/taskbelay` as a GitHub Actions
 Trusted Publisher allowed to run `npm publish`. Then select only the product, channel, and exact
 version. The workflow uses one fixed release check and obtains a short-lived npm
-publish credential through OIDC, uses ARM64 runners (`macos-15` for all four Host Adapters and the `xcode-27` preview image with Xcode 27 for the Dev Flow desktop package), Go `1.26.5`, Node.js `24.18.0`, and pnpm
+publish credential through OIDC, uses ARM64 runners (`macos-15` for all four Host Adapters and the `xcode-27` preview image with Xcode 27 for the TaskBelay desktop package), Go `1.26.5`, Node.js `24.18.0`, and pnpm
 `11.24.0`, serializes all products through one release queue, and invokes the commands below.
 All four Host preparations cross-builds and verifies both Core targets; CLI preparation includes
 both desktop applications. The release runner OS is build
@@ -142,10 +142,10 @@ pnpm run release:zcode -- \
 ```
 
 ```bash
-pnpm run release:dev-flow -- \
-  --version "<DEV_FLOW_VERSION>" \
+pnpm run release:taskbelay -- \
+  --version "<TASKBELAY_VERSION>" \
   --output "<ABSOLUTE_DIRECTORY>" \
-  --confirm "dev-flow-v<DEV_FLOW_VERSION>"
+  --confirm "taskbelay-v<TASKBELAY_VERSION>"
 ```
 
 For all four Host Adapters, `stable` is the default channel. It accepts stable SemVer and requires `main` to equal
@@ -156,7 +156,7 @@ An existing GitHub Release must have the prerelease status selected by the chann
 publication. The CLI supports stable only and requires clean synchronized `main`.
 
 Host release flows update only the selected package manifest, its plugin/marketplace version mirrors
-and its stable `release/public-versions.json` entry; the CLI updates only `packages/dev-flow/package.json`.
+and its stable `release/public-versions.json` entry; the CLI updates only `packages/taskbelay/package.json`.
 Release commands neither read nor rewrite Markdown. A first stable release can use the current source
 version and add its public identity; none of the four Hosts requires a previous Tag.
 
@@ -182,14 +182,14 @@ assembles existing artwork and language resources, signs ad hoc, and creates a l
 tarball. Source JS files and the staging manifest including the app are checked separately. Existing
 USTAR helpers preserve native executable permissions, followed by extracted-signature verification.
 This entry does not rebuild Core, change Adapter installations, or publish npm. See the [desktop pet guide](../docs/DESKTOP-PETS_en.md#local-build-and-installation) for installation, identifying the running executable, and replacing an existing app.
-`dev-flow:local` retains its temporary lifecycle manager; the pet uses the persistent installed package
+`taskbelay:local` retains its temporary lifecycle manager; the pet uses the persistent installed package
 built by this entry.
 
 The build uses `scripts/desktop-pet-artwork.mjs` to copy the default blue sea sprite appearance from `packages/desktop-pet/default-appearance/` and compare each delivered file with its source. The pack contains nine clips and 57 PNG frames; the `frames` and `asset_bytes` result fields record its animation frame count and artwork file size. Other custom appearances are imported from external artwork packs. Generated application bundles and external artwork directories are not tracked by Git.
 
 Build the Windows desktop package with `build-desktop-pet-windows.mjs`. From the repository root, run `npm ci --prefix packages/desktop-pet/windows`, then `node scripts/build-desktop-pet-windows.mjs --output "C:\pet-build"`. Output must be outside the repository. This entry assembles the Windows desktop, launcher and all four Adapter packages through the Core target catalog; it does not execute Mac programs, Mac tests or publication.
 
-The Windows desktop development distribution carries complete Codex, DeepSeek, Claude and ZCode packages through buildCoreRuntimes and stageAndPack. It does not create special Adapter archives missing the other Core runtime. After launcher bootstrap, `dev-flow install --host all --yes` prepares all four Adapters and the desktop app; ZCode still requires UI installation and enablement as instructed in the result.
+The Windows desktop development distribution carries complete Codex, DeepSeek, Claude and ZCode packages through buildCoreRuntimes and stageAndPack. It does not create special Adapter archives missing the other Core runtime. After launcher bootstrap, `taskbelay install --host all --yes` prepares all four Adapters and the desktop app; ZCode still requires UI installation and enablement as instructed in the result.
 
 WebUI semantic submission and recovery regressions run with `pnpm --dir packages/webui test`. They exercise current components and the HTTP client with simulated hooks and HTTP, covering transport failure, reopening pending Actions and recovery by Action ID. These are not native browser checks.
 
@@ -203,13 +203,13 @@ against the source without writing files. After changing the source, synchronize
 generated copies together; package-local import paths stay unchanged.
 
 `node scripts/sync-host-commands.mjs --output <ABSOLUTE_LIB_DIRECTORY>` generates the same three files
-into the specified absolute `lib` directory. Both `stageAndPack` in `dev-flow-local.mjs` and
+into the specified absolute `lib` directory. Both `stageAndPack` in `taskbelay-local.mjs` and
 `build-codex-local.sh` generate staging contents directly from the shared source, so installed packages
 do not depend on the repository's shared directory. The unified manager and DeepSeek do not use these
 generated copies.
 
 ## Shared Skill references
 
-Edit common Core instructions and examples only in `skills/dev-flow/core/`. Run `node scripts/sync-skill-references.mjs` to generate the Codex, DeepSeek, Claude and ZCode package copies, whose headers identify the source. These copies support source browsing and local loading. `node scripts/sync-skill-references.mjs --check` detects stale copies. The Codex local builder and `stageAndPack` also render references in temporary staging, so installed packages do not depend on a shared directory outside the package. Shared text substitutes only the Host value; Host operations remain separately authored. Validation covers the four Host MCP schemas, current transitions, DSH confirmation text and actual packaged files.
+Edit common Core instructions and examples only in `skills/taskbelay/core/`. Run `node scripts/sync-skill-references.mjs` to generate the Codex, DeepSeek, Claude and ZCode package copies, whose headers identify the source. These copies support source browsing and local loading. `node scripts/sync-skill-references.mjs --check` detects stale copies. The Codex local builder and `stageAndPack` also render references in temporary staging, so installed packages do not depend on a shared directory outside the package. Shared text substitutes only the Host value; Host operations remain separately authored. Validation covers the four Host MCP schemas, current transitions, DSH confirmation text and actual packaged files.
 
-Targeted tests maintain the complete response examples. After editing shared requests, synchronize the package copies first. To update Core examples, run `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 go test ./internal/mcp -run TestSkillSuccessExamplesMatchExecution -count=1`, then synchronize shared references. To update Host examples, run `DEV_FLOW_UPDATE_SKILL_EXAMPLES=1 node --test packages/codex/tests/skill-success-examples.test.mjs packages/deepseek/tests/skill-success-examples.test.mjs`. Normal tests compare saved requests and responses without writing files. Review changed example fields and update package and staging lists when adding files. Node test helpers for reading examples, substituting stable values and comparing results live in `tests/skills/executed-examples.mjs`.
+Targeted tests maintain the complete response examples. After editing shared requests, synchronize the package copies first. To update Core examples, run `TASKBELAY_UPDATE_SKILL_EXAMPLES=1 go test ./internal/mcp -run TestSkillSuccessExamplesMatchExecution -count=1`, then synchronize shared references. To update Host examples, run `TASKBELAY_UPDATE_SKILL_EXAMPLES=1 node --test packages/codex/tests/skill-success-examples.test.mjs packages/deepseek/tests/skill-success-examples.test.mjs`. Normal tests compare saved requests and responses without writing files. Review changed example fields and update package and staging lists when adding files. Node test helpers for reading examples, substituting stable values and comparing results live in `tests/skills/executed-examples.mjs`.

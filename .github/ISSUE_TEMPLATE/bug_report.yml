@@ -1,15 +1,15 @@
 name: Bug report / 缺陷报告
-description: Report a reproducible Dev Flow problem / 提交可复现的 Dev Flow 问题
+description: Report a reproducible TaskBelay problem / 提交可复现的 TaskBelay 问题
 title: "[Bug] "
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve Dev Flow. Please remove credentials, private paths, repository contents, and personal data before submitting logs.
+        Thanks for helping improve TaskBelay. Please remove credentials, private paths, repository contents, and personal data before submitting logs.
 
-        感谢你帮助改进 Dev Flow。提交日志前，请删除密钥、私有路径、仓库内容和个人数据。
+        感谢你帮助改进 TaskBelay。提交日志前，请删除密钥、私有路径、仓库内容和个人数据。
 
-        For security vulnerabilities, use the private reporting instructions in the [Security Policy](https://github.com/Innocent-children/dev-flow/security/policy) instead of this form.
+        For security vulnerabilities, use the private reporting instructions in the [Security Policy](https://github.com/Innocent-children/taskbelay/security/policy) instead of this form.
 
   - type: dropdown
     id: product
@@ -17,9 +17,9 @@ body:
       label: Affected product / 受影响产品
       description: Select the entry where the problem is visible. / 选择直接出现问题的入口。
       options:
-        - "@imotong/dev-flow lifecycle CLI"
-        - "dev-flow-codex"
-        - "dev-flow-deepseek"
+        - "@imotong/taskbelay lifecycle CLI"
+        - "taskbelay-codex"
+        - "taskbelay-deepseek"
         - "Core or local WebUI"
         - "Not sure / 不确定"
     validations:
@@ -30,7 +30,7 @@ body:
     attributes:
       label: Versions / 版本
       description: Include the affected package, Core, Host, and Node.js versions when available. / 尽量填写相关 package、Core、Host 和 Node.js 版本。
-      placeholder: "dev-flow-codex 0.x, Core 0.x, Codex 0.x, Node.js 24.x"
+      placeholder: "taskbelay-codex 0.x, Core 0.x, Codex 0.x, Node.js 24.x"
     validations:
       required: true
 

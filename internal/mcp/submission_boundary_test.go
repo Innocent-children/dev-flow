@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 // submissionInput builds one closed submission request around a node result.

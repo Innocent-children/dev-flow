@@ -11,7 +11,7 @@ import (
 
 func TestOpenReadOnlySeesLiveWALAndRefusesWrites(t *testing.T) {
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "dev-flow.db")
+	path := filepath.Join(t.TempDir(), "taskbelay.db")
 	writer, err := Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)

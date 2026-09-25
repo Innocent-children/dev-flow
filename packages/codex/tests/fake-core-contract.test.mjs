@@ -14,23 +14,23 @@ const currentProcessDigest = JSON.parse(
   await readFile(new URL("../../../protocol/fixtures/graph-server-info.json", import.meta.url), "utf8"),
 ).supported_processes[0].definition_digest;
 const exactTools = [
-  "dev_flow_server_info",
-  "dev_flow_open_task",
-  "dev_flow_get_task",
-  "dev_flow_get_next_action",
-  "dev_flow_submit_requirements",
-  "dev_flow_submit_design",
-  "dev_flow_submit_tasks",
-  "dev_flow_submit_implementation",
-  "dev_flow_submit_test",
-  "dev_flow_submit_comprehension",
-  "dev_flow_submit_refactor",
-  "dev_flow_submit_delivery",
-  "dev_flow_prepare_task_relocation",
-  "dev_flow_resolve_blocker",
-  "dev_flow_recover_action",
-  "dev_flow_cancel_task",
-  "dev_flow_abandon_task",
+  "taskbelay_server_info",
+  "taskbelay_open_task",
+  "taskbelay_get_task",
+  "taskbelay_get_next_action",
+  "taskbelay_submit_requirements",
+  "taskbelay_submit_design",
+  "taskbelay_submit_tasks",
+  "taskbelay_submit_implementation",
+  "taskbelay_submit_test",
+  "taskbelay_submit_comprehension",
+  "taskbelay_submit_refactor",
+  "taskbelay_submit_delivery",
+  "taskbelay_prepare_task_relocation",
+  "taskbelay_resolve_blocker",
+  "taskbelay_recover_action",
+  "taskbelay_cancel_task",
+  "taskbelay_abandon_task",
 ];
 const exactActionMembers = [
   "task_id", "revision", "action_id", "action_kind", "submission_tool", "process_id",
@@ -67,12 +67,12 @@ test("fake Core serves the current seventeen-tool catalog and complete structure
     "method_results",
     "node_result",
   ]);
-  assert.deepEqual(tools.find((tool) => tool.name === "dev_flow_prepare_task_relocation").inputSchema.required, ["host", "task_id", "revision"]);
-  assert.deepEqual(tools.find((tool) => tool.name === "dev_flow_abandon_task").inputSchema.required, ["host", "task_id", "revision", "reason"]);
-  const resolveBlocker = tools.find((tool) => tool.name === "dev_flow_resolve_blocker").inputSchema;
+  assert.deepEqual(tools.find((tool) => tool.name === "taskbelay_prepare_task_relocation").inputSchema.required, ["host", "task_id", "revision"]);
+  assert.deepEqual(tools.find((tool) => tool.name === "taskbelay_abandon_task").inputSchema.required, ["host", "task_id", "revision", "reason"]);
+  const resolveBlocker = tools.find((tool) => tool.name === "taskbelay_resolve_blocker").inputSchema;
   assert.deepEqual(resolveBlocker.properties.relocation_destinations.items.required, ["key", "repository_path"]);
   assert.deepEqual(resolveBlocker.properties.history_resolution.required, ["choice", "reason"]);
-  const info = await client.callTool("dev_flow_server_info", {});
+  const info = await client.callTool("taskbelay_server_info", {});
   assert.equal(info.result.version, currentCoreVersion);
   assert.equal(info.result.supported_processes[0].definition_digest, currentProcessDigest);
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
@@ -86,7 +86,7 @@ test("fake Core serves the current seventeen-tool catalog and complete structure
 test("fake Core projects one multi-repository task, Action, revision, and digest", async (t) => {
   const fixture = await makeFixture(t, "multi-repository");
   const client = await fixture.client();
-  const opened = await client.callTool("dev_flow_open_task", {
+  const opened = await client.callTool("taskbelay_open_task", {
     ...openArguments(),
     repository_path: "/workspace/core",
     primary_repository_key: "core",
@@ -112,14 +112,14 @@ test("fake Core projects one multi-repository task, Action, revision, and digest
     "description", "destination_node", "guard_id", "reason_required", "selection_condition", "transition_id",
   ]);
   assert.equal(Object.hasOwn(action, "repository_scope_digest"), false);
-  const next = await client.callTool("dev_flow_get_next_action", { host: "codex", task_id: action.task_id });
+  const next = await client.callTool("taskbelay_get_next_action", { host: "codex", task_id: action.task_id });
   assert.deepEqual(next.result.process, {
     process_id: "standard-development",
     process_definition_digest: currentProcessDigest,
   });
 
   const calls = await fixture.toolCalls();
-  assert.deepEqual(calls.find((call) => call.name === "dev_flow_open_task").arguments.additional_repositories, [
+  assert.deepEqual(calls.find((call) => call.name === "taskbelay_open_task").arguments.additional_repositories, [
     { key: "docs", repository_path: "/workspace/docs", workspace_origin: workspaceOrigin("docs") },
   ]);
 });
@@ -127,7 +127,7 @@ test("fake Core projects one multi-repository task, Action, revision, and digest
 test("driver creates and resumes one graph task while surfacing Core conflicts", async (t) => {
   const fixture = await makeFixture(t, "resume");
   const first = await fixture.client({ session: "session-create" });
-  const opened = await first.callTool("dev_flow_open_task", openArguments());
+  const opened = await first.callTool("taskbelay_open_task", openArguments());
   assert.equal(opened.result.created, true);
   assert.equal(opened.result.task.current_cursor, "REQUIREMENTS");
   assert.equal(opened.result.task.primary_repository_key, "primary");
@@ -136,7 +136,7 @@ test("driver creates and resumes one graph task while surfacing Core conflicts",
   await first.close();
 
   const resumedClient = await fixture.client({ session: "session-resume" });
-  const resumed = await resumedClient.callTool("dev_flow_open_task", {
+  const resumed = await resumedClient.callTool("taskbelay_open_task", {
     host: "codex",
     repository_path: "/workspace/example",
     workspace_origin: workspaceOrigin("primary"),
@@ -147,17 +147,17 @@ test("driver creates and resumes one graph task while surfacing Core conflicts",
 
   const conflictFixture = await makeFixture(t, "conflict");
   const conflictClient = await conflictFixture.client({ selectedCase: "conflict" });
-  assert.equal((await conflictClient.callTool("dev_flow_open_task", openArguments())).error.code, "ACTIVE_TASK_CONFLICT");
+  assert.equal((await conflictClient.callTool("taskbelay_open_task", openArguments())).error.code, "ACTIVE_TASK_CONFLICT");
 
   const hostFixture = await makeFixture(t, "host-conflict");
   const hostClient = await hostFixture.client({ selectedCase: "host-conflict" });
-  assert.equal((await hostClient.callTool("dev_flow_open_task", openArguments())).error.code, "HOST_OWNERSHIP_CONFLICT");
+  assert.equal((await hostClient.callTool("taskbelay_open_task", openArguments())).error.code, "HOST_OWNERSHIP_CONFLICT");
 });
 
 test("driver forwards one closed graph action identity and continues from Core result", async (t) => {
   const fixture = await makeFixture(t, "success");
   const client = await fixture.client();
-  const opened = await client.callTool("dev_flow_open_task", openArguments());
+  const opened = await client.callTool("taskbelay_open_task", openArguments());
   const action = opened.result.task.current_action;
   const submitted = submissionArguments(action);
   const applied = await client.callTool(action.submission_tool, submitted);
@@ -175,15 +175,15 @@ test("lost and truncated graph mutations force exact reads before retry", async 
     await t.test(selectedCase, async () => {
       const fixture = await makeFixture(t, selectedCase);
       const mutating = await fixture.client({ selectedCase, session: "session-uncertain" });
-      const opened = await mutating.callTool("dev_flow_open_task", openArguments());
+      const opened = await mutating.callTool("taskbelay_open_task", openArguments());
       const action = opened.result.task.current_action;
       const submitted = submissionArguments(action);
       await assert.rejects(mutating.callTool(action.submission_tool, submitted), (error) => error.uncertain === true);
       await mutating.close();
 
       const recovering = await fixture.client({ session: "session-recovery" });
-      const task = await recovering.callTool("dev_flow_get_task", { host: "codex", task_id: action.task_id });
-      const next = await recovering.callTool("dev_flow_get_next_action", { host: "codex", task_id: action.task_id });
+      const task = await recovering.callTool("taskbelay_get_task", { host: "codex", task_id: action.task_id });
+      const next = await recovering.callTool("taskbelay_get_next_action", { host: "codex", task_id: action.task_id });
       assert.equal(task.result.recovery_assessment.classification, "completed_and_recorded");
       assert.equal(task.result.recovery_assessment.operation.source_cursor, "REQUIREMENTS");
       assert.equal(next.result.current_cursor, "DESIGN");
@@ -197,7 +197,7 @@ test("driver preserves graph errors, blocker, cancellation, and terminal outcome
   for (const [selectedCase, code] of [["domain-error", "ACTION_STALE"], ["budget", "VERIFICATION_BUDGET_EXCEEDED"]]) {
     const fixture = await makeFixture(t, selectedCase);
     const client = await fixture.client({ selectedCase });
-    const opened = await client.callTool("dev_flow_open_task", openArguments());
+    const opened = await client.callTool("taskbelay_open_task", openArguments());
     const action = opened.result.task.current_action;
     const result = await client.callTool(action.submission_tool, submissionArguments(action));
     assert.equal(result.error.code, code);
@@ -205,7 +205,7 @@ test("driver preserves graph errors, blocker, cancellation, and terminal outcome
 
   const blockerFixture = await makeFixture(t, "blocker");
   const blockerClient = await blockerFixture.client({ selectedCase: "blocker" });
-  const blockerOpen = await blockerClient.callTool("dev_flow_open_task", openArguments());
+  const blockerOpen = await blockerClient.callTool("taskbelay_open_task", openArguments());
   const blockedAction = blockerOpen.result.task.current_action;
   const blocked = await blockerClient.callTool(blockedAction.submission_tool, submissionArguments(blockedAction));
   assert.equal(blocked.result.task.current_cursor, "BLOCKED");
@@ -213,7 +213,7 @@ test("driver preserves graph errors, blocker, cancellation, and terminal outcome
 
   const terminalFixture = await makeFixture(t, "terminal");
   const terminalClient = await terminalFixture.client({ selectedCase: "terminal" });
-  const terminalOpen = await terminalClient.callTool("dev_flow_open_task", openArguments());
+  const terminalOpen = await terminalClient.callTool("taskbelay_open_task", openArguments());
   const terminalAction = terminalOpen.result.task.current_action;
   const terminal = await terminalClient.callTool(terminalAction.submission_tool, submissionArguments(terminalAction));
   assert.equal(terminal.result.task.current_cursor, "DONE");
@@ -221,7 +221,7 @@ test("driver preserves graph errors, blocker, cancellation, and terminal outcome
 
   const cancelFixture = await makeFixture(t, "cancel");
   const cancelClient = await cancelFixture.client();
-  const cancelled = await cancelClient.callTool("dev_flow_cancel_task", {
+  const cancelled = await cancelClient.callTool("taskbelay_cancel_task", {
     request_id: "request-cancel",
     host: "codex",
     task_id: "task-graph-0001",
@@ -236,7 +236,7 @@ test("fake Core rejects unknown argument members before dispatch", async (t) => 
   const fixture = await makeFixture(t, "closed");
   const client = await fixture.client();
   await assert.rejects(
-    client.callTool("dev_flow_server_info", { alias: "forbidden" }),
+    client.callTool("taskbelay_server_info", { alias: "forbidden" }),
     (error) => error.rpcCode === -32602 && /unexpected field alias/.test(error.message),
   );
 });
@@ -296,7 +296,7 @@ function workspaceOrigin(key) {
 }
 
 async function makeFixture(t, name) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), `dev-flow-fake-core-${name}-`)));
+  const root = await realpath(await mkdtemp(join(tmpdir(), `taskbelay-fake-core-${name}-`)));
   const statePath = join(root, "state.json");
   const tracePath = join(root, "trace.jsonl");
   const clients = [];
@@ -356,7 +356,7 @@ class FakeCoreClient {
 
   async initialize() {
     const response = await this.request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake-driver", version: "0.2.0" } });
-    assert.equal(response.result.serverInfo.name, "dev-flow-fake-core");
+    assert.equal(response.result.serverInfo.name, "taskbelay-fake-core");
     assert.equal(response.result.serverInfo.version, currentCoreVersion);
     this.notify("notifications/initialized", {});
   }

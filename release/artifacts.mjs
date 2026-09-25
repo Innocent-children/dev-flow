@@ -34,8 +34,8 @@ export async function validateReleaseArtifacts({ product, version, directory, so
   const tarballName = `${packageName.replace(/^@/u, "").replaceAll("/", "-")}-${version}.tgz`;
   const expected = new Map([[tarballName, "npm_tarball"]]);
   if (bundlesCore) {
-    expected.set(`dev-flow-core-${manifest.release.core_version}-darwin-arm64`, "core_binary");
-    expected.set(`dev-flow-core-${manifest.release.core_version}-windows-amd64.exe`, "core_binary");
+    expected.set(`taskbelay-core-${manifest.release.core_version}-darwin-arm64`, "core_binary");
+    expected.set(`taskbelay-core-${manifest.release.core_version}-windows-amd64.exe`, "core_binary");
   }
   if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== expected.size) {
     throw new Error("release artifact inventory is incomplete");

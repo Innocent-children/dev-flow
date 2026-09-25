@@ -133,7 +133,7 @@ func TestDetachedBinaryReportsInjectedVersionAfterMove(t *testing.T) {
 	}
 
 	buildDirectory := t.TempDir()
-	binaryName := "dev-flow"
+	binaryName := "taskbelay"
 	if runtime.GOOS == "windows" {
 		binaryName += ".exe"
 	}
@@ -142,8 +142,8 @@ func TestDetachedBinaryReportsInjectedVersionAfterMove(t *testing.T) {
 		t.Fatalf("create build directory: %v", err)
 	}
 	moduleRoot := filepath.Clean(filepath.Join(mustTestFileDirectory(t), "..", ".."))
-	ldflag := "-X github.com/Innocent-children/dev-flow/internal/version.buildVersion=9.8.7"
-	command := exec.Command("go", "build", "-trimpath", "-ldflags", ldflag, "-o", binaryPath, "./cmd/dev-flow")
+	ldflag := "-X github.com/Innocent-children/taskbelay/internal/version.buildVersion=9.8.7"
+	command := exec.Command("go", "build", "-trimpath", "-ldflags", ldflag, "-o", binaryPath, "./cmd/taskbelay")
 	command.Dir = moduleRoot
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build injected binary: %v\n%s", err, output)
@@ -161,7 +161,7 @@ func TestDetachedBinaryReportsInjectedVersionAfterMove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run moved detached binary: %v\n%s", err, output)
 	}
-	if got, want := string(output), "dev-flow 9.8.7\n"; got != want {
+	if got, want := string(output), "taskbelay 9.8.7\n"; got != want {
 		t.Fatalf("moved binary version output = %q, want unchanged public output %q", got, want)
 	}
 }

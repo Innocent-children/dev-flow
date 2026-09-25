@@ -11,7 +11,7 @@ import { releaseProducts } from "./products.mjs";
 
 const execFile = promisify(execFileCallback);
 const registry = "https://registry.npmjs.org/";
-const repository = "Innocent-children/dev-flow";
+const repository = "Innocent-children/taskbelay";
 const npmVisibilityTimeoutMs = 600_000;
 const npmVisibilityPollMs = 5_000;
 
@@ -52,7 +52,7 @@ export function releasePresentation(product, version, manifest) {
   const packageIdentity = `${config.packageName}@${version}`;
   const packageURL = `https://www.npmjs.com/package/${encodeURIComponent(config.packageName)}/v/${encodeURIComponent(version)}`;
   const summary = config.bundlesCore
-    ? `This release publishes [\`${packageIdentity}\`](${packageURL}) with Dev Flow Core \`${coreVersion}\`.`
+    ? `This release publishes [\`${packageIdentity}\`](${packageURL}) with TaskBelay Core \`${coreVersion}\`.`
     : `This release publishes [\`${packageIdentity}\`](${packageURL}).`;
   const verification = config.bundlesCore
     ? "Use `SHA256SUMS` from this Release to verify the npm package and standalone Core binaries before installation."
@@ -109,7 +109,7 @@ export async function verifyRegistryBytes(packageName, version, expectedSHA, env
   const wait = options.wait ?? ((milliseconds) => new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)));
   const attempts = Math.max(1, Math.ceil(timeoutMs / pollMs));
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const directory = await mkdtemp(join(tmpdir(), "dev-flow-npm-readback-"));
+    const directory = await mkdtemp(join(tmpdir(), "taskbelay-npm-readback-"));
     try {
       let output;
       try {
@@ -141,7 +141,7 @@ async function ensureAssets(tag, assets, environment, runProcess) {
   for (const asset of assets) {
     if (!existing.has(asset.name)) await runProcess("gh", ["release", "upload", tag, asset.path, "--repo", repository], environment);
   }
-  const download = await mkdtemp(join(tmpdir(), "dev-flow-release-readback-"));
+  const download = await mkdtemp(join(tmpdir(), "taskbelay-release-readback-"));
   try {
     for (const asset of assets) {
       await runProcess("gh", ["release", "download", tag, "--repo", repository, "--pattern", asset.name, "--dir", download], environment);

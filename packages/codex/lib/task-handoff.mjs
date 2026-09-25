@@ -106,8 +106,8 @@ export function buildManagedBootstrapPrompt({ launchId, repositoryKey, handoff }
   assertText(repositoryKey, "repositoryKey");
   const material = validateTaskHandoff(handoff.material);
   const identity = [
-    "$dev-flow-codex:dev-flow",
-    `Resume the confirmed Dev Flow launch ${launchId} for repository ${repositoryKey}.`,
+    "$taskbelay-codex:taskbelay",
+    `Resume the confirmed TaskBelay launch ${launchId} for repository ${repositoryKey}.`,
     "Before any Core call, read the saved material and every confirmed repository receipt. Follow the Skill bootstrap route for each receipt surface/phase: first managed initialization verifies the frozen commit and clean destination and applies the selected snapshot through the helper; provisioned worktrees retain carried content and subsequent work without repeating initialization. Inspect current worktree identity and permissions separately from saved receipt data. Then follow the Skill creation/resume rules for the actual Core state, using workspace_origin unchanged only for creation.",
   ];
   const locations = [
@@ -139,7 +139,7 @@ function renderDocument(material) {
     `### ${message.id} (${message.role})\n\n${message.text.split("\n").map((line) => `> ${line}`).join("\n")}`
   ));
   return [
-    "# Dev Flow task handoff", `Request overview: ${material.request}`, renderBody(material),
+    "# TaskBelay task handoff", `Request overview: ${material.request}`, renderBody(material),
     "## Original discussion in message order",
     "These messages retain the discussion, including superseded requests and unaccepted suggestions. Current requirements are listed above.",
     ...messages,

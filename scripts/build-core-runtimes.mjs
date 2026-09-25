@@ -5,7 +5,7 @@ import { chmod, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
+import { execPortableCommand } from "../packages/taskbelay/lib/command.mjs";
 import { buildWebUI } from "./build-webui.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -16,14 +16,14 @@ export const CORE_RUNTIME_TARGETS = Object.freeze([
     runtimeKey: "darwin-arm64",
     goos: "darwin",
     goarch: "arm64",
-    executable: "dev-flow",
+    executable: "taskbelay",
     requireExecutableMode: true,
   }),
   Object.freeze({
     runtimeKey: "win32-x64",
     goos: "windows",
     goarch: "amd64",
-    executable: "dev-flow.exe",
+    executable: "taskbelay.exe",
     requireExecutableMode: false,
   }),
 ]);
@@ -57,10 +57,10 @@ export async function buildCoreRuntimes({
       "-trimpath",
       "-buildvcs=false",
       "-ldflags",
-      `-s -w -X github.com/Innocent-children/dev-flow/internal/version.buildVersion=${coreVersion}`,
+      `-s -w -X github.com/Innocent-children/taskbelay/internal/version.buildVersion=${coreVersion}`,
       "-o",
       runtimePath,
-      "./cmd/dev-flow",
+      "./cmd/taskbelay",
     ], {
       cwd: root,
       environment: {

@@ -1,4 +1,4 @@
-# Dev Flow Documentation Internationalization
+# TaskBelay Documentation Internationalization
 
 [中文](I18N.md) | [English](I18N_en.md)
 
@@ -65,30 +65,30 @@ English or Simplified Chinese content.
 Public installation examples use npm's stable channel:
 
 ```text
-@imotong/dev-flow@latest
-dev-flow-codex@latest
-dev-flow-deepseek@latest
+@imotong/taskbelay@latest
+taskbelay-codex@latest
+taskbelay-deepseek@latest
 ```
 
-Exact Core, Codex, DeepSeek, Claude, ZCode, and Dev Flow CLI product versions remain only in machine-readable version
+Exact Core, Codex, DeepSeek, Claude, ZCode, and TaskBelay CLI product versions remain only in machine-readable version
 files, package metadata, Release Tags, artifact digests, and release records. Human-readable documents
 do not contain exact product versions.
 
 Command documentation must be checked against implementation:
 
 - package names, `bin` entries, and platform constraints come from the relevant `package.json`;
-- Codex commands come from `packages/codex/bin/dev-flow-codex.mjs`;
-- ZCode commands come from `packages/zcode/bin/dev-flow-zcode.mjs`;
-- unified lifecycle commands come from `packages/dev-flow/lib/cli.mjs`;
+- Codex commands come from `packages/codex/bin/taskbelay-codex.mjs`;
+- ZCode commands come from `packages/zcode/bin/taskbelay-zcode.mjs`;
+- unified lifecycle commands come from `packages/taskbelay/lib/cli.mjs`;
 - DeepSeek installation and removal forms come from DSH lifecycle tests;
-- packaged Core commands come from `cmd/dev-flow/main.go`;
+- packaged Core commands come from `cmd/taskbelay/main.go`;
 - MCP tools come from the fixed tool list under `internal/mcp/`.
 
 ## Translation invariants
 
 Every locale preserves:
 
-- Dev Flow's primary position and failure scenario;
+- TaskBelay's primary position and failure scenario;
 - the distinction between current capability and future direction;
 - commands, selectors, tool names, environment variables, paths, and filenames;
 - package, bundled Core, platform, and Host compatibility facts;

@@ -13,8 +13,8 @@ import { createHash } from "node:crypto";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { gzipSync } from "node:zlib";
-import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
-import { normalizeUstarArchive, stageAndPack } from "./dev-flow-local.mjs";
+import { execPortableCommand } from "../packages/taskbelay/lib/command.mjs";
+import { normalizeUstarArchive, stageAndPack } from "./taskbelay-local.mjs";
 import { stageDesktopPackage } from "./desktop-pet-package.mjs";
 import { buildCoreRuntimes } from "./build-core-runtimes.mjs";
 import {
@@ -31,7 +31,7 @@ export async function stageWindowsDesktopApplication({ application, version, dep
   });
   await rename(
     join(application, "electron.exe"),
-    join(application, "DevFlowPet.exe"),
+    join(application, "TaskBelayPet.exe"),
   );
   const appRoot = join(application, "resources", "app");
   await mkdir(appRoot, { recursive: true });
@@ -45,6 +45,7 @@ export async function stageWindowsDesktopApplication({ application, version, dep
     "view.html",
     "view.css",
     "decode.html",
+    "taskbelay-mark-32.png",
   ])
     await copyFile(join(source, file), join(appRoot, file));
   for (const module of ["saxes", "xmlchars", "image-size"])
@@ -56,8 +57,8 @@ export async function stageWindowsDesktopApplication({ application, version, dep
   await writeFile(
     join(appRoot, "package.json"),
     JSON.stringify({
-      name: "dev-flow-desktop-pet-windows",
-      productName: "Dev Flow Desktop Pet",
+      name: "taskbelay-desktop-pet-windows",
+      productName: "TaskBelay Desktop Pet",
       version,
       main: "main.cjs",
       private: true,
@@ -86,7 +87,7 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
   try {
     const source = join(root, "packages", "desktop-pet", "windows");
     const packageRoot = join(work, "package");
-    const applicationPath = "runtime/win32-x64/DevFlowPet";
+    const applicationPath = "runtime/win32-x64/TaskBelayPet";
     const manifest = await stageDesktopPackage(root, packageRoot, [applicationPath]);
     const runtimes = await buildCoreRuntimes({
       repositoryRoot: root,
@@ -95,7 +96,7 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
     const artifactDirectory = join(work, "adapter-artifacts");
     await mkdir(artifactDirectory);
     await mkdir(join(packageRoot, "local-packages"));
-    const devFlowLocalPackages = {};
+    const taskBelayLocalPackages = {};
     const coreArtifacts = new Map(Object.values(runtimes.runtimes).map(runtime => [runtime.relativePath, runtime]));
     for (const product of ["codex", "deepseek", "claude", "zcode"]) {
       const artifact = await stageAndPack(product, {
@@ -111,7 +112,7 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
       const bytes = await readFile(artifact.path);
       const relativePath = `local-packages/${product}.tgz`;
       await writeFile(join(packageRoot, relativePath), bytes);
-      devFlowLocalPackages[product] = {
+      taskBelayLocalPackages[product] = {
         path: relativePath, version: artifact.version,
         sha256: createHash("sha256").update(bytes).digest("hex"),
       };
@@ -119,7 +120,7 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
     await writeFile(
       join(packageRoot, "package.json"),
       JSON.stringify(
-        { ...manifest, devFlowLocalPackages, files: [...manifest.files, "local-packages/codex.tgz", "local-packages/deepseek.tgz", "local-packages/claude.tgz", "local-packages/zcode.tgz"] },
+        { ...manifest, taskBelayLocalPackages, files: [...manifest.files, "local-packages/codex.tgz", "local-packages/deepseek.tgz", "local-packages/claude.tgz", "local-packages/zcode.tgz"] },
         null,
         2,
       ) + "\n",
@@ -142,7 +143,7 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
       gzipSync(
         normalizeUstarArchive(
           await readFile(archive),
-          new Set(["package/bin/dev-flow.mjs"]),
+          new Set(["package/bin/taskbelay.mjs"]),
         ),
         { level: 9, mtime: 0 },
       ),
@@ -157,8 +158,8 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
       join(extractedApp, "resources", "app", "default-appearance"),
     );
     if (
-      !(await readFile(join(extractedApp, "DevFlowPet.exe"))).equals(
-        await readFile(join(application, "DevFlowPet.exe")),
+      !(await readFile(join(extractedApp, "TaskBelayPet.exe"))).equals(
+        await readFile(join(application, "TaskBelayPet.exe")),
       )
     )
       throw new Error("Extracted executable differs from build");
@@ -168,7 +169,7 @@ export async function buildWindowsDesktopPet({ outputRoot }) {
       platform: "win32-x64",
       signing: "unsigned-local-development",
       tarball,
-      executable: join(extractedApp, "DevFlowPet.exe"),
+      executable: join(extractedApp, "TaskBelayPet.exe"),
       sha256: createHash("sha256")
         .update(await readFile(tarball))
         .digest("hex"),

@@ -2,7 +2,7 @@ package contract_test
 
 import (
 	"encoding/json"
-	coremcp "github.com/Innocent-children/dev-flow/internal/mcp"
+	coremcp "github.com/Innocent-children/taskbelay/internal/mcp"
 	"os"
 	"path/filepath"
 	"testing"

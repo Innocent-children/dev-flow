@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildCoreRuntimes } from "./build-core-runtimes.mjs";
-import { stageAndPack } from "./dev-flow-local.mjs";
-import { execPortableCommand } from "../packages/dev-flow/lib/command.mjs";
+import { stageAndPack } from "./taskbelay-local.mjs";
+import { execPortableCommand } from "../packages/taskbelay/lib/command.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export async function buildClaude({ outputRoot, run = (exe, args, options) => execPortableCommand(exe, args, { ...options, env: options.environment, encoding: "utf8", windowsHide: true }) }) {
   if (!isAbsolute(outputRoot)) throw new Error("Output directory must be absolute");

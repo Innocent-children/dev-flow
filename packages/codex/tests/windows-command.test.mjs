@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { execPortableCommand as codexCommand } from "../lib/command.mjs";
-import { execPortableCommand as managerCommand } from "../../dev-flow/lib/command.mjs";
+import { execPortableCommand as managerCommand } from "../../taskbelay/lib/command.mjs";
 import { execPortableCommand as claudeCommand } from "../../claude/lib/command.mjs";
 
 const nativeWindows = process.platform === "win32" && process.arch === "x64";
@@ -12,7 +12,7 @@ const nativeWindows = process.platform === "win32" && process.arch === "x64";
 test("Windows command adapters preserve UTF-8, literal arguments and exit status", {
   skip: nativeWindows ? false : "requires Windows x64",
 }, async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-windows-command-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-windows-command-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const script = join(root, "中文 command's output.ps1");
   const nodeScript = join(root, "中文 output.mjs");

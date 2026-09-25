@@ -4,7 +4,7 @@ import { execPortableCommand } from "./command.mjs";
 
 export const DEFAULT_USER_CONFIGURATION = "{}\n";
 
-export const SETUP_NEXT_STEP = "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description> to assess the request";
+export const SETUP_NEXT_STEP = "Review and trust the TaskBelay hook with /hooks, then use $taskbelay-codex:taskbelay <task description> to assess the request";
 
 export async function ensureUserConfiguration(paths, { environment = process.env } = {}) {
   const { configurationDirectory, configurationPath, enforcePrivateModes = true } = paths ?? {};
@@ -53,7 +53,7 @@ export function buildSetupSuccessResult(registration, configuration, receiptPath
 export function renderSetupPlain(result, language = "en") {
   const chinese = language === "zh-CN";
   const lines = [
-    `dev-flow-codex setup: ${result.status}`,
+    `taskbelay-codex setup: ${result.status}`,
     `${chinese ? "配置" : "configuration"}: ${result.configuration_path}`,
   ];
   if (result.file_changes.length === 0) {
@@ -92,8 +92,8 @@ export function renderSetup(result, {
     `│ ${entry.change.padEnd(7)} ${entry.path}`
   );
   const lines = [
-    "╭─ DEV FLOW · CODEX ─────────────────────────────────────────────╮",
-    `│ \u001b[36mDEV FLOW · CODEX\u001b[0m`,
+    "╭─ TASKBELAY · CODEX ─────────────────────────────────────────────╮",
+    `│ \u001b[36mTASKBELAY · CODEX\u001b[0m`,
     `│ \u001b[32m✓ ${chinese ? "设置完成，Codex 已就绪" : "Setup complete. Codex is ready."}\u001b[0m`,
     `│ ${chinese ? "配置" : "Config"}  ${result.configuration_path}`,
     ...(changes.length === 0 ? [`│ ${chinese ? "文件变化  无" : "Changes  none"}`] : changes),

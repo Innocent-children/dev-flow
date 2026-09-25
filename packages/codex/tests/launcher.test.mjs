@@ -12,14 +12,14 @@ import {
   launchPackagedCore,
   runCLI,
   stopPackagedWebUI,
-} from "../bin/dev-flow-codex.mjs";
+} from "../bin/taskbelay-codex.mjs";
 import { CODEX_MCP_INSTRUCTIONS } from "../lib/lifecycle.mjs";
 import { HOST_LAUNCH_OPERATIONS } from "../lib/host-launch-contract.mjs";
 import { resolveProductPaths } from "../lib/paths.mjs";
 import { permissionPolicy, runtimeDescriptor, signalPolicy } from "../lib/platform.mjs";
 
 const execFile = promisify(execFileCallback);
-const launcherPath = fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url));
+const launcherPath = fileURLToPath(new URL("../bin/taskbelay-codex.mjs", import.meta.url));
 
 test("help describes every Host operation without reading stdin or resolving runtime paths", async () => {
   for (const args of [["--help"], ["host-launch", "--help"], ...HOST_LAUNCH_OPERATIONS.map((operation) => ["host-launch", operation, "--help"])]) {
@@ -59,7 +59,7 @@ test("artifact help describes the current input and next step without opening ru
     const stdout = captureStream();
     const stderr = captureStream();
     const result = await runCLI(args, {
-      stdout, stderr, environment: { DEV_FLOW_DATA_DIR: "not-an-absolute-directory" },
+      stdout, stderr, environment: { TASKBELAY_DATA_DIR: "not-an-absolute-directory" },
       resolvePaths: () => assert.fail("help must not inspect the installation or data path"),
       readInput: () => assert.fail("help must not consume stdin"),
       spawnImpl: () => assert.fail("help must not launch Core"),
@@ -68,7 +68,7 @@ test("artifact help describes the current input and next step without opening ru
     assert.equal(stderr.text, "");
     if (args.length === 2) {
       assert.match(stdout.text, /artifacts <collect\|prepare> --help/);
-      assert.match(stdout.text, /DEV_FLOW_DATA_DIR/);
+      assert.match(stdout.text, /TASKBELAY_DATA_DIR/);
     } else {
       const help = JSON.parse(stdout.text);
       assert.equal(help.operation, args[1]);
@@ -131,7 +131,7 @@ test("mcp selects only the package-local Core and inherits protocol stdio", asyn
   const result = await runCLI(["mcp"], {
     environment: {
       SAFE_PARENT_VALUE: "preserved",
-      DEV_FLOW_CODEX_MCP_INSTRUCTIONS: "parent value must not override product guidance",
+      TASKBELAY_CODEX_MCP_INSTRUCTIONS: "parent value must not override product guidance",
     },
     stdout,
     stderr,
@@ -153,10 +153,10 @@ test("mcp selects only the package-local Core and inherits protocol stdio", asyn
   assert.deepEqual(calls[0].arguments_, ["mcp", "--stdio"]);
   assert.equal(calls[0].options.stdio, "inherit");
   assert.equal(calls[0].options.shell, false);
-  assert.equal(calls[0].options.env.DEV_FLOW_DATA_DIR, paths.dataDirectory);
+  assert.equal(calls[0].options.env.TASKBELAY_DATA_DIR, paths.dataDirectory);
   assert.equal(calls[0].options.env.SAFE_PARENT_VALUE, "preserved");
   assert.equal(
-    calls[0].options.env.DEV_FLOW_CODEX_MCP_INSTRUCTIONS,
+    calls[0].options.env.TASKBELAY_CODEX_MCP_INSTRUCTIONS,
     CODEX_MCP_INSTRUCTIONS,
   );
   assert.equal(calls[0].arguments_.includes("--add-dir"), false);
@@ -211,7 +211,7 @@ test("host-check forwards the closed pre-file-write command to the package-local
   assert.deepEqual(calls[0].arguments_, ["host-check", "pre-file-write"]);
   assert.equal(calls[0].options.stdio, "inherit");
   assert.equal(calls[0].options.shell, false);
-  assert.equal(calls[0].options.env.DEV_FLOW_DATA_DIR, paths.dataDirectory);
+  assert.equal(calls[0].options.env.TASKBELAY_DATA_DIR, paths.dataDirectory);
   assert.equal(calls[0].options.env.SAFE_PARENT_VALUE, "preserved");
 });
 
@@ -270,7 +270,7 @@ test("host-launch input read failures stop before Git and receipt writes", async
   });
   assert.deepEqual(result, { code: 1, signal: null });
   assert.equal(stdout.text, "");
-  assert.equal(stderr.text, "dev-flow-codex: stdin read failed\n");
+  assert.equal(stderr.text, "taskbelay-codex: stdin read failed\n");
   assert.deepEqual(await readdir(paths.productSupportRoot, { recursive: true }), before);
 });
 
@@ -350,7 +350,7 @@ test("launcher rejects a packaged Core without POSIX execute permission", {
 
 test("unsupported setup stops before every host, repository, data, receipt, and Core mutation", async (t) => {
   const { mkdtemp } = await import("node:fs/promises");
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-codex-unsupported-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-codex-unsupported-"));
   const packageRoot = join(root, "installed-package");
   const homeDirectory = join(root, "home");
   const repository = join(root, "repository");
@@ -404,7 +404,7 @@ test("unsupported setup stops before every host, repository, data, receipt, and 
   assert.deepEqual(await readdir(repository), ["owned.txt"]);
   await assert.rejects(stat(taskData), { code: "ENOENT" });
   await assert.rejects(
-    stat(join(homeDirectory, "Library", "Application Support", "dev-flow")),
+    stat(join(homeDirectory, "Library", "Application Support", "taskbelay")),
     { code: "ENOENT" },
   );
 });
@@ -468,7 +468,7 @@ test("--version reports package and detached Core identity on one stable line", 
   });
 
   assert.deepEqual(result, { code: 0, signal: null });
-  assert.equal(stdout.text, "dev-flow-codex 0.1.0 (core 0.1.0)\n");
+  assert.equal(stdout.text, "taskbelay-codex 0.1.0 (core 0.1.0)\n");
   assert.equal(stderr.text, "");
 });
 
@@ -523,7 +523,7 @@ test("setup emits success only after verified lifecycle completion and fails on 
     receipt_path: paths.receiptPath,
     configuration_path: paths.configurationPath,
     file_changes: [{ path: paths.configurationPath, change: "created" }],
-    next_step: "Review and trust the Dev Flow hook with /hooks, then use $dev-flow-codex:dev-flow <task description> to assess the request",
+    next_step: "Review and trust the TaskBelay hook with /hooks, then use $taskbelay-codex:taskbelay <task description> to assess the request",
   });
   assert.equal(stderr.text, "");
 
@@ -544,7 +544,7 @@ test("setup emits success only after verified lifecycle completion and fails on 
   });
   assert.deepEqual(failed, { code: 1, signal: null });
   assert.equal(failedOutput.text, "");
-  assert.equal(failedError.text, "dev-flow-codex: readback mismatch\n");
+  assert.equal(failedError.text, "taskbelay-codex: readback mismatch\n");
 });
 
 test("setup prepares configuration before registration and reports completed configuration on later failure", async (t) => {
@@ -564,7 +564,7 @@ test("setup prepares configuration before registration and reports completed con
   });
   assert.deepEqual(invalid, { code: 1, signal: null });
   assert.equal(registrationCalls, 0);
-  assert.equal(invalidError.text, "dev-flow-codex: user configuration is invalid\n");
+  assert.equal(invalidError.text, "taskbelay-codex: user configuration is invalid\n");
 
   const partialError = captureStream();
   const partial = await runCLI(["setup"], {
@@ -585,7 +585,7 @@ test("setup prepares configuration before registration and reports completed con
   assert.equal(registrationCalls, 1);
   assert.match(partialError.text, /created .*config\.json/);
   assert.match(partialError.text, /registration is incomplete/);
-  assert.match(partialError.text, /run dev-flow-codex setup again/);
+  assert.match(partialError.text, /run taskbelay-codex setup again/);
 });
 
 test("interactive setup selects rich localized output, repeats compactly, and degrades renderer failures", async (t) => {
@@ -609,7 +609,7 @@ test("interactive setup selects rich localized output, repeats compactly, and de
       fileChanges: [{ path: paths.receiptPath, change: "created" }],
     }),
   }), { code: 0, signal: null });
-  assert.match(richOutput.text, /DEV FLOW · CODEX/);
+  assert.match(richOutput.text, /TASKBELAY · CODEX/);
   assert.match(richOutput.text, /设置完成/);
 
   const repeatedOutput = captureStream({ isTTY: true, columns: 100 });
@@ -636,7 +636,7 @@ test("interactive setup selects rich localized output, repeats compactly, and de
     setupRegistration: async () => ({ status: "installed", changed: true, fileChanges: [] }),
     renderSetup: () => { throw new Error("terminal rendering unavailable"); },
   }), { code: 0, signal: null });
-  assert.match(fallbackOutput.text, /dev-flow-codex setup: installed/);
+  assert.match(fallbackOutput.text, /taskbelay-codex setup: installed/);
   assert.doesNotMatch(fallbackOutput.text, /\u001b\[|╭/u);
 });
 
@@ -669,7 +669,7 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
     status: "removed",
     changed: true,
     receipt_path: paths.receiptPath,
-    next_step: "Run npm uninstall -g dev-flow-codex separately after deregistration.",
+    next_step: "Run npm uninstall -g taskbelay-codex separately after deregistration.",
   });
   assert.equal(stderr.text, "");
   assert.deepEqual(steps, ["stop", "remove"]);
@@ -684,7 +684,7 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
     removeRegistration: async () => ({ status: "already-absent", changed: false }),
   }), { code: 0, signal: null });
   assert.match(humanOutput.text, /remove: already-absent/);
-  assert.match(humanOutput.text, /npm uninstall -g dev-flow-codex.*separately/i);
+  assert.match(humanOutput.text, /npm uninstall -g taskbelay-codex.*separately/i);
 
   const failedOutput = captureStream();
   const failedError = captureStream();
@@ -699,7 +699,7 @@ test("remove reports deregistration before a separate npm-uninstall handoff", as
     },
   }), { code: 1, signal: null });
   assert.equal(failedOutput.text, "");
-  assert.equal(failedError.text, "dev-flow-codex: removal readback conflict\n");
+  assert.equal(failedError.text, "taskbelay-codex: removal readback conflict\n");
 });
 
 test("remove keeps registration when WebUI stop fails", async (t) => {
@@ -719,7 +719,7 @@ test("remove keeps registration when WebUI stop fails", async (t) => {
 
   assert.equal(removeCalled, false);
   assert.equal(stdout.text, "");
-  assert.equal(stderr.text, "dev-flow-codex: stop packaged WebUI\n");
+  assert.equal(stderr.text, "taskbelay-codex: stop packaged WebUI\n");
 });
 
 test("packaged WebUI stop uses the current runtime and treats a missing default data directory as stopped", async (t) => {
@@ -734,7 +734,7 @@ test("packaged WebUI stop uses the current runtime and treats a missing default 
   assert.equal(calls[0].executable, paths.runtimePath);
   assert.deepEqual(calls[0].arguments_, ["webui", "stop", "--json"]);
   assert.equal(calls[0].options.cwd, paths.packageRoot);
-  assert.equal(calls[0].options.env.DEV_FLOW_DATA_DIR, paths.dataDirectory);
+  assert.equal(calls[0].options.env.TASKBELAY_DATA_DIR, paths.dataDirectory);
 
   const missingDefault = { ...paths, dataDirectory: join(paths.packageRoot, "missing-data"), usesDefaultDataDirectory: true };
   await stopPackagedWebUI(missingDefault, {
@@ -794,7 +794,7 @@ test("installed bin symlinks still execute the launcher entry point", {
   skip: process.platform === "win32" ? "ordinary Windows cannot create unprivileged file symlinks" : false,
 }, async (t) => {
   const root = (await makePaths(t)).packageRoot;
-  const link = join(root, "dev-flow-codex");
+  const link = join(root, "taskbelay-codex");
   await symlink(launcherPath, link);
   await assert.rejects(
     execFile(link, ["surprise"], { encoding: "utf8" }),
@@ -809,14 +809,14 @@ test("installed bin symlinks still execute the launcher entry point", {
 
 async function makePaths(t, { usesDefaultDataDirectory = false } = {}) {
   const { mkdtemp } = await import("node:fs/promises");
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-codex-launcher-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-codex-launcher-"));
   const runtime = runtimeDescriptor(process.platform, process.arch);
   const permissions = permissionPolicy(process.platform, process.arch);
   const signals = signalPolicy(process.platform, process.arch);
   const runtimePath = join(root, "runtime", runtime.runtimeDirectory, runtime.runtimeExecutable);
   const dataDirectory = join(root, "data");
   const homeDirectory = join(root, "home");
-  const configurationDirectory = join(homeDirectory, ".dev-flow");
+  const configurationDirectory = join(homeDirectory, ".taskbelay");
   await mkdir(join(runtimePath, ".."), { recursive: true });
   await mkdir(dataDirectory, { recursive: true });
   await mkdir(homeDirectory, { recursive: true });

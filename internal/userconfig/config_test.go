@@ -26,21 +26,21 @@ func TestLoadMissingAndValidConfiguration(t *testing.T) {
 		if err != nil || preferences != (Preferences{}) {
 			t.Fatalf("missing directory preferences/error = %#v/%v", preferences, err)
 		}
-		if _, err := os.Stat(filepath.Join(home, ".dev-flow")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(home, ".taskbelay")); !os.IsNotExist(err) {
 			t.Fatalf("configuration directory was created: %v", err)
 		}
 	})
 
 	t.Run("missing file", func(t *testing.T) {
 		home := t.TempDir()
-		if err := os.Mkdir(filepath.Join(home, ".dev-flow"), 0o700); err != nil {
+		if err := os.Mkdir(filepath.Join(home, ".taskbelay"), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		preferences, err := Load(home)
 		if err != nil || preferences != (Preferences{}) {
 			t.Fatalf("missing file preferences/error = %#v/%v", preferences, err)
 		}
-		if _, err := os.Stat(filepath.Join(home, ".dev-flow", "config.json")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(home, ".taskbelay", "config.json")); !os.IsNotExist(err) {
 			t.Fatalf("configuration file was created: %v", err)
 		}
 	})
@@ -85,7 +85,7 @@ func TestLoadRejectsClosedInvalidConfiguration(t *testing.T) {
 
 	t.Run("unreadable path", func(t *testing.T) {
 		home := t.TempDir()
-		path := filepath.Join(home, ".dev-flow", "config.json")
+		path := filepath.Join(home, ".taskbelay", "config.json")
 		if err := os.MkdirAll(path, 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -107,7 +107,7 @@ func TestLoadRejectsClosedInvalidConfiguration(t *testing.T) {
 func writeConfig(t *testing.T, content string) string {
 	t.Helper()
 	home := t.TempDir()
-	directory := filepath.Join(home, ".dev-flow")
+	directory := filepath.Join(home, ".taskbelay")
 	if err := os.Mkdir(directory, 0o700); err != nil {
 		t.Fatal(err)
 	}

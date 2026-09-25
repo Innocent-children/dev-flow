@@ -1,8 +1,8 @@
-# Dev Flow 本地 WebUI
+# TaskBelay 本地 WebUI
 
 [中文](WEBUI.md) | [English](WEBUI_en.md)
 
-> Dev Flow 持久 Task、工作目录和恢复状态的本地可视化与诊断入口。
+> TaskBelay 持久 Task、工作目录和恢复状态的本地可视化与诊断入口。
 
 Control Center 嵌入 Go Core，读取与 Codex、DeepSeek、Claude Code、ZCode 相同的 SQLite Task。浏览器不保存第二份流程
 状态，也不执行 fetch、branch、worktree、handoff 或清理。
@@ -56,24 +56,24 @@ WebUI 与 MCP 共用 Core 的语义提交、操作保存和恢复流程。Core �
 ## 启动、打开、查看状态和停止
 
 ```bash
-dev-flow webui start
-dev-flow webui status
-dev-flow webui open
-dev-flow webui stop
+taskbelay webui start
+taskbelay webui status
+taskbelay webui open
+taskbelay webui stop
 ```
 
 `start` 默认打开浏览器；`--no-open` 只启动进程。所有命令支持 `--plain` 或 `--json`。默认数据目录
 缺失时，只有 `start` 可以创建它：macOS 使用 mode `0700`，Windows 使用当前用户 LocalAppData ACL。
-显式 `DEV_FLOW_DATA_DIR` 必须已经存在、可以 canonicalize 且不经过符号链接。
+显式 `TASKBELAY_DATA_DIR` 必须已经存在、可以 canonicalize 且不经过符号链接。
 
 ```bash
-export DEV_FLOW_DATA_DIR="/absolute/path/to/existing-directory"
-dev-flow webui start
+export TASKBELAY_DATA_DIR="/absolute/path/to/existing-directory"
+taskbelay webui start
 ```
 
 ```powershell
-$env:DEV_FLOW_DATA_DIR = "C:\absolute\existing-directory"
-dev-flow webui start
+$env:TASKBELAY_DATA_DIR = "C:\absolute\existing-directory"
+taskbelay webui start
 ```
 
 ## 本机单用户边界
@@ -89,7 +89,7 @@ runtime receipt 绑定 PID、进程启动身份、data-root digest 和 loopback 
 ## 状态和数据
 
 `status` 返回 `ready`、`read_only`、`incompatible` 或 `unavailable`。默认 Task 数据在 macOS 位于
-`$HOME/.dev-flow/data`，Windows 位于 `%LOCALAPPDATA%\dev-flow\data`。
+`$HOME/.taskbelay/data`，Windows 位于 `%LOCALAPPDATA%\taskbelay\data`。
 Codex、DeepSeek、Claude Code 与 ZCode 共用这份数据。
 
 React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，运行时不需要 Node server、CDN、
@@ -105,7 +105,7 @@ React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，�
 
 ## 桌面入口与文件错误
 
-桌面宠物可以打开所选 Task 的 WebUI。正式 `@imotong/dev-flow` npm 包提供 macOS arm64 与 Windows 10/11 x64 应用，运行时由已配置的 Adapter 提供 Core。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作和形象说明见[桌面宠物指南](DESKTOP-PETS.md)。
+桌面宠物可以打开所选 Task 的 WebUI。正式 `@imotong/taskbelay` npm 包提供 macOS arm64 与 Windows 10/11 x64 应用，运行时由已配置的 Adapter 提供 Core。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作和形象说明见[桌面宠物指南](DESKTOP-PETS.md)。
 
 提交流程文件漏报时，页面分别展示遗漏的仓库路径和请求字段错误。只有 Core 确认零写入并明确允许时，才能仅纠正列出的 artifact 字段一次。工作树与历史异常继续使用对应恢复规则。集成字段见[文件收集与提交](ARTIFACTS.md)。
 

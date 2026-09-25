@@ -34,10 +34,10 @@ const assessment = object({
  candidate_components: array(text("Affected responsibility.")), candidate_paths: array(text("Candidate file.")),
  public_contract_flags: array(text("Public contract impact.")), persistence_or_state_flags: array(text("State impact.")),
  host_or_platform_flags: array(text("Host or platform impact.")), verification_shape: array(text("Planned check.")),
- unknowns: array(text("Unresolved question.")), recommendation: { enum: ["direct", "dev_flow", "clarify"] },
+ unknowns: array(text("Unresolved question.")), recommendation: { enum: ["direct", "taskbelay", "clarify"] },
  reasons: array(text("Reason shown to the user.")), anchor,
 });
-const userChoice = object({source: {const:"user"}, mode: {const:"dev_flow"}, summary: text("Actual user choice after the assessment was displayed; reuse a still-valid answer.")});
+const userChoice = object({source: {const:"user"}, mode: {const:"taskbelay"}, summary: text("Actual user choice after the assessment was displayed; reuse a still-valid answer.")});
 const hostResult = { description: "Complete original Host tool result, including its wrapper if present. Use null when the result was lost; never fabricate an ID." };
 const cleanup = object({ ...identity, source_repository_path: source, terminal: { const: true }, authorized: { const: true } });
 
@@ -120,11 +120,11 @@ const contracts = {
     description: "Read and validate the complete set of provisioned records for one Task and build its Core repository arguments.",
     input_schema: object({ launch_id: identity.launch_id, repository_keys: { ...array(key, "Every confirmed repository, including the primary."), minItems: 1, maxItems: 8, uniqueItems: true }, primary_repository_key: key }),
     output_fields: { repository_path: "Primary Task worktree.", workspace_origin: "Primary verified origin.", primary_repository_key: "Present for multiple repositories.", additional_repositories: "Present for multiple repositories; closed {key,repository_path,workspace_origin} entries." },
-    next_step: "Use the complete result as the repository fields of dev_flow_open_task; add host and new_task from the admitted request. Core re-observes every worktree.",
+    next_step: "Use the complete result as the repository fields of taskbelay_open_task; add host and new_task from the admitted request. Core re-observes every worktree.",
   },
   "handoff-start": {
     description: "Record one Host handoff attempt after Core prepares relocation.",
-    input_schema: object({ ...identity, relocation_id: text("Copy from dev_flow_prepare_task_relocation.result.relocation_id."), thread_id: text("Other Codex task being moved; the calling task cannot move itself.") }),
+    input_schema: object({ ...identity, relocation_id: text("Copy from taskbelay_prepare_task_relocation.result.relocation_id."), thread_id: text("Other Codex task being moved; the calling task cannot move itself.") }),
     output_fields: { ...receiptOutput, should_dispatch: "Call the Host handoff only when true.", host_request: "Exact handoff_thread arguments when should_dispatch=true." },
     next_step: "Call handoff_thread once and record its complete result using handoff-result.",
   },
@@ -166,5 +166,5 @@ export function describeHostLaunchOperation(operation) {
 
 export function hostLaunchHelp(operation) {
   if (operation !== undefined) return `${JSON.stringify(describeHostLaunchOperation(operation), null, 2)}\n`;
-  return `Usage: dev-flow-codex host-launch <operation>\nRead a complete operation contract: dev-flow-codex host-launch <operation> --help\n\n${HOST_LAUNCH_OPERATIONS.map((name) => `${name}: ${contracts[name].description}`).join("\n")}\n`;
+  return `Usage: taskbelay-codex host-launch <operation>\nRead a complete operation contract: taskbelay-codex host-launch <operation> --help\n\n${HOST_LAUNCH_OPERATIONS.map((name) => `${name}: ${contracts[name].description}`).join("\n")}\n`;
 }

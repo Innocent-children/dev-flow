@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { PassThrough, Readable, Writable } from "node:stream";
 import test from "node:test";
-import { runArtifactCommand } from "../skills/dev-flow/scripts/artifacts.mjs";
+import { runArtifactCommand } from "../skills/taskbelay/scripts/artifacts.mjs";
 
 function capture() {
   let text = "";
@@ -35,13 +35,13 @@ test("artifact commands forward exact stdin and the shared data directory to pac
     const code = await runArtifactCommand([operation], {
       input: Readable.from([raw]), output: output.stream, error: error.stream,
       environment: { EXAMPLE: "preserved" },
-      selectRuntime: async () => ({ runtimePath: "/package/runtime/dev-flow" }),
+      selectRuntime: async () => ({ runtimePath: "/package/runtime/taskbelay" }),
       resolveData: async ({ environment }) => { assert.equal(environment.EXAMPLE, "preserved"); return { dataDirectory: "/private/example-data" }; },
       spawnImpl(executable, args, options) {
-        assert.equal(executable, "/package/runtime/dev-flow");
+        assert.equal(executable, "/package/runtime/taskbelay");
         assert.deepEqual(args, ["artifacts", operation]);
         assert.equal(options.shell, false);
-        assert.deepEqual(options.env, { EXAMPLE: "preserved", DEV_FLOW_DATA_DIR: "/private/example-data" });
+        assert.deepEqual(options.env, { EXAMPLE: "preserved", TASKBELAY_DATA_DIR: "/private/example-data" });
         const child = new EventEmitter();
         child.stdout = new PassThrough(); child.stderr = new PassThrough();
         child.stdin = new Writable({ write(chunk, _encoding, callback) { received += chunk.toString(); callback(); } });

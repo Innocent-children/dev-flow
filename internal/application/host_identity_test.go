@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/store"
 )
 
 func TestZCodeTaskKeepsOriginHostAcrossResumeAndCancellation(t *testing.T) {

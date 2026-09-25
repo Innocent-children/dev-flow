@@ -1,26 +1,26 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Innocent-children/dev-flow/main/packages/webui/src/assets/dev-flow-app-icon-light.svg" width="112" height="112" alt="Dev Flow" />
+  <img src="https://raw.githubusercontent.com/Innocent-children/taskbelay/main/packages/webui/src/assets/taskbelay-app-icon-light.svg" width="112" height="112" alt="TaskBelay" />
 </p>
 
-# dev-flow-deepseek
+# taskbelay-deepseek
 
-[中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/deepseek/README.md) |
-[English](https://github.com/Innocent-children/dev-flow/blob/main/docs/DEEPSEEK_en.md)
+[中文](https://github.com/Innocent-children/taskbelay/blob/main/packages/deepseek/README.md) |
+[English](https://github.com/Innocent-children/taskbelay/blob/main/docs/DEEPSEEK_en.md)
 
-`dev-flow-deepseek` 让 DeepSeek Harness（DSH）运行一个持久 Core Task。普通开发请求先只读评估；
-选择 Dev Flow 后，默认在当前目录新建任务分支，也可明确选择当前分支或独立工作树。全本地选择
+`taskbelay-deepseek` 让 DeepSeek Harness（DSH）运行一个持久 Core Task。普通开发请求先只读评估；
+选择 TaskBelay 后，默认在当前目录新建任务分支，也可明确选择当前分支或独立工作树。全本地选择
 在原会话继续；Core 只读观察 Git，DSH 负责获授权的分支、文件和命令操作。
 
 ## 支持范围
 
 | 项目 | 当前支持 |
 | --- | --- |
-| Package | [`dev-flow-deepseek`](https://www.npmjs.com/package/dev-flow-deepseek) |
+| Package | [`taskbelay-deepseek`](https://www.npmjs.com/package/taskbelay-deepseek) |
 | 稳定 Platform | macOS arm64 |
 | 当前源码 Platform | macOS arm64（`darwin-arm64`）；Windows 10/11 桌面 x64（`win32-x64`） |
 | Node.js | `>=24` |
 | DSH | `>=0.1.2-rc.1` |
-| Releases | [GitHub Releases](https://github.com/Innocent-children/dev-flow/releases) |
+| Releases | [GitHub Releases](https://github.com/Innocent-children/taskbelay/releases) |
 
 稳定支持以[支持矩阵](../../docs/SUPPORT-MATRIX.md)为准。`main` 中存在的能力不一定已经进入 npm
 `@latest`。Windows Server、32 位 Windows、Windows ARM64 与 Intel Mac 不在当前源码支持范围；
@@ -28,24 +28,24 @@ runtime selector 会拒绝除 `darwin-arm64` 和 `win32-x64` 之外的运行时�
 
 ## 开发前确认方案
 
-先查看需求与验收条件、设计及影响，再讨论包含任务、预计文件和验证安排的完整计划。明确认可后才开始实现；选择 Dev Flow 和工作树参数不代替方案确认。等待答复时保留在任务拆分阶段。修改方案或扩大文件范围后，需要重新确认修订计划；恢复同一待确认计划无需重新保存。优先列具体文件，目录范围需说明理由。
+先查看需求与验收条件、设计及影响，再讨论包含任务、预计文件和验证安排的完整计划。明确认可后才开始实现；选择 TaskBelay 和工作树参数不代替方案确认。等待答复时保留在任务拆分阶段。修改方案或扩大文件范围后，需要重新确认修订计划；恢复同一待确认计划无需重新保存。优先列具体文件，目录范围需说明理由。
 
 ## 安装
 
 DSH 是前置 Host。推荐使用统一 lifecycle 入口，并选择真实 Profile；默认是 `web`：
 
 ```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
-`dev-flow-deepseek` 没有独立 `bin`，不会安装同名 CLI。诊断恢复时，可以通过 npm tarball 和 DSH
+`taskbelay-deepseek` 没有独立 `bin`，不会安装同名 CLI。诊断恢复时，可以通过 npm tarball 和 DSH
 profile lifecycle 执行原生安装：
 
 ```bash
 npm install -g @deepseek-ai/dsh@latest
 PROFILE=web
-TARBALL="$(npm pack dev-flow-deepseek@latest --silent)"
+TARBALL="$(npm pack taskbelay-deepseek@latest --silent)"
 dsh plugin --profile "$PROFILE" add "$PWD/$TARBALL"
 rm -f "$PWD/$TARBALL"
 dsh --profile "$PROFILE" --dump-config
@@ -56,7 +56,7 @@ Windows PowerShell 使用：
 ```powershell
 npm install -g @deepseek-ai/dsh@latest
 $ProfileName = 'web'
-$Tarball = (npm pack dev-flow-deepseek@latest --silent | Select-Object -Last 1).Trim()
+$Tarball = (npm pack taskbelay-deepseek@latest --silent | Select-Object -Last 1).Trim()
 $TarballPath = (Resolve-Path -LiteralPath $Tarball).Path
 dsh plugin --profile $ProfileName add $TarballPath
 Remove-Item -LiteralPath $TarballPath
@@ -66,8 +66,8 @@ dsh --profile $ProfileName --dump-config
 安装后按 DSH profile lifecycle 重启该 Profile。完整命令和更新顺序见
 [命令参考](../../docs/COMMANDS.md#deepseek-harness)。
 
-默认 Task 数据目录在 macOS 为 `$HOME/.dev-flow/data`，在 Windows 为
-`%LOCALAPPDATA%\dev-flow\data`；显式 `DEV_FLOW_DATA_DIR` 必须已经存在且通过 canonical、非链接目录检查。
+默认 Task 数据目录在 macOS 为 `$HOME/.taskbelay/data`，在 Windows 为
+`%LOCALAPPDATA%\taskbelay\data`；显式 `TASKBELAY_DATA_DIR` 必须已经存在且通过 canonical、非链接目录检查。
 
 ## 启动一个 Task
 
@@ -78,14 +78,14 @@ Task 创建后范围固定。选择代码检索工具时，这些指令优先于
 
 先把开发请求正常发给 DSH。Adapter 只读检查候选实现、调用关系、测试、配置和 Git 状态，返回
 `small|standard|large|uncertain`、已经找到的影响面、未知项和建议；这一轮不调用 Core、不修改 Git、
-不运行测试，也不创建 Task。即使第一条消息已经包含 `/dev-flow`，新请求也不能跳过评估和确认。
+不运行测试，也不创建 Task。即使第一条消息已经包含 `/taskbelay`，新请求也不能跳过评估和确认。
 
-选择 Dev Flow 后，默认在当前目录从当前 HEAD 新建任务分支，或明确选择当前分支、独立工作树。
+选择 TaskBelay 后，默认在当前目录从当前 HEAD 新建任务分支，或明确选择当前分支、独立工作树。
 本地模式确认新目标分支和初始修改选择，保留文件、暂存、ignored 配置及已有依赖。确认消息使用
 Adapter 显示的精确形式，例如：
 
 ```text
-/dev-flow confirm-workspace
+/taskbelay confirm-workspace
 repository=primary;mode=new_branch;source=local;carry=true;remote=;base=main;target=feature/payment-callback-signature
 ```
 
@@ -101,7 +101,7 @@ method profile，不在分析前冻结最终验证预算。完整规则见[工�
 
 ## 恢复已有 Task
 
-回到 Task 原来绑定的同一工作目录实例，并在当前直接用户消息中再次使用 `/dev-flow`。Adapter 会先
+回到 Task 原来绑定的同一工作目录实例，并在当前直接用户消息中再次使用 `/taskbelay`。Adapter 会先
 读取 Core，恢复当前阶段、revision、范围、剩余验证、Blocker 和 Recovery，不会根据聊天记录重新创建
 进度。原 worktree 丢失或被替换时进入 `WORKSPACE_UNAVAILABLE`；同路径重建目录或同名 branch 不能冒充
 原实例。此时只能恢复原实例，或明确 abandon Task。
@@ -126,7 +126,7 @@ DeepSeek 在读完需求、设计、影响面和现有测试后规划验证，�
 ## 范围外文件先询问
 
 Adapter 在 DSH `tools/pre-execute` 中检查 `write`、`edit` 和变更型 `str_replace_editor`。当前 direct
-user turn 使用 `/dev-flow` 时，这些工具在写入前把目标文件交给 packaged Core。Core 使用当前 Task
+user turn 使用 `/taskbelay` 时，这些工具在写入前把目标文件交给 packaged Core。Core 使用当前 Task
 Plan 全部 WorkItem 的 `ExpectedPaths` 合集；多仓库路径带 repository key。B、C 等仓库已在 Task
 Repository Scope、位于 Workspace Root 且文件属于计划范围时，不因为当前目录位于 A 而询问。
 
@@ -142,14 +142,14 @@ Repository Scope、位于 Workspace Root 且文件属于计划范围时，不因
 查看统一 lifecycle 与 DSH Profile 状态：
 
 ```bash
-dev-flow status --host deepseek --profile web
+taskbelay status --host deepseek --profile web
 dsh --profile web --dump-config
 ```
 
 查看 Task、当前阶段、时间线、Recovery 和 Blocker：
 
 ```bash
-dev-flow webui start
+taskbelay webui start
 ```
 
 WebUI 只监听本机 loopback。完整用法见 [WebUI](../../docs/WEBUI.md)。
@@ -160,24 +160,24 @@ WebUI 只监听本机 loopback。完整用法见 [WebUI](../../docs/WEBUI.md)。
 
 ```bash
 PROFILE=web
-dsh plugin --profile "$PROFILE" remove dev-flow-deepseek
+dsh plugin --profile "$PROFILE" remove taskbelay-deepseek
 dsh --profile "$PROFILE" --dump-config
 ```
 
-对每个安装过 Dev Flow 的 Profile 分别执行。移除 package 或 bundle contribution 会保留 Task 数据、
+对每个安装过 TaskBelay 的 Profile 分别执行。移除 package 或 bundle contribution 会保留 Task 数据、
 目标仓库和 Codex 状态。重新安装兼容 package 并重启 Profile 后可以继续已有 Task。
 
-彻底清理数据属于独立的 `dev-flow factory-reset` 流程，需要当前计划给出的强确认。
+彻底清理数据属于独立的 `taskbelay factory-reset` 流程，需要当前计划给出的强确认。
 
 ## DeepSeek 权限与边界
 
 - DSH 启动时的 canonical Workspace Root 是权限边界；仓库和 symlink 解析结果必须位于其中；
-- Dev Flow 保持当前 Workspace Root 权限边界，索引结果不改变已创建 Task 的 Scope；需要 sibling worktree 时重启到
+- TaskBelay 保持当前 Workspace Root 权限边界，索引结果不改变已创建 Task 的 Scope；需要 sibling worktree 时重启到
   Coordinator 返回的新 Root；
 - Core 只读观察 Git，不执行 fetch、branch、worktree、commit、push、merge、rebase、tag 或 publish；
 - DeepSeek 负责用户确认后的 fetch、branch、worktree、文件修改和命令执行；Host gate 检查列出的
   结构化工具，Core 计算当前 Task surface，但不会拦截每一次操作；
-- `/dev-flow` 不绕过当前 Action、Workspace 权限、Git 写入授权或发布确认。
+- `/taskbelay` 不绕过当前 Action、Workspace 权限、Git 写入授权或发布确认。
 
 `DONE` 和 `CANCELLED` 只结束 Core Task并释放 claim，不会 commit、push、创建 PR、handoff 或删除
 worktree/branch。终态会显示 source/base/frozen commit、task branch/HEAD、路径、clean 状态、当前改动和
@@ -213,7 +213,7 @@ Repository Scope、路径格式和协议规则见[架构](../../docs/ARCHITECTUR
 
 ## 桌面任务入口
 
-正式 `@imotong/dev-flow` npm 包提供 macOS arm64 与 Windows 10/11 x64 桌面宠物应用，运行时由已配置的 Adapter 提供 Core。宠物读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
+正式 `@imotong/taskbelay` npm 包提供 macOS arm64 与 Windows 10/11 x64 桌面宠物应用，运行时由已配置的 Adapter 提供 Core。宠物读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
 
 ## 完成与恢复
 
@@ -225,8 +225,8 @@ Adapter 报告漏报路径，并按 Core 允许的范围纠正一次。工作树
 
 ## Skill 交互参考
 
-Codex 与 DeepSeek 的 Core 交互说明和完整示例统一维护于 `skills/dev-flow/core/`，由构建脚本生成各包内的引用文件。各 Host 的授权、工作树准备和工具调用分别说明；实际执行使用当前 Action、已安装接口和真实用户决定。节点提交、返回处理、阻塞恢复与验证规则使用相同内容，并对两边生成的示例运行同一套 Core 校验。
+Codex 与 DeepSeek 的 Core 交互说明和完整示例统一维护于 `skills/taskbelay/core/`，由构建脚本生成各包内的引用文件。各 Host 的授权、工作树准备和工具调用分别说明；实际执行使用当前 Action、已安装接口和真实用户决定。节点提交、返回处理、阻塞恢复与验证规则使用相同内容，并对两边生成的示例运行同一套 Core 校验。
 
-[DeepSeek Skill](skills/dev-flow/SKILL.md)
+[DeepSeek Skill](skills/taskbelay/SKILL.md)
 
-DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill 目录>/scripts/artifacts.mjs collect` 或 `prepare` 调用同一套 Core 只读文件准备命令。输入与返回结构与本文相同，`host` 使用 `deepseek`；脚本复用 Adapter 的运行时和数据目录解析，不创建存储。通过实际 DSH Skill 的 `resourceBase` 取得脚本路径。`--help` 不读取 stdin 或解析运行时。该脚本不是独立的 `dev-flow-deepseek` CLI，也不增加 `workspace_coordinator` 操作。
+DeepSeek Skill 随包提供 `scripts/artifacts.mjs`，以 `node <实际 Skill 目录>/scripts/artifacts.mjs collect` 或 `prepare` 调用同一套 Core 只读文件准备命令。输入与返回结构与本文相同，`host` 使用 `deepseek`；脚本复用 Adapter 的运行时和数据目录解析，不创建存储。通过实际 DSH Skill 的 `resourceBase` 取得脚本路径。`--help` 不读取 stdin 或解析运行时。该脚本不是独立的 `taskbelay-deepseek` CLI，也不增加 `workspace_coordinator` 操作。

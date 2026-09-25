@@ -1,10 +1,10 @@
 import { lstat, realpath } from "node:fs/promises";
 import { join } from "node:path";
 
-export const runtime = Object.freeze({ platform: "win32", arch: "x64", runtimeKey: "win32-x64", runtimeDirectory: "win32-x64", runtimeExecutable: "dev-flow.exe" });
+export const runtime = Object.freeze({ platform: "win32", arch: "x64", runtimeKey: "win32-x64", runtimeDirectory: "win32-x64", runtimeExecutable: "taskbelay.exe" });
 
 export const dataPaths = Object.freeze({
-  productRoot(anchor) { return existingDirectory(join(anchor, "dev-flow")); },
+  productRoot(anchor) { return existingDirectory(join(anchor, "taskbelay")); },
   applicationData({ homeDirectory, environment }) {
     const configured = environment?.LOCALAPPDATA;
     if (typeof configured === "string" && configured !== "") {

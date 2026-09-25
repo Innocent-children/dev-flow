@@ -4,9 +4,9 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/recovery"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/recovery"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 // ArtifactCollection is a temporary, read-only view of the current Action delta.

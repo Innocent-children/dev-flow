@@ -13,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
 )
 
 type iterationJourney struct {
@@ -424,7 +424,7 @@ func newIterationJourneyWithManualHandoff(t *testing.T, allowManualHandoff bool)
 	t.Helper()
 	repo := filepath.Join(t.TempDir(), "repository")
 	origin := initializeDedicatedJourneyWorktree(t, repo, "task/iteration", "receipt-iteration")
-	dbPath := filepath.Join(t.TempDir(), "dev-flow.db")
+	dbPath := filepath.Join(t.TempDir(), "taskbelay.db")
 	sqliteStore, err := store.Open(context.Background(), dbPath)
 	if err != nil {
 		t.Fatal(err)

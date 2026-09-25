@@ -1,9 +1,9 @@
-# dev-flow-codex
+# taskbelay-codex
 
-[中文](https://github.com/Innocent-children/dev-flow/blob/main/packages/codex/README.md) |
-[English](https://github.com/Innocent-children/dev-flow/blob/main/docs/CODEX_en.md)
+[中文](https://github.com/Innocent-children/taskbelay/blob/main/packages/codex/README.md) |
+[English](https://github.com/Innocent-children/taskbelay/blob/main/docs/CODEX_en.md)
 
-`dev-flow-codex` gives Codex one durable Core Task, defaulting to a new branch in the current directory. New requests are assessed
+`taskbelay-codex` gives Codex one durable Core Task, defaulting to a new branch in the current directory. New requests are assessed
 before Core is contacted; selected requests start from a developer-confirmed source/base/target/carry, and
 Core derives the current change surface from read-only Git.
 
@@ -16,17 +16,17 @@ exact `darwin-arm64` and `win32-x64` runtimes; the package requires Node.js `>=2
 itself expand npm `@latest` support.
 
 ```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
 Native diagnosis and recovery remain available:
 
 ```bash
-npm install -g dev-flow-codex@latest
-dev-flow-codex setup
-dev-flow-codex status --json
-dev-flow-codex --version
+npm install -g taskbelay-codex@latest
+taskbelay-codex setup
+taskbelay-codex status --json
+taskbelay-codex --version
 ```
 
 After setup, use Codex `/hooks` to inspect and trust the packaged hook. Until then, the supported
@@ -39,13 +39,13 @@ the original node and keep rejecting those out-of-plan paths for the current Tas
 A prewrite rejection needs no file restoration because the write has not happened. If Core has
 already observed actual out-of-plan changes, restore those changes before choosing `reject`.
 
-When absent, setup creates `$HOME/.dev-flow/config.json` on macOS or
-`%USERPROFILE%\.dev-flow\config.json` on Windows with `{}`, leaving preference defaults to Core. Existing configuration passes path, file-type and permission checks before its content is validated by the packaged Core. Valid configuration remains unchanged, including DeepSeek and Claude settings. Default Task data is
-`$HOME/.dev-flow/data` or `%LOCALAPPDATA%\dev-flow\data`.
+When absent, setup creates `$HOME/.taskbelay/config.json` on macOS or
+`%USERPROFILE%\.taskbelay\config.json` on Windows with `{}`, leaving preference defaults to Core. Existing configuration passes path, file-type and permission checks before its content is validated by the packaged Core. Valid configuration remains unchanged, including DeepSeek and Claude settings. Default Task data is
+`$HOME/.taskbelay/data` or `%LOCALAPPDATA%\taskbelay\data`.
 
 ## Approve the plan before implementation
 
-Review the requirements and acceptance criteria, design and impact, then discuss the complete work, expected-file and verification plan. Implementation begins after explicit approval; selecting Dev Flow and workspace parameters does not approve the plan. Waiting remains in task planning. Revisions or expanded file scope require approval of the revised plan; resuming the same draft needs no resave. Prefer exact files and explain directory ranges.
+Review the requirements and acceptance criteria, design and impact, then discuss the complete work, expected-file and verification plan. Implementation begins after explicit approval; selecting TaskBelay and workspace parameters does not approve the plan. Waiting remains in task planning. Revisions or expanded file scope require approval of the revised plan; resuming the same draft needs no resave. Prefer exact files and explain directory ranges.
 
 ## Assess and start a Task
 
@@ -61,13 +61,13 @@ Codex may select the Skill for a bounded development request. This exact convers
 selection but does not skip assessment:
 
 ```text
-$dev-flow-codex:dev-flow Fix idempotency in the order-creation endpoint and run targeted tests.
+$taskbelay-codex:taskbelay Fix idempotency in the order-creation endpoint and run targeted tests.
 ```
 
 For every new request—including an exact selector and each item in a parallel batch—Codex first performs
 read-only code and Git discovery. It reports `small|standard|large|uncertain`, observed repositories,
 candidate components and paths, public-contract/state/Host flags, verification shape, unknowns, a
-recommendation, and reasons. It waits when a developer choice is still required. Before the developer chooses Dev Flow there is no Dev Flow
+recommendation, and reasons. It waits when a developer choice is still required. Before the developer chooses TaskBelay there is no TaskBelay
 tool call, Task, claim, Git write, provisioning receipt, or child dispatch. A changed request,
 canonical root, HEAD, or status invalidates the assessment.
 
@@ -118,7 +118,7 @@ See the [Command Reference](COMMANDS_en.md) for submission fields.
 
 Local branch Tasks resume in the original directory and support neither workspace relocation nor assisted directory/branch deletion. Completion retains local work; uncommitted contents become initial changes for the next Task. Relocation requires every repository to use a dedicated worktree.
 
-Same-machine relocation starts with Core `dev_flow_prepare_task_relocation`, which retains source bindings,
+Same-machine relocation starts with Core `taskbelay_prepare_task_relocation`, which retains source bindings,
 claims, base, content, surface, and resume node. Codex performs one Host handoff. Destination paths and
 the retained relocation ID are then verified before Core atomically replaces all bindings and claims.
 A lost handoff response is read from Host/receipt state and is never blindly repeated.
@@ -136,32 +136,32 @@ separate user decision. The helper independently verifies receipt surface, repos
 clean dedicated worktree; worktree removal retains the branch, while the later branch decision uses
 non-force `git branch -d` and retains an unmerged branch. `terminalCleanupDecision` marks an unpushed
 branch for review before that separate decision. If the exact
-worktree is gone, `dev_flow_abandon_task` keeps the last known binding and releases claims without Git access.
+worktree is gone, `taskbelay_abandon_task` keeps the last known binding and releases claims without Git access.
 
 ## Inspect and remove
 
 ```bash
-dev-flow status --host codex
-dev-flow-codex status --json
-dev-flow webui start
+taskbelay status --host codex
+taskbelay-codex status --json
+taskbelay webui start
 ```
 
 ```bash
-dev-flow-codex remove
-npm uninstall -g dev-flow-codex
+taskbelay-codex remove
+npm uninstall -g taskbelay-codex
 ```
 
 Removal stops the matching WebUI and removes only package-owned registration/receipt state. Task data
 and Git repositories remain. Permanent Task-data cleanup uses the separately confirmed
-`dev-flow factory-reset` flow.
+`taskbelay factory-reset` flow.
 Package, Plugin, and receipt version differences after an upgrade do not block removal when ownership still matches.
 A missing Core file also permits removal when no WebUI runtime receipt remains; otherwise restore Core to complete shutdown.
-If the entire Adapter package is missing, use `dev-flow uninstall --host codex --yes` to clean up the remaining registration.
+If the entire Adapter package is missing, use `taskbelay uninstall --host codex --yes` to clean up the remaining registration.
 The unified entry verifies the receipt and native Codex registration sources.
 
 ## Boundaries
 
-- Codex and the developer authorize repositories and Host/Git operations; Dev Flow does not widen the sandbox.
+- Codex and the developer authorize repositories and Host/Git operations; TaskBelay does not widen the sandbox.
 - Core observes Git read-only and never fetches, creates worktrees/branches, commits, merges, rebases, pushes, tags, or publishes.
 - A worktree is a source-change ownership boundary, not a process, network, credential, port, database, or container sandbox.
 - A multi-repository Task opens only after every root is independently provisioned and authorized; partial isolation is rejected.
@@ -172,7 +172,7 @@ See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_
 
 ## Desktop task entry
 
-The public `@imotong/dev-flow` npm package includes desktop pet apps for macOS arm64 and Windows 10/11 x64. A configured Adapter supplies Core at runtime. The pet reads saved Task state and opens the selected Task in WebUI; it does not indicate live Host activity or completion percentages. The manager's install, upgrade, repair and reinstall operations refresh the application copy in the user directory while preserving settings and appearance assets. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, controls, updates and appearances.
+The public `@imotong/taskbelay` npm package includes desktop pet apps for macOS arm64 and Windows 10/11 x64. A configured Adapter supplies Core at runtime. The pet reads saved Task state and opens the selected Task in WebUI; it does not indicate live Host activity or completion percentages. The manager's install, upgrade, repair and reinstall operations refresh the application copy in the user directory while preserving settings and appearance assets. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, controls, updates and appearances.
 
 ## Completion and recovery
 
@@ -191,6 +191,6 @@ Confirmed local content belongs to the Task scope. Codex plans preservation chec
 
 ## Skill interaction reference
 
-Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/dev-flow/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
+Core interaction instructions and complete examples for Codex and DeepSeek are maintained in `skills/taskbelay/core/` and rendered into each package by the build scripts. Each Host documents its actual authorization, workspace preparation and tool calls. Execution uses the current Action, installed interface and real user decisions. Node submissions, result handling, blocker recovery and verification use the same content, and both rendered example sets pass through the same Core validation.
 
-[Codex Skill](../packages/codex/plugin/skills/dev-flow/SKILL.md)
+[Codex Skill](../packages/codex/plugin/skills/taskbelay/SKILL.md)

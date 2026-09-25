@@ -21,7 +21,7 @@ tests/journeys/deepseek/evidence/*.raw.jsonl
 *.test
 *.out
 /bin/
-/dev-flow
+/taskbelay
 /vendor/
 
 # Node and package artifacts
@@ -38,4 +38,4 @@ coverage/
 
 # External pet artwork and generated application bundles
 packages/desktop-pet/appearances/
-packages/*/runtime/*/DevFlowPet.app/
+packages/*/runtime/*/TaskBelayPet.app/

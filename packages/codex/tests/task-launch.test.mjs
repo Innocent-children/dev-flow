@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
-import { runCLI } from "../bin/dev-flow-codex.mjs";
+import { runCLI } from "../bin/taskbelay-codex.mjs";
 
 import { handoffFixture, writeHandoffFixture } from "./fixtures/task-handoff.mjs";
 import { readTaskHandoff, taskHandoffPaths } from "../lib/task-handoff.mjs";
@@ -37,7 +37,7 @@ import { defaultRunGit, terminalCleanupDecision } from "../lib/worktree-lifecycl
 const execFile = promisify(execFileCallback);
 
 test("scope reads one confirmed launch and refuses missing, pending or mixed-request records", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-scope-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-scope-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const options = { productSupportRoot: root };
   const input = { launch_id: "launch-scope-test", repository_keys: ["web", "api"], primary_repository_key: "api" };
@@ -82,7 +82,7 @@ test("scope reads one confirmed launch and refuses missing, pending or mixed-req
 });
 
 test("available Codex CLI natively parses the relaunch -C and --add-dir options without starting a session", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-codex-parser-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-codex-parser-")));
   const primary = join(root, "primary worktree");
   const additional = join(root, "additional worktree");
   await Promise.all([mkdir(primary), mkdir(additional)]);
@@ -90,11 +90,11 @@ test("available Codex CLI natively parses the relaunch -C and --add-dir options 
   const descriptor = buildCliRelaunchDescriptor({
     worktreePath: primary,
     additionalWorktreePaths: [additional],
-    prompt: "$dev-flow-codex:dev-flow receipt-backed bootstrap",
+    prompt: "$taskbelay-codex:taskbelay receipt-backed bootstrap",
   });
   const parserArguments = descriptor.arguments.slice(0, -2).concat("--help");
   try {
-    const { stdout } = await execFile(process.env.DEV_FLOW_CODEX_EXECUTABLE ?? descriptor.executable, parserArguments, {
+    const { stdout } = await execFile(process.env.TASKBELAY_CODEX_EXECUTABLE ?? descriptor.executable, parserArguments, {
       encoding: "utf8",
       timeout: 10_000,
     });
@@ -154,7 +154,7 @@ for (const surface of ["managed_worktree", "cli_worktree"]) {
 }
 
 test("managed dispatch records complete Codex results and resumes without redispatch", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-dispatch-result-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-dispatch-result-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   const options = { productSupportRoot: root };
   const clientThreadId = "client-new-thread:1bb3adae-ad01-4210-909e-06fe333f69c2";
@@ -329,7 +329,7 @@ test("managed launch freezes the confirmed remote ref, dispatches once, and boot
   assert.equal(dispatched.should_dispatch, false);
   const claim = await claimManagedTaskDispatch({ launch_id: "launch-managed-0001", repository_key: "primary", dispatch_attempt_id: dispatched.receipt.operation_status.dispatch_attempt_id }, fixture.options);
   assert.equal(claim.should_dispatch, true);
-  assert.equal(dispatched.host_request.title, "Dev Flow launch-managed-0001 primary");
+  assert.equal(dispatched.host_request.title, "TaskBelay launch-managed-0001 primary");
   assert.deepEqual(dispatched.host_request.target.environment.startingState, {
     type: "branch",
     branchName: launch.receipt.base_commit,
@@ -593,7 +593,7 @@ test("sender refuses changed handoff files before managed dispatch or CLI worktr
 });
 
 async function makeRemoteFixture(t, name) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), `dev-flow-codex-${name}-`)));
+  const root = await realpath(await mkdtemp(join(tmpdir(), `taskbelay-codex-${name}-`)));
   const remote = join(root, "remote.git");
   const source = join(root, "中文 source checkout");
   const productSupportRoot = join(root, "product support");
@@ -843,9 +843,9 @@ test("local launch rejects dirty content and active Tasks before branch changes"
   const available = async (root) => ({ available: true, repository_path: root });
   await assert.rejects(prepareTaskLaunch(input, { ...fixture.options, checkWorkspaceAvailable: available }), /initial local changes/);
   input.carry_changes = true;
-  await assert.rejects(prepareTaskLaunch(input, { ...fixture.options, checkWorkspaceAvailable: async (root) => ({ available: false, repository_path: root, task_id: "active" }) }), /active Dev Flow Task/);
+  await assert.rejects(prepareTaskLaunch(input, { ...fixture.options, checkWorkspaceAvailable: async (root) => ({ available: false, repository_path: root, task_id: "active" }) }), /active TaskBelay Task/);
   const prepared = await prepareTaskLaunch(input, { ...fixture.options, checkWorkspaceAvailable: available });
-  await assert.rejects(provisionLocalTask({ launch_id: prepared.receipt.launch_id, repository_key: "primary" }, { ...fixture.options, checkWorkspaceAvailable: async (root) => ({ available: false, repository_path: root }) }), /active Dev Flow Task/);
+  await assert.rejects(provisionLocalTask({ launch_id: prepared.receipt.launch_id, repository_key: "primary" }, { ...fixture.options, checkWorkspaceAvailable: async (root) => ({ available: false, repository_path: root }) }), /active TaskBelay Task/);
   assert.equal(await gitOutput(fixture.source, "branch", "--show-current"), "main");
   assert.equal(await readFile(join(fixture.source, "base.txt"), "utf8"), "existing work\n");
 });

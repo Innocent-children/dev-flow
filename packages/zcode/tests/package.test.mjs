@@ -4,22 +4,22 @@ import { readFile, access, copyFile, lstat, mkdir, mkdtemp, realpath, rm } from 
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { operations } from "../bin/dev-flow-zcode.mjs";
+import { operations } from "../bin/taskbelay-zcode.mjs";
 import { execPortableCommand } from "../lib/command.mjs";
 
 const root = new URL("../", import.meta.url);
 
 test("npm-installed ZCode bin returns status JSON before local preparation", async t => {
-  const isolated = await mkdtemp(join(tmpdir(), "dev-flow-zcode-npm-"));
+  const isolated = await mkdtemp(join(tmpdir(), "taskbelay-zcode-npm-"));
   t.after(() => rm(isolated, { recursive: true, force: true }));
   const prefix = join(isolated, "prefix");
-  const options = { env: { ...process.env, HOME: isolated, USERPROFILE: isolated, LOCALAPPDATA: join(isolated, "appdata"), DEV_FLOW_DATA_DIR: "" }, timeout: 60000 };
+  const options = { env: { ...process.env, HOME: isolated, USERPROFILE: isolated, LOCALAPPDATA: join(isolated, "appdata"), TASKBELAY_DATA_DIR: "" }, timeout: 60000 };
   await execPortableCommand("npm", ["install", "--global", "--prefix", prefix, "--cache", join(isolated, "cache"),
     "--install-links", "--ignore-scripts", "--offline", "--no-audit", "--no-fund", fileURLToPath(root)], options);
-  const command = join(prefix, process.platform === "win32" ? "" : "bin", "dev-flow-zcode");
+  const command = join(prefix, process.platform === "win32" ? "" : "bin", "taskbelay-zcode");
   if (process.platform !== "win32") {
     assert.equal((await lstat(command)).isSymbolicLink(), true);
-    assert.equal(await realpath(command), join(await realpath(prefix), "lib/node_modules/dev-flow-zcode/bin/dev-flow-zcode.mjs"));
+    assert.equal(await realpath(command), join(await realpath(prefix), "lib/node_modules/taskbelay-zcode/bin/taskbelay-zcode.mjs"));
   }
   const status = JSON.parse((await execPortableCommand(command, ["status", "--json"], options)).stdout);
   assert.equal(status.operation, "status");
@@ -27,8 +27,8 @@ test("npm-installed ZCode bin returns status JSON before local preparation", asy
   assert.equal(status.changed, false);
   assert.equal(status.registration.receipt, false);
   assert.equal(status.registration.phase, null);
-  assert.deepEqual(status.next_steps.slice(0, 1), ["Run dev-flow-zcode setup --json to prepare and verify the local plugin source."]);
-  assert.match((await execPortableCommand(command, ["--help"], options)).stdout, /^dev-flow-zcode status\|setup\|remove/u);
+  assert.deepEqual(status.next_steps.slice(0, 1), ["Run taskbelay-zcode setup --json to prepare and verify the local plugin source."]);
+  assert.match((await execPortableCommand(command, ["--help"], options)).stdout, /^taskbelay-zcode status\|setup\|remove/u);
   await assert.rejects(execPortableCommand(command, ["invalid-command"], options), error => {
     assert.equal(error.code, 1);
     assert.match(error.stderr, /Invalid command; use --help/u);
@@ -47,20 +47,20 @@ test("native plugin, marketplace, MCP and process Hook share a self-contained pa
   assert.equal(market.plugins[0].version, pkg.version);
   assert.equal(market.plugins[0].source, "./");
   assert.equal(Object.hasOwn(plugin, "hooks"), false, "standard hooks must be discovered exactly once");
-  assert.deepEqual(mcp.mcpServers["dev-flow"].args, ["${ZCODE_PLUGIN_ROOT}/bin/dev-flow-zcode.mjs", "mcp"]);
+  assert.deepEqual(mcp.mcpServers["taskbelay"].args, ["${ZCODE_PLUGIN_ROOT}/bin/taskbelay-zcode.mjs", "mcp"]);
   const group = hooks.hooks.PreToolUse[0];
   assert.equal(group.matcher, "Write|Edit");
   assert.equal(group.hooks[0].type, "process");
   assert.equal(group.hooks[0].command, "node");
-  assert.deepEqual(group.hooks[0].args, ["${ZCODE_PLUGIN_ROOT}/bin/dev-flow-zcode.mjs", "hook", "pre-tool-use"]);
+  assert.deepEqual(group.hooks[0].args, ["${ZCODE_PLUGIN_ROOT}/bin/taskbelay-zcode.mjs", "hook", "pre-tool-use"]);
   for (const file of pkg.files) {
     assert.equal(file.includes(".."), false);
     if (file === "LICENSE" || file.startsWith("runtime/")) continue; // Staging supplies these from the release/build inputs.
     await access(new URL(file, root));
   }
-  assert.ok(pkg.files.includes("runtime/win32-x64/dev-flow.exe"));
-  assert.ok(pkg.files.includes("runtime/darwin-arm64/dev-flow"));
-  assert.ok(pkg.files.includes("skills/dev-flow/references/successes/dev_flow_open_task-create.md"));
+  assert.ok(pkg.files.includes("runtime/win32-x64/taskbelay.exe"));
+  assert.ok(pkg.files.includes("runtime/darwin-arm64/taskbelay"));
+  assert.ok(pkg.files.includes("skills/taskbelay/references/successes/taskbelay_open_task-create.md"));
   assert.ok(pkg.files.includes("lib/worktree-snapshot.mjs"));
   assert.ok(operations.includes("open"));
   assert.equal(operations.includes("launch"), false);
@@ -78,8 +78,8 @@ test("platform policies resolve from an independent package without another Host
     await copyFile(new URL(file, root), target);
   }
   const { platformPolicy } = await import(pathToFileURL(join(directory, "lib/platform.mjs")).href);
-  assert.equal(platformPolicy("win32", "x64").runtimeExecutable, "dev-flow.exe");
-  assert.equal(platformPolicy("darwin", "arm64").runtimeExecutable, "dev-flow");
+  assert.equal(platformPolicy("win32", "x64").runtimeExecutable, "taskbelay.exe");
+  assert.equal(platformPolicy("darwin", "arm64").runtimeExecutable, "taskbelay");
   assert.throws(() => platformPolicy("win32", "arm64"), /Unsupported ZCode/);
   assert.throws(() => platformPolicy("linux", "x64"), /Unsupported ZCode/);
 });

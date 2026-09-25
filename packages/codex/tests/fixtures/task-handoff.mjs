@@ -29,8 +29,8 @@ export function admissionFixture(anchor) {
     assessment: { change_level: "standard", observed_repositories: anchor.repositories.map((entry) => entry.canonical_root),
       candidate_components: ["launch"], candidate_paths: ["src/launch.mjs"], public_contract_flags: ["launch contract"],
       persistence_or_state_flags: [], host_or_platform_flags: [], verification_shape: ["targeted launch tests"], unknowns: [],
-      recommendation: "dev_flow", reasons: ["The launch contract changes."], anchor },
-    user_choice: {source: "user", mode: "dev_flow", summary: "Fixture user selected Dev Flow after reading the assessment."},
+      recommendation: "taskbelay", reasons: ["The launch contract changes."], anchor },
+    user_choice: {source: "user", mode: "taskbelay", summary: "Fixture user selected TaskBelay after reading the assessment."},
   };
 }
 

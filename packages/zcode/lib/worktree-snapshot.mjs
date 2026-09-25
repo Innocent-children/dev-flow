@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const snapshotIdentity = ["-c", "user.name=Dev Flow", "-c", "user.email=dev-flow@localhost"];
+const snapshotIdentity = ["-c", "user.name=TaskBelay", "-c", "user.email=taskbelay@localhost"];
 
 // The Host stores a Git snapshot without changing HEAD, the source index or refs/stash.
 // The supplied runner owns process execution and platform policy.
@@ -15,9 +15,9 @@ export async function captureWorkspaceChanges(root, run) {
   }
   if (!before.changed) return null;
   const git = async args => String(await run(root, args, {})).trim();
-  const indexCommit = await git([...snapshotIdentity, "commit-tree", before.indexTree, "-p", before.head, "-m", "Dev Flow workspace index snapshot"]);
-  const untrackedCommit = await git([...snapshotIdentity, "commit-tree", before.untrackedTree, "-m", "Dev Flow untracked snapshot"]);
-  return await git([...snapshotIdentity, "commit-tree", before.worktreeTree, "-p", before.head, "-p", indexCommit, "-p", untrackedCommit, "-m", "Dev Flow workspace snapshot"]);
+  const indexCommit = await git([...snapshotIdentity, "commit-tree", before.indexTree, "-p", before.head, "-m", "TaskBelay workspace index snapshot"]);
+  const untrackedCommit = await git([...snapshotIdentity, "commit-tree", before.untrackedTree, "-m", "TaskBelay untracked snapshot"]);
+  return await git([...snapshotIdentity, "commit-tree", before.worktreeTree, "-p", before.head, "-p", indexCommit, "-p", untrackedCommit, "-m", "TaskBelay workspace snapshot"]);
 }
 
 async function readWorkspaceTrees(root, run) {
@@ -30,7 +30,7 @@ async function readWorkspaceTrees(root, run) {
   const tracked = status ? await git([...snapshotIdentity, "stash", "create"]) : "";
   const indexTree = await git(["rev-parse", tracked ? `${tracked}^2^{tree}` : `${head}^{tree}`]);
   const worktreeTree = await git(["rev-parse", tracked ? `${tracked}^{tree}` : `${head}^{tree}`]);
-  const directory = await mkdtemp(join(tmpdir(), "dev-flow-snapshot-"));
+  const directory = await mkdtemp(join(tmpdir(), "taskbelay-snapshot-"));
   try {
     const names = await run(root, ["ls-files", "--others", "--exclude-standard", "-z"], {});
     const env = { GIT_INDEX_FILE: join(directory, "index") };

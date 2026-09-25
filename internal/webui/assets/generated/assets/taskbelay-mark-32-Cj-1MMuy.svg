@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-labelledby="title desc">
+  <title id="title">TaskBelay small-size mark</title>
+  <desc id="desc">A clear terminal prompt protected by blue guardrails. Simplified for use at 16 to 64 pixels.</desc>
+  <defs>
+    <linearGradient id="rail" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#4FC8F5"/>
+      <stop offset="1" stop-color="#3F6FFF"/>
+    </linearGradient>
+    <linearGradient id="agent" x1="0" y1="1" x2="0.82" y2="0">
+      <stop offset="0" stop-color="#4FC8F5"/>
+      <stop offset="1" stop-color="#3F6FFF"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(-2.432 -2.648) scale(0.072)">
+    <path d="M154 428 C177 334 201 215 208 110 Q209 98 221 98 H291 Q303 98 304 110 C311 215 335 334 358 428 Q360 436 350 436 H162 Q152 436 154 428 Z" fill="#12213F"/>
+    
+    <g fill="none" stroke-linecap="round">
+      <path d="M105 418 C139 324 167 204 174 100" stroke="#1B2E59" stroke-width="46"/>
+      <path d="M407 418 C373 324 345 204 338 100" stroke="#1B2E59" stroke-width="46"/>
+      <path d="M105 418 C139 324 167 204 174 100" stroke="url(#rail)" stroke-width="28"/>
+      <path d="M407 418 C373 324 345 204 338 100" stroke="url(#rail)" stroke-width="28"/>
+    </g>
+  </g>
+  <rect x="10.8" y="12" width="10.4" height="10.4" rx="3" fill="url(#agent)" stroke="#FFFFFF" stroke-width="1.2"/>
+  <path d="M13.3 15.1 L15.4 17.2 L13.3 19.3 M17.4 19.2 H19" fill="none" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

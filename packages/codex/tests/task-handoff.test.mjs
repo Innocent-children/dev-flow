@@ -121,7 +121,7 @@ test("handoff storage rejects redirected material directories", async (t) => {
 });
 
 async function materialFixture(t) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-handoff-中文 ")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-handoff-中文 ")));
   t.after(() => rm(root, { recursive: true, force: true }));
   return { root, receiptPath: join(root, "primary.json"), options: { enforcePrivateModes: process.platform !== "win32" } };
 }

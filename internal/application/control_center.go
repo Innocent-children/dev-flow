@@ -1,9 +1,9 @@
 package application
 
 import (
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
 )
 
 // ControlCenter exposes Web-facing use cases; Service owns workflow behavior and ControlCenterStore owns persistence.

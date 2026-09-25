@@ -1,12 +1,12 @@
-# 中断后继续：两分钟看懂 Dev Flow
+# 中断后继续：两分钟看懂 TaskBelay
 
 [中文](DEMO.md) | [English](DEMO_en.md)
 
-本页用一个具体中断场景说明 Dev Flow 如何保留任务边界和剩余工作。这是产品的一项重要能力，
+本页用一个具体中断场景说明 TaskBelay 如何保留任务边界和剩余工作。这是产品的一项重要能力，
 不代表全部价值；节点、命令和 MCP 工具的精确定义见 [Architecture](ARCHITECTURE.md) 与
 [Command Reference](COMMANDS.md)。
 
-## 1. 用户提出请求并选择是否进入 Dev Flow
+## 1. 用户提出请求并选择是否进入 TaskBelay
 
 开发者对 Codex 说：
 
@@ -15,7 +15,7 @@
 ```
 
 Host 先只读检查候选实现、调用方、测试和 Git 状态，给出改动级别、已知影响面、未知项和建议，等待
-尚未作出的流程选择。此时没有 Core 调用、Task 或 Git 写入。开发者选择 Dev Flow 后，默认从当前 HEAD
+尚未作出的流程选择。此时没有 Core 调用、Task 或 Git 写入。开发者选择 TaskBelay 后，默认从当前 HEAD
 在原目录新建任务分支，也可以明确选择使用当前分支。Host 展示实际目录、分支和未提交修改，取得尚缺的
 目标分支或初始修改选择，检查目录占用，再准备分支；被接受的初始修改保留原文件与暂存状态。
 
@@ -44,7 +44,7 @@ Remaining: targeted auth test
 如果没有持久状态，新会话只能重新检查仓库和残缺聊天，猜测实现是否完成、测试是否跑过、是否还
 应该扩大验证。
 
-Dev Flow 不从聊天记录重建进度。新会话回到 Task 绑定的同一个工作树实例并明确 resume；Core 先观察
+TaskBelay 不从聊天记录重建进度。新会话回到 Task 绑定的同一个工作树实例并明确 resume；Core 先观察
 identity、history 和 content，再恢复当前节点、revision、范围和剩余验证：
 
 ```text
@@ -87,11 +87,11 @@ branch switch、rewind 或 history rewrite 则会在继续工作前触发相应�
 
 ## 较短的 Recovery 场景
 
-另一个常见中断发生在 Dev Flow Action 提交时：Host 已发出写请求，但响应丢失或被截断。此时
+另一个常见中断发生在 TaskBelay Action 提交时：Host 已发出写请求，但响应丢失或被截断。此时
 Adapter 不直接重复提交，而是用 Task ID 和 Action ID 读取当前 Task 与 Recovery 状态，再按照结果
 继续、恢复、阻塞或安全重试。
 
-这只适用于 Dev Flow 可以识别和记录的 Action。它不表示 Dev Flow 能恢复任意 Host 文件写入、shell
+这只适用于 TaskBelay 可以识别和记录的 Action。它不表示 TaskBelay 能恢复任意 Host 文件写入、shell
 命令或外部系统副作用。
 
 ## 现有验证记录与范围
@@ -100,7 +100,7 @@ Adapter 不直接重复提交，而是用 Task ID 和 Action ID 读取当前 Tas
 
 | 记录 | 说明的范围 |
 | --- | --- |
-| [PR #8 的 Codex 状态图验收](https://github.com/Innocent-children/dev-flow/pull/8) | 真实 Codex 旅程覆盖重启、重构、重新测试、理解确认、交付和 Core `DONE` |
+| [PR #8 的 Codex 状态图验收](https://github.com/Innocent-children/taskbelay/pull/8) | 真实 Codex 旅程覆盖重启、重构、重新测试、理解确认、交付和 Core `DONE` |
 | [Support Matrix](SUPPORT-MATRIX.md) | 哪些稳定 registry package 与 Host 环境具有最终生命周期记录 |
 
 不同完整流程测试分别说明不同能力；不要把多份记录描述成一次运行证明全部能力。源码测试也不等于
@@ -109,10 +109,10 @@ Adapter 不直接重复提交，而是用 Task ID 和 Action ID 读取当前 Tas
 ## 试用稳定入口
 
 ```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
-安装后使用 Codex 的 `$dev-flow-codex:dev-flow` 或 DeepSeek Harness 的 `/dev-flow` selector。Host
+安装后使用 Codex 的 `$taskbelay-codex:taskbelay` 或 DeepSeek Harness 的 `/taskbelay` selector。Host
 差异和完整命令见 [Codex 使用说明](../packages/codex/README.md)、
 [DeepSeek 使用说明](../packages/deepseek/README.md)和[命令参考](COMMANDS.md)。

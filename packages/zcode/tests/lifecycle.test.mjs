@@ -11,13 +11,13 @@ async function fixture(t) {
   t.after(() => rm(home, { recursive: true, force: true }));
   const packageRoot = join(home, "package");
   await mkdir(join(packageRoot, ".zcode-plugin"), { recursive: true });
-  const manifest = { name: "dev-flow-zcode", version: "0.1.0", files: [".zcode-plugin/plugin.json", "marketplace.json", "payload.txt"] };
+  const manifest = { name: "taskbelay-zcode", version: "0.1.0", files: [".zcode-plugin/plugin.json", "marketplace.json", "payload.txt"] };
   await writeFile(join(packageRoot, "package.json"), JSON.stringify(manifest));
   await writeFile(join(packageRoot, ".zcode-plugin", "plugin.json"), JSON.stringify({ name: manifest.name, version: manifest.version }));
-  await writeFile(join(packageRoot, "marketplace.json"), JSON.stringify({ name: "dev-flow-zcode-local", plugins: [{ name: manifest.name, version: manifest.version, source: "./" }] }));
+  await writeFile(join(packageRoot, "marketplace.json"), JSON.stringify({ name: "taskbelay-zcode-local", plugins: [{ name: manifest.name, version: manifest.version, source: "./" }] }));
   await writeFile(join(packageRoot, "payload.txt"), "package payload");
-  const options = { packageRoot, environment: { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: join(home, "appdata"), DEV_FLOW_DATA_DIR: "" },
-    core: async args => { assert.deepEqual(args, ["version"]); return { stdout: "dev-flow 0.18.0\n" }; } };
+  const options = { packageRoot, environment: { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: join(home, "appdata"), TASKBELAY_DATA_DIR: "" },
+    core: async args => { assert.deepEqual(args, ["version"]); return { stdout: "taskbelay 0.18.0\n" }; } };
   return { options, home, p: await paths(options.environment, options) };
 }
 
@@ -65,7 +65,7 @@ test("normal removal preserves data and pending UI work until explicit human con
   const removed = await remove(options);
   assert.equal(removed.status, "action_required");
   assert.equal(removed.registration.phase, "removal_required");
-  assert.match(removed.next_steps.join("\n"), /After the user confirms.*dev-flow-zcode remove --confirm-host-removed --json/);
+  assert.match(removed.next_steps.join("\n"), /After the user confirms.*taskbelay-zcode remove --confirm-host-removed --json/);
   assert.equal((await remove(options)).changed, false);
   assert.equal((await status(options)).status, "action_required");
   assert.equal(await readFile(join(p.dataDirectory, "task.txt"), "utf8"), "retained task");

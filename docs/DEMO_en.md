@@ -1,13 +1,13 @@
-# Continue After an Interruption: Dev Flow in Two Minutes
+# Continue After an Interruption: TaskBelay in Two Minutes
 
 [中文](DEMO.md) | [English](DEMO_en.md)
 
-This page uses one interruption scenario to show how Dev Flow retains task boundaries and remaining
+This page uses one interruption scenario to show how TaskBelay retains task boundaries and remaining
 work. It demonstrates one important capability, not the product's complete value. See
 [Architecture](ARCHITECTURE_en.md) and the [Command Reference](COMMANDS_en.md) for exact nodes,
 commands, and MCP tools.
 
-## 1. The user requests work and chooses whether to enter Dev Flow
+## 1. The user requests work and chooses whether to enter TaskBelay
 
 A developer asks Codex:
 
@@ -18,7 +18,7 @@ targeted tests needed for this behavior.
 
 The Host first inspects candidate implementation, callers, tests, and Git state read-only, reports a
 change level, known impact, unknowns, and a recommendation, and waits for any unresolved workflow
-choice. No Core call, Task, or Git write exists yet. After choosing Dev Flow, the default is a new task
+choice. No Core call, Task, or Git write exists yet. After choosing TaskBelay, the default is a new task
 branch from current HEAD in the existing directory; the developer can explicitly choose the current
 branch instead. The Host shows the actual directory, branch, and uncommitted changes, obtains any
 missing target-branch or initial-content decision, checks directory claims, and prepares the branch.
@@ -53,7 +53,7 @@ This information lives in local Task state, not only in chat history.
 Without durable state, the next session can only inspect the repository and partial chat, then guess
 whether implementation finished, whether the test already ran, or whether verification should expand.
 
-Dev Flow does not reconstruct progress from chat. The next session returns to the exact Task worktree
+TaskBelay does not reconstruct progress from chat. The next session returns to the exact Task worktree
 and explicitly resumes. Core observes identity, history, and content before returning the current node,
 revision, scope, and remaining verification:
 
@@ -104,12 +104,12 @@ downstream records do not stand in for current results.
 
 ## A shorter Recovery scenario
 
-Another interruption can occur while a Dev Flow Action is being submitted: the Host sent a mutation,
+Another interruption can occur while a TaskBelay Action is being submitted: the Host sent a mutation,
 but its response was lost or truncated. The Adapter does not immediately submit it again. It reads the
 current Task and Recovery state using the Task ID and Action ID, then follows the result to continue,
 recover, block, or retry safely.
 
-This applies only to Actions Dev Flow can identify and retain. It does not mean Dev Flow can recover
+This applies only to Actions TaskBelay can identify and retain. It does not mean TaskBelay can recover
 arbitrary Host file writes, shell commands, or external-system side effects.
 
 ## Existing validation records and scope
@@ -118,7 +118,7 @@ The entries below are independent paths. Each demonstrates only the stated scope
 
 | Record | Scope demonstrated |
 | --- | --- |
-| [PR #8 Codex graph acceptance](https://github.com/Innocent-children/dev-flow/pull/8) | A real Codex end-to-end test covers restart, refactoring, retesting, comprehension, delivery, and Core `DONE` |
+| [PR #8 Codex graph acceptance](https://github.com/Innocent-children/taskbelay/pull/8) | A real Codex end-to-end test covers restart, refactoring, retesting, comprehension, delivery, and Core `DONE` |
 | [Support Matrix](SUPPORT-MATRIX_en.md) | Stable registry packages and Host environments with final lifecycle records |
 
 Different end-to-end tests demonstrate different capabilities; do not describe them as one run proving the
@@ -128,10 +128,10 @@ entire product. Source tests are also not support for the final public package. 
 ## Try the stable entry
 
 ```bash
-npm install -g @imotong/dev-flow@latest
-dev-flow
+npm install -g @imotong/taskbelay@latest
+taskbelay
 ```
 
-After installation, use Codex's `$dev-flow-codex:dev-flow` or DeepSeek Harness's `/dev-flow`
+After installation, use Codex's `$taskbelay-codex:taskbelay` or DeepSeek Harness's `/taskbelay`
 selector. See the [Codex guide](CODEX_en.md), [DeepSeek guide](DEEPSEEK_en.md), and
 [Command Reference](COMMANDS_en.md) for Host differences and complete commands.

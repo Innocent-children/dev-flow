@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 
 import { permissionPolicy as codexPermissions, runtimeDescriptor as codexRuntime } from "../packages/codex/lib/platform.mjs";
 import { permissionPolicy as deepseekPermissions, runtimeDescriptor as deepseekRuntime } from "../packages/deepseek/lib/platform.mjs";
-import { permissionPolicy as managerPermissions, runtimeDescriptor as managerRuntime } from "../packages/dev-flow/lib/platform.mjs";
+import { permissionPolicy as managerPermissions, runtimeDescriptor as managerRuntime } from "../packages/taskbelay/lib/platform.mjs";
 import { buildCoreRuntimes, CORE_RUNTIME_TARGETS } from "./build-core-runtimes.mjs";
 
 const runFile = promisify(execFile);
@@ -34,9 +34,9 @@ test("package platform implementations match the runtime target catalog", () => 
 });
 
 test("builds the closed runtime target set and returns one named report", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-runtime-builder-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-runtime-builder-"));
   const outputRoot = join(root, "output");
-  await mkdir(join(root, "cmd", "dev-flow"), { recursive: true });
+  await mkdir(join(root, "cmd", "taskbelay"), { recursive: true });
   await writeFile(join(root, "CORE_VERSION"), "1.2.3\n");
   const builds = [];
   const run = async (executable, arguments_, options) => {
@@ -83,7 +83,7 @@ test("builds the closed runtime target set and returns one named report", async 
 test("runs the CLI entrypoint through an aliased script path", {
   skip: process.platform === "win32" ? "the release worktree path alias is specific to macOS and Unix" : false,
 }, async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-runtime-entrypoint-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-runtime-entrypoint-"));
   const alias = join(root, "build-core-runtimes.mjs");
   await symlink(join(dirname(fileURLToPath(import.meta.url)), "build-core-runtimes.mjs"), alias);
   t.after(() => rm(root, { recursive: true, force: true }));

@@ -7,16 +7,16 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { authorizeDevFlowExecution } from "../../../packages/deepseek/lib/authorization.mjs";
-import { DEV_FLOW_QUALIFIED_TOOL_NAMES } from "../../../packages/deepseek/lib/tool-names.mjs";
+import { authorizeTaskBelayExecution } from "../../../packages/deepseek/lib/authorization.mjs";
+import { TASKBELAY_QUALIFIED_TOOL_NAMES } from "../../../packages/deepseek/lib/tool-names.mjs";
 import { createWorkspaceCoordinator } from "../../../packages/deepseek/lib/workspace-coordinator.mjs";
 import { DeterministicCoreHost } from "./fake-core.mjs";
 
 const execFile = promisify(execFileCallback);
 const repositoryRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const packageRoot = join(repositoryRoot, "packages", "deepseek");
-const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "dev-flow");
-const [serverInfoTool, openTool, getTaskTool, getNextTool] = DEV_FLOW_QUALIFIED_TOOL_NAMES;
+const runtimePath = join(packageRoot, "runtime", "darwin-arm64", "taskbelay");
+const [serverInfoTool, openTool, getTaskTool, getNextTool] = TASKBELAY_QUALIFIED_TOOL_NAMES;
 
 test("deterministic DeepSeek Host follows the real Core graph through restart, recovery, refactor, and DONE", async (t) => {
   const root = await temporaryRoot();
@@ -52,22 +52,22 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
 
   const deniedBefore = core.calls.length;
   const ordinary = authorizeExecution("ordinary request", "ordinary-call", serverInfoTool);
-  assert.match(ordinary, /DEV_FLOW_SELECTOR_REQUIRED/u);
+  assert.match(ordinary, /TASKBELAY_SELECTOR_REQUIRED/u);
   assert.equal(core.calls.length, deniedBefore);
   const historical = authorizeExecution("ordinary current", "historical-call", serverInfoTool, true);
-  assert.match(historical, /DEV_FLOW_SELECTOR_REQUIRED/u);
+  assert.match(historical, /TASKBELAY_SELECTOR_REQUIRED/u);
   assert.equal(core.calls.length, deniedBefore);
-  assert.equal(authorizeExecution("/dev-flow run journey", "selected-call", serverInfoTool), undefined);
+  assert.equal(authorizeExecution("/taskbelay run journey", "selected-call", serverInfoTool), undefined);
 
   const info = await core.call(serverInfoTool, {});
   assert.equal(core.sessions[0][0], serverInfoTool);
   assert.deepEqual(info.result.tools, [
-    "dev_flow_server_info", "dev_flow_open_task", "dev_flow_get_task",
-    "dev_flow_get_next_action", "dev_flow_submit_requirements", "dev_flow_submit_design",
-    "dev_flow_submit_tasks", "dev_flow_submit_implementation", "dev_flow_submit_test",
-    "dev_flow_submit_comprehension", "dev_flow_submit_refactor", "dev_flow_submit_delivery",
-    "dev_flow_prepare_task_relocation", "dev_flow_resolve_blocker", "dev_flow_recover_action",
-    "dev_flow_cancel_task", "dev_flow_abandon_task",
+    "taskbelay_server_info", "taskbelay_open_task", "taskbelay_get_task",
+    "taskbelay_get_next_action", "taskbelay_submit_requirements", "taskbelay_submit_design",
+    "taskbelay_submit_tasks", "taskbelay_submit_implementation", "taskbelay_submit_test",
+    "taskbelay_submit_comprehension", "taskbelay_submit_refactor", "taskbelay_submit_delivery",
+    "taskbelay_prepare_task_relocation", "taskbelay_resolve_blocker", "taskbelay_recover_action",
+    "taskbelay_cancel_task", "taskbelay_abandon_task",
   ]);
   assert.deepEqual(info.result.method_profiles, ["plain", "spec-kit", "openspec"]);
   assert.equal(typeof info.result.host_preferences.deepseek.codebase_memory, "boolean");
@@ -119,7 +119,7 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(task.baselines.design.requirements_revision, task.baselines.requirements.revision);
   await core.restart();
   const restartedInfo = await core.call(serverInfoTool, {});
-  assert.equal(restartedInfo.result.product, "dev-flow");
+  assert.equal(restartedInfo.result.product, "taskbelay");
   assert.equal(core.sessions[1][0], serverInfoTool);
   const resumedOpen = await core.call(openTool, {
     host: "deepseek",
@@ -181,7 +181,7 @@ test("deterministic DeepSeek Host follows the real Core graph through restart, r
   assert.equal(task.current_action, null);
   assert.equal(task.outcome.status, "completed");
   assert.equal(task.revision, 14);
-  assert.equal(core.calls.filter((name) => name.startsWith("mcp__dev_flow__dev_flow_submit_")).length, 13);
+  assert.equal(core.calls.filter((name) => name.startsWith("mcp__taskbelay__taskbelay_submit_")).length, 13);
   assert.equal(task.outcome.final_repository_digest.length, repositoryBindingDigest.length);
 });
 
@@ -221,7 +221,7 @@ function applyArguments(task, transition, nodeResult, requestId, reason = "") {
 }
 
 function qualifiedSubmissionTool(action) {
-  return `mcp__dev_flow__${action.submission_tool}`;
+  return `mcp__taskbelay__${action.submission_tool}`;
 }
 
 function assertCompleteAction(action, node) {
@@ -340,7 +340,7 @@ function authorizeExecution(text, callId, toolName, withHistoricalSelector = fal
   if (withHistoricalSelector) {
     events.push(
       event(0, "turn/start", { turn: 1 }),
-      event(1, "user/message", userMessage("/dev-flow historical", "historical")),
+      event(1, "user/message", userMessage("/taskbelay historical", "historical")),
       event(2, "turn/end", { turn: 1, reason: "completed" }),
     );
   }
@@ -350,7 +350,7 @@ function authorizeExecution(text, callId, toolName, withHistoricalSelector = fal
     event(offset + 1, "user/message", userMessage(text, "current")),
     event(offset + 2, "tool/call", { turn: 2, step: 1, callId, name: toolName, arguments: "{}" }),
   );
-  return authorizeDevFlowExecution({
+  return authorizeTaskBelayExecution({
     callId, rootCallId: callId, name: toolName, arguments: {}, signal: new AbortController().signal,
     token: Symbol(callId), agent: { status: "running", session: { snapshotEvents: () => events } },
   });
@@ -373,5 +373,5 @@ async function initializeGit(repository, remote) {
 }
 
 async function temporaryRoot() {
-  return await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-graph-")));
+  return await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-graph-")));
 }

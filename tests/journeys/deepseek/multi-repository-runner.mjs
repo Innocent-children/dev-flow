@@ -54,7 +54,7 @@ async function execute(selectedMode, options) {
   const observedSessions = [];
   try {
     await validatePreflight(options);
-    root = await realpath(await mkdtemp(join(tmpdir(), "dev-flow-deepseek-multi-repository-")));
+    root = await realpath(await mkdtemp(join(tmpdir(), "taskbelay-deepseek-multi-repository-")));
     const config = layout(root, options);
     await prepareDirectories(config);
     const product = await buildSourcePackage(config);
@@ -227,7 +227,7 @@ async function buildSourcePackage(config) {
   });
   const corePath = runtimeReport.runtimes["darwin-arm64"].path;
   const coreVersion = runtimeReport.coreVersion;
-  assert.equal((await execFile(corePath, ["version"], { encoding: "utf8" })).stdout.trim(), "dev-flow " + coreVersion);
+  assert.equal((await execFile(corePath, ["version"], { encoding: "utf8" })).stdout.trim(), "taskbelay " + coreVersion);
   const packed = JSON.parse((await execFile("npm", [
     "pack", config.packageStage, "--json", "--pack-destination", config.artifactDirectory,
   ], { cwd: repositoryRoot, encoding: "utf8", timeout: 120_000 })).stdout);
@@ -250,7 +250,7 @@ function dshEnvironment(config) {
     HOME: config.home,
     TMPDIR: config.temporaryDirectory,
     DSH_HOME: config.dshHome,
-    DEV_FLOW_DATA_DIR: config.dataDirectory,
+    TASKBELAY_DATA_DIR: config.dataDirectory,
     DSH_TOOLS_MODE: "native",
     DSH_TELEMETRY_DISABLED: "1",
   };
@@ -268,10 +268,10 @@ async function installAndReadBack(config, product) {
   await execFile(config.dshExecutable, ["plugin", "--profile", PROFILE, "add", product.artifact], {
     cwd: config.workspaceRoot, env: dshEnvironment(config), encoding: "utf8", timeout: 120_000,
   });
-  const installedRoot = join(config.dshHome, "profiles", PROFILE, "node_modules", "dev-flow-deepseek");
-  const installedCore = await realpath(join(installedRoot, "runtime", "darwin-arm64", "dev-flow"));
+  const installedRoot = join(config.dshHome, "profiles", PROFILE, "node_modules", "taskbelay-deepseek");
+  const installedCore = await realpath(join(installedRoot, "runtime", "darwin-arm64", "taskbelay"));
   assert.equal(await fileSha256(installedCore), product.coreSha256);
-  assert.equal((await execFile(installedCore, ["version"], { encoding: "utf8" })).stdout.trim(), "dev-flow " + product.coreVersion);
+  assert.equal((await execFile(installedCore, ["version"], { encoding: "utf8" })).stdout.trim(), "taskbelay " + product.coreVersion);
   const installedManifest = JSON.parse(await readFile(join(installedRoot, "package.json"), "utf8"));
   assert.equal(installedManifest.version, product.packageVersion);
   assert.equal((await sessionFiles(join(config.dshHome, "sessions"))).length, 0);
@@ -318,7 +318,7 @@ function checkpoints(config) {
     + JSON.stringify(config.additionalRepository) + ", new_task=null, and no Scope creation fields.";
   return [
     checkpoint("create-task", "REQUIREMENTS", [
-      "/dev-flow Create exactly one bounded multi-repository Task.",
+      "/taskbelay Create exactly one bounded multi-repository Task.",
       createInput,
       "Use method_profile=plain. Task creation must not include verification_budget; establish it only in the later TASKS baseline.",
       "The complete task is to create core::core-proof.txt with exact UTF-8 bytes core proof followed by one newline and docs::docs-proof.txt with exact UTF-8 bytes docs proof followed by one newline.",
@@ -326,34 +326,34 @@ function checkpoints(config) {
       "Stop immediately after Core creates the Task at REQUIREMENTS. Do not apply the current Action or edit files.",
     ]),
     checkpoint("requirements-to-design", "DESIGN", [
-      "/dev-flow Complete only the REQUIREMENTS action for the active bounded multi-repository Task.", primaryResume,
+      "/taskbelay Complete only the REQUIREMENTS action for the active bounded multi-repository Task.", primaryResume,
       "Perform the server-info handshake and fresh Task and Action reads.", APPLY_RULES,
       "Use both scoped paths, no unresolved questions, and the exact closed REQUIREMENTS node_result shape stated above.",
       "Stop immediately when Core reports DESIGN. Do not edit files or advance DESIGN.",
     ]),
     checkpoint("implement-to-test", "TEST", [
-      "/dev-flow Continue the active bounded multi-repository Task from fresh Core authority.", primaryResume,
+      "/taskbelay Continue the active bounded multi-repository Task from fresh Core authority.", primaryResume,
       "Perform the server-info handshake, then read the Task and current Action.",
       "Complete DESIGN and TASKS using both scoped paths. In TASKS set a targeted verification plan for exactly one automatic command, no full suite, no test-code changes, and explain that verify.mjs covers both proof files. At IMPLEMENT create only core/core-proof.txt and docs/docs-proof.txt with their requested exact bytes.",
       "Use core::core-proof.txt and docs::docs-proof.txt as the multi-repository expected_paths set.", APPLY_RULES,
       "Submit implementation_ready_for_test and stop immediately when Core reports TEST. Do not run any verification command.",
     ]),
     checkpoint("additional-resume-to-comprehension", "COMPREHENSION_REVIEW", [
-      "/dev-flow Resume the post-mutation Task from its additional repository and perform the targeted test.", additionalResume,
+      "/taskbelay Resume the post-mutation Task from its additional repository and perform the targeted test.", additionalResume,
       "After open succeeds call get_task and get_next_action before any apply, preserving the returned Task identity, revision, Action, digest, primary repository, and ordered Scope.",
       "Run exactly one verification command: node verify.mjs.", APPLY_RULES,
       "Submit tests_passed and stop immediately when Core reports COMPREHENSION_REVIEW. Ask for the user's explicit verdict and do not self-confirm it.",
       "Do not modify files or create another Task.",
     ]),
     checkpoint("accept-to-delivery", "DELIVERY", [
-      "/dev-flow I explicitly confirm that I can explain and maintain this bounded two-file implementation and its verification path.",
+      "/taskbelay I explicitly confirm that I can explain and maintain this bounded two-file implementation and its verification path.",
       additionalResume,
       "Perform the server-info handshake and fresh Task and Action reads.", APPLY_RULES,
       "Submit comprehension_passed using my explicit verdict and stop immediately when Core reports DELIVERY.",
       "Do not modify files, run commands, or create another Task.",
     ]),
     checkpoint("deliver-to-done", "DONE", [
-      "/dev-flow Complete only the DELIVERY action for the active bounded multi-repository Task.", additionalResume,
+      "/taskbelay Complete only the DELIVERY action for the active bounded multi-repository Task.", additionalResume,
       "Perform the server-info handshake and fresh Task and Action reads.", APPLY_RULES,
       "Use only the current submission_tool contract, submit delivery_complete, confirm Core reports DONE with outcome completed, and stop.",
       "Do not modify files, run commands, or create another Task.",
@@ -533,16 +533,16 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
   assert.notEqual(beforeAdditionalResume, null);
   const callSets = new Map(sessions.map((session) => [session.id, callsFromSession(session)]));
   for (const [stageId, calls] of callSets) {
-    const devFlowCalls = calls.filter((call) => call.name.startsWith("mcp__dev_flow__"));
-    const serverInfo = devFlowCalls[0];
-    assert.equal(serverInfo?.name, "mcp__dev_flow__dev_flow_server_info", stageId + " must start Dev Flow with server-info");
+    const taskBelayCalls = calls.filter((call) => call.name.startsWith("mcp__taskbelay__"));
+    const serverInfo = taskBelayCalls[0];
+    assert.equal(serverInfo?.name, "mcp__taskbelay__taskbelay_server_info", stageId + " must start TaskBelay with server-info");
     assert.equal(serverInfo?.envelope?.ok, true);
     assert.equal(serverInfo?.envelope?.result?.tools?.length, 17);
   }
   const createCalls = callSets.get("create-task");
-  const create = createCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_open_task");
+  const create = createCalls.find((call) => call.name === "mcp__taskbelay__taskbelay_open_task");
   const resumeCalls = callSets.get("additional-resume-to-comprehension");
-  const resume = resumeCalls.find((call) => call.name === "mcp__dev_flow__dev_flow_open_task");
+  const resume = resumeCalls.find((call) => call.name === "mcp__taskbelay__taskbelay_open_task");
   assert.notEqual(create, undefined);
   assert.notEqual(resume, undefined);
   assert.equal(create.arguments.host, "deepseek");
@@ -555,7 +555,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
   assert.equal("primary_repository_key" in resume.arguments, false);
   assert.equal("additional_repositories" in resume.arguments, false);
   const successfulApplies = [...callSets.values()].flatMap((calls) => calls.filter((call) =>
-    call.name.startsWith("mcp__dev_flow__dev_flow_submit_") && call.envelope?.ok === true
+    call.name.startsWith("mcp__taskbelay__taskbelay_submit_") && call.envelope?.ok === true
   ));
   assert.ok(successfulApplies.length >= 7);
   const before = beforeAdditionalResume;
@@ -615,7 +615,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
     verification_command_count: 1,
     tool_catalog_size: 17,
     codebase_memory_preference: callSets.get("create-task")
-      .find((call) => call.name === "mcp__dev_flow__dev_flow_server_info")
+      .find((call) => call.name === "mcp__taskbelay__taskbelay_server_info")
       .envelope.result.host_preferences.deepseek.codebase_memory,
     observed_at: new Date().toISOString(),
   };
@@ -623,7 +623,7 @@ async function buildEvidence(config, product, sessions, beforeAdditionalResume) 
 
 async function currentTask(dataDirectory) {
   const { DatabaseSync } = await import("node:sqlite");
-  const db = new DatabaseSync(join(dataDirectory, "dev-flow.db"), { readOnly: true });
+  const db = new DatabaseSync(join(dataDirectory, "taskbelay.db"), { readOnly: true });
   const row = db.prepare("SELECT task_id,origin_host,current_node,revision,snapshot FROM tasks ORDER BY updated_at DESC LIMIT 1").get();
   db.close();
   assert.notEqual(row, undefined, "Core Task is absent");
@@ -631,7 +631,7 @@ async function currentTask(dataDirectory) {
 }
 
 async function coreTaskCount(dataDirectory) {
-  const path = join(dataDirectory, "dev-flow.db");
+  const path = join(dataDirectory, "taskbelay.db");
   if (!await exists(path)) return 0;
   const { DatabaseSync } = await import("node:sqlite");
   const db = new DatabaseSync(path, { readOnly: true });

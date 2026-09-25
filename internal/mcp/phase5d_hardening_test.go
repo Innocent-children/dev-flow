@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/userconfig"
-	"github.com/Innocent-children/dev-flow/internal/workflow"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/userconfig"
+	"github.com/Innocent-children/taskbelay/internal/workflow"
 )
 
 func TestOptionalInputFieldsAcceptOmittedNullAndClosedNonNull(t *testing.T) {

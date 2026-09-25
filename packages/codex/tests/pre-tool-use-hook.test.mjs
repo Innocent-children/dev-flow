@@ -41,7 +41,7 @@ test("Codex hook decisions use the supported blocking output", () => {
 });
 
 test("Codex hook permits absent Task data, uses the managed launcher, and fails closed for a check failure", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-hook-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-hook-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const event = JSON.stringify({
     hook_event_name: "PreToolUse",
@@ -59,7 +59,7 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
     readInput: () => event,
     output: { write: (value) => writes.push(value) },
     error: { write: () => undefined },
-    environment: { DEV_FLOW_DATA_DIR: root },
+    environment: { TASKBELAY_DATA_DIR: root },
     platform: "darwin",
     arch: "arm64",
     spawn: (executable, arguments_, options) => {
@@ -70,7 +70,7 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
   assert.equal(allowed, 0);
   assert.equal(invocation.executable, process.execPath);
   assert.deepEqual(invocation.arguments_, [
-    fileURLToPath(new URL("../bin/dev-flow-codex.mjs", import.meta.url)),
+    fileURLToPath(new URL("../bin/taskbelay-codex.mjs", import.meta.url)),
     "host-check",
     "pre-file-write",
   ]);
@@ -82,7 +82,7 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
     readInput: () => event,
     output: { write: () => undefined },
     error: { write: (value) => errors.push(value) },
-    environment: { DEV_FLOW_DATA_DIR: root, PLUGIN_ROOT: join(root, "plugin") },
+    environment: { TASKBELAY_DATA_DIR: root, PLUGIN_ROOT: join(root, "plugin") },
     platform: "darwin",
     arch: "arm64",
     spawn: () => ({ status: 1, stdout: "", stderr: "failed" }),
@@ -92,10 +92,10 @@ test("Codex hook permits absent Task data, uses the managed launcher, and fails 
 });
 
 test("Windows hook fallback prefers USERPROFILE when HOME is also present", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "dev-flow-hook-windows-home-"));
+  const root = await mkdtemp(join(tmpdir(), "taskbelay-hook-windows-home-"));
   const userProfile = join(root, "ordinary-user");
   const gitHome = join(root, "git-home");
-  const dataDirectory = join(userProfile, "AppData", "Local", "dev-flow", "data");
+  const dataDirectory = join(userProfile, "AppData", "Local", "taskbelay", "data");
   await mkdir(dataDirectory, { recursive: true });
   t.after(() => rm(root, { recursive: true, force: true }));
   const event = JSON.stringify({
@@ -118,5 +118,5 @@ test("Windows hook fallback prefers USERPROFILE when HOME is also present", asyn
     },
   });
   assert.equal(code, 0);
-  assert.equal(invocation.options.env.DEV_FLOW_DATA_DIR, dataDirectory);
+  assert.equal(invocation.options.env.TASKBELAY_DATA_DIR, dataDirectory);
 });

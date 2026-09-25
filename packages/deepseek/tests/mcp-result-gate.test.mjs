@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const signal = new AbortController().signal;
-const exactGateModules = process.env.DEV_FLOW_DSH_GATE_NODE_MODULES;
+const exactGateModules = process.env.TASKBELAY_DSH_GATE_NODE_MODULES;
 
 test("official MCP client preserves complete Core success and distinguishes domain from transport failure", async (t) => {
   const root = await temporaryRoot(t, "core");
@@ -17,13 +17,13 @@ test("official MCP client preserves complete Core success and distinguishes doma
   const fixturePath = await writeFixtureServer(root, stack.require);
   const first = await mountMcp(stack, fixtureConfig(fixturePath, root, "gate_core"));
 
-  const serverInfo = await execute(first.ctx, "mcp__gate_core__dev_flow_server_info", {});
+  const serverInfo = await execute(first.ctx, "mcp__gate_core__taskbelay_server_info", {});
   assert.equal(serverInfo.isError, false);
   const firstEnvelope = parseSingleTextEnvelope(serverInfo);
   assert.equal(firstEnvelope.ok, true);
-  assert.equal(firstEnvelope.result.product, "dev-flow");
+  assert.equal(firstEnvelope.result.product, "taskbelay");
 
-  const getTaskName = "mcp__gate_core__dev_flow_get_task";
+  const getTaskName = "mcp__gate_core__taskbelay_get_task";
   const definition = first.ctx.tools.get(getTaskName);
   assert.notEqual(definition, undefined);
   const domain = await execute(first.ctx, getTaskName, { host: "deepseek", task_id: "missing-task" });
@@ -48,7 +48,7 @@ test("official MCP client preserves complete Core success and distinguishes doma
   await first.dispose();
 
   const second = await mountMcp(stack, fixtureConfig(fixturePath, root, "gate_core"));
-  const reread = await execute(second.ctx, "mcp__gate_core__dev_flow_server_info", {});
+  const reread = await execute(second.ctx, "mcp__gate_core__taskbelay_server_info", {});
   const rereadEnvelope = parseSingleTextEnvelope(reread);
   assert.deepEqual(rereadEnvelope.result, firstEnvelope.result);
   t.diagnostic(JSON.stringify({
@@ -84,7 +84,7 @@ test("official MCP client preserves canonical JSON from ordinary size through th
 });
 
 test("current DSH spill stack retains canonical values and retrieves byte-identical full results", {
-  skip: exactGateModules === undefined ? "set DEV_FLOW_DSH_GATE_NODE_MODULES for the one exact spill gate" : false,
+  skip: exactGateModules === undefined ? "set TASKBELAY_DSH_GATE_NODE_MODULES for the one exact spill gate" : false,
 }, async (t) => {
   const root = await temporaryRoot(t, "spill");
   const spillRoot = join(root, "spill-store");
@@ -216,7 +216,7 @@ function executionContext(callId) {
   return Object.freeze({
     callId,
     rootCallId: callId,
-    name: "mcp__gate_core__dev_flow_get_task",
+    name: "mcp__gate_core__taskbelay_get_task",
     arguments: Object.freeze({ host: "deepseek", task_id: "missing-task" }),
     signal,
     token: Symbol(callId),
@@ -226,7 +226,7 @@ function executionContext(callId) {
 }
 
 function spillAgent() {
-  return { session: { header: { id: "dev-flow-result-gate" } } };
+  return { session: { header: { id: "taskbelay-result-gate" } } };
 }
 
 function parseSingleTextEnvelope(result) {
@@ -277,29 +277,29 @@ async function writeFixtureServer(root, require) {
 import { McpServer } from ${JSON.stringify(mcpUrl)};
 import { StdioServerTransport } from ${JSON.stringify(stdioUrl)};
 import { z } from ${JSON.stringify(zodUrl)};
-const server = new McpServer({ name: "dev-flow-result-gate", version: "1.0.0" });
-server.registerTool("dev_flow_server_info", {
+const server = new McpServer({ name: "taskbelay-result-gate", version: "1.0.0" });
+server.registerTool("taskbelay_server_info", {
   description: "Returns the bounded Core handshake envelope used by the direct bridge gate.",
   inputSchema: {},
 }, async () => {
   const structuredContent = {
     ok: true,
     request_id: "fixture-server-info",
-    tool: "dev_flow_server_info",
+    tool: "taskbelay_server_info",
     result: {
-      product: "dev-flow",
+      product: "taskbelay",
     },
   };
   return { content: [{ type: "text", text: JSON.stringify(structuredContent) }], structuredContent };
 });
-server.registerTool("dev_flow_get_task", {
+server.registerTool("taskbelay_get_task", {
   description: "Returns a stable Core-style domain error for a missing task.",
   inputSchema: { host: z.string(), task_id: z.string() },
 }, async () => {
   const domainError = {
     ok: false,
     request_id: "fixture-missing-task",
-    tool: "dev_flow_get_task",
+    tool: "taskbelay_get_task",
     error: { code: "TASK_NOT_FOUND", message: "task not found", details: {} },
     recovery: { retry_safe: false },
   };
@@ -344,7 +344,7 @@ async function importResolved(require, specifier) {
 }
 
 async function temporaryRoot(t, name) {
-  const root = await realpath(await mkdtemp(join(tmpdir(), `dev-flow-${name}-gate-`)));
+  const root = await realpath(await mkdtemp(join(tmpdir(), `taskbelay-${name}-gate-`)));
   t.after(() => rm(root, { recursive: true, force: true }));
   return root;
 }

@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Innocent-children/dev-flow/internal/application"
-	"github.com/Innocent-children/dev-flow/internal/domain"
-	"github.com/Innocent-children/dev-flow/internal/repository"
-	"github.com/Innocent-children/dev-flow/internal/store"
+	"github.com/Innocent-children/taskbelay/internal/application"
+	"github.com/Innocent-children/taskbelay/internal/domain"
+	"github.com/Innocent-children/taskbelay/internal/repository"
+	"github.com/Innocent-children/taskbelay/internal/store"
 )
 
 func TestCurrentStorageBoundaryJourney(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCurrentStorageBoundaryJourney(t *testing.T) {
 		root := t.TempDir()
 		repoPath := filepath.Join(root, "repository")
 		origin := initializeDedicatedJourneyWorktree(t, repoPath, "task/storage", "receipt-storage")
-		dbPath := filepath.Join(root, "data", "dev-flow.db")
+		dbPath := filepath.Join(root, "data", "taskbelay.db")
 		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 			t.Fatal(err)
 		}
