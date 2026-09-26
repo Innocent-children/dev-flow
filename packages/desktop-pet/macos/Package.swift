@@ -14,6 +14,7 @@ let package = Package(
         .executableTarget(
             name: "TaskBelayPet",
             path: "Sources/TaskBelayPet",
+            resources: [.process("Resources")],
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]

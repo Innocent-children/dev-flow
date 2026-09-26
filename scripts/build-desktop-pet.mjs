@@ -2,7 +2,7 @@
 
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, copyFile, cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -73,6 +73,11 @@ export async function verifyDesktopPet(application) {
     await runDesktopPetCommand("/usr/bin/plutil", ["-lint", join(contents, "Resources", `${locale}.lproj`, "InfoPlist.strings")]);
   }
   const assets = await verifyDefaultArtwork(join(contents, "Resources"));
+  const icon = "TaskBelayPet_TaskBelayPet.bundle/Contents/Resources/taskbelay-menu-bar.svg";
+  const iconSource = join(repositoryRoot, "packages/desktop-pet/macos/Sources/TaskBelayPet/Resources/taskbelay-menu-bar.svg");
+  if (!(await readFile(join(contents, "Resources", icon))).equals(await readFile(iconSource))) {
+    throw new Error("desktop pet menu bar icon differs from its source");
+  }
   await runDesktopPetCommand("/usr/bin/codesign", ["--verify", "--deep", "--strict", application]);
   return assets;
 }
@@ -96,6 +101,8 @@ export async function buildMacDesktopApplication({ application, work, version })
   await writeFile(join(contents, "Info.plist"), plist(version));
   process.stdout.write("desktop-pet: assembling the default artwork and language resources\n");
   await stageDefaultArtwork(resources);
+  await cp(join(binPath.trim(), "TaskBelayPet_TaskBelayPet.bundle"),
+    join(resources, "TaskBelayPet_TaskBelayPet.bundle"), { recursive: true });
   for (const [locale, name] of [["en", "TaskBelay Desktop Pet"], ["zh-Hans", "TaskBelay 桌面宠物"]]) {
     const directory = join(resources, `${locale}.lproj`);
     await mkdir(directory, { recursive: true });

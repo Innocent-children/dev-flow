@@ -102,7 +102,7 @@ Reimport the same source folder to update a custom appearance. Switching appeara
 
 ## Task selection and basic controls
 
-The macOS menu bar entry uses the small TaskBelay mark with guardrails and a terminal. Its monochrome 18 pt vector icon is tinted by the system for the menu bar appearance and selection state. The Windows tray uses the same small mark in blue and cyan.
+The macOS menu bar entry uses TaskBelay’s circular TB monogram as a monochrome 18 pt vector icon, tinted by the system for the menu bar appearance and selection state. The Windows tray uses the same TB monogram on a light yellow-green background, matching the WebUI app icon.
 
 By default, up to three task bubbles overlap: the front bubble shows the focused task, with the outlines of other task cards behind it. The footer shows unfinished and blocked counts, plus a count for additional tasks. Hover or click the count to expand a scrollable list; each bubble opens its own task WebUI.
 
