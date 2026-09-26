@@ -9,8 +9,8 @@
     "core_version": "0.19.3"
   },
   "claude": {
-    "version": "0.1.1",
-    "core_version": "0.18.0"
+    "version": "0.1.2",
+    "core_version": "0.19.3"
   },
   "zcode": {
     "version": "0.1.1",
