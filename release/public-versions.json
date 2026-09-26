@@ -5,8 +5,8 @@
     "core_version": "0.19.3"
   },
   "deepseek": {
-    "version": "0.10.2",
-    "core_version": "0.18.0"
+    "version": "0.10.3",
+    "core_version": "0.19.3"
   },
   "claude": {
     "version": "0.1.1",
