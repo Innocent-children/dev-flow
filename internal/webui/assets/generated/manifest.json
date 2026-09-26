@@ -1,6 +1,6 @@
 {
   "index.html": {
-    "file": "assets/index-NiUNd_Ht.js",
+    "file": "assets/index-Dxet7iRs.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -8,11 +8,16 @@
       "assets/index-D4HxSYuq.css"
     ],
     "assets": [
-      "assets/taskbelay-mark-32-Cj-1MMuy.svg"
+      "assets/taskbelay-mark-32-CdLT9waw.svg",
+      "assets/taskbelay-mark-32-dark-DxKCy4FF.svg"
     ]
   },
+  "src/assets/taskbelay-mark-32-dark.svg": {
+    "file": "assets/taskbelay-mark-32-dark-DxKCy4FF.svg",
+    "src": "src/assets/taskbelay-mark-32-dark.svg"
+  },
   "src/assets/taskbelay-mark-32.svg": {
-    "file": "assets/taskbelay-mark-32-Cj-1MMuy.svg",
+    "file": "assets/taskbelay-mark-32-CdLT9waw.svg",
     "src": "src/assets/taskbelay-mark-32.svg"
   }
 }

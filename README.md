@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="packages/webui/src/assets/taskbelay-app-icon-light.svg" width="112" height="112" alt="TaskBelay icon" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="packages/webui/src/assets/taskbelay-wordmark-dark.svg" />
+    <img src="packages/webui/src/assets/taskbelay-wordmark.svg" width="360" height="180" alt="TaskBelay" />
+  </picture>
 </p>
 
 <h1 align="center">TaskBelay</h1>

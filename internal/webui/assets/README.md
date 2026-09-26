@@ -9,6 +9,8 @@ pnpm, Vite and an external asset service are build-time responsibilities only.
 Edit frontend source under `packages/webui/` and regenerate the bundle through the repository build command. Generated
 files record build output and are not a source-authority surface.
 
-Repository-owned brand SVGs live under `packages/webui/src/assets/`. The root and package README headers use
-`taskbelay-app-icon-light.svg`. The shell and favicon import `taskbelay-mark-32.svg`, the simplified guardrail-and-terminal
-mark for small sizes, which Vite copies in hashed form into this generated boundary.
+Repository-owned brand SVGs live under `packages/webui/src/assets/`. Root README headers use the serif
+`taskbelay-wordmark.svg` and `taskbelay-wordmark-dark.svg`; package README headers use
+`taskbelay-app-icon-light.svg`. The shell and favicon use the circular TB mark in `taskbelay-mark-32.svg`
+and `taskbelay-mark-32-dark.svg`, selected by the system color scheme. Vite copies the runtime marks in
+hashed form into this generated boundary.

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { AppLink, currentRoute } from "../app/router";
 import { getSystemStatus, Readiness } from "../lib/api";
 import taskBelayMark from "../assets/taskbelay-mark-32.svg";
+import taskBelayMarkDark from "../assets/taskbelay-mark-32-dark.svg";
 import { readinessKey, useI18n } from "../lib/i18n";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -29,7 +30,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-frame">
         <aside className="sidebar">
           <AppLink href="/" className="brand" aria-label={t("shell.dashboardAria")}>
-            <img className="brand-mark" src={taskBelayMark} alt="" />
+            <picture>
+              <source media="(prefers-color-scheme: dark)" srcSet={taskBelayMarkDark} />
+              <img className="brand-mark" src={taskBelayMark} alt="" />
+            </picture>
             <span className="brand-copy"><strong>TaskBelay</strong><small>{t("shell.subtitle")}</small></span>
           </AppLink>
           <nav aria-label={t("shell.navAria")}>
