@@ -36,7 +36,7 @@ bypass list 的专用 GitHub App 短期 token，所有产品共用一个串行�
 变量 `RELEASE_APP_CLIENT_ID`，完整 PEM 私钥存在仓库 secret `RELEASE_APP_PRIVATE_KEY`。
 
 工作流上传 runner 临时发布目录中的构建产物；同输入重跑时由 Publisher 回读并复用匹配的远端状态。
-Claude/ZCode 首次启用前还需确认 npm 包所有权、首次发布条件和认证方式，并分别完成 Trusted Publisher 配置；源码中的发布选项不代表这些外部配置已经完成。详见 [Release Ownership](../release/README.md)。
+每个产品发布前须核对 npm 包所有权与 Trusted Publisher 配置；工作流不负责修改 npm 账号设置。详见 [Release Ownership](../release/README.md)。
 
 ```bash
 pnpm run release:codex -- \

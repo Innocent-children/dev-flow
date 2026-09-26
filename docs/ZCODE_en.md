@@ -2,11 +2,21 @@
 
 [中文](ZCODE.md) | [English](ZCODE_en.md)
 
-This guide covers the native TaskBelay plugin for Zhipu ZCode. The Adapter is available through source or local development packages, with no published stable npm installation entry yet. Targets are Windows x64 and macOS arm64; native macOS validation remains pending. See the [support matrix](SUPPORT-MATRIX_en.md) for actual records.
+This guide covers the native TaskBelay plugin for Zhipu ZCode. The Adapter is published as `taskbelay-zcode@latest`. Targets are Windows x64 and macOS arm64; native macOS validation remains pending. See the [support matrix](SUPPORT-MATRIX_en.md) for actual records.
 
 ## Install and enable
 
 Use Node.js `>=24`, Git and a ZCode installation providing native plugins, Skills, MCP and Hooks. Complete ZCode's own sign-in and permission setup.
+
+Install from npm:
+
+```sh
+npm install --global taskbelay@latest
+taskbelay install --host zcode --yes
+taskbelay status --host zcode
+```
+
+The manager returns the local marketplace path and required ZCode UI steps. Check the support matrix for verified environments.
 
 Source installation also requires Go `>=1.26` and pnpm `>=11 <12`. Run from the repository root:
 
@@ -16,7 +26,7 @@ node packages/taskbelay/bin/taskbelay.mjs status --host zcode
 node packages/taskbelay/bin/taskbelay.mjs doctor --host zcode
 ```
 
-The source entry builds local packages and uses the current manager; it does not upgrade an existing global `taskbelay`. If a maintainer supplies a local tarball, install it without compiling Go:
+The source entry builds local packages through the repository manager. If a maintainer supplies a local tarball, install it without compiling Go:
 
 ```sh
 npm install --global "<path-to-taskbelay-zcode.tgz>"

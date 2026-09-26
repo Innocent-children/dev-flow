@@ -2,11 +2,21 @@
 
 [中文](ZCODE.md) | [English](ZCODE_en.md)
 
-本指南适用于智谱 ZCode 的 TaskBelay 原生插件。Adapter 目前通过源码或本地开发包提供，尚无已发布的稳定 npm 安装入口。目标平台为 Windows x64 和 macOS arm64；macOS 实机验证留待后续。实际记录见[支持矩阵](SUPPORT-MATRIX.md)。
+本指南适用于智谱 ZCode 的 TaskBelay 原生插件。Adapter 已作为 `taskbelay-zcode@latest` 发布。目标平台为 Windows x64 和 macOS arm64；macOS 实机验证留待后续。实际记录见[支持矩阵](SUPPORT-MATRIX.md)。
 
 ## 安装与启用
 
 需要 Node.js `>=24`、Git，以及提供原生插件、Skills、MCP 和 Hooks 的 ZCode。按 ZCode 自身提示完成登录与权限设置。
+
+从 npm 安装：
+
+```sh
+npm install --global taskbelay@latest
+taskbelay install --host zcode --yes
+taskbelay status --host zcode
+```
+
+管理器会返回本地 marketplace 路径和需要在 ZCode 界面完成的步骤；已验证的环境见支持矩阵。
 
 源码安装另外需要 Go `>=1.26` 和 pnpm `>=11 <12`。在仓库根目录执行：
 
@@ -16,7 +26,7 @@ node packages/taskbelay/bin/taskbelay.mjs status --host zcode
 node packages/taskbelay/bin/taskbelay.mjs doctor --host zcode
 ```
 
-源码命令构建本地包并使用当前管理器，不会更新已有的全局 `taskbelay`。如有维护者提供的本地 tarball，可以不编译 Go，直接安装：
+源码命令通过仓库管理器构建本地包。如有维护者提供的本地 tarball，可以不编译 Go，直接安装：
 
 ```sh
 npm install --global "<taskbelay-zcode包路径.tgz>"

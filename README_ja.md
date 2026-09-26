@@ -36,14 +36,12 @@ Codex、DeepSeek、Claude Code、ZCode と組み合わせて使います。コ�
 
 ### 1. TaskBelay をインストールする
 
-以下の npm コマンドは TaskBelay のパッケージ名を使用するため、各パッケージの公開後に利用できます。初回公開までは[ローカルのソースインストーラー](scripts/README_en.md#local-installation-testing)を使い、[Codex](docs/CODEX_en.md)、[DeepSeek](docs/DEEPSEEK_en.md)、[Claude Code](docs/CLAUDE_en.md)、[ZCode](docs/ZCODE_en.md) の有効化手順に従ってください。ローカルパッケージは Windows x64 と macOS arm64 を対象とし、macOS 上の ZCode の実機検証は未完了です。
+TaskBelay をインストールしたら、[Codex](docs/CODEX_en.md)、[DeepSeek](docs/DEEPSEEK_en.md)、[Claude Code](docs/CLAUDE_en.md)、[ZCode](docs/ZCODE_en.md) の手順に従って利用する Host を有効にしてください。パッケージは Windows x64 と macOS arm64 に対応しています。macOS 上の ZCode の実機検証は未完了です。
 
 ```sh
 npm install -g taskbelay@latest
 taskbelay
 ```
-
-以前に `@imotong/taskbelay` をグローバルインストールした場合は、`taskbelay` のインストール前に `npm uninstall -g @imotong/taskbelay` を実行してください。両パッケージが同じコマンドを提供します。保存済みの Task データは削除されません。
 
 利用するインストーラーの選択肢から対応する Host を選びます。Codex は `/hooks` で TaskBelay hook を確認して信頼し、DeepSeek は選択した Profile を再起動します。Claude Code はプラグインを再読み込みするか新しい会話を開始し、権限の案内を確認してください。
 

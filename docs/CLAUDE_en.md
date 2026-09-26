@@ -6,7 +6,17 @@ This guide covers installing the Claude Code integration, starting or resuming t
 
 ## Choose an installation method
 
-The Claude Adapter is currently available through source or local development packages. It requires Node.js `>=24`, Git and Claude Code `>=2.1.270`. Follow Claude Code's sign-in prompts before starting development work. Runtime targets are Windows x64 and macOS arm64; the support matrix identifies what has actually been verified.
+The Claude Adapter is published as `taskbelay-claude@latest`. It requires Node.js `>=24`, Git and Claude Code `>=2.1.270`. Follow Claude Code's sign-in prompts before starting development work. Runtime targets are Windows x64 and macOS arm64; the support matrix identifies what has actually been verified.
+
+### Install from npm
+
+```sh
+npm install --global taskbelay@latest
+taskbelay install --host claude --yes
+taskbelay status --host claude
+```
+
+The manager installs the Adapter. Reload Claude plugins or start a new session, then review the permission prompts. Check the support matrix for verified environments.
 
 ### Install from this repository
 
@@ -85,7 +95,7 @@ node packages/taskbelay/bin/taskbelay.mjs webui stop
 pnpm taskbelay:local -- repair --host claude --yes
 ```
 
-WebUI can filter Claude Code tasks and display their saved state. Source maintenance rebuilds local packages; do not substitute an older global CLI's `latest` installation route. If you installed a complete development distribution containing the current manager, use the `taskbelay` command supplied by that distribution.
+WebUI can filter Claude Code tasks and display their saved state. Use `taskbelay` to maintain an npm installation; source maintenance rebuilds local packages through the repository entry point.
 
 The pet also requires an installed desktop application; Adapter `ready` status alone does not establish pet availability. See the [desktop pet guide](DESKTOP-PETS_en.md).
 

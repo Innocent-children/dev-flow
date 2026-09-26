@@ -2,7 +2,7 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_Last checked: September 24, 2026._
+_Last checked: September 26, 2026._
 
 TaskBelay remains an early open-source project. This page separates stable releases, beta or source
 capabilities, unverified claims, and product gaps. A buildable source tree or passing tests do not
@@ -10,7 +10,7 @@ expand stable support automatically.
 
 ## Publication status
 
-TaskBelay package publication and installation checks belong to the standalone release process. The table below retains each component’s previously verified environment; it does not establish that packages under the TaskBelay names have been published or verified. Before the first release, use the [local source installer](../scripts/README_en.md#local-installation-testing) and the activation instructions in the Host guides.
+The table lists published packages and the environments checked for their components. Hosts and platforms not listed here are not automatically stable; see the Host guides for installation.
 
 | TaskBelay package name | Verified environment |
 | --- | --- |
@@ -48,7 +48,7 @@ presence also does not imply a corresponding end-to-end test of a stable package
 
 ## ZCode acceptance scope
 
-ZCode is a distinct Host Adapter in the current source, targeting Windows x64 and macOS arm64. Source and local packages do not establish a stable npm release. Automated records should distinguish Core identity and cross-Host rejection, workspace preparation and resume, unified lifecycle, final packages, MCP and Write/Edit Hook checks. Package checks are not actual ZCode-session checks.
+ZCode is a distinct Host Adapter published as `taskbelay-zcode`, targeting Windows x64 and macOS arm64. Automated records should distinguish Core identity and cross-Host rejection, workspace preparation and resume, unified lifecycle, final packages, MCP and Write/Edit Hook checks. Package checks are not actual ZCode-session checks.
 
 Windows Host acceptance still requires UI plugin installation and enablement, Skill/MCP/Hook loading in a new session, planned and unplanned Write/Edit operations, Task creation and resume, and UI removal followed by session closure and confirmed cleanup. Where the client, authentication or UI operation is unavailable, record the exact unexecuted steps; an independent Core handshake is not a substitute.
 

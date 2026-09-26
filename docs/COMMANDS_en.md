@@ -27,8 +27,6 @@ npm install -g taskbelay@latest
 taskbelay
 ```
 
-If `@imotong/taskbelay` is already installed globally, run `npm uninstall -g @imotong/taskbelay` before installing `taskbelay`. Both packages provide the `taskbelay` command, so installing them together returns `EEXIST`. Uninstalling the old package preserves Task data.
-
 After installation, Codex uses `$taskbelay-codex:taskbelay <task description>` and DeepSeek Harness
 uses `/taskbelay <task description>`; Claude Code uses `/taskbelay-claude:taskbelay <task description>`. These are conversational Host selectors, not shell commands. In ZCode, select `taskbelay` from the input’s `/` → Skills menu before describing the task; see the [ZCode guide](ZCODE_en.md).
 
@@ -342,7 +340,7 @@ and verify repository group, HEAD, clean state, and the remote task branch befor
 
 ## Claude Code
 
-These commands are provided by the source/local `taskbelay-claude` package. See the [Host guide](CLAUDE_en.md) for installation. They are distinct from the version of the global manager installed through a public release.
+These commands are provided by the `taskbelay-claude` package. See the [Host guide](CLAUDE_en.md) for installation and Claude Code plugin activation.
 
 Implementation: `packages/claude/bin/taskbelay-claude.mjs`, `lib/lifecycle.mjs` and `lib/workspace.mjs`.
 
@@ -382,7 +380,7 @@ The selector is `/taskbelay-claude:taskbelay <task>`. `CLAUDE_CONFIG_DIR` select
 
 ## ZCode
 
-These entries come from the source or local `taskbelay-zcode` package; there is no stable npm installation entry yet. Install from source with `pnpm taskbelay:local -- install --host zcode --yes`; an older global manager does not provide the new Host option. Implementations are `packages/zcode/bin/taskbelay-zcode.mjs`, `lib/lifecycle.mjs`, `lib/workspace.mjs` and `hooks/pre-tool-use.mjs`. See the [ZCode guide](ZCODE_en.md) for user operations.
+These entries belong to the published `taskbelay-zcode` package. Install it with `taskbelay install --host zcode --yes`; the CLI prepares the local plugin source, and the [ZCode guide](ZCODE_en.md) covers the required UI installation and enablement. Implementations are `packages/zcode/bin/taskbelay-zcode.mjs`, `lib/lifecycle.mjs`, `lib/workspace.mjs` and `hooks/pre-tool-use.mjs`.
 
 | Command | Input and result |
 | --- | --- |
@@ -726,7 +724,7 @@ node scripts/build-host-release.mjs --product <codex|deepseek|claude|zcode> --ou
 
 `--channel` defaults to `stable`, accepts `MAJOR.MINOR.PATCH` and requires clean `main` synchronized with `origin/main`; `beta` accepts `MAJOR.MINOR.PATCH-beta.N` and uses a clean named branch. `--version` and `--confirm` are required, and confirmation must match the selected Host and version. `--output` is optional, defaulting to `taskbelay-releases/<host>-v<VERSION>` under the user's home directory; an explicit path must be absolute and outside the repository, and its parent must already exist. Fixed checks precede selected package and plugin/marketplace version updates. When version files change, the command commits and pushes them, then checks the resulting remote commit; only afterward does it prepare artifacts for publisher verification and publication. Only stable updates that Host's public-version entry.
 
-`build-host-release.mjs` only prepares and verifies the five-file artifact set containing both Core runtimes; it does not publish. `--product` and `--output` are required; the output must be an existing empty absolute directory outside the repository. Implementations are `scripts/release-<host>.mjs`, `release/host-command.mjs` and `scripts/build-host-release.mjs`. New release entrypoints do not mean Claude/ZCode have stable releases; maintainers must first complete the npm ownership, initial-publication and Trusted Publisher setup requirements. See [Release Ownership](../release/README.md) for the complete requirements and artifact format.
+`build-host-release.mjs` only prepares and verifies the five-file artifact set containing both Core runtimes; it does not publish. `--product` and `--output` are required; the output must be an existing empty absolute directory outside the repository. Implementations are `scripts/release-<host>.mjs`, `release/host-command.mjs` and `scripts/build-host-release.mjs`. Before each release, maintainers verify npm ownership, the selected package's Trusted Publisher and the exact version. See [Release Ownership](../release/README.md) for the complete requirements and artifact format.
 
 ### Formal desktop package preparation
 

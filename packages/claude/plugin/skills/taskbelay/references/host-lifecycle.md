@@ -7,8 +7,8 @@ Implementation: `packages/claude/lib/lifecycle.mjs`; `packages/claude/lib/worksp
 Use `taskbelay-claude status --json` to inspect the package/Core versions, receipt, user-scope
 marketplace/plugin registration and cached package contents. `ready` means these installation checks
 passed; it does not establish model sign-in or Task completion. A `partial` result requires diagnosis
-before starting a Task. Preserve the original result or error and repair through the installation's
-source or local-package route.
+before starting a Task. Preserve the original result or error and use the maintenance commands for
+the installed package.
 
 After the required authorization, `taskbelay-claude setup --json` registers the owned local
 marketplace/plugin, replaces mismatched cached contents and verifies the result. Reload Claude

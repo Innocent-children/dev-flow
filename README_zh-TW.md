@@ -36,14 +36,12 @@ Belay 是攀岩中的繩索確保：攀登者自行選擇路線，確保者控�
 
 ### 1. 安裝 TaskBelay
 
-以下 npm 命令使用 TaskBelay 套件名稱，需要相應套件完成發布。首次發布前使用[原始碼本機安裝](scripts/README.md#本地安装测试)，再依 [Codex](packages/codex/README.md)、[DeepSeek](packages/deepseek/README.md)、[Claude Code](docs/CLAUDE.md) 或 [ZCode](docs/ZCODE.md) 指南啟用對應 Host。本機套件面向 Windows x64 和 macOS arm64；macOS ZCode 實機驗證仍待完成。
+安裝 TaskBelay 後，依 [Codex](packages/codex/README.md)、[DeepSeek](packages/deepseek/README.md)、[Claude Code](docs/CLAUDE.md) 或 [ZCode](docs/ZCODE.md) 指南啟用對應 Host。安裝套件面向 Windows x64 和 macOS arm64；macOS ZCode 實機驗證仍待完成。
 
 ```sh
 npm install -g taskbelay@latest
 taskbelay
 ```
-
-如果已全域安裝 `@imotong/taskbelay`，請先執行 `npm uninstall -g @imotong/taskbelay`，再安裝 `taskbelay`：兩個套件都提供同名命令。已儲存的 Task 資料不會因此刪除。
 
 在所用安裝入口中選擇對應 Host。Codex 安裝後在 `/hooks` 檢查並信任 TaskBelay hook；DeepSeek 重新啟動所選 Profile；Claude Code 重新載入外掛或開始新會話，並依提示審閱權限。
 

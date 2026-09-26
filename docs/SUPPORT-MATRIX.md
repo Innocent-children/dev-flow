@@ -2,13 +2,13 @@
 
 [中文](SUPPORT-MATRIX.md) | [English](SUPPORT-MATRIX_en.md)
 
-本页只回答一个问题：**哪个公开 package 已经在哪个环境完成验证？**
+本页列出公开 package、已验证的环境和仍待完成的检查。
 
 源码可以构建、测试通过或 beta package 已经发布，都不能单独扩大稳定支持声明。
 
 ## 发布与验证范围
 
-TaskBelay 包名的发布与安装验证须通过独立发布流程完成。下表保留各组件此前已验证的环境，不表示新包名已发布或通过安装验证。首次发布前，请使用[源码本地安装](../scripts/README.md#本地安装测试)，再按各 Host 指南启用。
+下表列出已发布的 package 及其组件已记录的环境验证范围。具体检查和待验证的流程见下文；安装与启用步骤见各 Host 指南。
 
 | TaskBelay 包名 | 平台 | Host 兼容范围 | 发布入口 |
 | --- | --- | --- | --- |
@@ -37,14 +37,14 @@ npm manifest 需要分别列出允许的 OS 和 CPU，因此安装层可能接�
 
 ### Claude Code
 
-`release/public-versions.json` 尚未列入 Claude Adapter。本节记录源码范围，不扩大上方的稳定支持声明。
+`taskbelay-claude` 已发布。本节列出组件验证范围；完整的模型开发会话仍未验证，不扩大上方的稳定支持声明。
 
 | 平台 | 实现目标与构建 | 原生验证 | 未验证 |
 | --- | --- | --- | --- |
 | Windows x64 | 包含对应 Core 和 Claude Adapter | Claude CLI 插件安装、缓存核对、重复安装/移除；包内 Core 的独立 stdio 握手 | 已认证模型开发会话及从模型发起的完整工作流 |
 | macOS arm64 | 已生成包含两个平台 Core 的本地 Adapter 包 | Claude CLI 插件安装、缓存逐文件核对、重复安装/移除及包内独立 Core 握手；真实 Core/Git 的单仓库与多仓库创建、迁移、恢复 | 已认证模型开发会话及从模型发起的完整工作流 |
 
-Windows 原生记录对应 2026-09-14 产物；2026-09-19 的统一管理器维护改动在 macOS 上进行了 Windows 平台分支模拟，尚未进行原生 Windows 复验。macOS 原生检查使用 Claude Code 2.1.274，不涉及稳定包发布。
+Windows 原生记录对应 2026-09-14 产物；2026-09-19 的统一管理器维护改动在 macOS 上进行了 Windows 平台分支模拟，尚未进行原生 Windows 复验。macOS 原生检查使用 Claude Code 2.1.274，未涵盖从 npm 下载并安装的最终包。
 
 2026-09-20 的职责与恢复修正完成源码定向检查；macOS 进程停止使用隔离测试进程，Windows 仍为命令模拟。该次检查未重新执行真实 Claude 安装或模型会话，不替代上表的产物验证；范围见[验证记录](PROJECT-STATUS.md)。
 
@@ -52,7 +52,7 @@ Adapter 要求 Node.js `>=24` 和 Claude Code `>=2.1.270`。安装方法见 [Cla
 
 ### ZCode
 
-ZCode Adapter 通过源码或本地开发包提供，不在当前稳定发布清单中。要求 Node.js `>=24`、Git 和具备原生插件、Skills、MCP、Hooks 的 ZCode。
+`taskbelay-zcode` 已发布。Adapter 要求 Node.js `>=24`、Git 和具备原生插件、Skills、MCP、Hooks 的 ZCode；以下检查范围不扩大上方的稳定支持声明。
 
 | 平台 | 当前实现目标 | 验证边界 |
 | --- | --- | --- |

@@ -2,17 +2,19 @@
 
 TaskBelay preserves a development task's requirements, file scope, verification plan and progress across ZCode sessions. The Go Core remains the authority for its saved state.
 
-This Adapter requires Node.js `>=24`, Git and ZCode with native plugins, local stdio MCP and process hooks. It targets Windows x64 and macOS arm64. Check the [verified platform coverage](https://github.com/Innocent-children/taskbelay/blob/main/docs/SUPPORT-MATRIX_en.md); macOS device verification is pending. Distribution currently uses source builds or local development packages.
+This Adapter requires Node.js `>=24`, Git and ZCode with native plugins, local stdio MCP and process hooks. It targets Windows x64 and macOS arm64. Check the [support matrix](https://github.com/Innocent-children/taskbelay/blob/main/docs/SUPPORT-MATRIX_en.md) for platform verification and remaining limits; macOS device verification is pending.
 
 ## Install and activate
 
-For a local Adapter package supplied by a maintainer:
+Install the published Adapter:
 
 ```sh
-npm install --global "<path-to-taskbelay-zcode.tgz>"
+npm install --global taskbelay-zcode@latest
 taskbelay-zcode setup --json
 taskbelay-zcode status --json
 ```
+
+For a maintainer-provided local tarball, replace `taskbelay-zcode@latest` with its path.
 
 Setup returns `action_required` and the local marketplace path. Open a ZCode workspace, then Settings → Plugins → Create → Add marketplace. Add that file, install and enable `taskbelay-zcode` from `taskbelay-zcode-local`, and start a new session. Check the Skill, plugin MCP server and Write/Edit Hook in ZCode. The CLI verifies the local package; it cannot verify the client has installed or loaded it. `partial` requires fixing local setup first.
 
@@ -26,7 +28,7 @@ To resume, reopen the original workspace and ask the Skill to continue the saved
 
 ## Maintain and remove
 
-After updating local package files, refresh the marketplace in ZCode. If the package version is unchanged, uninstall and reinstall the plugin so its cached files are replaced. Start a new session for the current Hook configuration.
+For local package builds, refresh the marketplace in ZCode after updating package files. If the package version is unchanged, uninstall and reinstall the plugin so its cached files are replaced. Start a new session for the current Hook configuration.
 
 Ordinary removal retains Task data, workspaces and unrelated settings:
 

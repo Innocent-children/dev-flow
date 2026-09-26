@@ -15,9 +15,7 @@ npm install -g taskbelay@latest
 taskbelay
 ```
 
-If `@imotong/taskbelay` is already installed globally, run `npm uninstall -g @imotong/taskbelay` first. Both packages provide the `taskbelay` command; removing the old package preserves Task data.
-
-Check the [support matrix](https://github.com/Innocent-children/taskbelay/blob/main/docs/SUPPORT-MATRIX_en.md) for released Host and platform coverage. The current source also includes Claude Code and ZCode. Follow the [Claude](https://github.com/Innocent-children/taskbelay/blob/main/docs/CLAUDE_en.md) or [ZCode](https://github.com/Innocent-children/taskbelay/blob/main/docs/ZCODE_en.md) source installation guide, or use a complete local development distribution that includes the current manager. An older public CLI does not acquire new Host options simply because a newer Adapter is installed.
+Check the [support matrix](https://github.com/Innocent-children/taskbelay/blob/main/docs/SUPPORT-MATRIX_en.md) for verified Host and platform coverage. Follow the [Claude](https://github.com/Innocent-children/taskbelay/blob/main/docs/CLAUDE_en.md) or [ZCode](https://github.com/Innocent-children/taskbelay/blob/main/docs/ZCODE_en.md) guide for their setup and required UI steps.
 
 The manager targets macOS arm64 and Windows 10/11 desktop x64. Other OS/CPU combinations are rejected by its runtime selection. Source setup and build requirements are documented separately from public installation.
 

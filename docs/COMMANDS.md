@@ -21,8 +21,6 @@ npm install -g taskbelay@latest
 taskbelay
 ```
 
-如果此前全局安装了 `@imotong/taskbelay`，先执行 `npm uninstall -g @imotong/taskbelay`，再安装 `taskbelay`；两个包都提供 `taskbelay` 命令，同时安装会产生 `EEXIST`。卸载旧包保留 Task 数据。
-
 安装后，Codex 使用 `$taskbelay-codex:taskbelay <任务描述>`，DeepSeek Harness 使用
 `/taskbelay <任务描述>`，Claude Code 使用 `/taskbelay-claude:taskbelay <任务描述>`。这些是 Host 对话 selector，不是 shell 命令。ZCode 在输入框的 `/` → Skills 中选择 `taskbelay` 后描述任务，见 [ZCode 指南](ZCODE.md)。
 
@@ -316,7 +314,7 @@ clean 和远端 task branch 后才使用非 force Git 命令。
 
 ## Claude Code
 
-这些命令由源码或本地 `taskbelay-claude` 包提供，安装方式见 [Host 指南](CLAUDE.md)。它们与机器上通过公开发布安装的全局管理器版本分别判断。
+这些命令由 `taskbelay-claude` 包提供。安装方式和 Claude Code 插件启用步骤见 [Host 指南](CLAUDE.md)。
 
 实现入口：`packages/claude/bin/taskbelay-claude.mjs`、`lib/lifecycle.mjs`、`lib/workspace.mjs`。
 
@@ -356,7 +354,7 @@ clean 和远端 task branch 后才使用非 force Git 命令。
 
 ## ZCode
 
-本节由源码或本地 `taskbelay-zcode` 包提供，尚无稳定 npm 安装入口。源码安装使用 `pnpm taskbelay:local -- install --host zcode --yes`；旧版全局管理器不提供新的 Host 选项。实现来自 `packages/zcode/bin/taskbelay-zcode.mjs`、`lib/lifecycle.mjs`、`lib/workspace.mjs` 和 `hooks/pre-tool-use.mjs`。用户操作见 [ZCode 指南](ZCODE.md)。
+本节对应已发布的 `taskbelay-zcode` 包。可用 `taskbelay install --host zcode --yes` 安装；CLI 只准备本地插件来源，还需按 [ZCode 指南](ZCODE.md) 在界面中安装并启用插件。实现来自 `packages/zcode/bin/taskbelay-zcode.mjs`、`lib/lifecycle.mjs`、`lib/workspace.mjs` 和 `hooks/pre-tool-use.mjs`。
 
 | 命令 | 输入与结果 |
 | --- | --- |
@@ -676,7 +674,7 @@ node scripts/build-host-release.mjs --product <codex|deepseek|claude|zcode> --ou
 
 发布命令的 `--channel` 默认为 `stable`，接受 `MAJOR.MINOR.PATCH`，要求干净且与 `origin/main` 同步的 `main`；`beta` 接受 `MAJOR.MINOR.PATCH-beta.N`，使用干净的命名分支。`--version` 和 `--confirm` 必填，确认内容必须对应所选 Host 与版本。`--output` 可省略，默认使用用户目录下的 `taskbelay-releases/<host>-v<VERSION>`；显式目录须为仓库外绝对路径，父目录必须已经存在。发布前执行固定检查，随后对齐所选 package 与 plugin/marketplace 版本副本。有版本文件变化时先提交并推送，再核对推送后的远端提交；之后才构建产物并交给 publisher 核对与发布。只有 stable 更新对应公开版本条目。
 
-`build-host-release.mjs` 只制备和核对包含两个平台 Core 的五个产物文件，不执行发布；`--product` 和 `--output` 必填，输出须为已经存在的仓库外空绝对目录。源码入口来自 `scripts/release-<host>.mjs`、`release/host-command.mjs` 和 `scripts/build-host-release.mjs`。新增发布入口不表示 Claude/ZCode 已稳定发布；首次使用还需由维护者完成 npm 包所有权、首次发布和 Trusted Publisher 所需配置。完整要求与产物说明见[发布说明](../release/README.md)。
+`build-host-release.mjs` 只制备和核对包含两个平台 Core 的五个产物文件，不执行发布；`--product` 和 `--output` 必填，输出须为已经存在的仓库外空绝对目录。源码入口来自 `scripts/release-<host>.mjs`、`release/host-command.mjs` 和 `scripts/build-host-release.mjs`。每次发布前均需核对所选包的 npm 所有权、Trusted Publisher 和精确版本。完整要求与产物说明见[发布说明](../release/README.md)。
 
 ### 正式桌面包制备
 

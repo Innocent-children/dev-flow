@@ -2,14 +2,14 @@
 
 [中文](PROJECT-STATUS.md) | [English](PROJECT-STATUS_en.md)
 
-_最后核对：2026 年 9 月 24 日。_
+_最后核对：2026 年 9 月 26 日。_
 
 TaskBelay 仍是一个早期开源项目。本页区分已经稳定发布、只在 beta 或源码中出现、尚未验证，以及
 产品仍需改进的内容。源码可构建或测试通过不会自动扩大稳定支持。
 
 ## 发布状态
 
-TaskBelay 包名的发布与安装验证须通过独立发布流程完成。下表保留各组件此前已验证的环境，不表示新包名已发布或通过安装验证。首次发布前，请使用[源码本地安装](../scripts/README.md#本地安装测试)，再按各 Host 指南启用。
+下表列出已发布的 package 及其组件已记录的环境验证范围。未列出的 Host 或平台不自动视为稳定支持；安装步骤见各 Host 指南。
 
 | TaskBelay 包名 | 已验证环境 |
 | --- | --- |
@@ -46,7 +46,7 @@ TaskBelay 包名的发布与安装验证须通过独立发布流程完成。下�
 
 ## ZCode 验收范围
 
-ZCode 是当前源码提供的独立 Host Adapter，Windows x64 与 macOS arm64 为实现目标。源码与本地包不构成稳定 npm 发布。自动检查应分别记录 Core 身份与跨 Host 拒绝、工作区准备与恢复、统一生命周期、最终包、MCP 和 Write/Edit Hook；包级检查不能记为真实 ZCode 会话检查。
+ZCode 是独立的 Host Adapter，已通过 `taskbelay-zcode` 发布，Windows x64 与 macOS arm64 为实现目标。自动检查应分别记录 Core 身份与跨 Host 拒绝、工作区准备与恢复、统一生命周期、最终包、MCP 和 Write/Edit Hook；包级检查不能记为真实 ZCode 会话检查。
 
 Windows 真实 Host 验收仍须完成插件 UI 安装与启用、新会话加载 Skill/MCP/Hook、计划内与计划外 Write/Edit、任务创建与恢复，以及 UI 移除后的关闭会话和确认清理。缺少客户端、认证或界面操作能力时，记录具体未执行步骤，不用独立 Core 握手替代。
 

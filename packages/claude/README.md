@@ -2,17 +2,19 @@
 
 TaskBelay keeps a development task's requirements, file scope, verification plan and progress available across Claude Code sessions.
 
-This Adapter requires Node.js `>=24`, Git and Claude Code `>=2.1.270`. Check [availability and verified platforms](https://github.com/Innocent-children/taskbelay/blob/main/docs/SUPPORT-MATRIX_en.md) before installation. The Claude integration is currently distributed through source or local development packages.
+This Adapter requires Node.js `>=24`, Git and Claude Code `>=2.1.270`. Check the [support matrix](https://github.com/Innocent-children/taskbelay/blob/main/docs/SUPPORT-MATRIX_en.md) for platform verification and remaining limits.
 
 ## Install and verify
 
-For a local Adapter package supplied by a maintainer:
+Install the published Adapter:
 
 ```sh
-npm install --global "<path-to-taskbelay-claude.tgz>"
+npm install --global taskbelay-claude@latest
 taskbelay-claude setup --json
 taskbelay-claude status --json
 ```
+
+For a maintainer-provided local tarball, replace `taskbelay-claude@latest` with its path.
 
 Installation status should be `ready`. Reload Claude plugins or start a new session, review the permission prompts and complete Claude sign-in. This package provides the Adapter; the general `taskbelay` manager and desktop application are separate.
 
@@ -30,7 +32,7 @@ Review the assessment, choose the workspace and approve the complete plan before
 
 ## Maintain or remove
 
-Use the maintenance route associated with your installation; source builds and public packages have different availability. The [Host guide](https://github.com/Innocent-children/taskbelay/blob/main/docs/CLAUDE_en.md) covers diagnostics and maintenance.
+The [Host guide](https://github.com/Innocent-children/taskbelay/blob/main/docs/CLAUDE_en.md) covers diagnostics and maintenance, including the separate build steps for source installations.
 
 To remove only this Adapter, end its Claude sessions and stop any WebUI you started, then run:
 

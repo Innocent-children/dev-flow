@@ -37,14 +37,12 @@ precisam salvar o progresso, usar Codex, DeepSeek, Claude Code ou ZCode diretame
 
 ### 1. Instale o TaskBelay
 
-Estes comandos npm usam os nomes dos pacotes TaskBelay e exigem que eles estejam publicados. Antes da primeira publicação, use o [instalador local a partir do código-fonte](scripts/README_en.md#local-installation-testing) e siga as instruções de ativação para [Codex](docs/CODEX_en.md), [DeepSeek](docs/DEEPSEEK_en.md), [Claude Code](docs/CLAUDE_en.md) ou [ZCode](docs/ZCODE_en.md). Os pacotes locais se destinam a Windows x64 e macOS arm64; a validação nativa do ZCode no macOS continua pendente.
+Instale o TaskBelay e siga as instruções de ativação para [Codex](docs/CODEX_en.md), [DeepSeek](docs/DEEPSEEK_en.md), [Claude Code](docs/CLAUDE_en.md) ou [ZCode](docs/ZCODE_en.md). O pacote destina-se a Windows x64 e macOS arm64; a validação nativa do ZCode no macOS continua pendente.
 
 ```sh
 npm install -g taskbelay@latest
 taskbelay
 ```
-
-Se `@imotong/taskbelay` já estiver instalado globalmente, execute `npm uninstall -g @imotong/taskbelay` antes de instalar `taskbelay`: os dois pacotes fornecem o mesmo comando. Os dados salvos das Tasks permanecem intactos.
 
 Escolha seu Host entre as opções do instalador utilizado. No Codex, revise e autorize o hook do TaskBelay em `/hooks`; no DeepSeek, reinicie o Profile selecionado. No Claude Code, recarregue os plugins ou abra uma nova conversa e revise as permissões solicitadas.
 

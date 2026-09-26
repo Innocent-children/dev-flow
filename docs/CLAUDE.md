@@ -6,7 +6,17 @@
 
 ## 选择安装方式
 
-Claude Adapter 目前通过源码或本地开发包体验。它需要 Node.js `>=24`、Git 和 Claude Code `>=2.1.270`。开始开发任务前，按 Claude Code 自身的提示完成登录。目标平台为 Windows x64 和 macOS arm64；实际验证范围以支持矩阵为准。
+Claude Adapter 已作为 `taskbelay-claude@latest` 发布。它需要 Node.js `>=24`、Git 和 Claude Code `>=2.1.270`。开始开发任务前，按 Claude Code 自身的提示完成登录。目标平台为 Windows x64 和 macOS arm64；实际验证范围以支持矩阵为准。
+
+### 从 npm 安装
+
+```sh
+npm install --global taskbelay@latest
+taskbelay install --host claude --yes
+taskbelay status --host claude
+```
+
+管理器会安装 Adapter。随后重载 Claude 插件或开始新会话，并检查权限提示；已验证的环境见支持矩阵。
 
 ### 从仓库源码安装
 
@@ -85,7 +95,7 @@ node packages/taskbelay/bin/taskbelay.mjs webui stop
 pnpm taskbelay:local -- repair --host claude --yes
 ```
 
-WebUI 可以筛选 Claude Code 任务并查看其保存状态。源码维护命令会重新构建本地包；不要用旧版全局 CLI 的 `latest` 安装路径代替它。若使用的是包含当前管理器的完整开发包，则使用该包提供的 `taskbelay` 命令。
+WebUI 可以筛选 Claude Code 任务并查看其保存状态。通过 npm 安装时使用 `taskbelay` 维护；源码安装则通过仓库入口重新构建本地包。
 
 宠物另外需要安装桌面应用，不能仅凭 Adapter 的 `ready` 状态判断宠物可用。安装与操作见[桌面宠物指南](DESKTOP-PETS.md)。
 

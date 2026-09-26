@@ -2,14 +2,14 @@
 
 [中文](SUPPORT-MATRIX.md) | [English](SUPPORT-MATRIX_en.md)
 
-This page answers a narrow question: **which public package has been verified in which environment?**
+This page lists public packages, verified environments, and checks that remain open.
 
 A buildable source tree, a passing test, or a published beta package does not by itself expand the
 stable support claim.
 
 ## Publication and verification
 
-TaskBelay package publication and installation checks belong to the standalone release process. The table below retains each component’s previously verified environment; it does not establish that packages under the TaskBelay names have been published or verified. Before the first release, use the [local source installer](../scripts/README_en.md#local-installation-testing) and the activation instructions in the Host guides.
+The table lists published packages and the environments checked for their components. The checks and remaining workflow validation are described below; see the Host guides for installation and activation.
 
 | TaskBelay package name | Platform | Host compatibility | Publication entry point |
 | --- | --- | --- | --- |
@@ -40,14 +40,14 @@ independent release flow, downloading and checking registry package contents, an
 
 ### Claude Code
 
-`release/public-versions.json` does not yet list the Claude Adapter. This section records source coverage, not an extension of stable support above.
+`taskbelay-claude` is published. This section records component checks; complete model-driven development sessions remain unverified, so it does not expand the stable support claim above.
 
 | Platform | Implementation target and build | Native verification | Unverified |
 | --- | --- | --- | --- |
 | Windows x64 | Corresponding Core and Claude Adapter included | Claude CLI plugin installation, cache comparison and repeatable setup/removal; independent stdio handshake with packaged Core | Authenticated model development sessions and complete model-driven workflows |
 | macOS arm64 | Local Adapter package built with Core for both platforms | Claude CLI plugin installation, byte-for-byte cache comparison, repeatable setup/removal and independent packaged Core handshake; single- and multi-repository creation, relocation and resume with real Core/Git | Authenticated model development sessions and complete model-driven workflows |
 
-The native Windows record describes the 2026-09-14 artifact. The 2026-09-19 manager maintenance changes were checked through Windows platform-branch simulation on macOS, without a new native Windows run. Native macOS checks used Claude Code 2.1.274 and did not publish a stable package.
+The native Windows record describes the 2026-09-14 artifact. The 2026-09-19 manager maintenance changes were checked through Windows platform-branch simulation on macOS, without a new native Windows run. Native macOS checks used Claude Code 2.1.274 and did not cover the final package downloaded and installed from npm.
 
 The 2026-09-20 responsibility and recovery changes passed targeted source checks. macOS termination used isolated test processes; Windows remained command simulation. That run did not repeat real Claude installation or model sessions and does not replace the artifact verification above; see the [verification record](PROJECT-STATUS_en.md).
 
@@ -55,7 +55,7 @@ The Adapter requires Node.js `>=24` and Claude Code `>=2.1.270`. See the [Claude
 
 ### ZCode
 
-The ZCode Adapter is available through source or local development packages and is absent from the current stable release list. It requires Node.js `>=24`, Git and ZCode with native plugins, Skills, MCP and Hooks.
+`taskbelay-zcode` is published. The Adapter requires Node.js `>=24`, Git and ZCode with native plugins, Skills, MCP and Hooks. The checks below do not expand the stable support claim above.
 
 | Platform | Current implementation target | Verification boundary |
 | --- | --- | --- |

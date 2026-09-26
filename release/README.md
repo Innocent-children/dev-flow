@@ -3,8 +3,7 @@
 `release/` contains the current prepare/publish implementation and operator guidance. Generated output stays
 in an external operator-selected directory and is never committed.
 
-
-TaskBelay uses new npm package names. Existing public-version numbers and historical Tags do not prove publication under these names. Before publishing each package, confirm its npm ownership and configure its Trusted Publisher for the actual GitHub repository. Keep publication in the standalone release flow; a source rename does not publish a package.
+Before publishing each package, verify its npm ownership and Trusted Publisher for the actual GitHub repository. Use the standalone release flow for version commits, npm publication, Tags and GitHub Releases.
 
 ## Host Adapter output
 
@@ -34,7 +33,7 @@ TaskBelay 桌面包使用带 Xcode 27 的 ARM64 `xcode-27` 预览镜像。所有
 后续任务仍基于触发时的旧提交发布。发布工具链固定为 Go `1.26.5`、Node.js `24.18.0` 和 pnpm `11.24.0`，npm 发布只使用 Trusted Publishing OIDC，不生成依赖
 `NODE_AUTH_TOKEN` 的 registry 认证配置。
 
-新增的 Claude/ZCode 发布入口不代表 `taskbelay-claude`、`taskbelay-zcode` 已在 npm 完成首次发布或已配置 Trusted Publisher。首次启用前，包维护者须确认包名所有权、npm 侧的首次发布条件和认证方式，并分别配置上述 Trusted Publisher。仓库不自动创建 npm 包所有权或修改 npm 设置；在这些条件完成前，不能仅凭 Actions 中出现产品选项就认定可以发布。首次发布仍须明确选择产品、channel、精确版本，并通过独立发布入口完成固定检查与产物核对。
+每个产品发布前，维护者核对 npm 包所有权、对应的 Trusted Publisher、channel 和精确版本。工作流不会修改 npm 账号设置；发布入口只执行当前产品的固定检查、制备与发布。
 
 工作流仍调用下面的 standalone command，完成版本检查、构建产物检查、npm tarball 回读和 GitHub
 Release 资产处理，不运行 Host 或 Task 完整流程测试。每次运行都会上传 runner 临时目录中的构建产物；同一组
