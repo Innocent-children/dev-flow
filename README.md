@@ -40,9 +40,11 @@ directly is usually simpler.
 These commands use the TaskBelay package names and require the packages to be published. Before their first release, use the [local source installer](scripts/README_en.md#local-installation-testing), then follow the activation instructions for [Codex](docs/CODEX_en.md), [DeepSeek](docs/DEEPSEEK_en.md), [Claude Code](docs/CLAUDE_en.md), or [ZCode](docs/ZCODE_en.md). Local packages target Windows x64 and macOS arm64; native macOS ZCode validation remains pending.
 
 ```sh
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
+
+If `@imotong/taskbelay` is already installed globally, run `npm uninstall -g @imotong/taskbelay` before installing `taskbelay`: both packages provide the same command. Saved Task data remains in place.
 
 Choose your Host from the options offered by your installation entry. After setup, review and trust the TaskBelay hook in Codex `/hooks`, restart the selected DeepSeek Profile, or reload Claude plugins/start a new Claude session and review its permission prompts.
 

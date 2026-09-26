@@ -17,19 +17,21 @@
 ## 多数用户需要的推荐入口
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
+
+如果此前全局安装了 `@imotong/taskbelay`，先执行 `npm uninstall -g @imotong/taskbelay`，再安装 `taskbelay`；两个包都提供 `taskbelay` 命令，同时安装会产生 `EEXIST`。卸载旧包保留 Task 数据。
 
 安装后，Codex 使用 `$taskbelay-codex:taskbelay <任务描述>`，DeepSeek Harness 使用
 `/taskbelay <任务描述>`，Claude Code 使用 `/taskbelay-claude:taskbelay <任务描述>`。这些是 Host 对话 selector，不是 shell 命令。ZCode 在输入框的 `/` → Skills 中选择 `taskbelay` 后描述任务，见 [ZCode 指南](ZCODE.md)。
 
 ## 统一 Adapter 生命周期
 
-`@imotong/taskbelay` 提供 Host 无关的生命周期和 Control Center 入口：
+`taskbelay` 提供 Host 无关的生命周期和 Control Center 入口：
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
 
@@ -49,7 +51,7 @@ Core 缺失时，仅在没有 WebUI runtime receipt 的情况下继续清理；�
 
 | 入口 | 作用 |
 | --- | --- |
-| `npm install -g @imotong/taskbelay@latest` | 全局安装公共 `taskbelay` 命令。 |
+| `npm install -g taskbelay@latest` | 全局安装公共 `taskbelay` 命令。 |
 | `taskbelay` | 打开交互式 lifecycle 菜单。 |
 | `taskbelay status\|doctor --host codex\|deepseek\|claude\|zcode\|all` | 只读检查或诊断。 |
 | `taskbelay install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | 执行普通维护并保留配置与 Task 数据。 |
@@ -80,7 +82,7 @@ Core 缺失时，仅在没有 WebUI runtime receipt 的情况下继续清理；�
 
 执行前展示操作、当前/目标版本、资源路径和数据处理方式。JSON 模式从不询问；需要确认时返回 `confirmation` 与可复制的 `next_step`。显式数据目录在任何 Adapter 移除前完成确认。清理目录按 canonical 路径、文件系统身份和权限绑定，允许关闭受管服务时移除运行记录；单文件清理还核对大小和修改时间。
 
-安装、升级、修复和重装维护 Adapter；当管理器包内包含当前平台的桌面宠物应用时，还会更新用户目录中的应用副本，保留设置与形象素材。即使 Adapter 已健康且无需替换，应用更新仍会执行。公共入口及其包内应用通过 `npm install -g @imotong/taskbelay@latest` 更新。
+安装、升级、修复和重装维护 Adapter；当管理器包内包含当前平台的桌面宠物应用时，还会更新用户目录中的应用副本，保留设置与形象素材。即使 Adapter 已健康且无需替换，应用更新仍会执行。公共入口及其包内应用通过 `npm install -g taskbelay@latest` 更新。
 
 `status` 保留未安装目标，返回 Host 可用性、Adapter/Core 版本及问题；`doctor` 另外列出安装与配置检查，检查失败返回非零退出码。选择全部 Host 时，已有健康 Adapter 的情况下，未安装的可选 Adapter 仅列为未安装，不算故障。Codex 自检失败时仍读取 npm 安装信息以支持修复；DeepSeek 同时检查 Profile contribution、受管记录与实际 Core。未受管的现有 DeepSeek contribution 必须通过 `--adopt` 明确接管。
 
@@ -118,7 +120,7 @@ taskbelay status --host all
 
 ## 桌面宠物（macOS arm64 与 Windows x64）
 
-安装 `@imotong/taskbelay@latest` 获取包内 macOS arm64 与 Windows 10/11 x64 应用，并配置至少一个 Codex、DeepSeek、Claude 或 ZCode Adapter 提供 Core；Claude 的安装渠道见 [Host 指南](CLAUDE.md)。`install`、`upgrade`、`repair`、`reinstall` 更新应用副本并保留设置和形象，即使 Adapter 已是目标版本也执行。详见[桌面宠物指南](DESKTOP-PETS.md)。
+安装 `taskbelay@latest` 获取包内 macOS arm64 与 Windows 10/11 x64 应用，并配置至少一个 Codex、DeepSeek、Claude 或 ZCode Adapter 提供 Core；Claude 的安装渠道见 [Host 指南](CLAUDE.md)。`install`、`upgrade`、`repair`、`reinstall` 更新应用副本并保留设置和形象，即使 Adapter 已是目标版本也执行。详见[桌面宠物指南](DESKTOP-PETS.md)。
 
 | 命令 | 行为 |
 | --- | --- |

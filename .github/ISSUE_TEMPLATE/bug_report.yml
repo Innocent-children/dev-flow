@@ -17,7 +17,7 @@ body:
       label: Affected product / 受影响产品
       description: Select the entry where the problem is visible. / 选择直接出现问题的入口。
       options:
-        - "@imotong/taskbelay lifecycle CLI"
+        - "taskbelay lifecycle CLI"
         - "taskbelay-codex"
         - "taskbelay-deepseek"
         - "Core or local WebUI"

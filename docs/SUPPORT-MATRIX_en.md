@@ -15,7 +15,7 @@ TaskBelay package publication and installation checks belong to the standalone r
 | --- | --- | --- | --- |
 | `taskbelay-codex` | macOS arm64, Node.js `>=24` | Codex `>=0.147.0` | [npm](https://www.npmjs.com/package/taskbelay-codex) · [Releases](https://github.com/Innocent-children/taskbelay/releases) |
 | `taskbelay-deepseek` | macOS arm64, Node.js `>=24` | DSH `>=0.1.0-rc.6` | [npm](https://www.npmjs.com/package/taskbelay-deepseek) · [Releases](https://github.com/Innocent-children/taskbelay/releases) |
-| `@imotong/taskbelay` | macOS arm64, Node.js `>=20` | Target operations require an installed Codex or DSH | [npm](https://www.npmjs.com/package/@imotong/taskbelay) · [Releases](https://github.com/Innocent-children/taskbelay/releases) |
+| `taskbelay` | macOS arm64, Node.js `>=20` | Target operations require an installed Codex or DSH | [npm](https://www.npmjs.com/package/taskbelay) · [Releases](https://github.com/Innocent-children/taskbelay/releases) |
 
 Codex lifecycle test results covers package/Core identity, installation, setup, Core handshake, removal,
 uninstallation, and an unchanged repository. DeepSeek additionally covers explicit activation,
@@ -80,7 +80,7 @@ For current source capabilities, actual-environment test entry points, and adopt
 | macOS arm64 local development package | App build, unpacked resources, ad-hoc signature and executable permissions; native import/selection, controls, scaling and idle activities; targeted observer, artwork and playback checks | Minimum macOS execution, complete mouse-drag automation, full Codex/DeepSeek Task sessions, Developer ID signing and notarization are not established |
 | Windows 11 Intel x64 local development distribution | Core/WebUI, package assembly, native window, atlas import, singleton and stop; isolated lifecycle installation, reinstall and removal | Windows 10, AMD hardware, complete mouse-drag and sleep/wake interaction, full Codex/DeepSeek Task sessions and formal distribution signing remain unverified |
 
-Desktop packages target macOS arm64 and Windows 10/11 x64. macOS deployment metadata targets macOS 14; this is a build target, not proof of minimum-system execution. Current formal preparation includes both platform applications and default artwork in the `@imotong/taskbelay` npm package. A configured Adapter provides Core. Preparation alone does not establish a published or verified stable package.
+Desktop packages target macOS arm64 and Windows 10/11 x64. macOS deployment metadata targets macOS 14; this is a build target, not proof of minimum-system execution. Current formal preparation includes both platform applications and default artwork in the `taskbelay` npm package. A configured Adapter provides Core. Preparation alone does not establish a published or verified stable package.
 
 Historical desktop validation records are available through Git history. Windows environment, procedures and results are recorded in the [Windows report](WINDOWS-ADAPTATION_en.md). These local results do not expand the stable table above. Installation and artwork instructions belong in the [desktop pet guide](DESKTOP-PETS_en.md).
 

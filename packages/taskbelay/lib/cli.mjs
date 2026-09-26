@@ -234,7 +234,7 @@ export function renderHelp(operation = null, language = "en") {
     zh ? "install/repair/reinstall 默认保留已安装版本；upgrade 默认 latest。缺失项使用 latest。" : "install/repair/reinstall keep installed versions; upgrade defaults to latest. Missing installations use latest.",
     zh ? "非交互修改必须指定 --host；--yes 只确认普通维护。JSON 模式不询问，返回确认命令。" : "Non-interactive changes require --host; --yes confirms ordinary maintenance only. JSON never prompts and returns confirmation commands.",
     zh ? "--all-known-profiles 用于全部受管 Profile；安装时没有已知 Profile 则使用 web。" : "--all-known-profiles selects managed Profiles; install uses web when none exist.",
-    zh ? "维护对象是 TaskBelay Adapter；更新公共入口：npm install -g @imotong/taskbelay@latest" : "Commands maintain TaskBelay Adapters; update this launcher with npm install -g @imotong/taskbelay@latest",
+    zh ? "维护对象是 TaskBelay Adapter；更新公共入口：npm install -g taskbelay@latest" : "Commands maintain TaskBelay Adapters; update this launcher with npm install -g taskbelay@latest",
     "", "  taskbelay install --host codex --yes", "  taskbelay repair --host deepseek --profile web --yes", "  taskbelay factory-reset --host all --all-known-profiles", "",
   ].join("\n");
 }

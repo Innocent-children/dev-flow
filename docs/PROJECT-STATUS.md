@@ -15,7 +15,7 @@ TaskBelay 包名的发布与安装验证须通过独立发布流程完成。下�
 | --- | --- |
 | `taskbelay-codex` | macOS arm64、Node.js `>=24`、Codex `>=0.147.0` |
 | `taskbelay-deepseek` | macOS arm64、Node.js `>=24`、DSH `>=0.1.0-rc.6` |
-| `@imotong/taskbelay` | macOS arm64、Node.js `>=20` |
+| `taskbelay` | macOS arm64、Node.js `>=20` |
 
 稳定版本的测试记录包含 npm 安装包安装、Host/Core 就绪检查、移除、卸载，以及操作前后目标仓库
 内容保持不变。DeepSeek 还测试了显式触发、重启恢复、`DONE` 和保留数据后重新打开。具体 Release 和

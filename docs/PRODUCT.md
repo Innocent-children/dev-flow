@@ -101,7 +101,7 @@ DONE 或 CANCELLED 结束任务并释放仓库占用，不自动提交代码、�
 
 没有可展示任务时，宠物只显示角色，隐藏气泡与任务数量入口；任务出现后恢复气泡。点击角色仍可打开任务列表。
 
-桌面宠物由正式 `@imotong/taskbelay` npm 包提供，包含 macOS arm64 与 Windows 10/11 x64 应用和默认素材，运行时需要已配置的 Adapter 提供 Core。维护命令更新应用副本并保留设置与形象。桌面展示不代表 Host 实时活动或完成百分比。安装与素材说明见[桌面宠物指南](DESKTOP-PETS.md)。
+桌面宠物由正式 `taskbelay` npm 包提供，包含 macOS arm64 与 Windows 10/11 x64 应用和默认素材，运行时需要已配置的 Adapter 提供 Core。维护命令更新应用副本并保留设置与形象。桌面展示不代表 Host 实时活动或完成百分比。安装与素材说明见[桌面宠物指南](DESKTOP-PETS.md)。
 
 ## 产品边界
 

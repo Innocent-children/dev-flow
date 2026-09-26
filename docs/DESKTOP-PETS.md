@@ -14,7 +14,7 @@ Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实�
 
 下文 `productRoot` 指产品目录，macOS 默认是 `~/.taskbelay`；设置与形象保存在其中的 `pet/` 子目录。
 
-正式 `@imotong/taskbelay` npm 包包含 `runtime/darwin-arm64/TaskBelayPet.app` 与
+正式 `taskbelay` npm 包包含 `runtime/darwin-arm64/TaskBelayPet.app` 与
 `runtime/win32-x64/TaskBelayPet`，两个平台均携带九类动作、57 个 PNG 帧。
 运行已构建的应用无需编译器或 Electron 开发环境。Adapter 仍独立安装并提供 Core。
 正式制备由 macOS arm64 构建机编译 Swift、装配锁定的 Windows x64 Electron 运行时，
@@ -23,7 +23,7 @@ Swift Package 与应用 metadata 的部署目标为 macOS 14；最低系统实�
 ## npm 安装与启动
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay install
 taskbelay pet start
 ```
@@ -82,7 +82,7 @@ Windows 正式分发签名尚未验证。已记录的原生环境与结果见[�
 
 ```bash
 taskbelay pet stop
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay repair --host codex --yes
 taskbelay pet start
 ```
@@ -354,7 +354,7 @@ TaskBelay 导入成功不表示原图集能被 Codex 识别。需要同时在 Co
 
 | 现象 | 检查与处理 |
 | --- | --- |
-| 安装 Adapter 后没有宠物应用 | 安装 `@imotong/taskbelay@latest`，运行 `taskbelay install` 配置 Adapter 后执行 `taskbelay pet start`。 |
+| 安装 Adapter 后没有宠物应用 | 安装 `taskbelay@latest`，运行 `taskbelay install` 配置 Adapter 后执行 `taskbelay pet start`。 |
 | 更新程序后仍是原来的表现 | 更新 npm 包后运行 `taskbelay repair` 更新用户目录副本；程序更新与形象重导入是两步不同操作。 |
 | 其他形象没有散步、挥手或思考 | 查看安装副本的 `clips` 是否包含对应附加动作。只有五类动作的形象可正常展示任务，但不能播放未提供的素材。 |
 | 源图有九类，安装副本只有五类 | 确认运行的应用副本也已更新，再从包含完整图集的原始文件夹重新导入。程序只读取最近一次导入保存的帧，不会因升级自动补齐。 |

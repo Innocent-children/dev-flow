@@ -1,7 +1,7 @@
 # taskbelay Release
 
 日常发布从 GitHub Actions 手工运行 `publish-npm`，选择 `product=taskbelay`、`channel=stable` 和目标
-版本；工作流使用固定发布检查。npm 包 `@imotong/taskbelay` 把
+版本；工作流使用固定发布检查。npm 包 `taskbelay` 把
 `Innocent-children/taskbelay` 的 `publish-npm.yml` 配置为允许 `npm publish` 的 GitHub Actions
 Trusted Publisher；工作流通过 OIDC 认证，不使用长期 npm 发布 token。
 固定检查通过后，入口对齐 `packages/taskbelay/package.json` 到目标版本，再构建并校验完整桌面包；失败后可用相同输入重跑，Publisher 会回读远端状态。
@@ -18,7 +18,7 @@ Registry tarball read-back retries only propagation responses such as `ETARGET` 
 ten minutes; authentication failures and byte mismatches stop immediately.
 
 Before any remote command, the shared publisher checks exactly three regular non-symbolic-link
-files: `imotong-taskbelay-<VERSION>.tgz`, `release-manifest.json`, and `SHA256SUMS`. Product, version and
+files: `taskbelay-<VERSION>.tgz`, `release-manifest.json`, and `SHA256SUMS`. Product, version and
 source must match the selection, and the tarball bytes must match the saved manifest digest and its
 sole checksum entry. This product's current checksum format does not include the manifest. Missing,
 extra, duplicated, linked, or out-of-directory entries stop publication. Initial and resumed calls

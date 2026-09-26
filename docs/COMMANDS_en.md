@@ -23,19 +23,21 @@ explicitly confirmed release places those artifacts on the stable channel.
 ## Recommended entry for most users
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
+
+If `@imotong/taskbelay` is already installed globally, run `npm uninstall -g @imotong/taskbelay` before installing `taskbelay`. Both packages provide the `taskbelay` command, so installing them together returns `EEXIST`. Uninstalling the old package preserves Task data.
 
 After installation, Codex uses `$taskbelay-codex:taskbelay <task description>` and DeepSeek Harness
 uses `/taskbelay <task description>`; Claude Code uses `/taskbelay-claude:taskbelay <task description>`. These are conversational Host selectors, not shell commands. In ZCode, select `taskbelay` from the input’s `/` → Skills menu before describing the task; see the [ZCode guide](ZCODE_en.md).
 
 ## Unified Adapter lifecycle
 
-`@imotong/taskbelay` provides one Host-neutral lifecycle and Control Center entry:
+`taskbelay` provides one Host-neutral lifecycle and Control Center entry:
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
 
@@ -57,7 +59,7 @@ artifact, and readiness step; `--json` omits these progress lines.
 
 | Entry | Purpose |
 | --- | --- |
-| `npm install -g @imotong/taskbelay@latest` | Install the public `taskbelay` command globally. |
+| `npm install -g taskbelay@latest` | Install the public `taskbelay` command globally. |
 | `taskbelay` | Open the interactive lifecycle menu. |
 | `taskbelay status\|doctor --host codex\|deepseek\|claude\|zcode\|all` | Inspect or diagnose without mutation. |
 | `taskbelay install\|upgrade\|repair\|reinstall --host ... [--profile web] [--version latest] --yes` | Perform ordinary maintenance while preserving configuration and Task data. |
@@ -88,7 +90,7 @@ Explicit `--version` selects a target. Every version-replacement command require
 
 Before execution, the plan shows actions, current/target versions, resource paths and data handling. JSON never prompts: required confirmation returns `confirmation` and a copyable `next_step`. Explicit data-directory approval is checked before removing any Adapter. Cleanup directories bind canonical paths, filesystem identity and permissions, allowing managed shutdown to remove runtime records; individual file targets also bind size and modification time.
 
-Installation, upgrade, repair and reinstall maintain Adapters. When the manager package contains the desktop pet app for the current platform, these operations also refresh its copy in the user directory while preserving settings and appearance assets. This application update still runs when the Adapter is healthy and needs no replacement. Update the public launcher and its bundled apps with `npm install -g @imotong/taskbelay@latest`.
+Installation, upgrade, repair and reinstall maintain Adapters. When the manager package contains the desktop pet app for the current platform, these operations also refresh its copy in the user directory while preserving settings and appearance assets. This application update still runs when the Adapter is healthy and needs no replacement. Update the public launcher and its bundled apps with `npm install -g taskbelay@latest`.
 
 `status` retains absent targets and reports Host availability, Adapter/Core versions and issues. `doctor` adds installation and configuration checks and exits nonzero on failure. With all Hosts selected, an absent optional Adapter is informational when another Adapter is healthy. Codex self-check failures retain npm installation metadata for repair; DeepSeek checks Profile contribution, the managed receipt and the actual Core. An existing unmanaged DeepSeek contribution requires explicit `--adopt`.
 
@@ -129,7 +131,7 @@ Native Host commands remain available for diagnostic recovery.
 
 ## Desktop pet (macOS arm64 and Windows x64)
 
-Install `@imotong/taskbelay@latest` for the bundled macOS arm64 and Windows 10/11 x64 desktop apps. Configure at least one Codex, DeepSeek, Claude or ZCode Adapter to provide Core; see the [Host guide](CLAUDE_en.md) for Claude installation channels. `install`, `upgrade`, `repair` and `reinstall` refresh the application copy while preserving settings and appearances, even when the Adapter is already current. See the [desktop pet guide](DESKTOP-PETS_en.md).
+Install `taskbelay@latest` for the bundled macOS arm64 and Windows 10/11 x64 desktop apps. Configure at least one Codex, DeepSeek, Claude or ZCode Adapter to provide Core; see the [Host guide](CLAUDE_en.md) for Claude installation channels. `install`, `upgrade`, `repair` and `reinstall` refresh the application copy while preserving settings and appearances, even when the Adapter is already current. See the [desktop pet guide](DESKTOP-PETS_en.md).
 
 | Command | Behavior |
 | --- | --- |

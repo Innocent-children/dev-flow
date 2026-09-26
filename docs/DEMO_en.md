@@ -128,7 +128,7 @@ entire product. Source tests are also not support for the final public package. 
 ## Try the stable entry
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
 

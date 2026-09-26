@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/Innocent-children/taskbelay/main/packages/webui/src/assets/taskbelay-app-icon-light.svg" width="112" height="112" alt="TaskBelay" />
 </p>
 
-# @imotong/taskbelay
+# taskbelay
 
 This package installs and maintains TaskBelay integrations and provides the local WebUI and desktop pet commands. Development tasks are started from the chosen Host conversation.
 
@@ -11,9 +11,11 @@ This package installs and maintains TaskBelay integrations and provides the loca
 The public package installs the integrations available in its release:
 
 ```sh
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
+
+If `@imotong/taskbelay` is already installed globally, run `npm uninstall -g @imotong/taskbelay` first. Both packages provide the `taskbelay` command; removing the old package preserves Task data.
 
 Check the [support matrix](https://github.com/Innocent-children/taskbelay/blob/main/docs/SUPPORT-MATRIX_en.md) for released Host and platform coverage. The current source also includes Claude Code and ZCode. Follow the [Claude](https://github.com/Innocent-children/taskbelay/blob/main/docs/CLAUDE_en.md) or [ZCode](https://github.com/Innocent-children/taskbelay/blob/main/docs/ZCODE_en.md) source installation guide, or use a complete local development distribution that includes the current manager. An older public CLI does not acquire new Host options simply because a newer Adapter is installed.
 

@@ -2,7 +2,7 @@
 import PackageDescription
 
 // TaskBelayPet is the macOS arm64 desktop component shipped inside the unified
-// `@imotong/taskbelay` package. It reads the existing local WebUI HTTP interface
+// `taskbelay` package. It reads the existing local WebUI HTTP interface
 // and never owns Task or transition semantics; those stay in the Go Core.
 let package = Package(
     name: "TaskBelayPet",

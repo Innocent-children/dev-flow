@@ -107,7 +107,7 @@ DONE or CANCELLED ends the Task and releases repository claims without automatic
 
 When there are no tasks to display, only the character remains; task bubbles and the task count control are hidden. Bubbles return when tasks appear. Clicking the character still opens the task list.
 
-The formal `@imotong/taskbelay` npm package includes the macOS arm64 and Windows 10/11 x64 desktop apps and default artwork. A configured Adapter supplies Core. Maintenance commands refresh the app copy while preserving settings and appearances. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.
+The formal `taskbelay` npm package includes the macOS arm64 and Windows 10/11 x64 desktop apps and default artwork. A configured Adapter supplies Core. Maintenance commands refresh the app copy while preserving settings and appearances. Desktop presentation indicates neither live Host activity nor completion percentages. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation and artwork.
 
 ## Product boundaries
 

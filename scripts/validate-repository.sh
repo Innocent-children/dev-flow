@@ -443,6 +443,6 @@ run_step "DeepSeek package dry-pack" validate_package_pack packages/deepseek tas
 run_step "Claude Adapter tests" node --test packages/claude/tests/*.test.mjs
 run_step "ZCode Adapter tests" node --test packages/zcode/tests/*.test.mjs
 run_step "TaskBelay manager and public launcher tests" node --test packages/taskbelay/tests/*.test.mjs
-run_step "TaskBelay manager dry-pack" validate_package_pack packages/taskbelay @imotong/taskbelay taskbelay-source
+run_step "TaskBelay manager dry-pack" validate_package_pack packages/taskbelay taskbelay taskbelay-source
 
 printf '\nRepository validation passed.\n'

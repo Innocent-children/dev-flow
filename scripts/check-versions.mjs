@@ -24,7 +24,7 @@ export async function checkVersions(root = repositoryRoot()) {
   const codexVersion = packageVersion(codexPackage, "taskbelay-codex", "Codex package");
   const pluginVersion = packageVersion(codexPlugin, "taskbelay-codex", "Codex plugin");
   const deepseekVersion = packageVersion(deepseekPackage, "taskbelay-deepseek", "DeepSeek package");
-  const taskBelayVersion = packageVersion(taskBelayPackage, "@imotong/taskbelay", "TaskBelay CLI package");
+  const taskBelayVersion = packageVersion(taskBelayPackage, "taskbelay", "TaskBelay CLI package");
   const claudeVersion = packageVersion(await readJSON(join(root, "packages/claude/package.json")), "taskbelay-claude", "Claude package");
   const zcodeVersion = packageVersion(await readJSON(join(root, "packages/zcode/package.json")), "taskbelay-zcode", "ZCode package");
   if (packageVersion(await readJSON(join(root, "packages/zcode/.zcode-plugin/plugin.json")), "taskbelay-zcode", "ZCode plugin") !== zcodeVersion) throw new Error("ZCode plugin version must equal ZCode package version");

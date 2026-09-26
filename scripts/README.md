@@ -39,7 +39,7 @@ Windows CI 将 Codex、DeepSeek、ZCode 和统一管理器的包测试分别放�
 
 ## 本地安装测试
 
-下面一条命令会构建 WebUI 和 bundled Core，在仓库外的临时目录生成 `@imotong/taskbelay`、
+下面一条命令会构建 WebUI 和 bundled Core，在仓库外的临时目录生成 `taskbelay`、
 `taskbelay-codex`、`taskbelay-deepseek`、`taskbelay-claude` 与 `taskbelay-zcode` tarball，再从本地 tarball 启动统一安装菜单：
 
 ```bash

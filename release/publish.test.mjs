@@ -280,7 +280,7 @@ test("release presentation names every product and links immutable release detai
     { product: "deepseek", title: "TaskBelay for DeepSeek Harness v0.7.8", packageName: "taskbelay-deepseek", guidePath: "packages/deepseek/README.md", bundlesCore: true },
     { product: "claude", title: "TaskBelay for Claude Code v0.7.8", packageName: "taskbelay-claude", guidePath: "packages/claude/README.md", bundlesCore: true },
     { product: "zcode", title: "TaskBelay for ZCode v0.7.8", packageName: "taskbelay-zcode", guidePath: "packages/zcode/README.md", bundlesCore: true },
-    { product: "taskbelay", title: "TaskBelay CLI v0.7.8", packageName: "@imotong/taskbelay", guidePath: "packages/taskbelay/README.md", bundlesCore: false },
+    { product: "taskbelay", title: "TaskBelay CLI v0.7.8", packageName: "taskbelay", guidePath: "packages/taskbelay/README.md", bundlesCore: false },
   ];
 
   for (const item of cases) {
@@ -412,7 +412,7 @@ async function releaseFixture(t, product, releaseVersion = version) {
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(directory);
   const sourceCommit = "a".repeat(40), coreVersion = "0.8.5", bundlesCore = product !== "taskbelay";
-  const tarballName = `${bundlesCore ? `taskbelay-${product}` : "imotong-taskbelay"}-${releaseVersion}.tgz`;
+  const tarballName = `${bundlesCore ? `taskbelay-${product}` : "taskbelay"}-${releaseVersion}.tgz`;
   const names = [tarballName, ...(bundlesCore ? [`taskbelay-core-${coreVersion}-darwin-arm64`, `taskbelay-core-${coreVersion}-windows-amd64.exe`] : [])];
   const files = new Map(names.map(name => [name, Buffer.from(`prepared ${name}\n`)]));
   const digest = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -443,7 +443,7 @@ function fakeRemote(fixture) {
     }
     if (command === "npm") {
       if (["view", "pack"].includes(args[0])) {
-        const expectedName = fixture.selection.product === "taskbelay" ? "@imotong/taskbelay" : `taskbelay-${fixture.selection.product}`;
+        const expectedName = fixture.selection.product === "taskbelay" ? "taskbelay" : `taskbelay-${fixture.selection.product}`;
         assert.equal(args[1], `${expectedName}@${fixture.selection.version}`);
       }
       if (args[0] === "view") {

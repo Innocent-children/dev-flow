@@ -18,7 +18,7 @@ test("package README displays the public TaskBelay icon", async () => {
 
 test("manifest exposes one dependency-free public macOS arm64 and Windows x64 TaskBelay package", async () => {
   const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
-  assert.equal(manifest.name, "@imotong/taskbelay");
+  assert.equal(manifest.name, "taskbelay");
   assert.match(manifest.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
   assert.equal(manifest.private, false);
   assert.equal(manifest.license, "Apache-2.0");

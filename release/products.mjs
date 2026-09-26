@@ -32,7 +32,7 @@ export const releaseProducts = Object.freeze({
     bundlesCore: true,
   },
   "taskbelay": {
-    packageName: "@imotong/taskbelay",
+    packageName: "taskbelay",
     tagPrefix: "taskbelay-v",
     releaseName: "TaskBelay CLI",
     guideName: "lifecycle CLI guide",

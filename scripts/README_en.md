@@ -41,7 +41,7 @@ Tests are separated by the environment they actually require:
 
 ## Local installation testing
 
-This one command builds the WebUI and bundled Core, creates `@imotong/taskbelay`, `taskbelay-codex`,
+This one command builds the WebUI and bundled Core, creates `taskbelay`, `taskbelay-codex`,
 `taskbelay-deepseek`, `taskbelay-claude` and `taskbelay-zcode` tarballs in a temporary directory outside the repository, and starts the
 unified install menu from the local tarball:
 

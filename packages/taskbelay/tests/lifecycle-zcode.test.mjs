@@ -92,7 +92,7 @@ async function lifecycleFixture(t, phase = "absent") {
   t.after(() => rm(root, { recursive: true, force: true }));
   const home = join(root, "home"), packageRoot = join(root, "manager");
   await mkdir(home); await mkdir(packageRoot);
-  await writeFile(join(packageRoot, "package.json"), '{"name":"@imotong/taskbelay"}\n');
+  await writeFile(join(packageRoot, "package.json"), '{"name":"taskbelay"}\n');
   const paths = await resolveManagerPaths({ homeDirectory: home, environment: {}, platform: process.platform, arch: process.arch });
   await mkdir(paths.configurationDirectory, { recursive: true });
   await mkdir(paths.defaultDataDirectory, { recursive: true });

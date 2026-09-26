@@ -120,6 +120,6 @@ pnpm run release:taskbelay -- --version "<TASKBELAY_VERSION>" --output "<ABSOLUT
   --confirm "taskbelay-v<TASKBELAY_VERSION>"
 ```
 
-For `@imotong/taskbelay`, preparation includes both desktop applications and their default artwork. The macOS release job compiles Swift and assembles the locked Windows x64 Electron distribution; it verifies the final extracted npm package before publication. No Core or local Adapter archives are bundled in this product. See [TaskBelay CLI release](taskbelay/README.md) for toolchain and signing limits.
+For `taskbelay`, preparation includes both desktop applications and their default artwork. The macOS release job compiles Swift and assembles the locked Windows x64 Electron distribution; it verifies the final extracted npm package before publication. No Core or local Adapter archives are bundled in this product. See [TaskBelay CLI release](taskbelay/README.md) for toolchain and signing limits.
 
-`@imotong/taskbelay` 制备包含两个平台的桌面应用与默认素材。macOS 发布 job 编译 Swift 并装配锁定的 Windows x64 Electron，在发布前验证最终 npm 解包结果。此产品不内置 Core 或本地 Adapter 归档。工具链与签名限制见 [TaskBelay CLI 发布说明](taskbelay/README.md)。
+`taskbelay` 制备包含两个平台的桌面应用与默认素材。macOS 发布 job 编译 Swift 并装配锁定的 Windows x64 Electron，在发布前验证最终 npm 解包结果。此产品不内置 Core 或本地 Adapter 归档。工具链与签名限制见 [TaskBelay CLI 发布说明](taskbelay/README.md)。

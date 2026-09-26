@@ -109,7 +109,7 @@ Adapter 不直接重复提交，而是用 Task ID 和 Action ID 读取当前 Tas
 ## 试用稳定入口
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
 

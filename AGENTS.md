@@ -103,7 +103,7 @@ Translate narrative text and example task descriptions naturally. Do not leave p
 translations, untranslated sections, or whole-section English fallbacks. Incomplete required
 translations mean the change is not ready to merge.
 
-Public npm installation examples use `@imotong/taskbelay@latest`, `taskbelay-codex@latest`, or
+Public npm installation examples use `taskbelay@latest`, `taskbelay-codex@latest`, or
 `taskbelay-deepseek@latest` as appropriate. Exact Core, Codex, DeepSeek, Claude, ZCode, and TaskBelay CLI release
 versions belong in machine-readable version files, package metadata, Release Tags, artifact digests,
 and release records. A version-only release updates those records rather than README prose.

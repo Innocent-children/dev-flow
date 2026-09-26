@@ -107,7 +107,7 @@ export async function prepareTaskBelay({ outputRoot, sourceCommit }) {
     const bytes = gzipSync(normalizeUstarArchive(await readFile(archive), new Set([
       "package/bin/taskbelay.mjs", `package/${desktopApplications[0]}/Contents/MacOS/TaskBelayPet`,
     ])), { level: 9, mtime: 0 });
-    const tarball = join(output, `imotong-taskbelay-${manifest.version}.tgz`);
+    const tarball = join(output, `taskbelay-${manifest.version}.tgz`);
     await writeFile(tarball, bytes);
     await chmod(tarball, 0o644);
     const extracted = join(work, "extracted");

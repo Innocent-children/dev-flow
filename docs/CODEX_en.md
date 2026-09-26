@@ -16,7 +16,7 @@ exact `darwin-arm64` and `win32-x64` runtimes; the package requires Node.js `>=2
 itself expand npm `@latest` support.
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
 
@@ -172,7 +172,7 @@ See [Product](PRODUCT_en.md), [Architecture](ARCHITECTURE_en.md), [WebUI](WEBUI_
 
 ## Desktop task entry
 
-The public `@imotong/taskbelay` npm package includes desktop pet apps for macOS arm64 and Windows 10/11 x64. A configured Adapter supplies Core at runtime. The pet reads saved Task state and opens the selected Task in WebUI; it does not indicate live Host activity or completion percentages. The manager's install, upgrade, repair and reinstall operations refresh the application copy in the user directory while preserving settings and appearance assets. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, controls, updates and appearances.
+The public `taskbelay` npm package includes desktop pet apps for macOS arm64 and Windows 10/11 x64. A configured Adapter supplies Core at runtime. The pet reads saved Task state and opens the selected Task in WebUI; it does not indicate live Host activity or completion percentages. The manager's install, upgrade, repair and reinstall operations refresh the application copy in the user directory while preserving settings and appearance assets. See the [desktop pet guide](DESKTOP-PETS_en.md) for installation, controls, updates and appearances.
 
 ## Completion and recovery
 

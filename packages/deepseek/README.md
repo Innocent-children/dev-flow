@@ -35,7 +35,7 @@ runtime selector 会拒绝除 `darwin-arm64` 和 `win32-x64` 之外的运行时�
 DSH 是前置 Host。推荐使用统一 lifecycle 入口，并选择真实 Profile；默认是 `web`：
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
 
@@ -213,7 +213,7 @@ Repository Scope、路径格式和协议规则见[架构](../../docs/ARCHITECTUR
 
 ## 桌面任务入口
 
-正式 `@imotong/taskbelay` npm 包提供 macOS arm64 与 Windows 10/11 x64 桌面宠物应用，运行时由已配置的 Adapter 提供 Core。宠物读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
+正式 `taskbelay` npm 包提供 macOS arm64 与 Windows 10/11 x64 桌面宠物应用，运行时由已配置的 Adapter 提供 Core。宠物读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
 
 ## 完成与恢复
 

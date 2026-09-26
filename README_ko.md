@@ -39,9 +39,11 @@ Codex, DeepSeek, Claude Code 또는 ZCode와 함께 사용합니다. 코드를 �
 아래 npm 명령은 TaskBelay 패키지 이름을 사용하므로 해당 패키지가 게시된 후 사용할 수 있습니다. 첫 게시 전에는 [로컬 소스 설치 도구](scripts/README_en.md#local-installation-testing)를 사용한 다음 [Codex](docs/CODEX_en.md), [DeepSeek](docs/DEEPSEEK_en.md), [Claude Code](docs/CLAUDE_en.md), [ZCode](docs/ZCODE_en.md)의 활성화 안내를 따르세요. 로컬 패키지는 Windows x64와 macOS arm64를 대상으로 하며, macOS ZCode의 실제 환경 검증은 아직 남아 있습니다.
 
 ```sh
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
+
+`@imotong/taskbelay`를 전역 설치했다면 `taskbelay`를 설치하기 전에 `npm uninstall -g @imotong/taskbelay`를 실행하세요. 두 패키지가 같은 명령을 제공하며, 저장된 Task 데이터는 삭제되지 않습니다.
 
 사용하는 설치 메뉴에서 해당 Host를 선택하세요. Codex는 `/hooks`에서 TaskBelay hook을 검토하고 신뢰하며, DeepSeek는 선택한 Profile을 다시 시작합니다. Claude Code는 플러그인을 다시 불러오거나 새 대화를 열고 권한 안내를 확인하세요.
 

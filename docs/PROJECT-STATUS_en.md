@@ -16,7 +16,7 @@ TaskBelay package publication and installation checks belong to the standalone r
 | --- | --- |
 | `taskbelay-codex` | macOS arm64, Node.js `>=24`, Codex `>=0.147.0` |
 | `taskbelay-deepseek` | macOS arm64, Node.js `>=24`, DSH `>=0.1.0-rc.6` |
-| `@imotong/taskbelay` | macOS arm64, Node.js `>=20` |
+| `taskbelay` | macOS arm64, Node.js `>=20` |
 
 Stable lifecycle records cover registry-package installation, Host/Core readiness, removal,
 uninstallation, and an unchanged target repository. The DeepSeek stable end-to-end test also covers explicit

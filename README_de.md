@@ -40,9 +40,11 @@ gespeicherten Fortschritt ist die direkte Nutzung von Codex, DeepSeek, Claude Co
 Diese npm-Befehle verwenden die TaskBelay-Paketnamen und setzen veröffentlichte Pakete voraus. Bis zur ersten Veröffentlichung nutze das [lokale Installationsprogramm aus dem Quellcode](scripts/README_en.md#local-installation-testing) und dann die Anleitungen zur Aktivierung für [Codex](docs/CODEX_en.md), [DeepSeek](docs/DEEPSEEK_en.md), [Claude Code](docs/CLAUDE_en.md) oder [ZCode](docs/ZCODE_en.md). Lokale Pakete zielen auf Windows x64 und macOS arm64; die native Prüfung von ZCode unter macOS steht noch aus.
 
 ```sh
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
+
+Falls `@imotong/taskbelay` bereits global installiert ist, führe vor der Installation von `taskbelay` den Befehl `npm uninstall -g @imotong/taskbelay` aus: Beide Pakete stellen denselben Befehl bereit. Gespeicherte Task-Daten bleiben erhalten.
 
 Wähle deinen Host aus den Optionen des verwendeten Installers. Prüfe und bestätige in Codex den TaskBelay-Hook unter `/hooks`; starte in DeepSeek das gewählte Profile neu. Lade in Claude Code die Plugins neu oder beginne eine neue Unterhaltung und prüfe die angeforderten Berechtigungen.
 

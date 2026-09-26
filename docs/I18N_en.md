@@ -65,7 +65,7 @@ English or Simplified Chinese content.
 Public installation examples use npm's stable channel:
 
 ```text
-@imotong/taskbelay@latest
+taskbelay@latest
 taskbelay-codex@latest
 taskbelay-deepseek@latest
 ```

@@ -1,5 +1,5 @@
 {
-  "name": "@imotong/taskbelay",
+  "name": "taskbelay",
   "version": "0.3.4",
   "private": false,
   "description": "Unified lifecycle manager for TaskBelay Codex, DeepSeek, Claude Code and ZCode adapters.",

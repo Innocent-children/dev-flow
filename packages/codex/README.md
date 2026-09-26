@@ -35,7 +35,7 @@ launcher 会拒绝除 `darwin-arm64` 和 `win32-x64` 之外的运行时对。
 推荐使用统一 lifecycle 入口：
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
 
@@ -51,7 +51,7 @@ taskbelay-codex --version
 
 `setup` 在缺少固定用户配置时创建 macOS 的 `$HOME/.taskbelay/config.json` 或 Windows 的
 `%USERPROFILE%\.taskbelay\config.json`，初始内容为 `{}`，默认偏好由 Core 解释。已有配置先经过路径、文件类型和权限检查，再由包内 Core 校验内容；合法配置保持原样，包括 DeepSeek 和 Claude 的设置。`setup` 验证 package、bundled Core 和 Codex 兼容性后注册
-marketplace、Plugin 与 MCP。桌面宠物应用由正式 `@imotong/taskbelay` npm 包提供，安装与启动见下方“桌面任务入口”。默认 Task 数据在 macOS 位于 `$HOME/.taskbelay/data`，Windows 位于 `%LOCALAPPDATA%\taskbelay\data`。所有参数和机器可读输出见
+marketplace、Plugin 与 MCP。桌面宠物应用由正式 `taskbelay` npm 包提供，安装与启动见下方“桌面任务入口”。默认 Task 数据在 macOS 位于 `$HOME/.taskbelay/data`，Windows 位于 `%LOCALAPPDATA%\taskbelay\data`。所有参数和机器可读输出见
 [命令参考](../../docs/COMMANDS.md#codex)。
 
 `setup` 完成后先在 Codex `/hooks` 中审核并信任 TaskBelay packaged hook；未信任时 Codex 会跳过
@@ -216,7 +216,7 @@ Repository Scope、worktree 分派和协议规则见[架构](../../docs/ARCHITEC
 
 ## 桌面任务入口
 
-正式 `@imotong/taskbelay` npm 包提供 macOS arm64 与 Windows 10/11 x64 桌面宠物应用，运行时由已配置的 Adapter 提供 Core。宠物读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
+正式 `taskbelay` npm 包提供 macOS arm64 与 Windows 10/11 x64 桌面宠物应用，运行时由已配置的 Adapter 提供 Core。宠物读取 Task 保存状态并打开对应 WebUI，不代表 Host 实时活动或完成百分比。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作、更新和形象使用见[桌面宠物指南](../../docs/DESKTOP-PETS.md)。
 
 ## 完成与恢复
 

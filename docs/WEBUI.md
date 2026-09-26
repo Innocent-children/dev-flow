@@ -105,7 +105,7 @@ React、TypeScript 和 Vite 只参与构建；静态资产嵌入 Core binary，�
 
 ## 桌面入口与文件错误
 
-桌面宠物可以打开所选 Task 的 WebUI。正式 `@imotong/taskbelay` npm 包提供 macOS arm64 与 Windows 10/11 x64 应用，运行时由已配置的 Adapter 提供 Core。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作和形象说明见[桌面宠物指南](DESKTOP-PETS.md)。
+桌面宠物可以打开所选 Task 的 WebUI。正式 `taskbelay` npm 包提供 macOS arm64 与 Windows 10/11 x64 应用，运行时由已配置的 Adapter 提供 Core。统一入口的安装、升级、修复和重装会更新用户目录中的应用副本，并保留设置与形象素材。安装、操作和形象说明见[桌面宠物指南](DESKTOP-PETS.md)。
 
 提交流程文件漏报时，页面分别展示遗漏的仓库路径和请求字段错误。只有 Core 确认零写入并明确允许时，才能仅纠正列出的 artifact 字段一次。工作树与历史异常继续使用对应恢复规则。集成字段见[文件收集与提交](ARTIFACTS.md)。
 

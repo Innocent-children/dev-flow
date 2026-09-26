@@ -39,9 +39,11 @@ Belay 是攀岩中的绳索保护：攀登者自己选择路线，保护者控�
 以下 npm 命令使用 TaskBelay 包名，需要相应包完成发布。首次发布前使用[源码本地安装](scripts/README.md#本地安装测试)，再按 [Codex](packages/codex/README.md)、[DeepSeek](packages/deepseek/README.md)、[Claude Code](docs/CLAUDE.md) 或 [ZCode](docs/ZCODE.md) 指南启用对应 Host。本地包面向 Windows x64 和 macOS arm64；macOS ZCode 实机验证仍待完成。
 
 ```sh
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay
 ```
+
+如果已全局安装 `@imotong/taskbelay`，请先运行 `npm uninstall -g @imotong/taskbelay`，再安装 `taskbelay`：两个包都提供同名命令。已保存的 Task 数据不会因此删除。
 
 在所用安装入口中选择对应 Host。Codex 安装后在 `/hooks` 中检查并信任 TaskBelay hook；DeepSeek 重启所选 Profile；Claude Code 重载插件或开始新会话，并按提示审阅权限。
 

@@ -39,6 +39,6 @@ test("a declared development distribution binds both artifact paths and bytes", 
 test("a registry distribution does not select undeclared local artifacts",async t=>{
   const root=await mkdtemp(join(tmpdir(),"taskbelay-registry-source-"));
   t.after(()=>rm(root,{recursive:true,force:true}));
-  await writeFile(join(root,"package.json"),JSON.stringify({name:"@imotong/taskbelay"}));
+  await writeFile(join(root,"package.json"),JSON.stringify({name:"taskbelay"}));
   assert.equal(await readLocalPackages(root),null);
 });

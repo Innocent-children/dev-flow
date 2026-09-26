@@ -14,7 +14,7 @@ formal distribution verification. See the [support matrix](SUPPORT-MATRIX_en.md#
 
 Below, `productRoot` means the product directory, which defaults to `~/.taskbelay` on macOS; settings and appearances live in its `pet/` subdirectory.
 
-The formal `@imotong/taskbelay` npm package includes `runtime/darwin-arm64/TaskBelayPet.app` and
+The formal `taskbelay` npm package includes `runtime/darwin-arm64/TaskBelayPet.app` and
 `runtime/win32-x64/TaskBelayPet`, each with nine default actions and 57 PNG frames.
 Running the built application requires no compiler or Electron development environment. An independently installed Adapter provides Core.
 Formal preparation on macOS arm64 compiles Swift, assembles the locked Windows x64 Electron runtime,
@@ -23,7 +23,7 @@ and checks versions, architectures, artwork and the extracted package files. mac
 ## npm installation and startup
 
 ```bash
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay install
 taskbelay pet start
 ```
@@ -82,7 +82,7 @@ Update the npm package, then refresh the installed application copy through a ma
 
 ```bash
 taskbelay pet stop
-npm install -g @imotong/taskbelay@latest
+npm install -g taskbelay@latest
 taskbelay repair --host codex --yes
 taskbelay pet start
 ```
@@ -365,7 +365,7 @@ Packs contain presentation data, not executable scripts.
 
 | Symptom | Checks and action |
 | --- | --- |
-| Installing an Adapter did not provide the pet app | Install `@imotong/taskbelay@latest`, configure an Adapter with `taskbelay install`, then run `taskbelay pet start`. |
+| Installing an Adapter did not provide the pet app | Install `taskbelay@latest`, configure an Adapter with `taskbelay install`, then run `taskbelay pet start`. |
 | Updated package still shows old behavior | Run `taskbelay repair` after updating npm to refresh the user-directory copy; reimport artwork separately. |
 | Another appearance cannot walk, wave, or think | Check whether its installed `clips` includes those additional animations. A five-clip appearance can show tasks normally but cannot play artwork it does not contain. |
 | The source has nine clips but the installed copy has five | Confirm that the running app copy was updated too, then reimport the original folder containing the complete atlas. The app loads frames saved by the latest import; upgrades do not automatically add missing clips. |
