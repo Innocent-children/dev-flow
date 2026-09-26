@@ -11,6 +11,6 @@ files record build output and are not a source-authority surface.
 
 Repository-owned brand SVGs live under `packages/webui/src/assets/`. Root README headers use the serif
 `taskbelay-wordmark.svg` and `taskbelay-wordmark-dark.svg`; package README headers use
-`taskbelay-app-icon-light.svg`. The shell and favicon use the circular TB mark in `taskbelay-mark-32.svg`
-and `taskbelay-mark-32-dark.svg`, selected by the system color scheme. Vite copies the runtime marks in
-hashed form into this generated boundary.
+`taskbelay-app-icon-light.svg`. The shell and favicon use this same yellow-green application icon in
+both light and dark color schemes. Vite copies the runtime icon in hashed form into this generated
+boundary.
